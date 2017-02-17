@@ -2,6 +2,7 @@ package utils.io;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -249,12 +250,12 @@ public class IOUtils {
 //			return ois.readObject();
 //		}
 //	}
-//	
-//	public static String stringify(byte[] bytes) {
-//		return Base64.getEncoder().encodeToString(bytes);
-//	}
-//	
-//	public static byte[] destringify(String encoded) {
-//		return Base64.getDecoder().decode(encoded);
-//	}
+	
+	public static String stringify(byte[] bytes) {
+		return Base64.getEncoder().encodeToString(bytes);
+	}
+	
+	public static byte[] destringify(String encoded) {
+		return Base64.getDecoder().decode(encoded);
+	}
 }
