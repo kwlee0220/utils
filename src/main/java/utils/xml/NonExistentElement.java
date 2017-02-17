@@ -39,6 +39,11 @@ final class NonExistentElement implements FluentElement {
 	public FluentElement parent() {
 		return m_parent;
 	}
+
+	@Override
+	public String localName() {
+		return get().getLocalName();
+	}
 	
 	public FluentElement with(Consumer<FluentElement> consumer) {
 		return this;

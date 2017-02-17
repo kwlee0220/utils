@@ -6,7 +6,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
@@ -16,19 +15,45 @@ import org.w3c.dom.Node;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface FluentElement extends FluentNode {
+	/**
+	 * 본 FluentElement에 해당하는 DOM {@link Element} 객체를 반환한다.
+	 * 
+	 * @return	DOM Element 객체.
+	 */
 	public Element get();
+	
+	/**
+	 * 본 FluentElement의 부모 노드를 반환한다.
+	 * 
+	 * @return	부모 노트
+	 */
 	public FluentElement parent();
 
+	/**
+	 * 본 FluentElement에 해당하는 DOM {@link Node} 객체를 반환한다.
+	 * 
+	 * @return	DOM Node 객체.
+	 */
 	@Override
 	public default Node asNode() {
 		return get();
 	}
 	
-	public boolean exists();
-	
-	public default Document getDocument() {
-		return get().getOwnerDocument();
+	/**
+	 * 본 FluentElement의 FluentDocument 노드를 반환한다.
+	 * 
+	 * @return	부모 노트
+	 */
+	public default FluentDocument getDocument() {
+		return new FluentDocument(get().getOwnerDocument());
 	}
+	
+	/**
+	 * 본 FluentElement가 XML 문제가 존재하는지 여부를 반환한다.
+	 * 
+	 * @return	존재 여부.
+	 */
+	public boolean exists();
 
 	public default String localName() {
 		return get().getLocalName();
