@@ -148,49 +148,6 @@ public class IOUtils {
 //		
 //		return length;
 //	}
-//	
-//    private static final int transfer(ZipInputStream is, OutputStream os, int bufSize)
-//    	throws IOException {
-//        byte[] buf = new byte[bufSize];
-//
-//        int count = 0;
-//        for ( int nbytes = is.read(buf); nbytes >= 0; nbytes = is.read(buf) ) {
-//            os.write(buf, 0, nbytes);
-//            count += nbytes;
-//        }
-//
-//        return count;
-//    }
-//    
-//    public static final void zipDir(File targetDir, ZipOutputStream zos) throws IOException  {
-//    	zipDir(targetDir, targetDir.getPath().length() + 1, zos);
-//    }
-//    
-//    private static final void zipDir(File targetDir, int prefixLength, ZipOutputStream zos)
-//    	throws IOException  {
-//		int nbytes = 0;
-//		byte[] buf = new byte[8<<10];
-//	
-//		for ( String fileName: targetDir.list() ) {
-//			File file = new File(targetDir, fileName);
-//			if ( file.isDirectory() ) {
-//				zipDir(file, prefixLength, zos);
-//				continue;
-//			}
-//			
-//			FileInputStream fis = new FileInputStream(file);
-//			try {
-//    			ZipEntry entry = new ZipEntry(file.getPath().substring(prefixLength));
-//    			zos.putNextEntry(entry);
-//    			while ( (nbytes = fis.read(buf)) != -1 ) {
-//    				zos.write(buf, 0, nbytes);
-//    			}
-//			}
-//			finally {
-//				fis.close();
-//			}
-//		}
-//    }
 	
 	public static byte[] compress(byte[] bytes) throws IOException {
 		Deflater deflater = new Deflater();
