@@ -1,7 +1,11 @@
 package utils.io;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.Base64;
 import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
@@ -190,23 +194,23 @@ public class IOUtils {
 		return output;  
 	}
 	
-//	public static byte[] serialize(Serializable obj) throws IOException {
-//		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//		try ( ObjectOutputStream oos = new ObjectOutputStream(baos) ) {
-//			oos.writeObject(obj);
-//		}
-//		baos.close();
-//		
-//		return baos.toByteArray();
-//	}
-//	
-//	public static Object deserialize(byte[] serialized)
-//		throws IOException, ClassNotFoundException {
-//		try ( ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-//				ObjectInputStream ois = new ObjectInputStream(bais); ) {
-//			return ois.readObject();
-//		}
-//	}
+	public static byte[] serialize(Serializable obj) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try ( ObjectOutputStream oos = new ObjectOutputStream(baos) ) {
+			oos.writeObject(obj);
+		}
+		baos.close();
+		
+		return baos.toByteArray();
+	}
+	
+	public static Object deserialize(byte[] serialized)
+		throws IOException, ClassNotFoundException {
+		try ( ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
+				ObjectInputStream ois = new ObjectInputStream(bais); ) {
+			return ois.readObject();
+		}
+	}
 	
 	public static String stringify(byte[] bytes) {
 		return Base64.getEncoder().encodeToString(bytes);

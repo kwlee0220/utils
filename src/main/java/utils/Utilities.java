@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -66,7 +67,6 @@ public class Utilities {
 		return StreamSupport.stream(Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED), false);
 	}
 
-/*
 	public static <T,U> U mapIfNotNull(T value, Function<T,U> func) {
 		if ( value != null ) {
 			return func.apply(value);
@@ -75,7 +75,8 @@ public class Utilities {
 			return null;
 		}
 	}
-	
+
+/*
 	public static <T> boolean consumeIfNotNull(T value, Consumer<T> consumer) {
 		if ( value != null ) {
 			consumer.accept(value);
