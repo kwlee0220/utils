@@ -1,6 +1,11 @@
 package utils.io;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.stream.Stream;
+import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 /**
  * 
@@ -185,48 +190,48 @@ public class IOUtils {
 //			}
 //		}
 //    }
-//	
-//	public static byte[] compress(byte[] bytes) throws IOException {
-//		Deflater deflater = new Deflater();
-//		deflater.setInput(bytes);
-//		
-//		ByteArrayOutputStream baos = null;
-//		try {
-//			baos = new ByteArrayOutputStream(bytes.length);
-//			
-//			deflater.finish();
-//			byte[] buffer = new byte[1024];
-//			while ( !deflater.finished() ) {
-//				int count = deflater.deflate(buffer);
-//				baos.write(buffer, 0, count);
-//			}
-//		}
-//		finally {
-//			IOUtils.closeQuietly(baos);
-//		}
-//		byte[] deflateds = baos.toByteArray();
-//		deflater.end();
-//		
-//		return deflateds;
-//	}
-//	
-//	public static byte[] decompress(byte[] bytes) throws IOException, DataFormatException {
-//		Inflater inflater = new Inflater();
-//		inflater.setInput(bytes);
-//		
-//		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(bytes.length);
-//		byte[] buffer = new byte[1024];
-//		while ( !inflater.finished() ) {
-//			int count = inflater.inflate(buffer);
-//			outputStream.write(buffer, 0, count);
-//		}
-//		outputStream.close();
-//		byte[] output = outputStream.toByteArray();
-//		
-//		inflater.end(); 
-//		return output;  
-//	}
-//	
+	
+	public static byte[] compress(byte[] bytes) throws IOException {
+		Deflater deflater = new Deflater();
+		deflater.setInput(bytes);
+		
+		ByteArrayOutputStream baos = null;
+		try {
+			baos = new ByteArrayOutputStream(bytes.length);
+			
+			deflater.finish();
+			byte[] buffer = new byte[1024];
+			while ( !deflater.finished() ) {
+				int count = deflater.deflate(buffer);
+				baos.write(buffer, 0, count);
+			}
+		}
+		finally {
+			IOUtils.closeQuietly(baos);
+		}
+		byte[] deflateds = baos.toByteArray();
+		deflater.end();
+		
+		return deflateds;
+	}
+	
+	public static byte[] decompress(byte[] bytes) throws IOException, DataFormatException {
+		Inflater inflater = new Inflater();
+		inflater.setInput(bytes);
+		
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(bytes.length);
+		byte[] buffer = new byte[1024];
+		while ( !inflater.finished() ) {
+			int count = inflater.inflate(buffer);
+			outputStream.write(buffer, 0, count);
+		}
+		outputStream.close();
+		byte[] output = outputStream.toByteArray();
+		
+		inflater.end(); 
+		return output;  
+	}
+	
 //	public static byte[] serialize(Serializable obj) throws IOException {
 //		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 //		try ( ObjectOutputStream oos = new ObjectOutputStream(baos) ) {
