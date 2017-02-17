@@ -1,8 +1,13 @@
 package utils;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Set;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.concurrent.Executor;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.google.common.collect.Sets;
 
@@ -46,7 +51,6 @@ public class Utilities {
 		return intfcSet;
 	}
 	
-/*
 	public static <T> Stream<T> stream(Iterable<T> it) {
 		return StreamSupport.stream(it.spliterator(), false);
 	}
@@ -54,7 +58,8 @@ public class Utilities {
 	public static <T> Stream<T> stream(Iterator<T> it) {
 		return StreamSupport.stream(Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED), false);
 	}
-	
+
+/*
 	public static <T,U> U mapIfNotNull(T value, Function<T,U> func) {
 		if ( value != null ) {
 			return func.apply(value);

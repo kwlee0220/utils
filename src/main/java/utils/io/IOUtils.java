@@ -1,20 +1,6 @@
-package utils;
+package utils.io;
 
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Map;
-import java.util.function.Consumer;
-
-import com.google.common.collect.Maps;
+import java.util.stream.Stream;
 
 /**
  * 
@@ -25,22 +11,22 @@ public class IOUtils {
 		throw new AssertionError("Should not be called: class=" + IOUtils.class.getName());
 	}
 	
-//	public static boolean closeQuietly(AutoCloseable closeable) {
-//		if ( closeable != null ) {
-//			try {
-//				closeable.close();
-//				return true;
-//			}
-//			catch ( Exception ignored ) {}
-//		}
-//		
-//		return false;
-//	}
-//	
-//	public static void closeQuietly(AutoCloseable... closeables) {
-//		Stream.of(closeables).forEach(IOUtils::closeQuietly);
-//	}
-//	
+	public static boolean closeQuietly(AutoCloseable closeable) {
+		if ( closeable != null ) {
+			try {
+				closeable.close();
+				return true;
+			}
+			catch ( Exception ignored ) {}
+		}
+		
+		return false;
+	}
+	
+	public static void closeQuietly(AutoCloseable... closeables) {
+		Stream.of(closeables).forEach(IOUtils::closeQuietly);
+	}
+	
 //    public static int transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
 //        byte[] buf = new byte[bufSize];
 //

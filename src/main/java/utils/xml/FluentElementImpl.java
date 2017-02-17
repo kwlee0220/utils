@@ -1,0 +1,220 @@
+package utils.xml;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.xml.sax.SAXException;
+
+import com.google.common.collect.Iterables;
+
+
+/**
+ * 
+ * @author Kang-Woo Lee (ETRI)
+ */
+public class FluentElementImpl implements FluentElement {
+	private Element m_elm;
+
+	@Override
+	public boolean exists() {
+		return true;
+	}
+	
+	public static FluentElementImpl root(Document doc, String name) {
+		Element elm = doc.createElementNS(null, name);
+		doc.appendChild(elm);
+		
+		return new FluentElementImpl(elm);
+	}
+	
+	public static FluentElementImpl create(String name) {
+		return root(XmlUtils.createDocument(), name);
+	}
+	
+	public static FluentElementImpl of(Element elm) {
+		return new FluentElementImpl(elm);
+	}
+	
+	public static FluentElementImpl of(File file) throws SAXException, IOException{
+		return of(XmlUtils.parse(file).getDocumentElement());
+	}
+	
+	public static FluentElementImpl of(String xmlString) throws SAXException {
+		return of(XmlUtils.parse(xmlString).getDocumentElement());
+	}
+	
+	public FluentElementImpl(Element elm) {
+		m_elm = elm;
+	}
+	
+	@Override
+	public Element get() {
+		return m_elm;
+	}
+	
+	@Override
+	public FluentElement parent() {
+		Node parent = m_elm.getParentNode();
+		if ( parent != null && parent.getNodeType() == Node.ELEMENT_NODE ) {
+			return FluentElementImpl.of((Element)parent); 
+		}
+		else {
+			return new NonExistentElement(null);
+		}
+	}
+
+	@Override
+	public FluentElement with(Consumer<FluentElement> consumer) {
+		consumer.accept(this);
+		return this;
+	}
+	@Override
+	public FluentElement withInt(Consumer<Integer> consumer) {
+		textInt().ifPresent(consumer::accept);
+		return this;
+	}
+	@Override
+	public FluentElement withLong(Consumer<Long> consumer) {
+		textLong().ifPresent(consumer::accept);
+		return this;
+	}
+	@Override
+	public FluentElement withDouble(Consumer<Double> consumer) {
+		textDouble().ifPresent(consumer::accept);
+		return this;
+	}
+	@Override
+	public FluentElement withBoolean(Consumer<Boolean> consumer) {
+		textBoolean().ifPresent(consumer::accept);
+		return this;
+	}
+	@Override
+	public FluentElement withText(Consumer<String> consumer) {
+		text().ifPresent(consumer::accept);
+		return this;
+	}
+
+	@Override
+	public <T> Optional<T> map(Function<FluentElement, T> func) {
+		return Optional.of(func.apply(this));
+	}
+
+	@Override
+	public FluentElement firstChild() {
+		FluentElement child =  children().findFirst().orElse(null);
+		if ( child == null ) {
+			throw new IllegalArgumentException("no child element");
+		}
+		
+		return child;
+	}
+	@Override
+	public FluentElement firstChild(String name) {
+		FluentElement child = children(name).findFirst().orElse(null);
+		if ( child == null ) {
+			throw new IllegalArgumentException("child element is missing: name=" + name);
+		}
+		
+		return child;
+	}
+
+	@Override
+	public FluentElement tryFirstChild() {
+		return children().findFirst().orElse(new NonExistentElement(this));
+	}
+	@Override
+	public FluentElement tryFirstChild(String name) {
+		return children(name).findFirst().orElse(new NonExistentElement(this));
+	}
+
+	@Override
+	public Iterable<FluentElement> iterateChildren() {
+		Iterable<Node> elms = Iterables.filter(XmlUtils.getChildren(m_elm),
+												node->node.getNodeType() == Node.ELEMENT_NODE);
+		return Iterables.transform(elms, node->FluentElementImpl.of((Element)node));
+	}
+
+	@Override
+	public Iterable<FluentElement> iterateChildren(String name) {
+		Iterable<Node> elms = Iterables.filter(XmlUtils.getChildren(m_elm),
+												node-> node.getNodeType() == Node.ELEMENT_NODE
+												&& name.equals(node.getLocalName()));
+		return Iterables.transform(elms, node->FluentElementImpl.of((Element)node));
+	}
+
+	@Override
+	public Stream<FluentElement> children() {
+		return XmlUtils.getChildrenStream(m_elm)
+						.filter(node -> node.getNodeType() == Node.ELEMENT_NODE)
+						.map(node -> FluentElementImpl.of((Element)node));
+	}
+
+	@Override
+	public Stream<FluentElement> children(String name) {
+		return XmlUtils.getChildrenStream(m_elm)
+						.filter(node -> node.getNodeType() == Node.ELEMENT_NODE
+										&& name.equals(node.getLocalName()))
+						.map(node -> FluentElementImpl.of((Element)node));
+	}
+
+	@Override
+	public FluentElementImpl appendChild(String childName) {
+		return of(XmlUtils.appendChildElement(m_elm, childName));
+	}
+
+	@Override
+	public Optional<String> attr(String name) {
+		String attr = get().getAttribute(name);
+		return ( attr.length() > 0 ) ? Optional.of(attr) : Optional.empty();
+	}
+	@Override
+	public int attrInt(String name, int defValue) {
+		Optional<String> attr = attr(name);
+		return (attr.isPresent()) ? Integer.parseInt(attr.get()) : defValue;
+	}
+	@Override
+	public long attrLong(String name, long defValue) {
+		return Long.parseLong(attr(name).orElse("-1"));
+	}
+	@Override
+	public double attrDouble(String name, double defValue) {
+		Optional<String> attr = attr(name);
+		return (attr.isPresent()) ? Double.parseDouble(attr.get()) : defValue;
+	}
+	@Override
+	public FluentElement attr(String name, Object value) {
+		get().setAttribute(name, value.toString());
+		return this;
+	}
+
+	@Override
+	public String toString() {
+		try {
+			StringWriter writer = new StringWriter();
+			XmlWrite.create()
+					.from(m_elm)
+					.to(writer)
+					.indent(2)
+					.omitXmlDeclaration(true)
+					.run();
+			
+			return writer.toString();
+		}
+		catch ( Exception e ) {
+			return "toString failed: cause=" + e;
+		}
+	}
+
+	@Override
+	public Node asNode() {
+		return null;
+	}
+}
