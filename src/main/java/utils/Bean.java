@@ -18,6 +18,10 @@ public final class Bean {
 		m_src = obj;
 		m_descs = Introspector.getBeanInfo(obj.getClass()).getPropertyDescriptors();
 	}
+	
+	public Object getSourceObject() {
+		return m_src;
+	}
    
     public String[] getPropertyNames() {
         String[] propNames = new String[m_descs.length];
