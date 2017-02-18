@@ -15,12 +15,33 @@ import org.xml.sax.SAXException;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface XmlSerializable {
+	/**
+	 * 본 객체를 XML로 marshall시킨다. 생성된 XML의 최상위 node는
+	 * 주어진 {@link FluentElement}의 하위 node가 된다.
+	 * 
+	 *  @param topElm	생성될 XML 노드가 추가될 상위 노드.
+	 */
 	public void toXml(FluentElement topElm);
 	
+	/**
+	 * 본 객체를 XML 문서로 변환시킨 문자열을 반환한다.
+	 * 생성된 노드의 최상위 노드 이름을 인자인 topElmName에 의해 결정된다.
+	 * 계층구조의 XML 문서가 생성되는 경우 하위 노드들을 {@code intent} 값만클 들여쓰기된다.
+	 * 
+	 * @param topElmName	생성될 XML 문서의 최상위 이름
+	 * @param indent		들어쓰기 값.
+	 */
 	public default String toXmlString(String topElmName, int indent) {
 		return toXmlDocument(topElmName).toXmlString(false, indent);
 	}
 	
+	/**
+	 * 본 객체를 XML 문서로 변환시킨 문자열을 반환한다.
+	 * 생성된 노드의 최상위 노드 이름을 인자인 topElmName에 의해 결정된다.
+	 * 계층구조의 XML 문서가 생성되는 경우 하위 노드들을 2만클 들여쓰기된다.
+	 * 
+	 * @param topElmName	생성될 XML 문서의 최상위 이름
+	 */
 	public default String toXmlString(String topElmName) {
 		return toXmlDocument(topElmName).toXmlString(false, 2);
 	}
