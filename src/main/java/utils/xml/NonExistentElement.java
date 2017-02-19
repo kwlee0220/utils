@@ -27,12 +27,12 @@ final class NonExistentElement implements FluentElement {
 
 	@Override
 	public Element get() {
-		return null;
+		throw new IllegalStateException("NonExistentElement.get()");
 	}
 
 	@Override
 	public Node asNode() {
-		return null;
+		throw new IllegalStateException("NonExistentElement.asNode()");
 	}
 
 	@Override
@@ -42,31 +42,32 @@ final class NonExistentElement implements FluentElement {
 
 	@Override
 	public String localName() {
-		return get().getLocalName();
+		return null;
 	}
-	
-	public FluentElement with(Consumer<FluentElement> consumer) {
+
+	@Override
+	public Optional<String> attr(String name) {
+		return Optional.empty();
+	}
+
+	@Override
+	public FluentElement attr(String name, Object value) {
 		return this;
 	}
 
 	@Override
-	public FluentElement firstChild() {
-		return new NonExistentElement(this);
+	public Optional<String> text() {
+		return Optional.empty();
 	}
 
 	@Override
-	public FluentElement firstChild(String name) {
-		return new NonExistentElement(this);
+	public FluentElement text(String text) {
+		return this;
 	}
 
 	@Override
-	public FluentElement tryFirstChild(String name) {
-		return new NonExistentElement(this);
-	}
-
-	@Override
-	public FluentElement tryFirstChild() {
-		return new NonExistentElement(this);
+	public FluentElement cdata(String text) {
+		return this;
 	}
 
 	@Override
@@ -90,75 +91,21 @@ final class NonExistentElement implements FluentElement {
 	}
 
 	@Override
+	public FluentElement firstChild() {
+		throw new XmlSerializationException("no child element");
+	}
+	
+	@Override
+	public FluentElement firstChild(String name) {
+		throw new XmlSerializationException("no child element: name="+ name);
+	}
+	
+	public FluentElement with(Consumer<FluentElement> consumer) {
+		return this;
+	}
+
+	@Override
 	public FluentElement appendChild(String childName) {
 		return new NonExistentElement(this);
-	}
-
-	@Override
-	public Optional<String> attr(String name) {
-		return Optional.empty();
-	}
-	@Override
-	public int attrInt(String name, int defValue) {
-		return defValue;
-	}
-	@Override
-	public long attrLong(String name, long defValue) {
-		return defValue;
-	}
-
-	@Override
-	public double attrDouble(String name, double defValue) {
-		return defValue;
-	}
-
-	@Override
-	public FluentElement attr(String name, Object value) {
-		return this;
-	}
-
-	@Override
-	public Optional<String> text() {
-		return Optional.empty();
-	}
-
-	@Override
-	public FluentElement text(String text) {
-		return this;
-	}
-
-	@Override
-	public FluentElement cdata(String text) {
-		return this;
-	}
-	
-	@Override
-	public FluentElement withText(Consumer<String> consumer) {
-		return this;
-	}
-	
-	@Override
-	public FluentElement withInt(Consumer<Integer> consumer) {
-		return this;
-	}
-
-	@Override
-	public FluentElement withLong(Consumer<Long> consumer) {
-		return this;
-	}
-
-	@Override
-	public FluentElement withDouble(Consumer<Double> consumer) {
-		return this;
-	}
-
-	@Override
-	public FluentElement withBoolean(Consumer<Boolean> consumer) {
-		return this;
-	}
-
-	@Override
-	public <T> Optional<T> map(Function<FluentElement, T> func) {
-		return Optional.empty();
 	}
 }

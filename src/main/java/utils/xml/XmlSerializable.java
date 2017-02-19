@@ -2,13 +2,14 @@ package utils.xml;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Optional;
 
 import org.xml.sax.SAXException;
+
+import utils.ExceptionUtils;
+import utils.Utilities;
 
 /**
  * 
@@ -16,7 +17,7 @@ import org.xml.sax.SAXException;
  */
 public interface XmlSerializable {
 	/**
-	 * 본 객체를 XML로 marshall시킨다. 생성된 XML의 최상위 node는
+	 * 본 객체를 XML로 serialize시킨다. 생성된 XML의 최상위 node는
 	 * 주어진 {@link FluentElement}의 하위 node가 된다.
 	 * 
 	 *  @param topElm	생성될 XML 노드가 추가될 상위 노드.
@@ -57,7 +58,7 @@ public interface XmlSerializable {
 		return doc;
 	}
 	
-	public static FluentElement serialize2(FluentElement parent, String childName, Object obj) {
+	public static FluentElement serialize(FluentElement parent, String childName, Object obj) {
 		FluentElement elm = parent.appendChild(childName).attr("class", obj.getClass().getName());
 		if ( obj instanceof XmlSerializable ) {
 			((XmlSerializable)obj).toXml(elm);
@@ -66,26 +67,51 @@ public interface XmlSerializable {
 		return elm;
 	}
 	
-	public static Object fromXmlString(String xmlString) throws SAXException {
-		return loadXmlSerializable2(FluentDocument.from(xmlString).getDocumentElement());
+	public static Object fromXmlString(String xmlString) {
+		try {
+			return loadXmlSerializable(FluentDocument.from(xmlString).getDocumentElement());
+		}
+		catch ( SAXException e ) {
+			throw new XmlSerializationException(String.format("fails to load %s from XML: xml=%s",
+												XmlSerializable.class.getSimpleName(), xmlString));
+		}
 	}
 	
-	public static Object loadXmlSerializable2(FluentElement elm) {
-		Optional<String> clsName = elm.attr("class");
+	/**
+	 * 주어진 {@link FluentElement} 'topElm' 에 해당하는 객체를 생성한다.
+	 * <p>
+	 * 입력 'topElm'은 반드시 'class' attribute를 갖고 있어야 하고, 이 값은 생성할 객체의
+	 * 클래스 이름이 기록되어야 한다.
+	 * 'class' attribute에 기술된 클래스에 따라 다음과 같은 방식으로 객체를 생성한다.
+	 * <ul>
+	 * 	<li> 만일 클래스가 {@link LoadableXmlSerializable}를 구현한 경우는, 클래스의
+	 * 		default constructor를 호출하여 객체를 생성한다.
+	 * 		생성된 객체의 {@link LoadableXmlSerializable#loadFromXml(FluentElement)}를
+	 * 		호출하여 해당 객체를 초기화시키되 입력 인자로 'topElm'을 사용한다.
+	 * 	<li> 만일 클래스에 {@link FluentElement}를 인자로 갖는 'fromXml'라는 이름의 static 메소드가
+	 * 		정의된 경우에는, 이 메소드를 호출여여 객체를 생성 및 초기화를 수행한다.
+	 * 		만일 'fromXml'이라는 메소드는 존재하지만 static 메소드가 아닌 경우는 예외를 발생시킨다.
+	 * 	<li> 나머지 경우는 클래스의 default constructor를 호출하여 객체를 생성하고, 별도의 초기화 작업을
+	 * 		수행하지 않는다.
+	 * </ul>
+	 * 
+	 */
+	public static Object loadXmlSerializable(FluentElement topElm) {
+		Optional<String> clsName = topElm.attr("class");
 		if ( !clsName.isPresent() ) {
-			throw new XmlSerializationException("No 'class' attribute, Element=" + elm);
+			throw new XmlSerializationException("No 'class' attribute, Element=" + topElm);
 		}
 		
 		Class<?> cls =null;
 		try {
 			cls = Class.forName(clsName.get());
 			if ( LoadableXmlSerializable.class.isAssignableFrom(cls) ) {
-				return loadLoadableXmlSerializable((Class<? extends LoadableXmlSerializable>)cls, elm);
+				return loadLoadableXmlSerializable((Class<? extends LoadableXmlSerializable>)cls, topElm);
 			}
 			
 			Method method = cls.getMethod("fromXml", FluentElement.class);
 			if ( Modifier.isStatic(method.getModifiers()) ) {
-				return method.invoke(null, elm);
+				return method.invoke(null, topElm);
 			}
 			else {
 				throw new XmlSerializationException("class does not have 'fromXml' static method: class="
@@ -98,121 +124,23 @@ public interface XmlSerializable {
 		}
 		catch ( NoSuchMethodException e ) {
 			try {
-				return cls.newInstance();
+				return Utilities.callPrivateConstructor(cls);
 			}
 			catch ( Throwable e1 ) {
 				throw new XmlSerializationException("fails to load class from Element: class="
-						+ clsName.get(), e);
+						+ clsName.get(), ExceptionUtils.unwrapThrowable(e1));
 			}
-		}
-		catch ( InvocationTargetException e ) {
-			throw new XmlSerializationException("fails to load class from Element: class="
-												+ clsName.get(), e.getTargetException());
 		}
 		catch ( Throwable e ) {
+			Throwable cause = ExceptionUtils.unwrapThrowable(e);
 			throw new XmlSerializationException("fails to load class from Element: class="
-												+ clsName.get(), e);
+												+ clsName.get(), cause);
 		}
 	}
-	
-	public static Object loadXmlSerializable2(FluentElement elm, Class<?> cls) {
-		try {
-			if ( LoadableXmlSerializable.class.isAssignableFrom(cls) ) {
-				return loadLoadableXmlSerializable((Class<? extends LoadableXmlSerializable>)cls, elm);
-			}
-			
-			Method method = cls.getMethod("fromXml", FluentElement.class);
-			if ( Modifier.isStatic(method.getModifiers()) ) {
-				return method.invoke(null, elm);
-			}
-			else {
-				throw new XmlSerializationException("class does not have 'fromXml' static method: class="
-													+ cls.getName());
-			}
-		}
-		catch ( NoSuchMethodException e ) {
-			try {
-				return cls.newInstance();
-			}
-			catch ( Throwable e1 ) {
-				throw new XmlSerializationException("fails to load class from Element: class="
-						+ cls.getName(), e);
-			}
-		}
-		catch ( InvocationTargetException e ) {
-			throw new XmlSerializationException("fails to load class from Element: class="
-												+ cls.getName(), e.getTargetException());
-		}
-		catch ( Throwable e ) {
-			throw new XmlSerializationException("fails to load class from Element: class="
-												+ cls.getName(), e);
-		}
-	}
-
-/*
-	public FluentElement toChildXml(FluentNode parent);
-	public FluentElement toChildXml(FluentNode parent, String childElmName);
-	
-	public static FluentElement serialize(FluentElement parent, String childName, Object obj) {
-		FluentElement elm = parent.appendChild(childName).attr("class", obj.getClass().getName());
-		if ( obj instanceof XmlSerializable ) {
-			((XmlSerializable)obj).toChildXml(elm);
-		}
-		
-		return elm;
-	}
-	
-	public static Object loadXmlSerializable(FluentElement elm) {
-		Optional<String> clsName = elm.attr("class");
-		if ( !clsName.isPresent() ) {
-			throw new XmlSerializationException("No 'class' attribute, Element=" + elm);
-		}
-		
-		Class<?> cls =null;
-		try {
-			cls = Class.forName(clsName.get());
-			if ( LoadableXmlSerializable.class.isAssignableFrom(cls) ) {
-				return loadLoadableXmlSerializable((Class<? extends LoadableXmlSerializable>)cls, elm);
-			}
-			
-			Method method = cls.getMethod("fromXml", FluentElement.class);
-			if ( Modifier.isStatic(method.getModifiers()) ) {
-				return method.invoke(null, elm);
-			}
-			else {
-				Object obj = cls.newInstance();
-				return method.invoke(obj, elm);
-			}
-		}
-		catch ( ClassNotFoundException e ) {
-			throw new XmlSerializationException("fails to load class from Element: class="
-													+ clsName.get(), e);
-		}
-		catch ( NoSuchMethodException e ) {
-			try {
-				return cls.newInstance();
-			}
-			catch ( Throwable e1 ) {
-				throw new XmlSerializationException("fails to load class from Element: class="
-						+ clsName.get(), e);
-			}
-		}
-		catch ( InvocationTargetException e ) {
-			throw new XmlSerializationException("fails to load class from Element: class="
-												+ clsName.get(), e.getTargetException());
-		}
-		catch ( Throwable e ) {
-			throw new XmlSerializationException("fails to load class from Element: class="
-												+ clsName.get(), e);
-		}
-	}
-*/
 	
 	public static <T extends LoadableXmlSerializable> T loadLoadableXmlSerializable(Class<T> cls, FluentElement elm) {
 		try {
-			Constructor<T> ctor = cls.getDeclaredConstructor();
-			ctor.setAccessible(true);
-			T obj = ctor.newInstance();
+			T obj = Utilities.callPrivateConstructor(cls);
 			obj.loadFromXml(elm);
 			
 			return obj;

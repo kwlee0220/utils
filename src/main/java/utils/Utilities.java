@@ -410,11 +410,12 @@ public class Utilities {
 		return fromUTCEpocMillis(millis).toLocalDateTime();
 	}
 	
-	public static Object callPrivateConstructor(Class<?> cls)
+	@SuppressWarnings("unchecked")
+	public static <T> T callPrivateConstructor(Class<T> cls)
 		throws NoSuchMethodException, SecurityException, InstantiationException,
 			IllegalAccessException, IllegalArgumentException, InvocationTargetException {
 		Constructor<?> ctor = cls.getDeclaredConstructor(new Class[0]);
 		ctor.setAccessible(true);
-		return ctor.newInstance(new Object[0]);
+		return (T)ctor.newInstance(new Object[0]);
 	}
 }
