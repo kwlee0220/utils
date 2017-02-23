@@ -12,8 +12,12 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -43,6 +47,15 @@ public class Utilities {
 		}
 		else {
 			new Thread(task).start();
+		}
+	}
+
+	public static CompletableFuture<Void> runAsync(Runnable task, Executor executor) {
+		if ( executor != null ) {
+			return CompletableFuture.runAsync(task, executor);
+		}
+		else {
+			return CompletableFuture.runAsync(task);
 		}
 	}
 
