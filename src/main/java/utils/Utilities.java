@@ -17,6 +17,9 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Sets;
 
 /**
@@ -360,11 +363,12 @@ public class Utilities {
     public static String buildCsv(String[] strs) {
     	return CSV.get().toString(Arrays.asList(strs));
     }
+*/
 	
 	public static Logger getAndAppendLoggerName(Object obj, String suffix) {
     	if ( obj instanceof LoggerSettable ) {
     		Logger prev = ((LoggerSettable)obj).getLogger();
-    		Logger logger = Logger.getLogger(prev.getName() + suffix);
+    		Logger logger = LoggerFactory.getLogger(prev.getName() + suffix);
     		((LoggerSettable)obj).setLogger(logger);
     		
     		return prev;
@@ -379,7 +383,6 @@ public class Utilities {
     		((LoggerSettable)obj).setLogger(logger);
     	}
     }
-*/
 
 	public static String toElapsedTimeString(long millis) {
 		long seconds = millis/1000;

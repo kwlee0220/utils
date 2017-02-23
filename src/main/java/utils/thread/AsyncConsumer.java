@@ -18,12 +18,16 @@ public class AsyncConsumer<T> implements Consumer<T> {
 		return new AsyncConsumer<>(consumer, Executors.newSingleThreadExecutor());
 	}
 	
-	public static <T> AsyncConsumer<T> multipleWorkers(Consumer<T> consumer, int nThreads) {
-		return new AsyncConsumer<>(consumer, Executors.newFixedThreadPool(nThreads));
+	public static <T> AsyncConsumer<T> singleWorker(Consumer<T> consumer, ExecutorService executor) {
+		return new AsyncConsumer<>(consumer, executor);
 	}
 	
-	public static <T> AsyncConsumer<T> from(Consumer<T> consumer, ExecutorService executor) {
-		return new AsyncConsumer<>(consumer, executor);
+	public static <T> AsyncConsumer<T> multipleWorkers(Consumer<T> statelessConsumer, int nThreads) {
+		return new AsyncConsumer<>(statelessConsumer, Executors.newFixedThreadPool(nThreads));
+	}
+	
+	public static <T> AsyncConsumer<T> from(Consumer<T> statelessConsumer, ExecutorService executor) {
+		return new AsyncConsumer<>(statelessConsumer, executor);
 	}
 	
 	protected AsyncConsumer(Consumer<T> consumer, ExecutorService executor) {
