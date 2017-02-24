@@ -8,6 +8,35 @@ import java.util.function.Function;
  * @author Kang-Woo Lee (ETRI)
  */
 public class Errors {
+	public static Runnable ignoreRunnableException(CheckedRunnable task) {
+		return () -> {
+			try {
+				task.run();
+			}
+			catch ( Throwable ignored ) { }
+		};
+	}
+	
+	public static <T,S> Function<T,S> ignoreFunctionException(CheckedFunction<T,S> func) {
+		return (data) -> {
+			try {
+				return func.apply(data);
+			}
+			catch ( Throwable e ) {
+				throw new RuntimeException(e);
+			}
+		};
+	}
+	
+	public static <T> Consumer<T> ignoreConsumerException(CheckedConsumer<T> consumer) {
+		return (data) -> {
+			try {
+				consumer.accept(data);
+			}
+			catch ( Throwable ignored ) { }
+		};
+	}
+	
 	public static boolean runQuietly(CheckedRunnable task) {
 		if ( task != null ) {
 			try {
@@ -22,50 +51,41 @@ public class Errors {
 		return false;
 	}
 	
-	public static Runnable ignoreError(CheckedRunnable task) {
+	public static Runnable toRunnableRTE(CheckedRunnable task) {
 		return () -> {
 			try {
 				task.run();
 			}
-			catch ( Throwable ignored ) { }
+			catch ( RuntimeException e ) {
+				throw e;
+			}
+			catch ( Exception e ) {
+				throw new RuntimeException(e);
+			}
 		};
 	}
 	
-	public static <T,S> Function<T,S> ignoreFunctionError(CheckedFunction<T,S> func) {
-		return (data) -> {
+	public static Runnable toRunnableIE(CheckedRunnable task) {
+		return () -> {
 			try {
-				return func.apply(data);
+				task.run();
+			}
+			catch ( Throwable ignore ) { }
+		};
+	}
+	
+	public static Runnable toRunnable(CheckedRunnable task, Consumer<Throwable> errorHandler) {
+		return () -> {
+			try {
+				task.run();
 			}
 			catch ( Throwable e ) {
-				throw new RuntimeException(e);
+				runQuietly(()->errorHandler.accept(e));
 			}
 		};
 	}
 	
-	public static <T> Consumer<T> ignoreConsumerError(CheckedConsumer<T> consumer) {
-		return (data) -> {
-			try {
-				consumer.accept(data);
-			}
-			catch ( Throwable ignored ) { }
-		};
-	}
-	
-	public static Runnable throwRunnableRTE(CheckedRunnable task) {
-		return () -> {
-			try {
-				task.run();
-			}
-			catch ( RuntimeException e ) {
-				throw e;
-			}
-			catch ( Exception e ) {
-				throw new RuntimeException(e);
-			}
-		};
-	}
-	
-	public static <T,S> Function<T,S> throwFunctionRTE(CheckedFunction<T,S> func) {
+	public static <T,S> Function<T,S> toFunctionRTE(CheckedFunction<T,S> func) {
 		return (data) -> {
 			try {
 				return func.apply(data);
@@ -79,7 +99,7 @@ public class Errors {
 		};
 	}
 	
-	public static <T> Consumer<T> throwRTE(CheckedConsumer<T> consumer) {
+	public static <T> Consumer<T> toConsumerRTE(CheckedConsumer<T> consumer) {
 		return (data) -> {
 			try {
 				consumer.accept(data);
@@ -93,14 +113,14 @@ public class Errors {
 		};
 	}
 	
-	public static <T> Consumer<T> notifyConsumerError(CheckedConsumer<T> task,
-													BiConsumer<T,Throwable> errorNotifier) {
+	public static <T> Consumer<T> toConsumer(CheckedConsumer<T> task,
+											BiConsumer<T,Throwable> errorHandler) {
 		return (data) -> {
 			try {
 				task.accept(data);
 			}
 			catch ( Throwable e ) {
-				Errors.runQuietly(()->errorNotifier.accept(data, e));
+				runQuietly(()->errorHandler.accept(data, e));
 			}
 		};
 	}

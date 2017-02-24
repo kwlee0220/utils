@@ -14,10 +14,7 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -25,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
+
+import utils.Errors.CheckedRunnable;
 
 /**
  *
@@ -57,6 +56,18 @@ public class Utilities {
 		else {
 			return CompletableFuture.runAsync(task);
 		}
+	}
+
+	public static CompletableFuture<Void> runAsync(Runnable task) {
+		return CompletableFuture.runAsync(task);
+	}
+
+	public static CompletableFuture<Void> runCheckedAsync(CheckedRunnable task, Executor executor) {
+		return runAsync(Errors.toRunnableIE(task), executor);
+	}
+
+	public static CompletableFuture<Void> runCheckedAsync(CheckedRunnable task) {
+		return runAsync(Errors.toRunnableIE(task));
 	}
 
 	public static Set<Class<?>> getInterfaceAllRecusively(Class<?> cls) {
