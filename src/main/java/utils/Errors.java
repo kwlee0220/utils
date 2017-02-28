@@ -51,6 +51,20 @@ public class Errors {
 		return false;
 	}
 	
+	public static void runRTE(CheckedRunnable task) {
+		if ( task != null ) {
+			try {
+				task.run();
+			}
+//			catch ( RuntimeException rte ) {
+//				throw rte;
+//			}
+			catch ( Exception e ) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+	
 	public static Runnable toRunnableRTE(CheckedRunnable task) {
 		return () -> {
 			try {

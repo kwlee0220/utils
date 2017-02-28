@@ -24,6 +24,15 @@ public class ExceptionUtils {
 			else if ( e instanceof ExecutionException ) {
 				e = ((ExecutionException)e).getCause();
 			}
+			else if ( e instanceof RuntimeException ) {
+				Throwable cause = ((RuntimeException)e).getCause();
+				if ( cause != null ) {
+					e = cause;
+				}
+				else {
+					return e;
+				}
+			}
 			else {
 				return e;
 			}
