@@ -72,7 +72,7 @@ public class PrefetcherTest {
 	}
 	
 	@Test
-	public void test3() throws Exception {
+	public void testObsoltePrefetch() throws Exception {
 		Prefetcher<Integer> prefetcher = new Prefetcher<>(()-> {
 			Thread.sleep(200);
 			return m_count++;
@@ -86,7 +86,7 @@ public class PrefetcherTest {
 	}
 	
 	@Test
-	public void test4() throws Exception {
+	public void testFetchFailure() throws Exception {
 		Prefetcher<Integer> prefetcher = new Prefetcher<>(()-> {
 			Thread.sleep(100);
 			int v = m_count++;
@@ -111,15 +111,15 @@ public class PrefetcherTest {
 		Prefetcher<Integer> prefetcher = new Prefetcher<>(()-> {
 			Thread.sleep(300);
 			return m_count++;
-		}, 500, false, null);
+		}, 500, true, null);
 		
 		Assert.assertEquals(0, (int)prefetcher.get());
+		Assert.assertEquals(0, (int)prefetcher.get());
+		Assert.assertEquals(0, (int)prefetcher.get());
+		Assert.assertEquals(0, (int)prefetcher.get());
+		Thread.sleep(400);
 		Assert.assertEquals(1, (int)prefetcher.get());
 		Assert.assertEquals(1, (int)prefetcher.get());
 		Assert.assertEquals(1, (int)prefetcher.get());
-		Thread.sleep(300);
-		Assert.assertEquals(2, (int)prefetcher.get());
-		Assert.assertEquals(2, (int)prefetcher.get());
-		Assert.assertEquals(2, (int)prefetcher.get());
 	}
 }

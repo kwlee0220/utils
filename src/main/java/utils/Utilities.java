@@ -8,13 +8,16 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.locks.Condition;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -68,6 +71,18 @@ public class Utilities {
 
 	public static CompletableFuture<Void> runCheckedAsync(CheckedRunnable task) {
 		return runAsync(Errors.toRunnableIE(task));
+	}
+	
+	public static boolean timedWaitMillis(Condition cond, Predicate<Void> exitPred, long maxMillis)
+		throws InterruptedException {
+		Date deadline = new Date(System.currentTimeMillis() + maxMillis);
+		while ( cond.awaitUntil(deadline) ) {
+			if ( exitPred.test(null) ) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 
 	public static Set<Class<?>> getInterfaceAllRecusively(Class<?> cls) {
