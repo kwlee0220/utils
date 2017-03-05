@@ -1,5 +1,7 @@
 package utils;
 
+import java.util.Arrays;
+
 /**
  * {@literal Component} defines the interface of component instances managed by CAMUS.
  * <p>

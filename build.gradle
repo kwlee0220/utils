@@ -23,6 +23,7 @@ dependencies {
 	compile "commons-io:commons-io:${commons_io_version}"
 	compile "commons-cli:commons-cli:${commons_cli_version}"
 	compile "com.google.code.findbugs:annotations:${findbugs_version}"
+	compile "org.imgscalr:imgscalr-lib:4.2"
 	
 	testCompile "junit:junit:${junit_version}"
 	

@@ -34,7 +34,9 @@ public class IOUtils {
 	}
 	
 	public static void closeQuietly(AutoCloseable... closeables) {
-		Stream.of(closeables).forEach(IOUtils::closeQuietly);
+		Stream.of(closeables)
+				.filter(c -> c != null)
+				.forEach(IOUtils::closeQuietly);
 	}
 	
 //    public static int transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
