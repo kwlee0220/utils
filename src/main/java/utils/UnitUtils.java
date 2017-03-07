@@ -4,7 +4,6 @@ import java.awt.Dimension;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 
@@ -23,32 +22,6 @@ public class UnitUtils {
 		dim.height = Integer.parseInt(str.substring(index+1).trim());
 		
 		return dim;
-	}
-
-	public static long parseDuration(String durStr) {
-	    if ( durStr.endsWith("ms") ) {
-	    	int seconds = Integer.parseInt(durStr.substring(0, durStr.length()-2));
-	    	return seconds;
-	    }
-	    else if ( durStr.endsWith("s") ) {
-	    	int seconds = Integer.parseInt(durStr.substring(0, durStr.length()-1));
-	    	return seconds * 1000;
-	    }
-	    else if ( durStr.endsWith("m") ) {
-	    	int mimutes = Integer.parseInt(durStr.substring(0, durStr.length()-1));
-	    	return (long)mimutes * 1000 * 60;
-	    }
-	    else if ( durStr.endsWith("h") ) {
-	    	int hours = Integer.parseInt(durStr.substring(0, durStr.length()-1));
-	    	return (long)hours * 1000 * 60 * 60;
-	    }
-	    else {
-	    	return Long.parseLong(durStr.substring(0, durStr.length()));
-	    }
-	}
-
-	public static long parseDuration(String durStr, TimeUnit tu) {
-		return TimeUnit.MILLISECONDS.convert(parseDuration(durStr), tu);
 	}
 
 	public static double parseLengthInMeter(String lengthStr) {
