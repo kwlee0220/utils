@@ -51,4 +51,10 @@ public interface Initializable {
 		}
 		catch ( Throwable ignored ) {}
 	}
+	
+	public static void destroyQuietly(Object... objs) {
+		Arrays.stream(objs)
+				.filter(obj -> obj instanceof Initializable)
+				.forEach(obj -> ((Initializable)obj).destroyQuietly());
+	}
 }

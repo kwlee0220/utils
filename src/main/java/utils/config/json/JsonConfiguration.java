@@ -2,12 +2,14 @@ package utils.config.json;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.text.StrSubstitutor;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -74,6 +76,13 @@ public class JsonConfiguration implements Configuration {
 			conf.m_variables = variables;
 			
 			return conf;
+		}
+	}
+
+	@Override
+	public void write(Object value, File file) throws IOException {
+		try ( FileWriter writer = new FileWriter(file) ) {
+			new Gson().toJson(value, writer);
 		}
 	}
 }

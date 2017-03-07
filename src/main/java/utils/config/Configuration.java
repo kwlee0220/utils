@@ -1,5 +1,7 @@
 package utils.config;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Properties;
 
 /**
@@ -15,4 +17,6 @@ public interface Configuration {
 	public default ConfigNode traverse(String path) {
 		return getRoot().traverse(path);
 	}
+	
+	public void write(Object value, File file) throws IOException;
 }

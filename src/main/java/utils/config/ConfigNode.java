@@ -51,7 +51,7 @@ public interface ConfigNode {
 	}
 	
 	public long asLong();
-	public default long asLong(int defValue) {
+	public default long asLong(long defValue) {
 		return isMissing() ? defValue : asLong();
 	}
 	
@@ -107,6 +107,9 @@ public interface ConfigNode {
 		else {
 			throw new IllegalStateException("Cannot convert to Duration: node=" + this);
 		}
+	}
+	public default long asDuration(String defValue) {
+		return isMissing() ? UnitUtils.parseDuration(defValue) : asDuration();
 	}
 	public default long asDuration(long defMillis) {
 		return isMissing() ? defMillis : asDuration();
