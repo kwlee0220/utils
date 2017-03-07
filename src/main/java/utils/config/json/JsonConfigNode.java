@@ -5,6 +5,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.commons.lang3.text.StrSubstitutor;
+
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -73,7 +75,7 @@ public class JsonConfigNode implements ConfigNode {
 
 	@Override
 	public String asString() {
-		return m_elm.getAsString();
+		return StrSubstitutor.replace(m_elm.getAsString(), m_config.getVariables());
 	}
 
 	@Override

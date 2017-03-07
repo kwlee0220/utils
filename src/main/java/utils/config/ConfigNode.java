@@ -87,6 +87,13 @@ public interface ConfigNode {
 	
 	public ConfigNode asReference();
 	
+	public default File asFile() {
+		return new File(asString());
+	}
+	public default File asFile(File defValue) {
+		return isMissing() ? defValue : asFile();
+	}
+	
 	public default Duration asDuration() {
 		Preconditions.checkState(isPrimitive(), "Not primitive node: node=" + this);
 		

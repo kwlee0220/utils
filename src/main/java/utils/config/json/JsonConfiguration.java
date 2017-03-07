@@ -51,7 +51,7 @@ public class JsonConfiguration implements Configuration {
 			}
 			
 			Properties variables = new Properties();
-			variables.put("config_file", configFile.getAbsolutePath());
+			variables.put("config_dir", configFile.getParentFile().getAbsolutePath());
 			
 			Map<String,String> envVars = System.getenv();
 			for ( Map.Entry<String,String> e: envVars.entrySet() ) {
