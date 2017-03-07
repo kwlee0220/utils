@@ -4,6 +4,7 @@ import java.awt.Dimension;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 
@@ -125,6 +126,29 @@ public class UnitUtils {
 		else {
 			return String.format("%.0fgb", fsz);
 		}
+	}
+	
+	public static long parseDuration(String durStr) {
+	    if ( durStr.endsWith("ms") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-2));
+	    	return value;
+	    }
+	    else if ( durStr.endsWith("s") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	return TimeUnit.SECONDS.toMillis(value);
+	    }
+	    else if ( durStr.endsWith("m") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	return TimeUnit.MINUTES.toMillis(value);
+	    }
+	    else if ( durStr.endsWith("h") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	return TimeUnit.HOURS.toMillis(value);
+	    }
+	    else {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()));
+	    	return value;
+	    }
 	}
 
 	public static String toTimeString(long millis) {

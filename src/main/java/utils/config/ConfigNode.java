@@ -10,8 +10,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import utils.Duration;
 import utils.Tuple2;
+import utils.UnitUtils;
 
 /**
  * 
@@ -94,25 +94,22 @@ public interface ConfigNode {
 		return isMissing() ? defValue : asFile();
 	}
 	
-	public default Duration asDuration() {
+	public default long asDuration() {
 		Preconditions.checkState(isPrimitive(), "Not primitive node: node=" + this);
 		
 		Object obj = getValue();
 		if ( obj instanceof String ) {
-			return Duration.parseDuration((String)obj);
+			return UnitUtils.parseDuration((String)obj);
 		}
 		else if ( obj instanceof Number ) {
-			return Duration.milliseconds(((Number)obj).longValue());
+			return ((Number)obj).longValue();
 		}
 		else {
 			throw new IllegalStateException("Cannot convert to Duration: node=" + this);
 		}
 	}
-	public default Duration asDuration(Duration defValue) {
-		return isMissing() ? defValue : asDuration();
-	}
-	public default Duration asDuration(long defMillis) {
-		return isMissing() ? Duration.milliseconds(defMillis) : asDuration();
+	public default long asDuration(long defMillis) {
+		return isMissing() ? defMillis : asDuration();
 	}
 	
 	public default Object[] getAsArray() {
