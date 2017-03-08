@@ -1,18 +1,18 @@
-package utils;
+package utils.jdbc;
 
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class JDBCException extends RuntimeException {
+public class JdbcException extends RuntimeException {
 	private static final long serialVersionUID = -5253204991351254866L;
 
-	public JDBCException(Throwable cause) {
+	public JdbcException(Throwable cause) {
 		super(cause);
 	}
 	
-	public JDBCException(String details) {
+	public JdbcException(String details) {
 		super(details);
 	}
 }

@@ -1,4 +1,4 @@
-package utils;
+package utils.jdbc;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -7,7 +7,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
@@ -15,8 +14,9 @@ import java.util.stream.Stream;
 
 import org.apache.log4j.Logger;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+
+import utils.Utilities;
 
 
 /**
@@ -60,7 +60,7 @@ public class JdbcProcessor {
 			return DriverManager.getConnection(m_jdbcUrl, m_user, m_passwd);
 		}
 		catch ( ClassNotFoundException e ) {
-			throw new JDBCException("fails to load JDBC driver class: name=" + m_driverClsName);
+			throw new JdbcException("fails to load JDBC driver class: name=" + m_driverClsName);
 		}
 	}
 	
@@ -73,39 +73,9 @@ public class JdbcProcessor {
 		finally {
 			Connection conn = stmt.getConnection();
 			
-			JDBCUtils.closeQuietly(stmt);
-			JDBCUtils.closeQuietly(conn);
+			JdbcUtils.closeQuietly(stmt);
+			JdbcUtils.closeQuietly(conn);
 		}
-	}
-	
-	public static class ConnectedResultSet implements AutoCloseable {
-		private ResultSet m_rs;
-		
-		ConnectedResultSet(ResultSet rs) {
-			m_rs = rs;
-		}
-
-		@Override
-		public void close() throws Exception {
-			if ( m_rs != null ) {
-				Statement stmt = m_rs.getStatement();
-				Connection conn = stmt.getConnection();
-				
-				JDBCUtils.closeQuietly(stmt);
-				JDBCUtils.closeQuietly(conn);
-				
-				m_rs = null;
-			}
-		}
-		
-		public ResultSet getResultSet() {
-			Preconditions.checkState(m_rs != null, "closed already");
-			return m_rs;
-		}
-	}
-	
-	public ConnectedResultSet executeQuery(String sql) throws SQLException {
-		return new ConnectedResultSet(connect().createStatement().executeQuery(sql));
 	}
 	
 	public <T> Stream<T> executeQuery(String sql, Function<ResultSet,T> functor) throws SQLException {
@@ -145,8 +115,8 @@ public class JdbcProcessor {
 			}
 		}
 		finally {
-			JDBCUtils.closeQuietly(stmt);
-			JDBCUtils.closeQuietly(conn);
+			JdbcUtils.closeQuietly(stmt);
+			JdbcUtils.closeQuietly(conn);
 		}
 	}
 	
@@ -171,8 +141,8 @@ public class JdbcProcessor {
 			}
 		}
 		finally {
-			JDBCUtils.closeQuietly(stmt);
-			JDBCUtils.closeQuietly(conn);
+			JdbcUtils.closeQuietly(stmt);
+			JdbcUtils.closeQuietly(conn);
 		}
 	}
 	
@@ -194,8 +164,8 @@ public class JdbcProcessor {
 		}
 		finally {
 			Connection conn = pstmt.getConnection();
-			JDBCUtils.closeQuietly(pstmt);
-			JDBCUtils.closeQuietly(conn);
+			JdbcUtils.closeQuietly(pstmt);
+			JdbcUtils.closeQuietly(conn);
 		}
 	}
 	
@@ -220,8 +190,8 @@ public class JdbcProcessor {
 			}
 		}
 		finally {
-			JDBCUtils.closeQuietly(stmt);
-			JDBCUtils.closeQuietly(conn);
+			JdbcUtils.closeQuietly(stmt);
+			JdbcUtils.closeQuietly(conn);
 		}
 	}
 	
@@ -256,60 +226,14 @@ public class JdbcProcessor {
 			}
 		}
 		finally {
-			JDBCUtils.closeQuietly(stmt);
-			JDBCUtils.closeQuietly(conn);
+			JdbcUtils.closeQuietly(stmt);
+			JdbcUtils.closeQuietly(conn);
 		}
 	}
 	
 	@Override
 	public String toString() {
 		return String.format("url=%s,user=%s,driver=%s", m_jdbcUrl, m_user, m_driverClsName);
-	}
-	
-	private static class ResultSetIterator<T> implements Iterator<T> {
-		private ResultSet m_rs;
-		private final Function<ResultSet,T> m_functor;
-		private boolean m_hasNext;
-		
-		ResultSetIterator(ResultSet rs, Function<ResultSet,T> functor) throws SQLException {
-			m_rs = rs;
-			m_functor = functor;
-			
-			m_hasNext = m_rs.next();
-		}
-		
-		@Override
-		public boolean hasNext() {
-			Preconditions.checkState(m_rs != null, "already closed");
-			return m_hasNext;
-		}
-
-		@Override
-		public T next() {
-			Preconditions.checkState(m_rs != null, "already closed");
-			
-			try {
-				T result = m_functor.apply(m_rs);
-				m_hasNext = m_rs.next();
-				
-				return result;
-			}
-			catch ( SQLException e ) {
-				throw new RuntimeException(e);
-			}
-		}
-		
-		public void close() throws Exception {
-			if ( m_rs != null ) {
-				Statement stmt = m_rs.getStatement();
-				Connection conn = stmt.getConnection();
-				
-				JDBCUtils.closeQuietly(stmt);
-				JDBCUtils.closeQuietly(conn);
-				
-				m_rs = null;
-			}
-		}
 	}
 	
 	@FunctionalInterface
