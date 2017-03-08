@@ -44,39 +44,43 @@ public class JsonConfiguration implements Configuration {
 	}
 
 	public static JsonConfiguration load(File configFile) throws IOException {
-		JsonConfiguration conf = new JsonConfiguration();
-		
 		try ( FileReader reader = new FileReader(configFile) ) {
-			JsonElement root = new JsonParser().parse(reader);
-			if ( !(root instanceof JsonObject) ) {
-				throw new IllegalArgumentException("invalid configuration file: path=" + configFile);
-			}
-			
 			Properties variables = new Properties();
 			variables.put("config_dir", configFile.getParentFile().getAbsolutePath());
 			
-			Map<String,String> envVars = System.getenv();
-			for ( Map.Entry<String,String> e: envVars.entrySet() ) {
-				variables.put(e.getKey(), StrSubstitutor.replace(e.getValue(), variables));
-			}
-			
-			JsonElement configElm = ((JsonObject)root).get("config_variables");
-			if ( configElm != null && configElm instanceof JsonObject ) {
-				JsonObject config = (JsonObject)configElm;
-				
-				config.entrySet().stream()
-						.forEach(ent -> {
-							String value = ent.getValue().getAsString();
-							value = StrSubstitutor.replace(value, variables);
-							variables.put(ent.getKey(), value);
-						});
-			}
-			
-			conf.m_root = new JsonConfigNode(conf, null, "", root);
-			conf.m_variables = variables;
-			
-			return conf;
+			return load(new JsonParser().parse(reader), variables);
 		}
+	}
+
+	public static JsonConfiguration load(String configStr) {
+		Properties variables = new Properties();
+		return load(new JsonParser().parse(configStr), variables);
+	}
+
+	private static JsonConfiguration load(JsonElement root, Properties variables) {
+		JsonConfiguration config = new JsonConfiguration();
+		
+		Map<String,String> envVars = System.getenv();
+		for ( Map.Entry<String,String> e: envVars.entrySet() ) {
+			variables.put(e.getKey(), StrSubstitutor.replace(e.getValue(), variables));
+		}
+		
+		JsonElement varsElm = ((JsonObject)root).get("config_variables");
+		if ( varsElm != null && varsElm instanceof JsonObject ) {
+			JsonObject objElm = (JsonObject)varsElm;
+			
+			objElm.entrySet().stream()
+					.forEach(ent -> {
+						String value = ent.getValue().getAsString();
+						value = StrSubstitutor.replace(value, variables);
+						variables.put(ent.getKey(), value);
+					});
+		}
+		
+		config.m_root = new JsonConfigNode(config, null, "", root);
+		config.m_variables = variables;
+		
+		return config;
 	}
 
 	@Override
