@@ -15,12 +15,12 @@ import utils.Errors;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-class ResultSetIterator<T> implements Iterator<T>, AutoCloseable {
+class JdbcObjectIterator<T> implements Iterator<T>, AutoCloseable {
 	private ResultSet m_rs;
 	private final Function<ResultSet,T> m_functor;
 	private boolean m_hasNext;
 	
-	ResultSetIterator(ResultSet rs, Function<ResultSet,T> functor) throws SQLException {
+	JdbcObjectIterator(ResultSet rs, Function<ResultSet,T> functor) throws SQLException {
 		m_rs = rs;
 		m_functor = functor;
 		

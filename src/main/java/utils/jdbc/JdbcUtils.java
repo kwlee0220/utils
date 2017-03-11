@@ -44,6 +44,6 @@ public class JdbcUtils {
 
 	public static <T> Stream<T> stream(ResultSet rs, Function<ResultSet,T> trans)
 		throws SQLException {
-		return Utilities.stream(new ResultSetIterator<T>(rs, trans));
+		return Utilities.stream(new JdbcObjectIterator<T>(rs, trans));
 	}
 }

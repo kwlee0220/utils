@@ -11,8 +11,10 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
@@ -24,7 +26,7 @@ import utils.Utilities;
  * @author Kang-Woo Lee (ETRI)
  */
 public class JdbcProcessor {
-	private final Logger s_logger = Logger.getLogger(JdbcProcessor.class);
+	private final Logger s_logger = LoggerFactory.getLogger(JdbcProcessor.class);
 
 	private final String m_jdbcUrl;
 	private final String m_user;
@@ -78,15 +80,26 @@ public class JdbcProcessor {
 		}
 	}
 	
+	public <T> Stream<ResultSet> executeQuery(String sql) throws SQLException {
+		ResultSet rs = connect().createStatement().executeQuery(sql);
+		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
+	}
+	
+	public <T> Stream<ResultSet> executeQuery(PreparedStatement pstmt)
+		throws SQLException {
+		ResultSet rs = pstmt.executeQuery();
+		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
+	}
+	
 	public <T> Stream<T> executeQuery(String sql, Function<ResultSet,T> functor) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
-		return Utilities.stream(new ResultSetIterator<>(rs, functor));
+		return Utilities.stream(new JdbcObjectIterator<>(rs, functor));
 	}
 	
 	public <T> Stream<T> executeQuery(PreparedStatement pstmt, Function<ResultSet,T> functor)
 		throws SQLException {
 		ResultSet rs = pstmt.executeQuery();
-		return Utilities.stream(new ResultSetIterator<>(rs, functor));
+		return Utilities.stream(new JdbcObjectIterator<>(rs, functor));
 	}
 	
 	public void processQuery(String sql, JdbcConsumer<ResultSet> resultConsumer)
