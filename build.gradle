@@ -25,6 +25,7 @@ dependencies {
 	compile "com.google.code.findbugs:annotations:${findbugs_version}"
 	compile "com.google.code.gson:gson:2.8.0"
 	compile "org.apache.commons:commons-lang3:3.5"
+	compile "net.bytebuddy:byte-buddy:1.6.10"
 	compile "org.imgscalr:imgscalr-lib:4.2"
 	
 	testCompile "junit:junit:${junit_version}"
