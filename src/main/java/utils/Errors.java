@@ -56,10 +56,10 @@ public class Errors {
 			try {
 				task.run();
 			}
-//			catch ( RuntimeException rte ) {
-//				throw rte;
-//			}
-			catch ( Exception e ) {
+			catch ( RuntimeException rte ) {
+				throw rte;
+			}
+			catch ( Throwable e ) {
 				throw new RuntimeException(e);
 			}
 		}
@@ -73,7 +73,7 @@ public class Errors {
 			catch ( RuntimeException e ) {
 				throw e;
 			}
-			catch ( Exception e ) {
+			catch ( Throwable e ) {
 				throw new RuntimeException(e);
 			}
 		};
@@ -140,7 +140,7 @@ public class Errors {
 	}
 	
 	public static interface CheckedRunnable {
-		public void run() throws Exception;
+		public void run() throws Throwable;
 	}
 	
 	public static interface CheckedAction0 {

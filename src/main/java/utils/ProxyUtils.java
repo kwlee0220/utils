@@ -1,11 +1,15 @@
 package utils;
 
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
+
+import net.sf.cglib.proxy.Callback;
+import net.sf.cglib.proxy.CallbackFilter;
+import net.sf.cglib.proxy.Enhancer;
+import net.sf.cglib.proxy.MethodInterceptor;
+import net.sf.cglib.proxy.NoOp;
 
 
 /**
@@ -18,41 +22,36 @@ public final class ProxyUtils {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> T replaceAction(ClassLoader loader, T obj, Predicate<Method> filter,
-										InvocationHandler replacer) {
+	public static <T> T replaceAction(ClassLoader loader, T obj, CallbackFilter filter,
+										MethodInterceptor replacer) {
 		Preconditions.checkNotNull(obj, "target object is null");
 		Preconditions.checkNotNull(replacer, "InvocationHandler is null");
 		
-		if ( loader == null ) {
-			loader = obj.getClass().getClassLoader();
-		}
-		
-		Class<?>[] intfcs = obj.getClass().getInterfaces();
-		return (T)Proxy.newProxyInstance(loader, obj.getClass().getInterfaces(),
-											new ReplaceHandler(obj, filter, replacer));
+		return (T)Enhancer.create(obj.getClass(), obj.getClass().getInterfaces(),
+									filter, new Callback[]{NoOp.INSTANCE, replacer});
 	}
 	
-	static class ReplaceHandler implements InvocationHandler {
-		private final Object m_object;
-		private final Predicate<Method> m_tester;
-		private final InvocationHandler m_replacer;
-		
-		ReplaceHandler(Object object, Predicate<Method> tester, InvocationHandler replacer) {
-			m_object = object;
-			m_tester = tester;
-			m_replacer = replacer;
-		}
-
-		@Override
-		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-			if ( m_tester != null && m_tester.test(method) ) {
-				return m_replacer.invoke(proxy, method, args);
-			}
-			else {
-				return method.invoke(m_object, args);
-			}
-		}
-	}
+//	static class ReplaceHandler implements InvocationHandler {
+//		private final Object m_object;
+//		private final Predicate<Method> m_tester;
+//		private final InvocationHandler m_replacer;
+//		
+//		ReplaceHandler(Object object, Predicate<Method> tester, InvocationHandler replacer) {
+//			m_object = object;
+//			m_tester = tester;
+//			m_replacer = replacer;
+//		}
+//
+//		@Override
+//		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+//			if ( m_tester != null && m_tester.test(method) ) {
+//				return m_replacer.invoke(proxy, method, args);
+//			}
+//			else {
+//				return method.invoke(m_object, args);
+//			}
+//		}
+//	}
 
 	/**
 	 * 주어진 객체(<code>toBeExtended</code>)를 확장하여 추가의 인터페이스(<code>intfc</code>)도
