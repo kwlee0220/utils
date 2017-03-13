@@ -82,6 +82,9 @@ public class JdbcProcessor {
 	
 	public <T> Stream<ResultSet> executeQuery(String sql) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
+		
+		
+		rs = JdbcUtils.bindToConnection(rs);
 		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
 	}
 	
