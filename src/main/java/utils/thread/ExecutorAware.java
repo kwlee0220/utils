@@ -2,6 +2,8 @@ package utils.thread;
 
 import java.util.concurrent.Executor;
 
+import utils.Initializable;
+
 
 /**
  * {@literal ExecutorAware}는 컴포넌트 관리자가 사용하는 쓰레드 풀을 필요로 하는 컴포넌트의
