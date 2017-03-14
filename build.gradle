@@ -37,6 +37,9 @@ task sourceJar(type: Jar) {
 	from sourceSets.main.allSource
 }
 
+javadoc {
+	options.encoding = 'UTF-8'
+}
 task javadocJar(type: Jar) {
 	classifier 'javadoc'
 	from javadoc.destinationDir

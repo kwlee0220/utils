@@ -31,6 +31,7 @@ public interface XmlSerializable {
 	 * 
 	 * @param topElmName	생성될 XML 문서의 최상위 이름
 	 * @param indent		들어쓰기 값.
+	 * @return	변환된 XML 문자열
 	 */
 	public default String toXmlString(String topElmName, int indent) {
 		return toXmlDocument(topElmName).toXmlString(false, indent);
@@ -42,6 +43,7 @@ public interface XmlSerializable {
 	 * 계층구조의 XML 문서가 생성되는 경우 하위 노드들을 2만클 들여쓰기된다.
 	 * 
 	 * @param topElmName	생성될 XML 문서의 최상위 이름
+	 * @return	변환된 XML 문자열
 	 */
 	public default String toXmlString(String topElmName) {
 		return toXmlDocument(topElmName).toXmlString(false, 2);
@@ -95,6 +97,8 @@ public interface XmlSerializable {
 	 * 		수행하지 않는다.
 	 * </ul>
 	 * 
+	 * @param topElm	변환시킬 XML 문서의 최상위 FluentElement
+	 * @return	'topElm' 에 해당하는 객체
 	 */
 	public static Object loadXmlSerializable(FluentElement topElm) {
 		Optional<String> clsName = topElm.attr("class");

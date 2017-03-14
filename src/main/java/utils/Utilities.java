@@ -244,40 +244,6 @@ public class Utilities {
 		
 		return -1;
 	}
-*/
-	
-	/**
-	 * 배열에서 주어진 키에 해당하는 첫번째 원소를 제거한 새로운 배열을 반환한다.
-	 * <p>
-	 * 원소는 배열을 첫번째 원소를 시작으로 순차적으로 index를 증가해가며 검색하고, 첫번째로 찾아진
-	 * 원소가 삭제 대상이 된다. 즉, 키에 해당하는 복수개의 원소가 있더라도 가장 작은 index에 해당하는
-	 * 원소만이 삭제된다.
-	 * 만일 키에 해당하는 원소가 없는 경우는 인자로 주어진 배열을 그대로 반환한다.
-	 * 키를 통한 대상 원소를 찾는 방법은 {@link Object#equals(Object)}를 사용한다.
-	 *
-	 * @param <T>	원소 타입	
-	 * @param array	검색 대상 배열
-	 * @param key	검색하고자하는 원소을 찾을 키
-	 * @return	키에 해당하는 원소가 제거된 배열.
-	 */
-/*
-	public static <T> T[] removeFirstElement(T[] array, T key) {
-		if ( array == null ) {
-			throw new IllegalArgumentException("array was null");
-		}
-		if ( key == null ) {
-			throw new IllegalArgumentException("key was null");
-		}
-		
-		int index = 0;
-		for (; index < array.length; ++index ) {
-			if ( key.equals(array[index]) ) {
-				return removeElement(array, index);
-			}
-		}
-		
-		return array;
-	}
 
 	@SuppressWarnings("unchecked")
 	public static <T> T[] removeElement(T[] array, int index) {
@@ -310,19 +276,7 @@ public class Utilities {
 
 		return intfcSet.toArray(new Class<?>[intfcSet.size()]);
 	}
-*/
-
-	/**
-	 * 주어진 두 클래스 배열을 하나의 클래스 배열로 통합한다. 이때 중복되는 클래스는 제거된다.
-	 * <p>
-	 * 통합 작업시 클래스간 상속 관계는 고려하지 않는다.
-	 *
-	 * @param left	통합할 첫번째 클래스 배열.
-	 * @param right	통합할 두번째 클래스 배열.
-	 * @return	통합된 클래스 배열.
-	 * @throws	IllegalArgumentException	첫번째 또는 두번째 배열이 <code>null</code>인 경우.
-	 */
-/*
+	
 	public static Class<?>[] concatClasses(Class<?>[] left, Class<?>... right) {
 		if ( left == null || right == null ) {
 			throw new IllegalArgumentException("argument was null");

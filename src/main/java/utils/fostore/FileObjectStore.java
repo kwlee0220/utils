@@ -30,7 +30,6 @@ public class FileObjectStore<T extends FileObject> {
 	 * 
 	 * @param rootDir	저장소가 사용할 최상위 디렉토리.
 	 * @param handler	저장될 파일 객체의 인터페이스.
-	 * @param mapper	파일 객체의 식별자와 해당 파일 이름 사이의 매퍼 객체.
 	 * @param cacheSize	파일 객체 캐쉬. 음수 또는 0인 경우는 캐쉬를 사용하지 않는 것을 간주한다.
 	 */
     public FileObjectStore(File rootDir, FileObjectHandler<T> handler, int cacheSize) {
