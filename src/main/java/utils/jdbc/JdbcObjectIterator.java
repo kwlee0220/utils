@@ -1,15 +1,14 @@
 package utils.jdbc;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Iterator;
 import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
 
 import utils.Errors;
+import utils.io.IOUtils;
 
 /**
  * 
@@ -30,11 +29,7 @@ class JdbcObjectIterator<T> implements Iterator<T>, AutoCloseable {
 	@Override
 	public void close() throws Exception {
 		if ( m_rs != null ) {
-			Statement stmt = m_rs.getStatement();
-			Connection conn = stmt.getConnection();
-			
-			JdbcUtils.closeQuietly(stmt);
-			JdbcUtils.closeQuietly(conn);
+			IOUtils.closeQuietly(m_rs);
 			
 			m_rs = null;
 		}

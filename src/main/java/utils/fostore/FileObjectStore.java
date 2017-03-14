@@ -8,7 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import utils.ExceptionUtils;
 
@@ -18,7 +19,7 @@ import utils.ExceptionUtils;
  * @author Kang-Woo Lee (ETRI)
  */
 public class FileObjectStore<T extends FileObject> {
-    private static final Logger s_logger = Logger.getLogger(FileObjectStore.class);
+    private static final Logger s_logger = LoggerFactory.getLogger(FileObjectStore.class);
     
 	private final File m_rootDir;
 	private final FileObjectHandler<T> m_handler;

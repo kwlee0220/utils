@@ -5,20 +5,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.jcip.annotations.GuardedBy;
 import utils.ExceptionUtils;
+import utils.LoggerSettable;
 import utils.LongVariableSmoother;
-import utils.Utilities;
 
 
 /**
  *
  * @author Kang-Woo Lee
  */
-public class RecurringScheduleThread implements RecurringSchedule {
-	static final Logger s_logger = Logger.getLogger("ETRI.THREAD.SCHEDULE");
+public class RecurringScheduleThread implements RecurringSchedule, LoggerSettable {
+	static final Logger s_logger = LoggerFactory.getLogger("ETRI.THREAD.SCHEDULE");
 	
 	private static final int STATE_NOT_STARTED = 0;
 	private static final int STATE_STARTING = 1;
@@ -74,8 +75,13 @@ public class RecurringScheduleThread implements RecurringSchedule {
 	}
 
 	@Override
+	public Logger getLogger() {
+		return m_logger;
+	}
+
+	@Override
 	public void setLogger(Logger logger) {
-		m_logger = logger;
+		m_logger = logger == null ? logger : s_logger;
 	}
 
 	@Override

@@ -1,7 +1,6 @@
 package utils;
 
 import java.lang.reflect.Method;
-import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
 
@@ -9,7 +8,7 @@ import net.sf.cglib.proxy.Callback;
 import net.sf.cglib.proxy.CallbackFilter;
 import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
-import net.sf.cglib.proxy.NoOp;
+import net.sf.cglib.proxy.MethodProxy;
 
 
 /**
@@ -22,13 +21,92 @@ public final class ProxyUtils {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> T replaceAction(ClassLoader loader, T obj, CallbackFilter filter,
-										MethodInterceptor replacer) {
+	public static <T> T replaceAction(ClassLoader loader, T obj, CallHandler<T>... handlers) {
+		Preconditions.checkNotNull(loader, "ClassLoader is null");
 		Preconditions.checkNotNull(obj, "target object is null");
-		Preconditions.checkNotNull(replacer, "InvocationHandler is null");
+		Preconditions.checkNotNull(handlers, "CallHandler is null");
+		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
 		
-		return (T)Enhancer.create(obj.getClass(), obj.getClass().getInterfaces(),
-									filter, new Callback[]{NoOp.INSTANCE, replacer});
+		Callback[] callbacks = new Callback[handlers.length+1];
+		for ( int i =0; i < handlers.length; ++i ) {
+			callbacks[i+1] = new Interceptor<>(obj, handlers[i]);
+		}
+		callbacks[0] = new NoOpHandler<>(obj);
+		
+		Enhancer enhancer = new Enhancer();
+		enhancer.setClassLoader(loader);
+		enhancer.setInterfaces(obj.getClass().getInterfaces());
+		enhancer.setCallbackFilter(new CallFilter<>(handlers));
+		enhancer.setCallbacks(callbacks);
+		return (T)enhancer.create();
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T replaceAction(T obj, CallHandler<T>... handlers) {
+		Preconditions.checkNotNull(obj, "target object is null");
+		Preconditions.checkNotNull(handlers, "CallHandler is null");
+		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
+		
+		Callback[] callbacks = new Callback[handlers.length+1];
+		for ( int i =0; i < handlers.length; ++i ) {
+			callbacks[i+1] = new Interceptor<>(obj, handlers[i]);
+		}
+		callbacks[0] = new NoOpHandler<>(obj);
+		
+		Enhancer enhancer = new Enhancer();
+		enhancer.setInterfaces(obj.getClass().getInterfaces());
+		enhancer.setCallbackFilter(new CallFilter<>(handlers));
+		enhancer.setCallbacks(callbacks);
+		return (T)enhancer.create();
+	}
+				
+	private static class CallFilter<T> implements CallbackFilter {
+		private final CallHandler<T>[] m_handlers;
+		
+		CallFilter(CallHandler<T>[] handlers) {
+			m_handlers = handlers;
+		}
+		
+		@Override
+		public int accept(Method method) {
+			for ( int i =0; i < m_handlers.length; ++i ) {
+				if ( m_handlers[i].test(method) ) {
+					return i+1;
+				}
+			}
+			
+			return 0;
+		}
+	}
+	
+	private static class NoOpHandler<T> implements MethodInterceptor {
+		private T m_object;
+		
+		NoOpHandler(T object) {
+			m_object = object;
+		}
+
+		@Override
+		public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
+			throws Throwable {
+			return proxy.invoke(m_object, args);
+		}
+	}
+	
+	private static class Interceptor<T> implements MethodInterceptor {
+		private T m_object;
+		private CallHandler<T> m_interceptor;
+		
+		Interceptor(T object, CallHandler<T> interceptor) {
+			m_object = object;
+			m_interceptor = interceptor;
+		}
+
+		@Override
+		public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
+			throws Throwable {
+			return m_interceptor.intercept(m_object, method, args, proxy);
+		}
 	}
 	
 //	static class ReplaceHandler implements InvocationHandler {

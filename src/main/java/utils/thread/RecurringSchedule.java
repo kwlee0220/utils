@@ -3,8 +3,6 @@ package utils.thread;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.log4j.Logger;
-
 
 /**
  *
@@ -102,6 +100,4 @@ public interface RecurringSchedule {
 	 * 								스케줄에 대해 호출하는 경우.
 	 */
 	public boolean waitForStopped(long timeout) throws InterruptedException;
-
-	public void setLogger(Logger logger);
 }

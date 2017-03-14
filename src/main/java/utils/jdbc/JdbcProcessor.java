@@ -13,9 +13,12 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import javax.annotation.Nonnull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import utils.Utilities;
@@ -66,30 +69,38 @@ public class JdbcProcessor {
 		}
 	}
 	
-	public void dropTable(String tblName) throws SQLException {
-		Statement stmt = connect().createStatement();
+	/**
+	 * 주어진 이름의 테이블을 삭제시킨다.
+	 * 
+	 * @param tblName	삭제할 테이블 이름.
+	 * @return	삭제가 성공한 경우는 {@code true}, 그렇지 않고, 삭제될 테이블 이름이 존재하지 않아
+	 * 			삭제가 실패된 경우
+	 * @throws SQLException	테이블 삭제 과정 중 예외가 발생된 경우.
+	 */
+	public boolean dropTable(@Nonnull String tblName) throws SQLException {
+		Preconditions.checkNotNull(tblName, "table name is null");
 		
-		try {
-			stmt.executeUpdate(String.format("drop table %s", tblName));
-		}
-		finally {
-			Connection conn = stmt.getConnection();
+		try ( Connection conn = connect();
+				Statement stmt = conn.createStatement() ) {
+			String sql = String.format("drop table %s", tblName);
+			s_logger.debug("delete table '{}': {}", tblName, sql);
 			
-			JdbcUtils.closeQuietly(stmt);
-			JdbcUtils.closeQuietly(conn);
+			return stmt.executeUpdate(sql) > 0;
 		}
 	}
 	
-	public <T> Stream<ResultSet> executeQuery(String sql) throws SQLException {
+	public ResultSet executeQuery(String sql) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
-		
-		
+		return JdbcUtils.bindToConnection(rs);
+	}
+	
+	public Stream<ResultSet> streamQuery(String sql) throws SQLException {
+		ResultSet rs = connect().createStatement().executeQuery(sql);
 		rs = JdbcUtils.bindToConnection(rs);
 		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
 	}
 	
-	public <T> Stream<ResultSet> executeQuery(PreparedStatement pstmt)
-		throws SQLException {
+	public Stream<ResultSet> executeQuery(PreparedStatement pstmt) throws SQLException {
 		ResultSet rs = pstmt.executeQuery();
 		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
 	}
@@ -107,11 +118,8 @@ public class JdbcProcessor {
 	
 	public void processQuery(String sql, JdbcConsumer<ResultSet> resultConsumer)
 									throws SQLException, ExecutionException {
-		Connection conn = null;
-		Statement stmt = null;
-		try {
-			conn = connect();
-			stmt = conn.createStatement();
+		try ( Connection conn = connect() ) {
+			Statement stmt = conn.createStatement();
 			
 			ResultSet rs = stmt.executeQuery(sql);
 			while ( rs.next() ) {
@@ -130,19 +138,11 @@ public class JdbcProcessor {
 				throw new ExecutionException(e);
 			}
 		}
-		finally {
-			JdbcUtils.closeQuietly(stmt);
-			JdbcUtils.closeQuietly(conn);
-		}
 	}
 	
 	public int executeUpdate(String sql) throws SQLException, ExecutionException {
-		Connection conn = null;
-		Statement stmt = null;
-		try {
-			conn = connect();
-			stmt = conn.createStatement();
-			return stmt.executeUpdate(sql);
+		try ( Connection conn = connect() ) {
+			return conn.createStatement().executeUpdate(sql);
 		}
 		catch ( SQLException e ) {
 			throw e;
@@ -156,14 +156,12 @@ public class JdbcProcessor {
 				throw new ExecutionException(e);
 			}
 		}
-		finally {
-			JdbcUtils.closeQuietly(stmt);
-			JdbcUtils.closeQuietly(conn);
-		}
 	}
 	
-	public int executeUpdate(PreparedStatement pstmt) throws SQLException, ExecutionException {
-		try {
+	public int executeUpdate(String sql, JdbcConsumer<PreparedStatement> pstmtSetter)
+		throws SQLException, ExecutionException {
+		try ( Connection conn = connect() ) {
+			PreparedStatement pstmt = conn.prepareStatement(sql);
 			return pstmt.executeUpdate();
 		}
 		catch ( SQLException e ) {
@@ -178,18 +176,11 @@ public class JdbcProcessor {
 				throw new ExecutionException(e);
 			}
 		}
-		finally {
-			Connection conn = pstmt.getConnection();
-			JdbcUtils.closeQuietly(pstmt);
-			JdbcUtils.closeQuietly(conn);
-		}
 	}
 	
 	public void execute(JdbcConsumer<Statement> job) throws SQLException, ExecutionException {
-		Connection conn = connect();
-		Statement stmt = null;
-		try {
-			stmt = conn.createStatement();
+		try ( Connection conn = connect() ) {
+			Statement stmt = conn.createStatement();
 			
 			job.accept(stmt);
 		}
@@ -205,19 +196,12 @@ public class JdbcProcessor {
 				throw new ExecutionException(e);
 			}
 		}
-		finally {
-			JdbcUtils.closeQuietly(stmt);
-			JdbcUtils.closeQuietly(conn);
-		}
 	}
 	
 	public Map<String,String> getColumns(String tblName) throws SQLException, ExecutionException {
 		Map<String,String> columns = Maps.newLinkedHashMap();
-		
-		Connection conn = null;
-		Statement stmt = null;
-		try {
-			conn = connect();
+
+		try ( Connection conn = connect() ) {
 			DatabaseMetaData meta = conn.getMetaData();
 			ResultSet rs = meta.getColumns(null, null, tblName, null);
 			while ( rs.next() ) {
@@ -240,10 +224,6 @@ public class JdbcProcessor {
 			else {
 				throw new ExecutionException(e);
 			}
-		}
-		finally {
-			JdbcUtils.closeQuietly(stmt);
-			JdbcUtils.closeQuietly(conn);
 		}
 	}
 	
