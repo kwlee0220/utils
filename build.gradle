@@ -39,6 +39,7 @@ task sourceJar(type: Jar) {
 
 javadoc {
 	options.encoding = 'UTF-8'
+	options.links("http://docs.oracle.com/javase/8/docs/api/")
 }
 task javadocJar(type: Jar) {
 	classifier 'javadoc'
