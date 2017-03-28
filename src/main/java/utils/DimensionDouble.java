@@ -6,8 +6,11 @@ package utils;
  * @author Kang-Woo Lee (ETRI)
  */
 public class DimensionDouble {
-	private final double m_width;
-	private final double m_height;
+	private double m_width;
+	private double m_height;
+	
+	@SuppressWarnings("unused")
+	private DimensionDouble() { }
 	
 	public DimensionDouble(double width, double height) {
 		m_width = width;
