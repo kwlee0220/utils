@@ -49,9 +49,6 @@ class JdbcObjectIterator<T> implements Iterator<T>, AutoCloseable {
 		try {
 			T result = m_functor.apply(m_rs);
 			m_hasNext = m_rs.next();
-			if ( !m_hasNext ) {
-				Errors.runQuietly(() -> close());
-			}
 			
 			return result;
 		}
