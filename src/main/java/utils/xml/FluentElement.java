@@ -120,6 +120,9 @@ public interface FluentElement extends FluentNode {
 	public default Optional<Double> textDouble() {
 		return text().map(Double::parseDouble);
 	}
+	public default Optional<Character> textChar() {
+		return text().map(s -> s.charAt(0));
+	}
 	
 	public FluentElement text(String text);
 	public default FluentElement text(char c) {
@@ -183,6 +186,10 @@ public interface FluentElement extends FluentNode {
 	}
 	public default FluentElement withText(Consumer<String> consumer) {
 		text().ifPresent(consumer::accept);
+		return this;
+	}
+	public default FluentElement withChar(Consumer<Character> consumer) {
+		textChar().ifPresent(consumer::accept);
 		return this;
 	}
 	
