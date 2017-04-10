@@ -31,7 +31,7 @@ public class CSV {
 		m_delim = ',';
 	}
 	
-	public char delimeter() {
+	public char delimiter() {
 		return m_delim;
 	}
 	
