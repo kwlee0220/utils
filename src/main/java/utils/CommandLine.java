@@ -27,6 +27,10 @@ public class CommandLine {
 		m_cl = cl;
 	}
 	
+	public int getArgumentCount() {
+		return m_cl.getArgs().length;
+	}
+	
 	public String[] getArgumentAll() {
 		return m_cl.getArgs();
 	}
