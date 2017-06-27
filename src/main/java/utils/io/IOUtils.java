@@ -1,10 +1,16 @@
 package utils.io;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Base64;
 import java.util.stream.Stream;
@@ -39,121 +45,103 @@ public class IOUtils {
 				.forEach(IOUtils::closeQuietly);
 	}
 	
-//    public static int transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
-//        byte[] buf = new byte[bufSize];
-//
-//        int count = 0;
-//        for ( int nbytes = is.read(buf); nbytes >= 0; nbytes = is.read(buf) ) {
-//            os.write(buf, 0, nbytes);
-//            count += nbytes;
-//        }
-//
-//        return count;
-//    }
-//    
-//    public static int transferAndClose(InputStream is, OutputStream os, int bufSize)
-//    	throws IOException {
-//		try {
-//			return transfer(is, os, bufSize);
-//		}
-//		finally {
-//			try { is.close(); } catch ( Exception ignored ) { }
-//			try { os.close(); } catch ( Exception ignored ) { }
-//		}
-//    }
-//    
-//    public static byte[] toBytes(InputStream is, boolean closeStream) throws IOException {
-//    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//    	try {
-//	    	transfer(is, baos, 4096);
-//	    	baos.close();
-//	    	
-//	    	return baos.toByteArray();
-//    	}
-//    	finally {
-//    		if ( closeStream ) {
-//    			try {
-//					is.close();
-//				}
-//				catch ( IOException ignored ) { }
-//    		}
-//    	}
-//    }
-//    
-//    public static byte[] toBytes(File file) throws IOException {
-//    	byte[] bytes = new byte[(int)file.length()];
-//    	
-//    	FileInputStream fis = new FileInputStream(file);
-//    	try {
-//			fis.read(bytes);
-//			
-//	    	return bytes;
-//		}
-//    	finally {
-//    		try { fis.close(); } catch ( IOException ignored ) { }
-//    	}
-//    }
-//    
-//    public static void toFile(byte[] bytes, File file) throws IOException {
-//    	FileOutputStream fos = new FileOutputStream(file);
-//    	BufferedOutputStream bos = new BufferedOutputStream(fos);
-//    	
-//    	try {
-//    		bos.write(bytes);
-//    	}
-//    	finally {
-//    		try { bos.close(); } catch ( IOException ignored ) { }
-//    	}
-//    }
-//    
-//    public static void toFile(InputStream is, File file) throws IOException {
-//    	FileOutputStream fos = new FileOutputStream(file);
-//    	BufferedOutputStream bos = new BufferedOutputStream(fos);
-//    	
-//    	try {
-//    		transfer(is, bos, 16<<10);
-//    	}
-//    	finally {
-//    		try { bos.close(); } catch ( IOException ignored ) { }
-//    	}
-//    }
-//
-//	public static void readFully(InputStream is, byte[] buf) throws IOException {
-//		IOUtils.readFully(is, buf, 0, buf.length);
-//	}
-//
-//	public static void readFully(InputStream is, byte[] buf, int offset, int remains)
-//		throws IOException {
-//		while ( remains > 0 ) {
-//			int nbytes = is.read(buf, offset, remains);
-//			if ( nbytes < 0 ) {
-//				throw new IOException("reached EOF");
-//			}
-//			
-//			offset += nbytes;
-//			remains -= nbytes;
-//		}
-//	}
-//
-//	public static int readAtBest(InputStream is, byte[] buf) throws IOException {
-//		return IOUtils.readAtBest(is, buf, 0, buf.length);
-//	}
-//
-//	public static int readAtBest(InputStream is, byte[] buf, int offset, int length)
-//		throws IOException {
-//		int remains = length;
-//		while ( remains > 0 ) {
-//			int nbytes = is.read(buf, offset, remains);
-//			if ( nbytes < 0 ) {
-//				return length - remains;
-//			}
-//			
-//			offset += nbytes;
-//			remains -= nbytes;
-//		}
-//		
-//		return length;
-//	}
+    public static int transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
+        byte[] buf = new byte[bufSize];
+
+        int count = 0;
+        for ( int nbytes = is.read(buf); nbytes >= 0; nbytes = is.read(buf) ) {
+            os.write(buf, 0, nbytes);
+            count += nbytes;
+        }
+
+        return count;
+    }
+    
+    public static int transferAndClose(InputStream is, OutputStream os, int bufSize)
+    	throws IOException {
+		try {
+			return transfer(is, os, bufSize);
+		}
+		finally {
+			closeQuietly(is, os);
+		}
+    }
+    
+    public static byte[] toBytes(InputStream is, boolean closeStream) throws IOException {
+    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    	try {
+	    	transfer(is, baos, 4096);
+	    	baos.close();
+	    	
+	    	return baos.toByteArray();
+    	}
+    	finally {
+    		if ( closeStream ) {
+    			closeQuietly(is);
+    		}
+    	}
+    }
+    
+    public static byte[] toBytes(File file) throws IOException {
+    	byte[] bytes = new byte[(int)file.length()];
+    	
+    	try ( FileInputStream fis = new FileInputStream(file) ) {
+			fis.read(bytes);
+			
+	    	return bytes;
+		}
+    }
+    
+    public static void toFile(byte[] bytes, File file) throws IOException {
+    	try ( FileOutputStream fos = new FileOutputStream(file); 
+    		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
+    		bos.write(bytes);
+    	}
+    }
+    
+    public static void toFile(InputStream is, File file) throws IOException {
+    	try ( FileOutputStream fos = new FileOutputStream(file);
+    		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
+    		transfer(is, bos, 16<<10);
+    	}
+    }
+
+	public static void readFully(InputStream is, byte[] buf) throws IOException {
+		readFully(is, buf, 0, buf.length);
+	}
+
+	public static void readFully(InputStream is, byte[] buf, int offset, int length)
+		throws IOException {
+		while ( length > 0 ) {
+			int nbytes = is.read(buf, offset, length);
+			if ( nbytes < 0 ) {
+				throw new IOException("reached EOF");
+			}
+			
+			offset += nbytes;
+			length -= nbytes;
+		}
+	}
+
+	public static int readAtBest(InputStream is, byte[] buf) throws IOException {
+		return IOUtils.readAtBest(is, buf, 0, buf.length);
+	}
+
+	public static int readAtBest(InputStream is, byte[] buf, int offset, int length)
+		throws IOException {
+		int remains = length;
+		while ( remains > 0 ) {
+			int nbytes = is.read(buf, offset, remains);
+			if ( nbytes < 0 ) {
+				return length - remains;
+			}
+			
+			offset += nbytes;
+			remains -= nbytes;
+		}
+		
+		return length;
+	}
 	
 	public static byte[] compress(byte[] bytes) throws IOException {
 		Deflater deflater = new Deflater();
