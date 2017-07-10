@@ -184,6 +184,15 @@ public class IOUtils {
 		return output;  
 	}
 	
+	public static String toSerializedString(Serializable obj) throws IOException {
+		return stringify(serialize(obj));
+	}
+	
+	public static Object fromSerializedString(String encoded)
+		throws IOException, ClassNotFoundException {
+		return deserialize(destringify(encoded));
+	}
+	
 	public static byte[] serialize(Serializable obj) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		try ( ObjectOutputStream oos = new ObjectOutputStream(baos) ) {
