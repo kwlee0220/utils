@@ -2,6 +2,7 @@ package utils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -23,6 +24,9 @@ public class ExceptionUtils {
 			}
 			else if ( e instanceof ExecutionException ) {
 				e = ((ExecutionException)e).getCause();
+			}
+			else if ( e instanceof CompletionException ) {
+				e = ((CompletionException)e).getCause();
 			}
 			else if ( e instanceof RuntimeException ) {
 				Throwable cause = ((RuntimeException)e).getCause();

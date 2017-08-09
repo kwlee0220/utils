@@ -13,6 +13,15 @@ public class Lambdas {
 		throw new AssertionError("Should not be called: " + Lambdas.class);
 	}
 	
+	public static <T> Runnable toRunnable(final Consumer<T> consumer, final T data) {
+		return new Runnable() {
+			@Override
+			public void run() {
+				consumer.accept(data);
+			}
+		};
+	}
+	
 	public static void guraded(Lock lock, Runnable work) {
 		lock.lock();
 		try {

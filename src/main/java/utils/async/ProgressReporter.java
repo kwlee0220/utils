@@ -6,6 +6,7 @@ import rx.Observer;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public interface ProgressReporter {
-	public void setProgressListener(Observer<Float> lister);
+public interface ProgressReporter<P> {
+	public P getInitialValue();
+	public void setProgressListener(Observer<P> listener);
 }

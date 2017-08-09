@@ -13,6 +13,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -41,6 +42,12 @@ public class IOUtils {
 	
 	public static void closeQuietly(AutoCloseable... closeables) {
 		Stream.of(closeables)
+				.filter(c -> c != null)
+				.forEach(IOUtils::closeQuietly);
+	}
+	
+	public static void closeQuietly(Collection<AutoCloseable> closeables) {
+		closeables.stream()
 				.filter(c -> c != null)
 				.forEach(IOUtils::closeQuietly);
 	}

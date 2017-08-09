@@ -5,22 +5,29 @@ import java.util.concurrent.CompletableFuture;
 import rx.Observable;
 import rx.Observer;
 import rx.subjects.BehaviorSubject;
+import utils.io.IOUtils;
+
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class AsyncOperation<T> extends CompletableFuture<T> {
-	private final BehaviorSubject<Float> m_subject;
+public class Progress<P,T> extends CompletableFuture<T> {
+	private final BehaviorSubject<P> m_subject;
 	
-	public AsyncOperation() {
-		m_subject = BehaviorSubject.create(0f);
+	public Progress(P init) {
+		m_subject = BehaviorSubject.create(init);
+	}
+	
+	public void addCloseables(AutoCloseable... closeables) {
+		m_subject.subscribe(v->{},
+							e->closeCloseables(closeables),
+							()->closeCloseables(closeables));
 	}
 	
 	@Override
 	public synchronized boolean complete(T value) {
 		if ( super.complete(value) ) {
-			m_subject.onNext(1.0f);
 			m_subject.onCompleted();
 			return true;
 		}
@@ -51,11 +58,15 @@ public class AsyncOperation<T> extends CompletableFuture<T> {
 		}
 	}
 	
-	public Observable<Float> progressNotifier() {
+	public Observable<P> progressNotifier() {
 		return m_subject;
 	}
 	
-	public Observer<Float> progressListener() {
+	public Observer<P> progressListener() {
 		return m_subject;
+	}
+	
+	private void closeCloseables(AutoCloseable... closeables) {
+		IOUtils.closeQuietly(closeables);
 	}
 }
