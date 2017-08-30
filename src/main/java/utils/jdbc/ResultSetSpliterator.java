@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 
 import com.google.common.base.Preconditions;
 
-import utils.Errors;
+import utils.Unchecked;
 import utils.io.IOUtils;
 
 /**
@@ -52,7 +52,7 @@ class ResultSetSpliterator extends Spliterators.AbstractSpliterator<ResultSet>
 			consumer.accept(m_rs);
 		}
 		catch ( SQLException e ) {
-			Errors.runQuietly(()->close());
+			Unchecked.runIE(()->close());
 			m_rs = null;
 			
 			throw new RuntimeException(e);

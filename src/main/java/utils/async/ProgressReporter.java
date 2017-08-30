@@ -1,12 +1,11 @@
 package utils.async;
 
-import rx.Observer;
+import rx.Observable;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public interface ProgressReporter<P> {
-	public P getInitialValue();
-	public void setProgressListener(Observer<P> listener);
+	public Observable<P> getObservable();
 }

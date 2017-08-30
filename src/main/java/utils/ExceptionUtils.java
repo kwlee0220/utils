@@ -43,6 +43,15 @@ public class ExceptionUtils {
 		}
 	}
 	
+	public static RuntimeException toRuntimeException(Throwable e) {
+		if ( e instanceof RuntimeException ) {
+			return (RuntimeException)e;
+		}
+		else {
+			return new RuntimeException(e);
+		}
+	}
+	
 /*
 	public static <T> Stream<T> stream(Iterable<T> it) {
 		return StreamSupport.stream(it.spliterator(), false);

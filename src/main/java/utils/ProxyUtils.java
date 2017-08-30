@@ -1,6 +1,7 @@
 package utils;
 
 import java.lang.reflect.Method;
+import java.util.Set;
 
 import com.google.common.base.Preconditions;
 
@@ -183,6 +184,43 @@ public final class ProxyUtils {
 //		return (T)Proxy.newProxyInstance(loader, intfcSet.toArray(new Class<?>[intfcSet.size()]),
 //										new ExtendedCallHandler(toBeExtended, intfcs, handlers));
 //	}
+	
+	public static <T> T extend(ClassLoader cloader, Object src, Class<T> intfc, T extHandler) {
+		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(src.getClass());
+		intfcSet.add(intfc);
+		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
+		
+		Enhancer enhancer = new Enhancer();
+		enhancer.setSuperclass(src.getClass());
+		enhancer.setInterfaces(intfcs);
+		enhancer.setCallback(new ExtendedCallHandler<>(src, intfc, extHandler));
+		return (T)enhancer.create();
+	}
+
+	private static class ExtendedCallHandler<T> implements MethodInterceptor {
+		private final Object m_src;
+		private final Class<T> m_intfc;
+		private final T m_handler;
+
+		ExtendedCallHandler(Object orgObj, Class<T> intfc, T handler) {
+			m_src = orgObj;
+			m_intfc = intfc;
+			m_handler = handler;
+		}
+
+		@Override
+		public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
+			throws Throwable {
+			Class<?> declaring = method.getDeclaringClass();
+
+			if ( m_intfc == declaring || declaring.isAssignableFrom(m_intfc) ) {
+				return method.invoke(m_handler, args);
+			}
+			else {
+				return proxy.invokeSuper(m_src, args);
+			}
+		}
+	}
 
 	/**
 	 * 주어진 객체(<code>toBeExtended</code>)를 확장하여 추가의 인터페이스(<code>intfc</code>)도

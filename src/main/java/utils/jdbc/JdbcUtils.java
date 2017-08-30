@@ -10,8 +10,8 @@ import java.util.stream.StreamSupport;
 
 import net.sf.cglib.proxy.MethodProxy;
 import utils.CallHandler;
-import utils.Errors;
 import utils.ProxyUtils;
+import utils.Unchecked;
 import utils.Utilities;
 import utils.io.IOUtils;
 
@@ -70,7 +70,7 @@ public class JdbcUtils {
 				throws Throwable {
 				Connection conn = rs.getStatement().getConnection();
 				
-				Errors.runQuietly(()->proxy.invoke(rs, args));
+				Unchecked.runIE(() -> proxy.invoke(rs, args));
 				IOUtils.closeQuietly(conn);
 				
 				return null;

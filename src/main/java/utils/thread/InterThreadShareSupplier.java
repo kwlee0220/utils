@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 
 import net.jcip.annotations.GuardedBy;
-import utils.CheckedSupplier;
+import utils.Unchecked.CheckedSupplier;
 import utils.ExceptionUtils;
 import utils.LoggerSettable;
 

@@ -3,6 +3,7 @@ package utils.thread;
 import java.time.Instant;
 import java.util.Date;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
@@ -20,7 +21,6 @@ import com.google.common.base.Preconditions;
 import net.jcip.annotations.GuardedBy;
 import utils.ExceptionUtils;
 import utils.LoggerSettable;
-import utils.Utilities;
 
 
 
@@ -244,7 +244,7 @@ public class Prefetcher<T> implements LoggerSettable, ExecutorAware {
 	
 	private void requestPrefetchInGuard() {
 		m_state = PrefetchState.REQUESTED;
-		Utilities.runAsync(m_prefetchingWorker, m_executor);
+		CompletableFuture.runAsync(m_prefetchingWorker, m_executor);
 	}
 	
 	private final Runnable m_prefetchingWorker = new Runnable() {

@@ -27,13 +27,16 @@ public interface Function<T,U> {
 	public static <T, U, V> Function<T, V> andThen(Function<T, U> f, Function<U, V> g) {
 		return x -> g.apply(f.apply(x));
 	}
-//	  static <T, U, V> Function<Function<T, U>, Function<Function<U, V>, Function<T, V>>> compose() {
-//	    return x -> y -> y.compose(x);
-//	  }
-//
-//	  static <T, U, V> Function<Function<T, U>, Function<Function<V, T>, Function<V, U>>> andThen() {
-//	    return x -> y -> y.andThen(x);
-//	  }
+	
+	static <T, U, V> Function<Function<T, U>,
+							Function<Function<U, V>, Function<T, V>>> compose() {
+		return x -> y -> y.compose(x);
+	}
+	
+	static <T, U, V> Function<Function<T, U>,
+							Function<Function<V, T>, Function<V, U>>> andThen() {
+		return x -> y -> y.andThen(x);
+	}
 
 	public static <T, U, V> Function<Function<U, V>,
 									Function<Function<T, U>, Function<T, V>>> higherCompose() {

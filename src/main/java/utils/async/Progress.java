@@ -2,33 +2,57 @@ package utils.async;
 
 import java.util.concurrent.CompletableFuture;
 
+import io.vavr.Lazy;
 import rx.Observable;
-import rx.Observer;
-import rx.subjects.BehaviorSubject;
-import utils.io.IOUtils;
+import utils.ExceptionUtils;
 
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class Progress<P,T> extends CompletableFuture<T> {
-	private final BehaviorSubject<P> m_subject;
+public class Progress<T,P> extends CompletableFuture<T> implements ProgressReporter<P> {
+	private final CompletableFuture<T> m_promise;
+	private final Observable<P> m_observable;
 	
-	public Progress(P init) {
-		m_subject = BehaviorSubject.create(init);
+	public static <T,P> Progress<T,P> run(Lazy<CompletableFuture<T>> work,
+												ProgressReporter<P> task) {
+		return new Progress<>(work.get(), task);
 	}
 	
-	public void addCloseables(AutoCloseable... closeables) {
-		m_subject.subscribe(v->{},
-							e->closeCloseables(closeables),
-							()->closeCloseables(closeables));
+	public static <P> Progress<Void,P> runProgressAsync(ProgressReporter<P> task) {
+		return new Progress<>(CompletableFuture.runAsync((Runnable)task), task);
+	}
+	
+	public Progress(CompletableFuture<T> promise, Observable<P> observable) {
+		m_promise = promise;
+		m_observable = observable;
+		m_promise.whenComplete((ret,error) -> {
+			if ( error != null ) {
+				super.completeExceptionally(ExceptionUtils.unwrapThrowable(error));
+			}
+			else if ( m_promise.isCancelled() ) {
+				super.cancel(true);
+			}
+			else {
+				super.complete(ret);
+			}
+		});
+	}
+	
+	public Progress(CompletableFuture<T> promise, ProgressReporter<P> reporter) {
+		this(promise, reporter.getObservable());
 	}
 	
 	@Override
-	public synchronized boolean complete(T value) {
-		if ( super.complete(value) ) {
-			m_subject.onCompleted();
+	public Observable<P> getObservable() {
+		return m_observable;
+	}
+	
+	@Override
+	public boolean complete(T result) {
+		if ( super.complete(result) ) {
+			m_promise.complete(result);
 			return true;
 		}
 		else {
@@ -37,9 +61,9 @@ public class Progress<P,T> extends CompletableFuture<T> {
 	}
 	
 	@Override
-	public synchronized boolean completeExceptionally(Throwable cause) {
-		if ( super.completeExceptionally(cause) ) {
-			m_subject.onError(cause);
+	public boolean completeExceptionally(Throwable error) {
+		if ( super.completeExceptionally(error) ) {
+			m_promise.completeExceptionally(error);
 			return true;
 		}
 		else {
@@ -48,25 +72,14 @@ public class Progress<P,T> extends CompletableFuture<T> {
 	}
 	
 	@Override
-	public synchronized boolean cancel(boolean mayInterruptIfRunning) {
+	public boolean cancel(boolean mayInterruptIfRunning) {
 		if ( super.cancel(mayInterruptIfRunning) ) {
-			m_subject.onCompleted();
+			m_promise.cancel(mayInterruptIfRunning);
 			return true;
 		}
 		else {
+			m_promise.cancel(mayInterruptIfRunning);
 			return false;
 		}
-	}
-	
-	public Observable<P> progressNotifier() {
-		return m_subject;
-	}
-	
-	public Observer<P> progressListener() {
-		return m_subject;
-	}
-	
-	private void closeCloseables(AutoCloseable... closeables) {
-		IOUtils.closeQuietly(closeables);
 	}
 }
