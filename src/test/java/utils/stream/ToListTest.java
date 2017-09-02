@@ -1,14 +1,13 @@
 package utils.stream;
 
 
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
-
-import edu.emory.mathcs.backport.java.util.Collections;
 
 /**
  * 

@@ -60,7 +60,7 @@ public class BufferedImageConvas implements Convas {
 	}
 	
 	public synchronized void resize(Dimension newSize) {
-		m_bi = ImageUtils.resize(m_bi, newSize.width, newSize.height);
+//		m_bi = ImageUtils.resize(m_bi, newSize.width, newSize.height);
 	}
 
 	@Override

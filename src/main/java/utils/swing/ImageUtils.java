@@ -24,10 +24,6 @@ import javax.imageio.ImageWriter;
 import javax.imageio.plugins.jpeg.JPEGImageWriteParam;
 import javax.imageio.stream.ImageOutputStream;
 
-import org.imgscalr.Scalr;
-import org.imgscalr.Scalr.Method;
-import org.imgscalr.Scalr.Mode;
-
 import utils.io.IOUtils;
 
 
@@ -41,92 +37,36 @@ public class ImageUtils {
 		throw new AssertionError("Should not be invoked: class=" + getClass().getName());
 	}
 
-	public static BufferedImage resize(BufferedImage bimage, int width, int height) {
-		if ( bimage == null ) {
-			throw new IllegalArgumentException("bimage was null: ImageUtils.resize");
-		}
-		if ( bimage.getWidth() == width && bimage.getHeight() == height ) {
-			return bimage;
-		}
-		
-		return Scalr.resize(bimage, Method.QUALITY, Mode.FIT_EXACT, width, height);
-	}
-	
-	public static BufferedImage resizeQuickly(BufferedImage bimage, int width, int height) {
-		if ( bimage == null ) {
-			throw new IllegalArgumentException("bimage was null: ImageUtils.resizeQuickly");
-		}
-		if ( bimage.getWidth() == width && bimage.getHeight() == height ) {
-			return bimage;
-		}
-		
-		return Scalr.resize(bimage, Method.SPEED, Mode.AUTOMATIC, width, height);
-	}
-
-/*
-	public static ImageAnnotation getImageAnnotation(AnnotatedImage aimage, String id) {
-		for ( ImageAnnotation anno: aimage.annotations ) {
-			if ( anno.id.equals(id) ) {
-				return anno;
-			}
-		}
-		
-		return null;
-	}
-	
-	public static byte[] changeJPEGSize(byte[] imageBytes, Size2d targetSize, int quality)
-		throws IOException {
-		ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		
-		try {
-			changeJPEGSize(bais, baos, targetSize, quality);
-			return baos.toByteArray();
-		}
-		finally {
-			IOUtils.closeIGE(bais);
-			IOUtils.closeIGE(baos);
-		}
-	}
-	
-	public static void changeJPEGSize(InputStream is, OutputStream os, Size2d targetSize,
-										float quality) throws IOException {
-		final BufferedImage bimage = JPEGToBufferedImage(is);
-		final BufferedImage nbimage = changeSize(bimage, targetSize);
-		BufferedImageToJPEG(nbimage, os, quality);
-	}
-
-	public static byte[] JPEG2RGB24(InputStream input) throws IOException {
-		return RenderedImageToRGB24(JPEGToBufferedImage(input));
-	}
-
-	public static byte[] JPEGToRGB24(byte[] jpegBytes) {
-		return RenderedImageToRGB24(toBufferedImage(jpegBytes));
-	}
-
-	public static void RGB24ToJPEG(Dimension dim, byte[] rgbBytes, OutputStream output,
-									float quality) throws IOException {
-		BufferedImageToJPEG(RGB24ToBufferedImage(dim, rgbBytes), output, quality);
-	}
-
-	public static void RGB24ToJPEG(Dimension dim, byte[] rgbBytes, OutputStream output)
-		throws IOException {
-		RenderedImageToJPEG(RGB24ToBufferedImage(dim, rgbBytes), output);
-	}
-
-	public static byte[] RGB24ToJPEG(Dimension dim, byte[] rgbBytes) {
-		return RenderedImageToJPEG(RGB24ToBufferedImage(dim, rgbBytes));
-	}
-*/
-	
-	public static BufferedImage toBufferedImage(File file) throws IOException {
-		BufferedImage bi = ImageIO.read(file);
-		if ( bi == null ) {
-			throw new RuntimeException("unknown image format");
-		}
-		
-		return bi;
-	}
+//	public static BufferedImage resize(BufferedImage bimage, int width, int height) {
+//		if ( bimage == null ) {
+//			throw new IllegalArgumentException("bimage was null: ImageUtils.resize");
+//		}
+//		if ( bimage.getWidth() == width && bimage.getHeight() == height ) {
+//			return bimage;
+//		}
+//		
+//		return Scalr.resize(bimage, Method.QUALITY, Mode.FIT_EXACT, width, height);
+//	}
+//	
+//	public static BufferedImage resizeQuickly(BufferedImage bimage, int width, int height) {
+//		if ( bimage == null ) {
+//			throw new IllegalArgumentException("bimage was null: ImageUtils.resizeQuickly");
+//		}
+//		if ( bimage.getWidth() == width && bimage.getHeight() == height ) {
+//			return bimage;
+//		}
+//		
+//		return Scalr.resize(bimage, Method.SPEED, Mode.AUTOMATIC, width, height);
+//	}
+//	
+//	public static BufferedImage toBufferedImage(File file) throws IOException {
+//		BufferedImage bi = ImageIO.read(file);
+//		if ( bi == null ) {
+//			throw new RuntimeException("unknown image format");
+//		}
+//		
+//		return bi;
+//	}
 
 	/**
 	 * 주어진 JPEG 입력 스트림을 읽어 {@link BufferedImage} 객체를 생성한다.
@@ -222,36 +162,6 @@ public class ImageUtils {
 			IOUtils.closeQuietly(bos);
 		}
 	}
-
-/*
-	private static void writeRenderedImage(RenderedImage rendered, String writerFormat,
-										OutputStream output) throws IOException {
-		if ( !ImageIO.write(rendered, writerFormat, output) ) {
-			throw new RuntimeException("unsupported format=" + writerFormat);
-		}
-	}
-	
-	public static void RenderedImageToJPEG(RenderedImage bufferedImage, OutputStream output)
-		throws IOException {
-		writeRenderedImage(bufferedImage, "jpg", output);
-	}
-
-	public static byte[] RenderedImageToJPEG(RenderedImage rendered) {
-		return toBytes(rendered, "jpg");
-	}
-
-	public static byte[] RenderedImageToRGB24(RenderedImage rendered) {
-		return ((DataBufferByte)rendered.getData().getDataBuffer()).getData();
-	}
-
-	public static BufferedImage RGB24ToBufferedImage(Dimension dim, byte[] pixels) {
-		BufferedImage bimage = new BufferedImage(dim.width, dim.height, BufferedImage.TYPE_INT_RGB);
-		byte[] tarPixels = ((DataBufferByte)bimage.getRaster().getDataBuffer()).getData();
-		System.arraycopy(pixels, 0, tarPixels, 0, pixels.length);
-		
-		return bimage;
-	}
-*/
 	
 	public static BufferedImage deepCopy(BufferedImage bi) {
 		ColorModel cm = bi.getColorModel();
@@ -263,38 +173,6 @@ public class ImageUtils {
 	public static byte[] getRasterBytes(BufferedImage bi) {
 		return ((DataBufferByte)bi.getRaster().getDataBuffer()).getData();
 	}
-	
-/*
-	private static BufferedImage toBufferedImage(byte[] bytes) {
-		try {
-			ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-			BufferedImage image = readBufferedImage(bais);
-			bais.close();
-
-			return image;
-		}
-		catch ( IOException e ) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	private static byte[] toBytes(RenderedImage rendered, String writerFormat) {
-		try {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			writeRenderedImage(rendered, writerFormat, baos);
-			baos.close();
-
-			return baos.toByteArray();
-		}
-		catch ( IOException e ) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	private static BufferedImage readBufferedImage(InputStream input) throws IOException {
-		return ImageIO.read(input);
-	}
-*/
 
 	private static ImageWriter s_jpegEncoder = null;
 	private static ImageWriter getJpegImageWriter() {
