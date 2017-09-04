@@ -73,6 +73,6 @@ public class StopWatch {
 	}
 	
 	public String getElapsedTimeString() {
-		return Utilities.toElapsedTimeString(getElapsedInMillis());
+		return UnitUtils.toTimeString(getElapsedInMillis());
 	}
 }

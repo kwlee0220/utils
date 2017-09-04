@@ -374,23 +374,6 @@ public class Utilities {
     		((LoggerSettable)obj).setLogger(logger);
     	}
     }
-
-	public static String toElapsedTimeString(long millis) {
-		long seconds = millis/1000;
-		if ( seconds < 60 ) {
-			return String.format("%02.3fs", millis/1000f);
-		}
-		
-		long min = seconds / 60;
-		seconds = seconds % 60;
-		if ( min < 60 ) {
-			return String.format("%02dm%02ds", min, seconds);
-		}
-		
-		long hour = min / 60;
-		min = min % 60;
-		return String.format("%dh%02dm%02ds", hour, min, seconds);
-	}
 	
 	public static long toUTCEpocMillis(LocalDateTime ts) {
 		return ts.atZone(ZoneOffset.UTC).toInstant().toEpochMilli();
