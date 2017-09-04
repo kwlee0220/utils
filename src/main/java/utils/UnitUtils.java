@@ -170,7 +170,9 @@ public class UnitUtils {
 		}
 		minutes = minutes % 60;
 		
-		return String.format("%d:%02d:%02d.%03d", hours, minutes, seconds, millis);
+		return (millis != 0 )
+				? String.format("%d:%02d:%02d.%03d", hours, minutes, seconds, millis)
+				: String.format("%d:%02d:%02d", hours, minutes, seconds);
 	}
 
 	public static String toDateString(long date, boolean toMilliSeconds) {
