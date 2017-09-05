@@ -3,14 +3,15 @@ package utils.async;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.CompletionException;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import utils.Lambdas;
+import com.google.common.base.Throwables;
+
+import utils.ExceptionUtils;
 import utils.func.Result;
 
 /**
@@ -27,39 +28,39 @@ public class AsyncsTest {
 	
 	@Test
 	public void test01() throws Exception {
-		CancellableTask task = new CancellableTask();
+		ActiveTask task = new ActiveTask(null);
 		
 		Assert.assertEquals(0, task.getState());
 		
-		CompletableFuture<Void> future = Asyncs.runAsync(task);
+		CompletableFuture<Void> future = Futures.runAsync(task);
 		future.thenAccept((v) -> { m_done = true; });
 		Thread.sleep(100);
-		Assert.assertEquals(0, task.getState());
-		
-		Result<Void> result = Asyncs.getResult(future);
-		Assert.assertEquals(true, result.isSuccess());
 		Assert.assertEquals(1, task.getState());
+		
+		Result<Void> result = Futures.getResult(future);
+		Assert.assertEquals(true, result.isSuccess());
+		Assert.assertEquals(2, task.getState());
 		Assert.assertEquals(true, m_done);
 	}
 	
 	@Test
 	public void test02() throws Exception {
-		CancellableTask task = new CancellableTask();
+		ActiveTask task = new ActiveTask(null);
 		
 		Assert.assertEquals(0, task.getState());
 		
-		CompletableFuture<Void> future = Asyncs.runAsync(task);
+		CompletableFuture<Void> future = Futures.runAsync(task);
 		future.whenComplete((v,e) -> {
 			if ( e != null && e instanceof CancellationException ) {
 				m_done = true;
 			}
 		});
 		Thread.sleep(100);
-		Assert.assertEquals(0, task.getState());
+		Assert.assertEquals(1, task.getState());
 		
 		Assert.assertEquals(true, future.cancel(true));
 		
-		Result<Void> result = Asyncs.getResult(future);
+		Result<Void> result = Futures.getResult(future);
 		Assert.assertEquals(true, result.isEmpty());
 		Thread.sleep(100);
 		Assert.assertEquals(true, m_done);
@@ -67,22 +68,22 @@ public class AsyncsTest {
 	
 	@Test
 	public void test03() throws Exception {
-		CancellableTask task = new CancellableTask();
+		ActiveTask task = new ActiveTask(null);
 		
 		Assert.assertEquals(0, task.getState());
 		
-		CompletableFuture<Void> future = Asyncs.runAsync(task);
+		CompletableFuture<Void> future = Futures.runAsync(task);
 		future.whenComplete((v,e) -> {
 			if ( e != null && e instanceof IllegalStateException ) {
 				m_done = true;
 			}
 		});
 		Thread.sleep(100);
-		Assert.assertEquals(0, task.getState());
+		Assert.assertEquals(1, task.getState());
 		
 		Assert.assertEquals(true, future.completeExceptionally(new IllegalStateException("aaa")));
 		
-		Result<Void> result = Asyncs.getResult(future);
+		Result<Void> result = Futures.getResult(future);
 		Assert.assertEquals(true, result.isFailure());
 		Assert.assertEquals(IllegalStateException.class, result.getCause().getClass());
 		Assert.assertEquals("aaa", result.getCause().getMessage());
@@ -90,57 +91,181 @@ public class AsyncsTest {
 		Assert.assertEquals(true, m_done);
 	}
 	
-	private static class CancellableTask implements Runnable, Cancellable {
-		private final ReentrantLock m_lock = new ReentrantLock();
-		private final Condition m_cond = m_lock.newCondition();
+	@Test
+	public void test11() throws Exception {
+		PassiveTask task = new PassiveTask(null);
+		Assert.assertEquals(0, task.getState());
+		
+		CompletableFuture<Void> future = Futures.runAsync(task);
+		future.thenAccept((v) -> { m_done = true; });
+		task.waitForStarted();
+		Assert.assertEquals(1, task.getState());
+		
+		Result<Void> result = Futures.getResult(future);
+		Assert.assertEquals(true, result.isSuccess());
+		Assert.assertEquals(2, task.getState());
+		Assert.assertEquals(true, m_done);
+	}
+	
+	@Test
+	public void test12() throws Exception {
+		PassiveTask task = new PassiveTask(null);
+		Assert.assertEquals(0, task.getState());
+		
+		CompletableFuture<Void> future = Futures.runAsync(task);
+		future.whenComplete((v,e) -> {
+			if ( e != null && e instanceof CancellationException ) {
+				m_done = true;
+			}
+		});
+		task.waitForStarted();
+		Assert.assertEquals(1, task.getState());
+		
+		Assert.assertEquals(true, future.cancel(true));
+		
+		Result<Void> result = Futures.getResult(future);
+		Assert.assertEquals(true, result.isEmpty());
+		Thread.sleep(100);
+		Assert.assertEquals(true, m_done);
+	}
+	
+	@Test
+	public void test13() throws Exception {
+		PassiveTask task = new PassiveTask(null);
+		Assert.assertEquals(0, task.getState());
+		
+		CompletableFuture<Void> future = Futures.runAsync(task);
+		future.whenComplete((v,e) -> {
+			if ( e != null && e instanceof IllegalStateException ) {
+				m_done = true;
+			}
+		});
+		task.waitForStarted();
+		Assert.assertEquals(1, task.getState());
+		
+		Assert.assertEquals(true, future.completeExceptionally(new IllegalStateException("aaa")));
+		
+		Result<Void> result = Futures.getResult(future);
+		Assert.assertEquals(true, result.isFailure());
+		Assert.assertEquals(IllegalStateException.class, result.getCause().getClass());
+		Assert.assertEquals("aaa", result.getCause().getMessage());
+		Thread.sleep(100);
+		Assert.assertEquals(true, m_done);
+	}
+	
+	@Test
+	public void test14() throws Exception {
+		PassiveTask task = new PassiveTask(new IllegalStateException("aaa"));
+		Assert.assertEquals(0, task.getState());
+		
+		CompletableFuture<Void> future = Futures.runAsync(task);
+		future.whenComplete((v,e) -> {
+			if ( e != null && e instanceof IllegalStateException ) {
+				m_done = true;
+			}
+		});
+		task.waitForStarted();
+		Assert.assertEquals(1, task.getState());
+		
+		Result<Void> result = Futures.getResult(future);
+		Assert.assertEquals(true, result.isFailure());
+		Assert.assertEquals(IllegalStateException.class, result.getCause().getClass());
+		Assert.assertEquals("aaa", result.getCause().getMessage());
+		Thread.sleep(100);
+		Assert.assertEquals(true, m_done);
+	}
+	
+	private static class ActiveTask extends ActiveCancellableRunnable {
 		private Thread m_thread;
 		private int m_state = 0;
+		private RuntimeException m_error;
+		
+		ActiveTask(RuntimeException error) {
+			m_error = error;
+			
+			setStartAction(() -> {
+				m_state = 1;
+				m_thread = Thread.currentThread();
+			});
+			setCancelAction(() -> m_state = -1);
+			setCompleteAction(() -> m_state = 2);
+		}
 		
 		public int getState() {
-			m_lock.lock();
+			m_cancellableLock.lock();
 			try {
 				return m_state;
 			}
-			finally { m_lock.unlock(); }
+			finally { m_cancellableLock.unlock(); }
+		}
+
+		@Override
+		protected void runTask() throws Exception {
+			if ( m_error != null ) {
+				throw m_error;
+			}
+			Thread.sleep(500);
+		}
+
+		@Override
+		public boolean cancelTask() {
+			m_thread.interrupt();
+			checkCancelled();
+			
+			return true;
+		}
+	}
+	
+	private static class PassiveTask extends PassiveCancellable implements Runnable {
+		private int m_state = 0;
+		private RuntimeException m_error;
+		
+		PassiveTask(RuntimeException error) {
+			m_error = error;
+			
+			setStartAction(() -> m_state = 1);
+			setCancelAction(() -> m_state = -1);
+			setCompleteAction(() -> m_state = 2);
+		}
+		
+		public int getState() {
+			getLock().lock();
+			try {
+				return m_state;
+			}
+			finally { getLock().unlock(); }
 		}
 
 		@Override
 		public void run() {
-			Lambdas.guraded(m_lock, () -> {
-				m_thread = Thread.currentThread();
-				m_cond.signalAll();
-			});
+			begin();
 			
 			try {
-				Thread.sleep(1000);
-				Lambdas.guraded(m_lock, () -> {
-					m_state = 1;
-					m_cond.signalAll();
-				});
+				for ( int i =0; i < 50; ++i ) {
+					synchronized ( this ) {
+						this.wait(50);
+					}
+					
+					if ( i == 20 && m_error != null ) {
+						if ( markFailed(m_error) ) {
+							throw ExceptionUtils.toRuntimeException(m_error);
+						}
+						return;
+					}
+					
+					if ( checkCancelled() ) {
+						return;
+					}
+				}
 			}
 			catch ( InterruptedException e ) {
-				Lambdas.guraded(m_lock, () -> {
-					m_state = -1;
-					m_cond.signalAll();
-				});
-			}
-		}
-
-		@Override
-		public boolean cancel() {
-			Lambdas.guraded(m_lock, () -> {
-				while ( m_thread == null ) {
-					try {
-						m_cond.await();
-					}
-					catch ( InterruptedException e ) { }
+				if ( markFailed(e) ) {
+					Throwables.throwIfUnchecked(e);
+					throw new RuntimeException(e);
 				}
-				
-				m_thread.interrupt();
-			});
-			
-			return true;
+				return;
+			}
+			complete();
 		}
-		
 	}
 }
