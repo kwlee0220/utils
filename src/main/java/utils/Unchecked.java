@@ -34,7 +34,7 @@ public class Unchecked {
 				task.run();
 			}
 			catch ( Throwable e ) {
-				throw ExceptionUtils.toRuntimeException(e);
+				throw Throwables.toRuntimeException(e);
 			}
 		};
 	}
@@ -69,7 +69,7 @@ public class Unchecked {
 			task.run();
 		}
 		catch ( Throwable e ) {
-			throw ExceptionUtils.toRuntimeException(e);
+			throw Throwables.toRuntimeException(e);
 		}
 	}
 	public static Try<Void> tryToRun(CheckedRunnable task) {
@@ -96,7 +96,7 @@ public class Unchecked {
 				return suppl.get();
 			}
 			catch ( Throwable e ) {
-				throw ExceptionUtils.toRuntimeException(e);
+				throw Throwables.toRuntimeException(e);
 			}
 		};
 	}
@@ -138,7 +138,7 @@ public class Unchecked {
 				consumer.accept(t);
 			}
 			catch ( Throwable e ) {
-				throw ExceptionUtils.toRuntimeException(e);
+				throw Throwables.toRuntimeException(e);
 			}
 		};
 	}
@@ -170,7 +170,7 @@ public class Unchecked {
 				return func.apply(t);
 			}
 			catch ( Throwable e ) {
-				throw ExceptionUtils.toRuntimeException(e);
+				throw Throwables.toRuntimeException(e);
 			}
 		};
 	}

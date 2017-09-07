@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.jcip.annotations.GuardedBy;
-import utils.ExceptionUtils;
+import utils.Throwables;
 import utils.LoggerSettable;
 import utils.LongVariableSmoother;
 
@@ -258,7 +258,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 		}
 		catch ( Throwable e ) {
 			m_logger.warn("ignored exception: fails to call onStopped, cause="
-							+ ExceptionUtils.unwrapThrowable(e));
+							+ Throwables.unwrapThrowable(e));
 		}
 		
 		_setState(STATE_STOPPED);
@@ -277,7 +277,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 				m_work.onStarted(RecurringScheduleThread.this);
 			}
 			catch ( Throwable e ) {
-				m_failureCause = ExceptionUtils.unwrapThrowable(e);
+				m_failureCause = Throwables.unwrapThrowable(e);
 			}
 			
 			boolean stopped = false;
@@ -348,7 +348,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 					m_work.perform();
 				}
 				catch ( Throwable e ) {
-					Throwable cause = ExceptionUtils.unwrapThrowable(e);
+					Throwable cause = Throwables.unwrapThrowable(e);
 	
 					if ( cause instanceof InterruptedException ) {
 						if ( m_logger.isDebugEnabled() ) {

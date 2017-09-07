@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.jcip.annotations.GuardedBy;
-import utils.ExceptionUtils;
+import utils.Throwables;
 import utils.LoggerSettable;
 
 
@@ -112,7 +112,7 @@ public class RecurringScheduleImpl implements RecurringSchedule, LoggerSettable 
 		catch ( Throwable e ) {
 			setState(State.STOPPED);
 
-			throw new ExecutionException(ExceptionUtils.unwrapThrowable(e));
+			throw new ExecutionException(Throwables.unwrapThrowable(e));
 		}
 
 		m_lock.lock();
@@ -131,7 +131,7 @@ public class RecurringScheduleImpl implements RecurringSchedule, LoggerSettable 
 
 				setState(State.STOPPED);
 
-				throw new ExecutionException(ExceptionUtils.unwrapThrowable(e));
+				throw new ExecutionException(Throwables.unwrapThrowable(e));
 			}
 		}
 		finally {
@@ -233,7 +233,7 @@ public class RecurringScheduleImpl implements RecurringSchedule, LoggerSettable 
 		}
 		catch ( Throwable e ) {
 			m_logger.warn("ignored exception: fails to call onStopped, cause="
-							+ ExceptionUtils.unwrapThrowable(e));
+							+ Throwables.unwrapThrowable(e));
 		}
 		setState(State.STOPPED);
 
@@ -268,7 +268,7 @@ public class RecurringScheduleImpl implements RecurringSchedule, LoggerSettable 
 				m_worker.perform();
 			}
 			catch ( Throwable e ) {
-				Throwable cause = ExceptionUtils.unwrapThrowable(e);
+				Throwable cause = Throwables.unwrapThrowable(e);
 
 				if ( cause instanceof InterruptedException ) {
 					if ( m_logger.isDebugEnabled() ) {
@@ -281,7 +281,7 @@ public class RecurringScheduleImpl implements RecurringSchedule, LoggerSettable 
 				else {
 					m_failureCause = e;
 					m_logger.error("fails to perform job, stop schedule..., cause="
-									+ ExceptionUtils.unwrapThrowable(e));
+									+ Throwables.unwrapThrowable(e));
 					shutdown();
 				}
 

@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 
 import net.jcip.annotations.GuardedBy;
-import utils.ExceptionUtils;
+import utils.Throwables;
 import utils.LoggerSettable;
 
 
@@ -270,7 +270,7 @@ public class Prefetcher<T> implements LoggerSettable, ExecutorAware {
 				if ( getLogger() != null ) {
 					getLogger().debug("failed to capture an image, cause={}", fault);
 				}
-				error = ExceptionUtils.unwrapThrowable(fault);
+				error = Throwables.unwrapThrowable(fault);
 			}
 			finally {
 				m_lock.lock();

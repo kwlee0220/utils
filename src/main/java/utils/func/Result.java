@@ -8,7 +8,7 @@ import java.util.function.Supplier;
 
 import io.vavr.Value;
 import io.vavr.collection.Iterator;
-import utils.ExceptionUtils;
+import utils.Throwables;
 
 /**
  * 
@@ -321,7 +321,7 @@ public abstract class Result<T> implements Value<T> {
 		
 		@Override
 		public T get() {
-			throw ExceptionUtils.toRuntimeException(m_cause);
+			throw Throwables.toRuntimeException(m_cause);
 		}
 
 		@Override

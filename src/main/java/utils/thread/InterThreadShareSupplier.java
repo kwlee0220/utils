@@ -16,7 +16,7 @@ import com.google.common.base.Preconditions;
 
 import net.jcip.annotations.GuardedBy;
 import utils.Unchecked.CheckedSupplier;
-import utils.ExceptionUtils;
+import utils.Throwables;
 import utils.LoggerSettable;
 
 
@@ -101,7 +101,7 @@ public class InterThreadShareSupplier<T> implements CheckedSupplier<T>, LoggerSe
 			result = m_srcSupplier.get();
 		}
 		catch ( Throwable e ) {
-			cause = ExceptionUtils.unwrapThrowable(e);
+			cause = Throwables.unwrapThrowable(e);
 		}
 		
 		m_lock.lock();

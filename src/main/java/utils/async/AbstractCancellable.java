@@ -7,8 +7,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import io.vavr.CheckedRunnable;
-import utils.ExceptionUtils;
-import utils.Unchecked;
+import io.vavr.control.Option;
+import utils.Throwables;
 import utils.func.Result;
 
 /**
@@ -22,10 +22,10 @@ public class AbstractCancellable implements Cancellable {
 	protected final Condition m_cancellableCond = m_cancellableLock.newCondition();
 	protected State m_cancellableState = State.IDLE;
 	private Throwable m_cause;
-	private volatile CheckedRunnable m_startAction;
-	private volatile Runnable m_completeAction;
-	private volatile Runnable m_cancelAction;
-	private volatile Consumer<Throwable> m_failureAction;
+	private volatile Option<CheckedRunnable> m_startAction = Option.none();
+	private volatile Option<Runnable> m_completeAction = Option.none();
+	private volatile Option<Runnable> m_cancelAction = Option.none();
+	private volatile Option<Consumer<Throwable>> m_failureAction = Option.none();
 	
 	public void waitForStarted() throws InterruptedException {
 		m_cancellableLock.lock();
@@ -234,8 +234,8 @@ public class AbstractCancellable implements Cancellable {
 			}
 			
 			m_cancellableState = State.RUNNING;
-			if ( m_startAction != null ) {
-				m_startAction.run();
+			if ( m_startAction.isDefined() ) {
+				m_startAction.get().run();
 			}
 			if ( action != null ) {
 				action.run();
@@ -244,7 +244,7 @@ public class AbstractCancellable implements Cancellable {
 		}
 		catch ( Throwable e ) {
 			if ( markFailed(e) ) {
-				throw ExceptionUtils.toRuntimeException(e);
+				throw Throwables.toRuntimeException(e);
 			}
 			else {
 				return;
@@ -265,16 +265,12 @@ public class AbstractCancellable implements Cancellable {
 			switch ( m_cancellableState ) {
 				case RUNNING:
 					m_cancellableState = State.COMPLETED;
-					if ( m_completeAction != null ) {
-						Unchecked.runIE(()->m_completeAction.run());
-					}
+					m_completeAction.forEach(Runnable::run);
 					m_cancellableCond.signalAll();
 					break;
 				case CANCELLING:
 					m_cancellableState = State.CANCELLED;
-					if ( m_cancelAction != null ) {
-						Unchecked.runIE(()->m_cancelAction.run());
-					}
+					m_cancelAction.forEach(Runnable::run);
 					m_cancellableCond.signalAll();
 				case CANCELLED:
 					break;
@@ -293,12 +289,11 @@ public class AbstractCancellable implements Cancellable {
 		try {
 			switch ( m_cancellableState ) {
 				case RUNNING:
+				case FAILED:
 					return false;
 				case CANCELLING:
 					m_cancellableState = State.CANCELLED;
-					if ( m_cancelAction != null ) {
-						Unchecked.runIE(()->m_cancelAction.run());
-					}
+					m_cancelAction.forEach(Runnable::run);
 					m_cancellableCond.signalAll();
 				case CANCELLED:
 					return true;
@@ -317,19 +312,17 @@ public class AbstractCancellable implements Cancellable {
 				case RUNNING:
 					m_cancellableState = State.FAILED;
 					m_cause = cause;
-					if ( m_failureAction != null ) {
-						Unchecked.runIE(()->m_failureAction.accept(m_cause));
-					}
+					m_failureAction.forEach(a -> a.accept(m_cause));
 					m_cancellableCond.signalAll();
 					return true;
 				case CANCELLING:
 					m_cancellableState = State.CANCELLED;
-					if ( m_cancelAction != null ) {
-						Unchecked.runIE(()->m_cancelAction.run());
-					}
+					m_cancelAction.forEach(Runnable::run);
 					m_cancellableCond.signalAll();
 				case CANCELLED:
 					return false;
+				case FAILED:
+					return true;
 				default:
 					throw new IllegalStateException("unexpected state: " + m_cancellableState);
 			}
@@ -338,18 +331,18 @@ public class AbstractCancellable implements Cancellable {
 	}
 	
 	protected void setStartAction(CheckedRunnable action) {
-		m_startAction = action;
+		m_startAction = Option.of(action);
 	}
 	
 	protected void setCompleteAction(Runnable action) {
-		m_completeAction = action;
+		m_completeAction = Option.of(action);
 	}
 	
 	protected void setCancelAction(Runnable action) {
-		m_cancelAction = action;
+		m_cancelAction = Option.of(action);
 	}
 	
 	protected void setFailureAction(Consumer<Throwable> action) {
-		m_failureAction = action;
+		m_failureAction = Option.of(action);
 	}
 }

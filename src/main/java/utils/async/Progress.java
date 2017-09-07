@@ -4,7 +4,7 @@ import java.util.concurrent.CompletableFuture;
 
 import io.vavr.Lazy;
 import rx.Observable;
-import utils.ExceptionUtils;
+import utils.Throwables;
 
 
 /**
@@ -29,7 +29,7 @@ public class Progress<T,P> extends CompletableFuture<T> implements ProgressRepor
 		m_observable = observable;
 		m_promise.whenComplete((ret,error) -> {
 			if ( error != null ) {
-				super.completeExceptionally(ExceptionUtils.unwrapThrowable(error));
+				super.completeExceptionally(Throwables.unwrapThrowable(error));
 			}
 			else if ( m_promise.isCancelled() ) {
 				super.cancel(true);

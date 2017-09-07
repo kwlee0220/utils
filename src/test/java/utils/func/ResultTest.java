@@ -10,7 +10,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import utils.ExceptionUtils;
+import utils.Throwables;
 
 /**
  * 
@@ -48,7 +48,7 @@ public class ResultTest {
 			Assert.fail("Exception 'RuntimeException' is expected");
 		}
 		catch ( RuntimeException expected ) {
-			Throwable cause = ExceptionUtils.unwrapThrowable(expected);
+			Throwable cause = Throwables.unwrapThrowable(expected);
 			Assert.assertEquals(IOException.class, cause.getClass());
 		}
 		try {
@@ -103,7 +103,7 @@ public class ResultTest {
 			Assert.fail("Exception 'IllegalStateException' is expected");
 		}
 		catch ( ExecutionException expected ) {
-			Throwable cause = ExceptionUtils.unwrapThrowable(expected);
+			Throwable cause = Throwables.unwrapThrowable(expected);
 			Assert.assertEquals(IllegalStateException.class, cause.getClass());
 		}
 		try {
@@ -111,7 +111,7 @@ public class ResultTest {
 			Assert.fail("Exception 'RuntimeException' is expected");
 		}
 		catch ( ExecutionException expected ) {
-			Throwable cause = ExceptionUtils.unwrapThrowable(expected);
+			Throwable cause = Throwables.unwrapThrowable(expected);
 			Assert.assertEquals(IOException.class, cause.getClass());
 		}
 		try {
@@ -119,7 +119,7 @@ public class ResultTest {
 			Assert.fail("Exception 'IllegalStateException' is expected");
 		}
 		catch ( ExecutionException expected ) {
-			Throwable cause = ExceptionUtils.unwrapThrowable(expected);
+			Throwable cause = Throwables.unwrapThrowable(expected);
 			Assert.assertEquals(IllegalArgumentException.class, cause.getClass());
 		}
 	}

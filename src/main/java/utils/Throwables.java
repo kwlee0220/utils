@@ -9,9 +9,9 @@ import java.util.concurrent.ExecutionException;
  *
  * @author Kang-Woo Lee
  */
-public class ExceptionUtils {
-	private ExceptionUtils() {
-		throw new AssertionError("Should not be invoked!!: class=" + ExceptionUtils.class.getName());
+public class Throwables {
+	private Throwables() {
+		throw new AssertionError("Should not be invoked!!: class=" + Throwables.class.getName());
 	}
 
 	public static Throwable unwrapThrowable(Throwable e) {
@@ -49,6 +49,13 @@ public class ExceptionUtils {
 		}
 		else {
 			return new RuntimeException(e);
+		}
+	}
+	
+	public static <T extends Throwable> void throwIfInstanceOf(Throwable e,
+															Class<T> thrCls) throws T {
+		if ( thrCls.isInstance(e) ) {
+			throw thrCls.cast(e);
 		}
 	}
 	

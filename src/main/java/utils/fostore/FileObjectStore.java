@@ -11,7 +11,7 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import utils.ExceptionUtils;
+import utils.Throwables;
 
 
 /**
@@ -95,7 +95,7 @@ public class FileObjectStore<T extends FileObject> {
 				fObj = m_handler.newFileObject(file);
 			}
 			catch ( Exception e ) {
-				throw new FileObjectStoreException(ExceptionUtils.unwrapThrowable(e));
+				throw new FileObjectStoreException(Throwables.unwrapThrowable(e));
 			}
 			
 			if ( m_cache != null ) {
@@ -166,7 +166,7 @@ public class FileObjectStore<T extends FileObject> {
 			fObj.destroy();
 		}
 		catch ( Exception e ) {
-			s_logger.warn("fails to destroy FileObject: id=" + id, ExceptionUtils.unwrapThrowable(e));
+			s_logger.warn("fails to destroy FileObject: id=" + id, Throwables.unwrapThrowable(e));
 		}
 		
 		boolean done = file.delete();

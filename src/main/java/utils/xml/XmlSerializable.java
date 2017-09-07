@@ -8,7 +8,7 @@ import java.util.Optional;
 
 import org.xml.sax.SAXException;
 
-import utils.ExceptionUtils;
+import utils.Throwables;
 import utils.Utilities;
 
 /**
@@ -132,11 +132,11 @@ public interface XmlSerializable {
 			}
 			catch ( Throwable e1 ) {
 				throw new XmlSerializationException("fails to load class from Element: class="
-						+ clsName.get(), ExceptionUtils.unwrapThrowable(e1));
+						+ clsName.get(), Throwables.unwrapThrowable(e1));
 			}
 		}
 		catch ( Throwable e ) {
-			Throwable cause = ExceptionUtils.unwrapThrowable(e);
+			Throwable cause = Throwables.unwrapThrowable(e);
 			throw new XmlSerializationException("fails to load class from Element: class="
 												+ clsName.get(), cause);
 		}

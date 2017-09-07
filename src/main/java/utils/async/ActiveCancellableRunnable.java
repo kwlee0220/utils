@@ -1,6 +1,6 @@
 package utils.async;
 
-import com.google.common.base.Throwables;
+import utils.Throwables;
 
 /**
  * 
@@ -23,8 +23,7 @@ public abstract class ActiveCancellableRunnable extends ActiveCancellable
 				return;
 			}
 			if ( markFailed(e) ) {
-				Throwables.throwIfUnchecked(e);
-				throw new RuntimeException(e);
+				throw Throwables.toRuntimeException(e);
 			}
 			
 			throw new AssertionError();

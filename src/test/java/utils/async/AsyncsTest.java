@@ -3,15 +3,12 @@ package utils.async;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.base.Throwables;
-
-import utils.ExceptionUtils;
+import utils.Throwables;
 import utils.func.Result;
 
 /**
@@ -248,7 +245,7 @@ public class AsyncsTest {
 					
 					if ( i == 20 && m_error != null ) {
 						if ( markFailed(m_error) ) {
-							throw ExceptionUtils.toRuntimeException(m_error);
+							throw Throwables.toRuntimeException(m_error);
 						}
 						return;
 					}
@@ -260,8 +257,7 @@ public class AsyncsTest {
 			}
 			catch ( InterruptedException e ) {
 				if ( markFailed(e) ) {
-					Throwables.throwIfUnchecked(e);
-					throw new RuntimeException(e);
+					throw Throwables.toRuntimeException(e);
 				}
 				return;
 			}
