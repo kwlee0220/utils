@@ -1,13 +1,13 @@
 package utils.xml;
 
 import java.util.Collections;
-import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
+
+import io.vavr.control.Option;
 
 /**
  * 
@@ -46,8 +46,8 @@ final class NonExistentElement implements FluentElement {
 	}
 
 	@Override
-	public Optional<String> attr(String name) {
-		return Optional.empty();
+	public Option<String> attr(String name) {
+		return Option.none();
 	}
 
 	@Override
@@ -56,8 +56,8 @@ final class NonExistentElement implements FluentElement {
 	}
 
 	@Override
-	public Optional<String> text() {
-		return Optional.empty();
+	public Option<String> text() {
+		return Option.none();
 	}
 
 	@Override

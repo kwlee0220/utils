@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Optional;
 
 import org.xml.sax.SAXException;
 
@@ -101,14 +100,13 @@ public interface XmlSerializable {
 	 * @return	'topElm' 에 해당하는 객체
 	 */
 	public static Object loadXmlSerializable(FluentElement topElm) {
-		Optional<String> clsName = topElm.attr("class");
-		if ( !clsName.isPresent() ) {
-			throw new XmlSerializationException("No 'class' attribute, Element=" + topElm);
-		}
+		String clsName = topElm.attr("class")
+								.getOrElseThrow(()->new XmlSerializationException(
+														"No 'class' attribute, Element=" + topElm));
 		
 		Class<?> cls =null;
 		try {
-			cls = Class.forName(clsName.get());
+			cls = Class.forName(clsName);
 			if ( LoadableXmlSerializable.class.isAssignableFrom(cls) ) {
 				return loadLoadableXmlSerializable((Class<? extends LoadableXmlSerializable>)cls, topElm);
 			}
@@ -124,7 +122,7 @@ public interface XmlSerializable {
 		}
 		catch ( ClassNotFoundException e ) {
 			throw new XmlSerializationException("fails to load class from Element: class="
-													+ clsName.get(), e);
+													+ clsName, e);
 		}
 		catch ( NoSuchMethodException e ) {
 			try {
@@ -132,13 +130,13 @@ public interface XmlSerializable {
 			}
 			catch ( Throwable e1 ) {
 				throw new XmlSerializationException("fails to load class from Element: class="
-						+ clsName.get(), Throwables.unwrapThrowable(e1));
+						+ clsName, Throwables.unwrapThrowable(e1));
 			}
 		}
 		catch ( Throwable e ) {
 			Throwable cause = Throwables.unwrapThrowable(e);
 			throw new XmlSerializationException("fails to load class from Element: class="
-												+ clsName.get(), cause);
+												+ clsName, cause);
 		}
 	}
 	

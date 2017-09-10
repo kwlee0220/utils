@@ -7,7 +7,6 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -24,6 +23,8 @@ import org.xml.sax.SAXException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
+import io.vavr.control.Option;
 
 
 /**
@@ -78,7 +79,7 @@ public class XmlUtils {
 		return child;
 	}
 	
-	public static Optional<Element> getFirstChildElement(Element parent) {
+	public static Option<Element> getFirstChildElement(Element parent) {
 		Preconditions.checkArgument(parent != null, "Parent Element was null");
 
 		NodeList children = parent.getChildNodes();
@@ -86,14 +87,14 @@ public class XmlUtils {
 			Node child = children.item(i);
 
 			if (child.getNodeType() == Node.ELEMENT_NODE) {
-				return Optional.of((Element) child);
+				return Option.some((Element) child);
 			}
 		}
 		
-		return Optional.empty();
+		return Option.none();
 	}
 	
-	public static Optional<Element> getFirstChildElement(Element parent, String childElmName) {
+	public static Option<Element> getFirstChildElement(Element parent, String childElmName) {
 		Preconditions.checkNotNull(parent, "parent should not be null");
 		Preconditions.checkNotNull(childElmName, "childElmName should not be null");
 
@@ -102,11 +103,11 @@ public class XmlUtils {
 			Node child = children.item(i);
 			if (child.getNodeType() == Node.ELEMENT_NODE
 				&& child.getNodeName().equals(childElmName)) {
-				return Optional.of((Element) child);
+				return Option.some((Element) child);
 			}
 		}
 
-		return Optional.empty();
+		return Option.none();
 	}
 	
 	public static NodeIterable getChildren(Element elm) {
@@ -139,32 +140,32 @@ public class XmlUtils {
 		return StreamSupport.stream(nodes.spliterator(), false);
 	}
 
-	public static Optional<String> getChildElementText(Element parent, String childTagName) {
+	public static Option<String> getChildElementText(Element parent, String childTagName) {
 		return getFirstChildElement(parent, childTagName).flatMap(XmlUtils::getText);
 	}
 	
-	public static Optional<String> getAttribute(Element elm, String attrName) {
+	public static Option<String> getAttribute(Element elm, String attrName) {
 		String attrValue = elm.getAttribute(attrName);
-		return (attrValue.length() == 0) ? Optional.empty() : Optional.of(attrValue);
+		return (attrValue.length() == 0) ? Option.none() : Option.some(attrValue);
 	}
 	
-	public static Optional<Boolean> getAttributeAsBoolean(Element elm, String attrName) {
+	public static Option<Boolean> getAttributeAsBoolean(Element elm, String attrName) {
 		String attrValue = elm.getAttribute(attrName);
-		return (attrValue.length() == 0) ? Optional.empty()
-										: Optional.of(Boolean.parseBoolean(attrValue));
+		return (attrValue.length() == 0) ? Option.none()
+										: Option.some(Boolean.parseBoolean(attrValue));
 	}
 	
 	/**
 	 * 주어진 {@link Element}에 정의된 텍스트 문자열을 반환한다.
-	 * 텍스트가 정의되지 않은 경우는 {@link Optional#empty()}를 반환한다.
+	 * 텍스트가 정의되지 않은 경우는 {@link Option#none()}를 반환한다.
 	 * 
 	 * @param elm	element 객체
-	 * @return	Optional 텍스트 객체
+	 * @return	Option 텍스트 객체
 	 */
-	public static Optional<String> getText(Element elm) {
+	public static Option<String> getText(Element elm) {
 		NodeList nodeList = elm.getChildNodes();
 		if ( nodeList.getLength() == 0 ) {
-			return Optional.empty();
+			return Option.none();
 		}
 
 		StringBuilder buf = new StringBuilder();
@@ -180,7 +181,7 @@ public class XmlUtils {
         		break;
         	}
         }
-        return Optional.of(buf.toString());
+        return Option.some(buf.toString());
 	}
 	
 	public static void appendText(Element parent, String text) {
