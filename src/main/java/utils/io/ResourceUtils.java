@@ -1,19 +1,24 @@
 package utils.io;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
+
+import com.google.common.io.Files;
 
 
+/**
+ * 
+ * @author Kang-Woo Lee (ETRI)
+ */
 public abstract class ResourceUtils {
 	public static final String CLASSPATH_URL_PREFIX = "classpath:";
 	public static final String URL_PROTOCOL_FILE = "file";
@@ -52,6 +57,34 @@ public abstract class ResourceUtils {
 						+ "] is neither a URL not a well-formed file path");
 			}
 		}
+	}
+	
+	public static URL getURL(Class<?> cls, String name) {
+		return cls.getResource(name);
+	}
+	
+	public static File getFile(Class<?> cls, String name) throws FileNotFoundException {
+		return getFile(getURL(cls, name));
+	}
+	
+	public static String readString(Class<?> cls, String name, Charset charset)
+		throws IOException {
+		return Files.asCharSource(getFile(cls, name), charset).read();
+	}
+	
+	public static String readString(Class<?> cls, String name)
+		throws IOException {
+		return readString(cls, name, StandardCharsets.UTF_8);
+	}
+	
+	public static Stream<String> readLines(Class<?> cls, String name, Charset charset)
+		throws IOException {
+		return Files.asCharSource(getFile(cls, name), charset).lines();
+	}
+	
+	public static Stream<String> readLines(Class<?> cls, String name)
+		throws IOException {
+		return readLines(cls, name, StandardCharsets.UTF_8);
 	}
 	
 	public static InputStream openInputStream(String location) throws IOException {
@@ -98,13 +131,6 @@ public abstract class ResourceUtils {
 		}
 		catch ( UnsupportedEncodingException e ) {
 			throw new RuntimeException(e);
-		}
-	}
-	
-	public static List<String> getTextLines(String location) throws IOException {
-		try ( InputStream is = openInputStream(location);
-			BufferedReader reader = new BufferedReader(new InputStreamReader(is)) ) {
-			return reader.lines().collect(Collectors.toList());
 		}
 	}
 }
