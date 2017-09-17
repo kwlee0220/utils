@@ -13,6 +13,21 @@ public class Lambdas {
 		throw new AssertionError("Should not be called: " + Lambdas.class);
 	}
 	
+	public static class Holder<T> {
+		private T m_value;
+		
+		public Holder() {
+			this(null);
+		}
+		
+		public Holder(T value) {
+			m_value = value;
+		}
+	
+		public T get() { return m_value; }
+		public void set(T value) { m_value = value; }
+	}
+	
 	public static <T> Runnable toRunnable(final Consumer<T> consumer, final T data) {
 		return new Runnable() {
 			@Override
