@@ -42,6 +42,7 @@ public final class ProxyUtils {
 		return (T)enhancer.create();
 	}
 
+	@SafeVarargs
 	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(T obj, CallHandler<T>... handlers) {
 		Preconditions.checkNotNull(obj, "target object is null");
@@ -185,6 +186,7 @@ public final class ProxyUtils {
 //										new ExtendedCallHandler(toBeExtended, intfcs, handlers));
 //	}
 	
+	@SuppressWarnings("unchecked")
 	public static <T> T extend(ClassLoader cloader, Object src, Class<T> intfc, T extHandler) {
 		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(src.getClass());
 		intfcSet.add(intfc);

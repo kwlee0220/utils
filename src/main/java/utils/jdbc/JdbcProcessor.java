@@ -13,14 +13,13 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import javax.annotation.Nonnull;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
+import utils.Throwables;
 import utils.Utilities;
 
 
@@ -75,9 +74,8 @@ public class JdbcProcessor {
 	 * @param tblName	삭제할 테이블 이름.
 	 * @return	삭제가 성공한 경우는 {@code true}, 그렇지 않고, 삭제될 테이블 이름이 존재하지 않아
 	 * 			삭제가 실패된 경우
-	 * @throws SQLException	테이블 삭제 과정 중 예외가 발생된 경우.
 	 */
-	public boolean dropTable(@Nonnull String tblName) throws SQLException {
+	public boolean dropTable(String tblName) {
 		Preconditions.checkNotNull(tblName, "table name is null");
 		
 		try ( Connection conn = connect();
@@ -86,6 +84,10 @@ public class JdbcProcessor {
 			s_logger.debug("delete table '{}': {}", tblName, sql);
 			
 			return stmt.executeUpdate(sql) > 0;
+		}
+		catch ( SQLException e ) {
+			s_logger.info("fails to delete table=" + tblName, e);
+			return false;
 		}
 	}
 	
@@ -117,7 +119,7 @@ public class JdbcProcessor {
 	}
 	
 	public void processQuery(String sql, JdbcConsumer<ResultSet> resultConsumer)
-									throws SQLException, ExecutionException {
+		throws SQLException, ExecutionException {
 		try ( Connection conn = connect() ) {
 			Statement stmt = conn.createStatement();
 			
@@ -130,13 +132,7 @@ public class JdbcProcessor {
 			throw e;
 		}
 		catch ( Throwable e ) {
-			Throwable cause = e.getCause();
-			if ( cause != null ) {
-				throw new ExecutionException(cause);
-			}
-			else {
-				throw new ExecutionException(e);
-			}
+			throw new ExecutionException(Throwables.unwrapThrowable(e));
 		}
 	}
 	
@@ -148,13 +144,7 @@ public class JdbcProcessor {
 			throw e;
 		}
 		catch ( Throwable e ) {
-			Throwable cause = e.getCause();
-			if ( cause != null ) {
-				throw new ExecutionException(cause);
-			}
-			else {
-				throw new ExecutionException(e);
-			}
+			throw new ExecutionException(Throwables.unwrapThrowable(e));
 		}
 	}
 	
@@ -162,19 +152,15 @@ public class JdbcProcessor {
 		throws SQLException, ExecutionException {
 		try ( Connection conn = connect() ) {
 			PreparedStatement pstmt = conn.prepareStatement(sql);
+			pstmtSetter.accept(pstmt);
+			
 			return pstmt.executeUpdate();
 		}
 		catch ( SQLException e ) {
 			throw e;
 		}
 		catch ( Throwable e ) {
-			Throwable cause = e.getCause();
-			if ( cause != null ) {
-				throw new ExecutionException(cause);
-			}
-			else {
-				throw new ExecutionException(e);
-			}
+			throw new ExecutionException(Throwables.unwrapThrowable(e));
 		}
 	}
 	
@@ -188,13 +174,7 @@ public class JdbcProcessor {
 			throw e;
 		}
 		catch ( Throwable e ) {
-			Throwable cause = e.getCause();
-			if ( cause != null ) {
-				throw new ExecutionException(cause);
-			}
-			else {
-				throw new ExecutionException(e);
-			}
+			throw new ExecutionException(Throwables.unwrapThrowable(e));
 		}
 	}
 	
@@ -217,13 +197,7 @@ public class JdbcProcessor {
 			throw e;
 		}
 		catch ( Throwable e ) {
-			Throwable cause = e.getCause();
-			if ( cause != null ) {
-				throw new ExecutionException(cause);
-			}
-			else {
-				throw new ExecutionException(e);
-			}
+			throw new ExecutionException(Throwables.unwrapThrowable(e));
 		}
 	}
 	
