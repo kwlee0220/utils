@@ -144,15 +144,6 @@ public class FluentElementImpl implements FluentElement {
 	}
 
 	@Override
-	public FluentElement tryFirstChild() {
-		return children().findFirst().orElse(new NonExistentElement(this));
-	}
-	@Override
-	public FluentElement tryFirstChild(String name) {
-		return children(name).findFirst().orElse(new NonExistentElement(this));
-	}
-
-	@Override
 	public FluentElement with(Consumer<FluentElement> consumer) {
 		consumer.accept(this);
 		return this;

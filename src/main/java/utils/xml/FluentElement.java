@@ -152,8 +152,8 @@ public interface FluentElement extends FluentNode {
 	public FluentElement firstChild();
 	public FluentElement firstChild(String name);
 
-	public default FluentElement tryFirstChild() {
-		return children().findFirst().orElse(new NonExistentElement(this));
+	public default Option<FluentElement> tryFirstChild() {
+		return Option.ofOptional(children().findFirst());
 	}
 	
 	public default FluentElement tryFirstChild(String name) {
