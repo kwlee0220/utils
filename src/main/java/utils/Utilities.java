@@ -10,7 +10,6 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -25,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
+
+import io.vavr.control.Option;
 
 /**
  *
@@ -396,12 +397,12 @@ public class Utilities {
 		return (T)ctor.newInstance(new Object[0]);
 	}
 	
-	public static <T> Optional<T> toOptional(T value, T nullValue) {
+	public static <T> Option<T> toOption(T value, T nullValue) {
 		if ( value == null ) {
-			return Optional.empty();
+			return Option.none();
 		}
 		else {
-			return (!value.equals(nullValue)) ? Optional.of(value) : Optional.empty(); 
+			return (!value.equals(nullValue)) ? Option.some(value) : Option.none(); 
 		}
 	}
 }

@@ -32,6 +32,12 @@ public abstract class ActiveCancellable extends AbstractCancellable {
 			return false;
 		}
 
-		return waitForFinished();
+		try {
+			waitForDone();
+			return true;
+		}
+		catch ( InterruptedException e ) {
+			return false;
+		}
 	}
 }

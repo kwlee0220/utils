@@ -22,7 +22,7 @@ public class ActiveCancellableTest {
 		task.waitForStarted();
 		Assert.assertEquals(1, task.getState());
 		
-		task.waitForFinished();
+		task.waitForDone();
 		Assert.assertEquals(2, task.getState());
 		Assert.assertEquals(true, task.isDone());
 		Assert.assertEquals(true, task.isCompleted());
@@ -41,7 +41,7 @@ public class ActiveCancellableTest {
 		Thread.sleep(50);
 		Assert.assertEquals(true, task.cancel());
 		
-		task.waitForFinished();
+		task.waitForDone();
 		Assert.assertEquals(-1, task.getState());
 		Assert.assertEquals(true, task.isDone());
 		Assert.assertEquals(true, task.isCancelled());
@@ -54,10 +54,10 @@ public class ActiveCancellableTest {
 		Assert.assertEquals(0, task.getState());
 		CompletableFuture.runAsync(task);
 
-		task.waitForFinished();
+		task.waitForDone();
 		Assert.assertEquals(false, task.cancel());
 		
-		task.waitForFinished();
+		task.waitForDone();
 		Assert.assertEquals(2, task.getState());
 		Assert.assertEquals(true, task.isDone());
 		Assert.assertEquals(true, task.isCompleted());
@@ -70,7 +70,7 @@ public class ActiveCancellableTest {
 		Assert.assertEquals(0, task.getState());
 		CompletableFuture.runAsync(task);
 
-		task.waitForFinished();
+		task.waitForDone();
 		Assert.assertEquals(1, task.getState());
 		Assert.assertEquals(true, task.isDone());
 		Assert.assertEquals(true, task.isFailed());

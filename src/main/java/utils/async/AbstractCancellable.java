@@ -27,17 +27,34 @@ public class AbstractCancellable implements Cancellable {
 	private volatile Option<Runnable> m_cancelAction = Option.none();
 	private volatile Option<Consumer<Throwable>> m_failureAction = Option.none();
 	
-	public void waitForStarted() throws InterruptedException {
+	/**
+	 * 본 작업이 시작될 때까지 대기한다.
+	 * 
+	 * @return	작업이 시작된 경우는 {@code true}, 그렇지 않고 대기가 종료된 경우.
+	 */
+	public boolean waitForStarted() {
 		m_cancellableLock.lock();
 		try {
 			while ( m_cancellableState == State.IDLE ) {
 				m_cancellableCond.await();
 			}
+			
+			return true;
 		}
-		finally { m_cancellableLock.unlock(); }
+		catch ( InterruptedException e ) {
+			return false;
+		}
+		finally {
+			m_cancellableLock.unlock();
+		}
 	}
-	
-	public boolean waitForFinished() {
+
+	/**
+	 * 본 작업이 종료될 때까지 대기한다.
+	 * 
+	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
+	 */
+	public void waitForDone() throws InterruptedException {
 		m_cancellableLock.lock();
 		try {
 			while ( true ) {
@@ -48,19 +65,25 @@ public class AbstractCancellable implements Cancellable {
 						m_cancellableCond.await();
 						break;
 					default:
-						return true;
+						return;
 				}
 			}
-		}
-		catch ( InterruptedException e ) {
-			return false;
 		}
 		finally {
 			m_cancellableLock.unlock();
 		}
 	}
-	
-	public boolean waitForFinished(long timeout, TimeUnit tu) {
+
+	/**
+	 * 본 작업이 종료될 때까지 제한된 시간 동안만 대기한다.
+	 * 
+	 * @param timeout	대기시간
+	 * @param unit		대기시간 단위
+	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
+	 * @throws TimeoutException	작업 종료 대기 중 시간제한이 걸린 경우.
+	 */
+	public void waitForDone(long timeout, TimeUnit unit) throws InterruptedException,
+																TimeoutException {
 		m_cancellableLock.lock();
 		try {
 			while ( true ) {
@@ -68,21 +91,29 @@ public class AbstractCancellable implements Cancellable {
 					case IDLE:
 					case RUNNING:
 					case CANCELLING:
-						return m_cancellableCond.await(timeout, tu);
+						if ( !m_cancellableCond.await(timeout, unit) ) {
+							throw new TimeoutException("" + timeout + unit);
+						}
 					default:
-						return true;
+						return;
 				}
 			}
-		}
-		catch ( InterruptedException e ) {
-			return false;
 		}
 		finally {
 			m_cancellableLock.unlock();
 		}
 	}
 	
-	public Result<Void> getResult() throws InterruptedException {
+	/**
+	 * 본 작업이 종료될 때까지 기다려 그 결과를 반환한다.
+	 * 
+	 * @return	종료 결과.
+	 * 			성공적으로 종료된 경우는 {@link Result#isSuccess()}가 {@code true},
+	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailure()}가 {@code true},
+	 * 			또는 작업이 취소되어 종료된 경우는 {@link Result#isEmpty()}가
+	 * 			{@code true}가 됨.
+	 */
+	public Result<Void> getResult() {
 		m_cancellableLock.lock();
 		try {
 			while ( true ) {
@@ -105,13 +136,24 @@ public class AbstractCancellable implements Cancellable {
 					throw new AssertionError();
 			}
 		}
+		catch ( InterruptedException e ) {
+			return Result.none();
+		}
 		finally {
 			m_cancellableLock.unlock();
 		}
 	}
 	
-	public Result<Void> getResult(long timeout, TimeUnit tu)
-		throws InterruptedException, TimeoutException {
+	/**
+	 * 본 작업이 종료될 때까지 기다려 그 결과를 반환한다.
+	 * 
+	 * @return	종료 결과.
+	 * 			성공적으로 종료된 경우는 {@link Result#isSuccess()}가 {@code true},
+	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailure()}가 {@code true},
+	 * 			또는 작업이 취소되어 종료된 경우거나 시간제한으로 반환되는 경우
+	 * 			{@link Result#isEmpty()}가 {@code true}가 됨.
+	 */
+	public Result<Void> getResult(long timeout, TimeUnit tu) {
 		m_cancellableLock.lock();
 		try {
 			while ( true ) {
@@ -120,7 +162,9 @@ public class AbstractCancellable implements Cancellable {
 					|| m_cancellableState == State.CANCELLED ) {
 					break;
 				}
-				m_cancellableCond.await(timeout, tu);
+				if ( !m_cancellableCond.await(timeout, tu) ) {
+					return Result.none();
+				}
 			}
 			
 			switch ( m_cancellableState ) {
@@ -133,6 +177,9 @@ public class AbstractCancellable implements Cancellable {
 				default:
 					throw new AssertionError();
 			}
+		}
+		catch ( InterruptedException e ) {
+			return Result.none();
 		}
 		finally {
 			m_cancellableLock.unlock();

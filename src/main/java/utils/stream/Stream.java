@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
+import io.vavr.CheckedConsumer;
 import io.vavr.Function2;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
@@ -208,7 +209,24 @@ public interface Stream<T> {
 	}
 	
 	public default void forEach(Consumer<T> effect) {
-		foldLeft(null, (dc,t) -> { effect.accept(t); return null; });
+		Preconditions.checkArgument(effect != null, "effect is null");
+		
+		Option<T> next;
+		while ( (next = next()).isDefined() ) {
+			effect.accept(next.get());
+		}
+	}
+	
+	public default void forEachIE(CheckedConsumer<T> effect) {
+		Preconditions.checkArgument(effect != null, "effect is null");
+		
+		Option<T> next;
+		while ( (next = next()).isDefined() ) {
+			try {
+				effect.accept(next.get());
+			}
+			catch ( Throwable ignored ) { }
+		}
 	}
 	
 	public default <K> Grouped<K,T> groupBy(Function<T,K> keyer) {

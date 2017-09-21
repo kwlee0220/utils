@@ -1,11 +1,12 @@
 package utils.async;
 
+import utils.func.Result;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public interface Cancellable {
+public interface Cancellable<T> {
 	/**
 	 * 현 작업을 취소시킨다.
 	 * 
@@ -27,6 +28,8 @@ public interface Cancellable {
 	 * @return	성공적 종료 여부.
 	 */
 	public boolean isCompleted();
+	
+	public boolean isFailed();
 
 	/**
 	 * 작업이 수행 도중에 취소되었는지 여부 반환한다.
@@ -34,4 +37,6 @@ public interface Cancellable {
 	 * @return	취소 여부.
 	 */
 	public boolean isCancelled();
+	
+	public Result<T> getResult();
 }
