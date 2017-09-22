@@ -15,7 +15,7 @@ import io.vavr.control.Option;
 public class GenerateTest {
 	@Test
 	public void test0() throws Exception {
-		Stream<Integer> stream = Stream.generate(0, i -> i+1).take(3);
+		FStream<Integer> stream = FStream.generate(0, i -> i+1).take(3);
 		
 		Option<Integer> r;
 		
@@ -48,7 +48,7 @@ public class GenerateTest {
 				throw new RuntimeException();
 			}
 		};
-		Stream<Integer> stream = Stream.generate(0, gen);
+		FStream<Integer> stream = FStream.generate(0, gen);
 		
 		Option<Integer> r;
 		
@@ -69,12 +69,12 @@ public class GenerateTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test2() throws Exception {
-		Stream<Integer> stream = Stream.generate(0, null);
+		FStream<Integer> stream = FStream.generate(0, null);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test3() throws Exception {
 		Function<String,String> gen = s -> s;
-		Stream<String> stream = Stream.generate(null, gen);
+		FStream<String> stream = FStream.generate(null, gen);
 	}
 }

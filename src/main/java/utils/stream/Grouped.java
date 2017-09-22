@@ -42,11 +42,11 @@ public class Grouped<K,V> {
 		return this;
 	}
 	
-	public <A> Stream<Tuple2<K,A>> fold(A init, BiFunction<A,V,A> folder) {
+	public <A> FStream<Tuple2<K,A>> fold(A init, BiFunction<A,V,A> folder) {
 		return new FoldedStream<>(m_map, init, folder);
 	}
 	
-	public Stream<Tuple2<K,V>> fold(BiFunction<V,V,V> reducer) {
+	public FStream<Tuple2<K,V>> fold(BiFunction<V,V,V> reducer) {
 		return new ReducedStream<>(m_map, reducer);
 	}
 	
@@ -55,7 +55,7 @@ public class Grouped<K,V> {
 		return m_map.toString();
 	}
 	
-	private static class FoldedStream<K,V,A> implements Stream<Tuple2<K,A>> {
+	private static class FoldedStream<K,V,A> implements FStream<Tuple2<K,A>> {
 		private final A m_init;
 		private final Iterator<Map.Entry<K, List<V>>> m_iter;
 		private final BiFunction<A,V,A> m_folder;
@@ -78,7 +78,7 @@ public class Grouped<K,V> {
 		}
 	}
 	
-	private static class ReducedStream<K,V> implements Stream<Tuple2<K,V>> {
+	private static class ReducedStream<K,V> implements FStream<Tuple2<K,V>> {
 		private final Iterator<Map.Entry<K, List<V>>> m_iter;
 		private final BiFunction<V,V,V> m_reducer;
 		

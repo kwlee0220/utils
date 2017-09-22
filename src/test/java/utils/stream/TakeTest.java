@@ -15,7 +15,7 @@ import io.vavr.control.Option;
 public class TakeTest {
 	@Test
 	public void test0() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.take(2);
 		
 		Option<Integer> r;
@@ -37,7 +37,7 @@ public class TakeTest {
 	
 	@Test
 	public void test1() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.take(4);
 		
 		Option<Integer> r;
@@ -67,7 +67,7 @@ public class TakeTest {
 	
 	@Test
 	public void test2() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.take(10);
 		
 		Option<Integer> r;
@@ -97,7 +97,7 @@ public class TakeTest {
 	
 	@Test
 	public void test3() throws Exception {
-		Stream<Integer> stream = Stream.empty();
+		FStream<Integer> stream = FStream.empty();
 		stream = stream.take(10);
 		
 		Option<Integer> r;
@@ -111,7 +111,7 @@ public class TakeTest {
 	
 	@Test
 	public void test4() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.take(0);
 		
 		Option<Integer> r;
@@ -125,7 +125,7 @@ public class TakeTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test5() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.take(-1);
 	}
 }

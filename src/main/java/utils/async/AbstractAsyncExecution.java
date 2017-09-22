@@ -167,6 +167,17 @@ public abstract class AbstractAsyncExecution<T> implements AsyncExecution<T> {
 	}
 
 	@Override
+	public final boolean isStarted() {
+		m_aopLock.lock();
+		try {
+			return m_aopState != State.NOT_STARTED;
+		}
+		finally {
+			m_aopLock.unlock();
+		}
+	}
+
+	@Override
 	public final boolean isDone() {
 		m_aopLock.lock();
 		try {

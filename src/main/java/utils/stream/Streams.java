@@ -14,19 +14,19 @@ import io.vavr.control.Option;
  */
 public class Streams {
 	@SuppressWarnings("rawtypes")
-	static final Stream EMPTY = () -> { return Option.none(); };
+	static final FStream EMPTY = () -> { return Option.none(); };
 	
-	static <T> Option<T> skipWhile(Stream<T> stream, Predicate<T> pred) {
+	static <T> Option<T> skipWhile(FStream<T> stream, Predicate<T> pred) {
 		Option<T> next;
 		while ( (next = stream.next()).filter(pred).isDefined() );
 		return next;
 	}
 	
-	static class TakenStream<T> implements Stream<T> {
-		private final Stream<T> m_src;
+	static class TakenStream<T> implements FStream<T> {
+		private final FStream<T> m_src;
 		private long m_remains;
 		
-		TakenStream(Stream<T> src, long count) {
+		TakenStream(FStream<T> src, long count) {
 			m_src = src;
 			m_remains = count;
 		}
@@ -43,11 +43,11 @@ public class Streams {
 		}
 	}
 
-	static class DroppedStream<T> implements Stream<T> {
-		private final Stream<T> m_src;
+	static class DroppedStream<T> implements FStream<T> {
+		private final FStream<T> m_src;
 		private long m_remains;
 		
-		DroppedStream(Stream<T> src, long count) {
+		DroppedStream(FStream<T> src, long count) {
 			m_src = src;
 			m_remains = count;
 		}
@@ -63,12 +63,12 @@ public class Streams {
 		}
 	}
 	
-	static class TakeWhileStream<T,S> implements Stream<T> {
-		private final Stream<T> m_src;
+	static class TakeWhileStream<T,S> implements FStream<T> {
+		private final FStream<T> m_src;
 		private Predicate<T> m_pred;
 		private Option<T> m_last = null;
 		
-		TakeWhileStream(Stream<T> src, Predicate<T> pred) {
+		TakeWhileStream(FStream<T> src, Predicate<T> pred) {
 			m_src = src;
 			m_pred = pred;
 		}
@@ -86,11 +86,11 @@ public class Streams {
 		}
 	}
 
-	static class DropWhileStream<T,S> implements Stream<T> {
-		private final Stream<T> m_src;
+	static class DropWhileStream<T,S> implements FStream<T> {
+		private final FStream<T> m_src;
 		private Predicate<T> m_pred;
 		
-		DropWhileStream(Stream<T> src, Predicate<T> pred) {
+		DropWhileStream(FStream<T> src, Predicate<T> pred) {
 			m_src = src;
 			m_pred = pred;
 		}
@@ -109,7 +109,7 @@ public class Streams {
 		}
 	}
 
-	static class GeneratedStream<T> implements Stream<T> {
+	static class GeneratedStream<T> implements FStream<T> {
 		private final Function<T,T> m_inc;
 		private Option<T> m_next;
 		
@@ -126,7 +126,7 @@ public class Streams {
 		}
 	}
 	
-	static class RangedStream implements Stream<Integer> {
+	static class RangedStream implements FStream<Integer> {
 		private int m_next;
 		private final int m_end;
 		private boolean m_closed;
@@ -153,12 +153,12 @@ public class Streams {
 		}
 	}
 	
-	static class AppendedStream<T,S> implements Stream<T> {
-		private final Stream<T> m_first;
-		private final Stream<T> m_second;
-		private Stream<T> m_current;
+	static class AppendedStream<T,S> implements FStream<T> {
+		private final FStream<T> m_first;
+		private final FStream<T> m_second;
+		private FStream<T> m_current;
 		
-		AppendedStream(Stream<T> first, Stream<T> second) {
+		AppendedStream(FStream<T> first, FStream<T> second) {
 			m_first = first;
 			m_second = second;
 			m_current = m_first;
@@ -176,7 +176,7 @@ public class Streams {
 		}
 	}
 	
-	static class UnfoldStream<T,S> implements Stream<T> {
+	static class UnfoldStream<T,S> implements FStream<T> {
 		private final Function<S,Option<Tuple2<T,S>>> m_gen;
 		private Option<S> m_token;
 		

@@ -15,7 +15,7 @@ import io.vavr.control.Option;
 public class DropWhileTest {
 	@Test
 	public void test0() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> i <= 3);
 		
 		Option<Integer> r;
@@ -37,7 +37,7 @@ public class DropWhileTest {
 	
 	@Test
 	public void test1() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> i <= 0);
 		
 		Option<Integer> r;
@@ -64,7 +64,7 @@ public class DropWhileTest {
 	
 	@Test
 	public void test2() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> i <= 5);
 		
 		Option<Integer> r;
@@ -75,7 +75,7 @@ public class DropWhileTest {
 	
 	@Test
 	public void test3() throws Exception {
-		Stream<Integer> stream = Stream.empty();
+		FStream<Integer> stream = FStream.empty();
 		stream = stream.dropWhile(i -> i <= 3);
 		
 		Option<Integer> r;
@@ -86,7 +86,7 @@ public class DropWhileTest {
 	
 	@Test(expected=RuntimeException.class)
 	public void test4() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> { throw new RuntimeException(); });
 		
 		Option<Integer> r;
@@ -96,7 +96,7 @@ public class DropWhileTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test5() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(null);
 	}
 }

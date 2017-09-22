@@ -15,7 +15,7 @@ import utils.func.Result;
 public class ReduceTest {
 	@Test
 	public void test0() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		
 		int sum = stream.reduce((s,t) -> s+t);
 		Assert.assertEquals(8, sum);
@@ -23,7 +23,7 @@ public class ReduceTest {
 	
 	@Test
 	public void test1() throws Exception {
-		Stream<String> stream = Stream.of(Lists.newArrayList("t", "h", "i", "s"));
+		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
 		
 		String c = stream.reduce((s,t) -> s+t);
 		Assert.assertEquals("this", c);
@@ -31,21 +31,21 @@ public class ReduceTest {
 	
 	@Test(expected=IllegalStateException.class)
 	public void test2() throws Exception {
-		Stream<Integer> stream = Stream.empty();
+		FStream<Integer> stream = FStream.empty();
 		
 		int sum = stream.reduce((s,t) -> s+t);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test4() throws Exception {
-		Stream<String> stream = Stream.of(Lists.newArrayList("t", "h", "i", "s"));
+		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
 
 		stream.reduce(null);
 	}
 
 	@Test(expected=RuntimeException.class)
 	public void test5() throws Exception {
-		Stream<String> stream = Stream.of(Lists.newArrayList("t", "h", "i", "s"));
+		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
 		
 		RuntimeException error = new RuntimeException();
 		String c = stream.reduce((s,t) -> {throw error;});
@@ -53,7 +53,7 @@ public class ReduceTest {
 	
 	@Test
 	public void test6() throws Exception {
-		Stream<String> stream = Stream.of(Lists.newArrayList("t"));
+		FStream<String> stream = FStream.of(Lists.newArrayList("t"));
 		
 		String c = stream.reduce((s,t) -> s+t);
 		Assert.assertEquals("t", c);

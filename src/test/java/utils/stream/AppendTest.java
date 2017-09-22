@@ -15,9 +15,9 @@ import io.vavr.control.Option;
 public class AppendTest {
 	@Test
 	public void test0() throws Exception {
-		Stream<Integer> stream1 = Stream.of(Lists.newArrayList(1, 2, 4));
-		Stream<Integer> stream2 = Stream.of(Lists.newArrayList(5, 3, 2));
-		Stream<Integer> stream = Stream.concat(stream1, stream2);
+		FStream<Integer> stream1 = FStream.of(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
+		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
 		Option<Integer> r;
 		
@@ -51,9 +51,9 @@ public class AppendTest {
 	
 	@Test
 	public void test1() throws Exception {
-		Stream<Integer> stream1 = Stream.of(Lists.newArrayList(1, 2, 4));
-		Stream<Integer> stream2 = Stream.of(Lists.newArrayList());
-		Stream<Integer> stream = Stream.concat(stream1, stream2);
+		FStream<Integer> stream1 = FStream.of(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
+		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
 		Option<Integer> r;
 		
@@ -75,9 +75,9 @@ public class AppendTest {
 	
 	@Test
 	public void test2() throws Exception {
-		Stream<Integer> stream1 = Stream.empty();
-		Stream<Integer> stream2 = Stream.of(Lists.newArrayList(5, 3, 2));
-		Stream<Integer> stream = Stream.concat(stream1, stream2);
+		FStream<Integer> stream1 = FStream.empty();
+		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
+		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
 		Option<Integer> r;
 		
@@ -99,9 +99,9 @@ public class AppendTest {
 	
 	@Test
 	public void test3() throws Exception {
-		Stream<Integer> stream1 = Stream.empty();
-		Stream<Integer> stream2 = Stream.of(Lists.newArrayList());
-		Stream<Integer> stream = Stream.concat(stream1, stream2);
+		FStream<Integer> stream1 = FStream.empty();
+		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
+		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
 		Option<Integer> r;
 		
@@ -111,15 +111,15 @@ public class AppendTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test4() throws Exception {
-		Stream<Integer> stream1 = Stream.of(Lists.newArrayList(1, 2, 4));
-		Stream<Integer> stream2 = Stream.of(Lists.newArrayList(5, 3, 2));
-		Stream<Integer> stream = Stream.concat(null, stream2);
+		FStream<Integer> stream1 = FStream.of(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
+		FStream<Integer> stream = FStream.concat(null, stream2);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test5() throws Exception {
-		Stream<Integer> stream1 = Stream.of(Lists.newArrayList(1, 2, 4));
-		Stream<Integer> stream2 = Stream.of(Lists.newArrayList(5, 3, 2));
-		Stream<Integer> stream = Stream.concat(stream1, null);
+		FStream<Integer> stream1 = FStream.of(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
+		FStream<Integer> stream = FStream.concat(stream1, null);
 	}
 }

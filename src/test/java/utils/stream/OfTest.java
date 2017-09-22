@@ -20,7 +20,7 @@ public class OfTest {
 	
 	@Test
 	public void test0() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4));
 		
 		Option<Integer> r;
 		
@@ -45,7 +45,7 @@ public class OfTest {
 	
 	@Test
 	public void test1() throws Exception {
-		Stream<Integer> stream = Stream.of(Lists.newArrayList());
+		FStream<Integer> stream = FStream.of(Lists.newArrayList());
 		
 		Option<Integer> r;
 		
@@ -58,7 +58,7 @@ public class OfTest {
 	
 	@Test
 	public void test2() throws Exception {
-		Stream<Integer> stream = Stream.empty();
+		FStream<Integer> stream = FStream.empty();
 		
 		Option<Integer> r;
 		

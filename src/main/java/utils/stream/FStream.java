@@ -8,6 +8,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -22,66 +23,73 @@ import utils.func.FLists;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public interface Stream<T> {
+public interface FStream<T> {
 	public Option<T> next();
 	
 	@SuppressWarnings("unchecked")
-	public static <T> Stream<T> empty() {
+	public static <T> FStream<T> empty() {
 		return Streams.EMPTY;
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <T> Stream<T> of(T... values) {
+	public static <T> FStream<T> of(T... values) {
 		return of(Arrays.asList(values));
 	}
 	
-	public static <T> Stream<T> of(Iterable<T> values) {
-		final Iterator<T> iter = values.iterator();
+	public static <T> FStream<T> of(Iterable<T> values) {
+		return of(values.iterator());
+	}
+	
+	public static <T> FStream<T> of(Iterator<T> iter) {
 		return () -> iter.hasNext() ? Option.some(iter.next()) : Option.none();
 	}
 	
-	public static <S,T> Stream<T> unfold(S init, Function<S,Option<Tuple2<T,S>>> generator) {
+	public static <T> FStream<T> of(Stream<T> strm) {
+		return of(strm.iterator());
+	}
+	
+	public static <S,T> FStream<T> unfold(S init, Function<S,Option<Tuple2<T,S>>> generator) {
 		Preconditions.checkArgument(init != null, "init is null");
 		Preconditions.checkArgument(generator != null, "generator is null");
 		
 		return new Streams.UnfoldStream<T, S>(init, generator);
 	}
 	
-	public static <T> Stream<T> generate(T init, Function<T,T> inc) {
+	public static <T> FStream<T> generate(T init, Function<T,T> inc) {
 		Preconditions.checkArgument(init != null, "init is null");
 		Preconditions.checkArgument(inc != null, "inc is null");
 		
 		return new Streams.GeneratedStream<>(init, inc);
 	}
 	
-	public static Stream<Integer> range(int start, int end) {
+	public static FStream<Integer> range(int start, int end) {
 		return new Streams.RangedStream(start, end, false);
 	}
-	public static Stream<Integer> rangeClosed(int start, int end) {
+	public static FStream<Integer> rangeClosed(int start, int end) {
 		return new Streams.RangedStream(start, end, true);
 	}
 	
-	public default Stream<T> take(long count) {
+	public default FStream<T> take(long count) {
 		Preconditions.checkArgument(count >= 0, "count < 0");
 		return new Streams.TakenStream<>(this, count);
 	}
-	public default Stream<T> drop(long count) {
+	public default FStream<T> drop(long count) {
 		Preconditions.checkArgument(count >= 0, "count < 0");
 		return new Streams.DroppedStream<>(this, count);
 	}
 
-	public default Stream<T> takeWhile(Predicate<T> pred) {
+	public default FStream<T> takeWhile(Predicate<T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
 		
 		return new Streams.TakeWhileStream<>(this, pred);
 	}
-	public default Stream<T> dropWhile(Predicate<T> pred) {
+	public default FStream<T> dropWhile(Predicate<T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
 		
 		return new Streams.DropWhileStream<>(this, pred);
 	}
 	
-	public default Stream<T> filter(Predicate<T> pred) {
+	public default FStream<T> filter(Predicate<T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
 		
 		Predicate<T> negated = pred.negate();
@@ -92,13 +100,13 @@ public interface Stream<T> {
 		};
 	}
 	
-	public default <V> Stream<V> map(Function<T,V> mapper) {
+	public default <V> FStream<V> map(Function<T,V> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return () -> next().map(mapper);
 	}
 	
-	public default <V> Stream<V> flatMap(Function<T,Stream<V>> mapper) {
+	public default <V> FStream<V> flatMap(Function<T,FStream<V>> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return map(mapper).foldLeft(empty(), (a,s) -> concat(a,s));
@@ -186,14 +194,14 @@ public interface Stream<T> {
 		return next;
 	}
 	
-	public static <T> Stream<T> concat(Stream<T> head, Stream<T> tail) {
+	public static <T> FStream<T> concat(FStream<T> head, FStream<T> tail) {
 		Preconditions.checkArgument(head != null, "head is null");
 		Preconditions.checkArgument(tail != null, "tail is null");
 		
 		return new Streams.AppendedStream<>(head, tail);
 	}
 	
-	public default <U> Stream<Tuple2<T,U>> zip(Stream<U> other) {
+	public default <U> FStream<Tuple2<T,U>> zip(FStream<U> other) {
 		return () -> {
 			Option<T> next1 = this.next();
 			Option<U> next2 = other.next();
@@ -233,14 +241,14 @@ public interface Stream<T> {
 		return foldLeft(new Grouped<>(), (g,t) -> g.add(keyer.apply(t), t));
 	}
 	
-	public default Stream<T> sorted(Comparator<? super T> cmp) {
+	public default FStream<T> sorted(Comparator<? super T> cmp) {
 		List<T> list = toList();
 		list.sort(cmp);
 		return of(list);
 	}
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public default Stream<T> sorted() {
+	public default FStream<T> sorted() {
 		return sorted((t1,t2) -> ((Comparable)t1).compareTo(t2));
 	}
 	
@@ -254,7 +262,7 @@ public interface Stream<T> {
 		return join(delim, "", "");
 	}
 
-	public default boolean startsWith(Stream<T> subList) {
+	public default boolean startsWith(FStream<T> subList) {
 		Preconditions.checkArgument(subList != null, "subList is null");
 		
 		Option<T> subNext = subList.next();

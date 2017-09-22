@@ -16,9 +16,9 @@ import io.vavr.control.Option;
 public class ZipWithTest {
 	@Test
 	public void test0() throws Exception {
-		Stream<String> stream1 = Stream.of(Lists.newArrayList("a","b", "c", "d"));
-		Stream<Integer> stream2 = Stream.range(0, 100);
-		Stream<Tuple2<Integer,String>> stream = stream2.zip(stream1);
+		FStream<String> stream1 = FStream.of(Lists.newArrayList("a","b", "c", "d"));
+		FStream<Integer> stream2 = FStream.range(0, 100);
+		FStream<Tuple2<Integer,String>> stream = stream2.zip(stream1);
 		
 		Option<Tuple2<Integer,String>> r;
 		
@@ -48,9 +48,9 @@ public class ZipWithTest {
 	
 	@Test
 	public void test1() throws Exception {
-		Stream<String> stream1 = Stream.empty();
-		Stream<Integer> stream2 = Stream.range(0, 100);
-		Stream<Tuple2<Integer,String>> stream = stream2.zip(stream1);
+		FStream<String> stream1 = FStream.empty();
+		FStream<Integer> stream2 = FStream.range(0, 100);
+		FStream<Tuple2<Integer,String>> stream = stream2.zip(stream1);
 		
 		Option<Tuple2<Integer,String>> r;
 		

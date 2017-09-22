@@ -17,6 +17,7 @@ public interface AsyncExecution<T> extends Future<T>, AutoCloseable {
 	public boolean start();
 	public boolean cancel();
 	
+	public boolean isStarted();
 	public boolean isCompleted();
 	public boolean isFailed();
 	
