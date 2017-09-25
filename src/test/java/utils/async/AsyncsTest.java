@@ -213,7 +213,8 @@ public class AsyncsTest {
 		}
 	}
 	
-	private static class PassiveTask extends PassiveCancellable implements Runnable {
+	private static class PassiveTask extends PassiveCancellable<Void>
+								implements Runnable {
 		private int m_state = 0;
 		private RuntimeException m_error;
 		

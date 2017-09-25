@@ -41,7 +41,7 @@ dependencies {
 //	compile 'org.simpleframework:simple-xml:2.7.1'
 //	compile 'com.spikhalskiy.futurity:futurity-core:0.3-RC3'
 	
-	testCompile "junit:junit:${junit_version}"
+	testCompile "junit:junit:4.12"
 	
 }
 

@@ -15,7 +15,7 @@ import utils.func.Result;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class AbstractCancellable implements Cancellable {
+public class AbstractCancellable<T> implements Cancellable<T> {
 	protected enum State { IDLE, RUNNING, COMPLETED, FAILED, CANCELLING, CANCELLED };
 	
 	protected final ReentrantLock m_cancellableLock = new ReentrantLock();
@@ -113,7 +113,7 @@ public class AbstractCancellable implements Cancellable {
 	 * 			또는 작업이 취소되어 종료된 경우는 {@link Result#isEmpty()}가
 	 * 			{@code true}가 됨.
 	 */
-	public Result<Void> getResult() {
+	public Result<T> getResult() {
 		m_cancellableLock.lock();
 		try {
 			while ( true ) {

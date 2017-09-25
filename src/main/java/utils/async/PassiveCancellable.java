@@ -4,5 +4,5 @@ package utils.async;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class PassiveCancellable extends AbstractCancellable {
+public class PassiveCancellable<T> extends AbstractCancellable<T> {
 }
