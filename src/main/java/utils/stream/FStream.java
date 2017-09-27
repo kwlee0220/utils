@@ -17,6 +17,7 @@ import io.vavr.CheckedConsumer;
 import io.vavr.Function2;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
+import utils.Utilities;
 import utils.func.FLists;
 
 /**
@@ -212,11 +213,19 @@ public interface FStream<T> {
 		};
 	}
 	
+	public default Iterator<T> iterator() {
+		return new FStreamIterator<>(this);
+	}
+	
 	public default List<T> toList() {
 		return foldLeft(Lists.newArrayList(), (l,t) -> { l.add(t); return l; });
 	}
 	
-	public default void forEach(Consumer<T> effect) {
+	public default Stream<T> stream() {
+		return Utilities.stream(iterator());
+	}
+	
+	public default void forEach(Consumer<? super T> effect) {
 		Preconditions.checkArgument(effect != null, "effect is null");
 		
 		Option<T> next;
