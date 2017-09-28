@@ -4,7 +4,7 @@ package utils.async;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class ActiveCancellable extends AbstractCancellable {
+public abstract class ActiveCancellable<T> extends AbstractCancellable<T> {
 	protected abstract boolean cancelTask();
 	
 	@Override

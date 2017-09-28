@@ -6,8 +6,8 @@ import utils.Throwables;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class ActiveCancellableRunnable extends ActiveCancellable
-													implements Runnable {
+public abstract class ActiveCancellableRunnable extends ActiveCancellable<Void>
+												implements Runnable {
 	protected abstract void runTask() throws Exception;
 
 	public void run() {
