@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 
 import com.google.common.base.Preconditions;
@@ -48,6 +49,10 @@ public class Grouped<K,V> {
 	
 	public FStream<Tuple2<K,V>> fold(BiFunction<V,V,V> reducer) {
 		return new ReducedStream<>(m_map, reducer);
+	}
+	
+	public Set<K> keySet() {
+		return m_map.keySet();
 	}
 	
 	@Override
