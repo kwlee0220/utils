@@ -202,6 +202,10 @@ public interface FStream<T> {
 		return new Streams.AppendedStream<>(head, tail);
 	}
 	
+	public default FStream<Tuple2<T,Integer>> zipWithIndex() {
+		return zip(range(0,Integer.MAX_VALUE));
+	}
+	
 	public default <U> FStream<Tuple2<T,U>> zip(FStream<U> other) {
 		return () -> {
 			Option<T> next1 = this.next();
