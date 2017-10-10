@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 import com.google.common.base.Preconditions;
 
 import io.vavr.CheckedConsumer;
-import io.vavr.CheckedFunction1;
 import io.vavr.CheckedRunnable;
 import io.vavr.control.Try;
 
@@ -163,7 +162,7 @@ public class Unchecked {
 // ******************************************************************************
 // ******************************************************************************
 	
-	public static <T1,R> Function<T1,R> liftRTE(CheckedFunction1<T1,R> func) {
+	public static <T1,R> Function<T1,R> liftFRTE(CheckedFunction<T1,R> func) {
 		Preconditions.checkArgument(func != null, "Function is null");
 		
 		return (t) -> {
@@ -199,5 +198,10 @@ public class Unchecked {
 	@FunctionalInterface
 	public static interface CheckedSupplier<T> {
 		public T get() throws Throwable;
+	}
+	
+	@FunctionalInterface
+	public static interface CheckedFunction<T,R> {
+		public R apply(T input) throws Throwable;
 	}
 }

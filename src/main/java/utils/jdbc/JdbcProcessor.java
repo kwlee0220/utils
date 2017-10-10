@@ -21,6 +21,7 @@ import com.google.common.collect.Maps;
 
 import utils.Throwables;
 import utils.Utilities;
+import utils.stream.FStream;
 
 
 /**
@@ -35,7 +36,20 @@ public class JdbcProcessor {
 	private final String m_passwd;
 	private final String m_driverClsName;
 	
+	/**
+	 * 주어진 정보를 이용하한 JDBC 연결기 객체를 생성한다.
+	 * 
+	 * @param jdbcUrl	JDBC URL
+	 * @param user		JDBC user
+	 * @param passwd	JDBC password
+	 * @param driverClsName	JDBC driver class name
+	 */
 	public JdbcProcessor(String jdbcUrl, String user, String passwd, String driverClsName) {
+		Preconditions.checkNotNull(jdbcUrl, "JDBC URL is null");
+		Preconditions.checkNotNull(user, "JDBC user is null");
+		Preconditions.checkNotNull(passwd, "JDBC password is null");
+		Preconditions.checkNotNull(driverClsName, "JDBC driver class is null");
+		
 		m_jdbcUrl = jdbcUrl;
 		m_user = user;
 		m_passwd = passwd;
@@ -58,6 +72,12 @@ public class JdbcProcessor {
 		return m_driverClsName;
 	}
 	
+	/**
+	 * 주어진 연결 정보를 이용하여 JDBC 연결 객체를 반환한다.
+	 * 
+	 * @return	JDBC 연결 객체
+	 * @throws JdbcException	JDBC 연결 도중 오류가 발생된 경우.
+	 */
 	public Connection connect() throws SQLException {
 		try {
 			Class.forName(m_driverClsName);
@@ -91,6 +111,15 @@ public class JdbcProcessor {
 		}
 	}
 	
+	/**
+	 * 주어진 SQL 질의문을 실행시켜 결과 {@link ResultSet} 객체를 반환한다.
+	 * <p>
+	 * 반환된 ResultSet 객체의 'close()'이 호출되는 경우는
+	 * 기반 JDBC 연결을 자동으로 close시킨다.
+	 * 
+	 * @param sql	SQL 질의문
+	 * @return	질의 결과 객체.
+	 */
 	public ResultSet executeQuery(String sql) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
 		return JdbcUtils.bindToConnection(rs);
@@ -102,20 +131,20 @@ public class JdbcProcessor {
 		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
 	}
 	
+	public FStream<ResultSet> fstreamQuery(String sql) throws SQLException {
+		ResultSet rs = connect().createStatement().executeQuery(sql);
+		rs = JdbcUtils.bindToConnection(rs);
+		return new ResultSetFStream(rs);
+	}
+	
 	public Stream<ResultSet> executeQuery(PreparedStatement pstmt) throws SQLException {
 		ResultSet rs = pstmt.executeQuery();
 		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
 	}
 	
-	public <T> Stream<T> executeQuery(String sql, Function<ResultSet,T> functor) throws SQLException {
-		ResultSet rs = connect().createStatement().executeQuery(sql);
-		return Utilities.stream(new JdbcObjectIterator<>(rs, functor));
-	}
-	
-	public <T> Stream<T> executeQuery(PreparedStatement pstmt, Function<ResultSet,T> functor)
-		throws SQLException {
+	public FStream<ResultSet> fexecuteQuery(PreparedStatement pstmt) throws SQLException {
 		ResultSet rs = pstmt.executeQuery();
-		return Utilities.stream(new JdbcObjectIterator<>(rs, functor));
+		return new ResultSetFStream(rs);
 	}
 	
 	public void processQuery(String sql, JdbcConsumer<ResultSet> resultConsumer)
