@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -15,6 +16,7 @@ import com.google.common.collect.Lists;
 
 import io.vavr.CheckedConsumer;
 import io.vavr.Function2;
+import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
 import utils.Utilities;
@@ -47,6 +49,11 @@ public interface FStream<T> {
 	
 	public static <T> FStream<T> of(Stream<T> strm) {
 		return of(strm.iterator());
+	}
+	
+	public static <K,T> FStream<Tuple2<K,T>> of(Map<K,T> map) {
+		return of(map.entrySet())
+				.map(ent -> Tuple.of(ent.getKey(), ent.getValue()));
 	}
 	
 	public static <S,T> FStream<T> unfold(S init, Function<S,Option<Tuple2<T,S>>> generator) {
@@ -105,6 +112,12 @@ public interface FStream<T> {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return () -> next().map(mapper);
+	}
+	
+	public default FStream<T> peek(Consumer<? super T> consumer) {
+		Preconditions.checkArgument(consumer != null, "consumer is null");
+		
+		return () -> next().peek(consumer);
 	}
 	
 	public default <V> FStream<V> flatMap(Function<T,FStream<V>> mapper) {
