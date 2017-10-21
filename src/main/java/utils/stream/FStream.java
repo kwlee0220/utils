@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import io.vavr.CheckedConsumer;
 import io.vavr.Function2;
@@ -34,6 +35,7 @@ public interface FStream<T> {
 		return Streams.EMPTY;
 	}
 	
+	@SafeVarargs
 	@SuppressWarnings("unchecked")
 	public static <T> FStream<T> of(T... values) {
 		return of(Arrays.asList(values));
@@ -51,9 +53,9 @@ public interface FStream<T> {
 		return of(strm.iterator());
 	}
 	
-	public static <K,T> FStream<Tuple2<K,T>> of(Map<K,T> map) {
+	public static <K,V> FStream<Tuple2<K,V>> of(Map<K,V> map) {
 		return of(map.entrySet())
-				.map(ent -> Tuple.of(ent.getKey(), ent.getValue()));
+					.map(ent -> Tuple.of(ent.getKey(), ent.getValue()));
 	}
 	
 	public static <S,T> FStream<T> unfold(S init, Function<S,Option<Tuple2<T,S>>> generator) {
@@ -236,6 +238,37 @@ public interface FStream<T> {
 	
 	public default List<T> toList() {
 		return foldLeft(Lists.newArrayList(), (l,t) -> { l.add(t); return l; });
+	}
+	
+	public default Option<Tuple2<T,FStream<T>>> peekFirst() {
+		return next().map(head -> Tuple.of(head, concat(of(head), this)));
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T,K,V> FStream<Tuple2<K,V>> toTupleStream(FStream<T> stream) {
+		Option<Tuple2<T,FStream<T>>> otuple = stream.peekFirst();
+		if ( otuple.isEmpty() ) {
+			return FStream.empty();
+		}
+		
+		Tuple2<T,FStream<T>> tuple = otuple.get();
+		if ( !(tuple._1 instanceof Tuple2) ) {
+			throw new IllegalStateException("not Tuple2 FStream: this=" + stream);
+		}
+		
+		return () -> (Option<Tuple2<K,V>>)stream.next();
+	}
+	
+	public default <K,V> Map<K,V> toHashMap() {
+		return toMap(Maps.newHashMap());
+	}
+	
+	public default <K,V> Map<K,V> toMap(Map<K,V> map) {
+		return FStream.<T,K,V>toTupleStream(this)
+					.foldLeft(map, (accum,t) -> {
+						accum.put(t._1, t._2);
+						return accum;
+					});
 	}
 	
 	public default Stream<T> stream() {
