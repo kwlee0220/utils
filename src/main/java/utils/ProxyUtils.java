@@ -146,48 +146,15 @@ public final class ProxyUtils {
 	 * 경우는 확장 핸들러 객체의 메소드가 호출된다.
 	 * 
 	 * @param <T>		확장된 객체의 대표 타입.
-	 * @param loader	생성된 확장 객체의 클래스를 적재할 클래스 로더. <code>null</code>인 경우는
+	 * @param cloader	생성된 확장 객체의 클래스를 적재할 클래스 로더. <code>null</code>인 경우는
 	 * 					<code>toBeExtended</code> 객체의 클래스 로더를 사용한다. 
-	 * @param toBeExtended	확장될 객체.
+	 * @param src		확장시킬 객체.
+	 * @param intfc		추가될 인터페이스. 인터페이스 클래스만 사용 가능하다.
 	 * @param handler	확장 인터페이스 호출을 처리할 핸들러 객체.
-	 * @param intfcs	추가될 인터페이스. intfcs는 인터페이스 클래스만 사용 가능하다.
 	 * @return	확장된 인터페이스의 객체.
 	 */
-//	@SuppressWarnings("unchecked")
-//	public static <T> T extendObject(ClassLoader loader, Object toBeExtended, T handler,
-//									Class<?>... intfcs) {
-//		if ( toBeExtended == null ) {
-//			throw new IllegalArgumentException("toBeExtended is null");
-//		}
-//		if ( intfcs == null ) {
-//			throw new IllegalArgumentException("intfc is null");
-//		}
-//		for ( Class<?> intfc: intfcs ) {
-//			if ( !intfc.isInterface() ) {
-//				throw new IllegalArgumentException("intfc is not an interface class");
-//			}
-//			if ( !intfc.isAssignableFrom(handler.getClass()) ) {
-//				throw new IllegalArgumentException("handler does not implements interface: handler="
-//													+ handler + ", interface=" + intfc);
-//			}
-//		}
-//		if ( handler == null ) {
-//			throw new IllegalArgumentException("handler is null");
-//		}
-//		if ( loader == null ) {
-//			loader = toBeExtended.getClass().getClassLoader();
-//		}
-//
-//		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(toBeExtended.getClass());
-//		intfcSet.addAll(Arrays.asList(intfcs));
-//		
-//		Object[] handlers = new Object[]{handler};
-//		return (T)Proxy.newProxyInstance(loader, intfcSet.toArray(new Class<?>[intfcSet.size()]),
-//										new ExtendedCallHandler(toBeExtended, intfcs, handlers));
-//	}
-	
 	@SuppressWarnings("unchecked")
-	public static <T> T extend(ClassLoader cloader, Object src, Class<T> intfc, T extHandler) {
+	public static <T> T extend(ClassLoader cloader, Object src, Class<T> intfc, T handler) {
 		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(src.getClass());
 		intfcSet.add(intfc);
 		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
@@ -195,7 +162,7 @@ public final class ProxyUtils {
 		Enhancer enhancer = new Enhancer();
 		enhancer.setSuperclass(src.getClass());
 		enhancer.setInterfaces(intfcs);
-		enhancer.setCallback(new ExtendedCallHandler<>(src, intfc, extHandler));
+		enhancer.setCallback(new ExtendedCallHandler<>(src, intfc, handler));
 		return (T)enhancer.create();
 	}
 

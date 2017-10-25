@@ -147,6 +147,8 @@ public class AbstractCancellable<T> implements Cancellable<T> {
 	/**
 	 * 본 작업이 종료될 때까지 기다려 그 결과를 반환한다.
 	 * 
+	 * @param timeout	제한시간
+	 * @param tu		제한시간 단위
 	 * @return	종료 결과.
 	 * 			성공적으로 종료된 경우는 {@link Result#isSuccess()}가 {@code true},
 	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailure()}가 {@code true},

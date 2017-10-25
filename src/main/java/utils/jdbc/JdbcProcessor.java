@@ -9,7 +9,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -20,7 +19,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import utils.Throwables;
-import utils.Utilities;
 import utils.stream.FStream;
 
 
@@ -76,7 +74,7 @@ public class JdbcProcessor {
 	 * 주어진 연결 정보를 이용하여 JDBC 연결 객체를 반환한다.
 	 * 
 	 * @return	JDBC 연결 객체
-	 * @throws JdbcException	JDBC 연결 도중 오류가 발생된 경우.
+	 * @throws SQLException	JDBC 연결 도중 오류가 발생된 경우.
 	 */
 	public Connection connect() throws SQLException {
 		try {
@@ -119,6 +117,7 @@ public class JdbcProcessor {
 	 * 
 	 * @param sql	SQL 질의문
 	 * @return	질의 결과 객체.
+	 * @throws SQLException	질의 처리 중 예외가 발생된 경
 	 */
 	public ResultSet executeQuery(String sql) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
