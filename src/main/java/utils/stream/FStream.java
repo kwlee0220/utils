@@ -36,7 +36,6 @@ public interface FStream<T> {
 	}
 	
 	@SafeVarargs
-	@SuppressWarnings("unchecked")
 	public static <T> FStream<T> of(T... values) {
 		return of(Arrays.asList(values));
 	}
