@@ -165,7 +165,8 @@ public class XmlUtils {
 	public static Option<String> getText(Element elm) {
 		NodeList nodeList = elm.getChildNodes();
 		if ( nodeList.getLength() == 0 ) {
-			return Option.none();
+//			return Option.none();
+			return Option.some("");
 		}
 
 		StringBuilder buf = new StringBuilder();

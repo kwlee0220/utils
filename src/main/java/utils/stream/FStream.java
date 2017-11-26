@@ -115,6 +115,19 @@ public interface FStream<T> {
 		return () -> next().map(mapper);
 	}
 	
+	public default <V> FStream<V> cast(Class<V> cls) {
+		Preconditions.checkArgument(cls != null, "target class is null");
+		
+		return () -> next().map(cls::cast);
+	}
+	
+	public default <V> FStream<V> castSafely(Class<V> cls) {
+		Preconditions.checkArgument(cls != null, "target class is null");
+		
+		return () -> next().filter(cls::isInstance)
+							.map(cls::cast);
+	}
+	
 	public default FStream<T> peek(Consumer<? super T> consumer) {
 		Preconditions.checkArgument(consumer != null, "consumer is null");
 		

@@ -19,6 +19,8 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
+import io.vavr.control.Option;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -224,5 +226,24 @@ public class IOUtils {
 	
 	public static byte[] destringify(String encoded) {
 		return Base64.getDecoder().decode(encoded);
+	}
+	
+	public static void serializeOption(Option<? extends Serializable> obj,
+										ObjectOutputStream oos) throws IOException {
+		if ( obj.isDefined() ) {
+			oos.writeBoolean(true);
+			oos.writeObject(obj.get());
+		}
+		else {
+			oos.writeBoolean(false);
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T extends Serializable>
+	Option<T> deserializeOption(ObjectInputStream ois, Class<T> cls) throws ClassNotFoundException, IOException {
+		return (ois.readBoolean())
+				? Option.some((T)ois.readObject())
+				: Option.none();
 	}
 }
