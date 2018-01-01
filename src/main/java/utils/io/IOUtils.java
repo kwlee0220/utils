@@ -1,5 +1,6 @@
 package utils.io;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -12,6 +13,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.Charset;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.stream.Stream;
@@ -99,6 +101,15 @@ public class IOUtils {
 			
 	    	return bytes;
 		}
+    }
+    
+    public static String toString(InputStream is, Charset charset) throws IOException {
+		byte[] bytes = IOUtils.toBytes(new BufferedInputStream(is), true);
+		return new String(bytes, charset);
+    }
+    
+    public static String toString(File file, Charset charset) throws IOException {
+		return new String(IOUtils.toBytes(file), charset);
     }
     
     public static void toFile(byte[] bytes, File file) throws IOException {

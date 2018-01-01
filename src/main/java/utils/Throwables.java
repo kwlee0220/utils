@@ -28,7 +28,7 @@ public class Throwables {
 			else if ( e instanceof CompletionException ) {
 				e = ((CompletionException)e).getCause();
 			}
-			else if ( e instanceof RuntimeException ) {
+			else if ( RuntimeException.class == e.getClass() ) {
 				Throwable cause = ((RuntimeException)e).getCause();
 				if ( cause != null ) {
 					e = cause;

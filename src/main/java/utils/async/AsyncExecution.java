@@ -10,23 +10,55 @@ import java.util.function.Consumer;
 import utils.func.Result;
 
 /**
+ * @param <V>	비동기 연산의 결과 타입
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public interface AsyncExecution<T> extends Future<T>, AutoCloseable {
-	public boolean start();
-	public boolean cancel();
+public interface AsyncExecution<V> extends Future<V>, AutoCloseable {
+	public enum State { NOT_STARTED, RUNNING, COMPLETED, FAILED, CANCELLED };
 	
-	public boolean isStarted();
-	public boolean isCompleted();
-	public boolean isFailed();
+	/**
+	 * 비동기 작업 시작을 요청한다.
+	 * 함수는 비동기 작업이 실제로 시작되기 전에 반환될 수 있기 때문에, 본 메소드의
+	 * 반환이 작업을 시작되었음을 의미하지 않는다.
+	 * 비동기 작업이 성공적으로 시작될 때까지 대기하려는 경우는 명시적으로
+	 * {@link #waitForStarted()} 또는 {@link #waitForStarted(long, TimeUnit)}를
+	 * 호출하여야 한다.
+	 * 
+	 * 작업 시작 시도가 실패한 경우는 {@code false}를 반환한다.
+	 * 본 메소드가 {@code true} 반환한 경우에도 
+	 * 
+	 * @return	시작 작업 성공 여부.
+	 */
+	public void start() throws IllegalStateException;
+	public void cancel() throws IllegalStateException;
 	
-	public default boolean isDone() {
-		return isCompleted() || isFailed() || isCancelled();
+	public State getState();
+	
+	public default boolean isStarted() {
+		return getState() != State.NOT_STARTED;
 	}
 	
-    public T get() throws InterruptedException, ExecutionException, CancellationException;
-    public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
+	public default boolean isCompleted() {
+		return getState() == State.COMPLETED;
+	}
+	
+	public default boolean isFailed() {
+		return getState() == State.FAILED;
+	}
+	
+	public default boolean isCancelled() {
+		return getState() == State.CANCELLED;
+	}
+	
+	public default boolean isDone() {
+		State state = getState();
+		return state == State.COMPLETED || state == State.FAILED
+			|| getState() == State.CANCELLED;
+	}
+	
+    public V get() throws InterruptedException, ExecutionException, CancellationException;
+    public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
     												TimeoutException, CancellationException;
 
 	/**
@@ -39,7 +71,7 @@ public interface AsyncExecution<T> extends Future<T>, AutoCloseable {
 	 * 			{@code true}가 됨.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-    public default Result<T> getResult() throws InterruptedException {
+    public default Result<V> getResult() throws InterruptedException {
     	try {
     		return Result.some(get());
     	}
@@ -64,7 +96,7 @@ public interface AsyncExecution<T> extends Future<T>, AutoCloseable {
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 * @throws TimeoutException	작업 종료 대기 중 시간제한이 걸린 경우.
 	 */
-    public default Result<T> getResult(long timeout, TimeUnit unit)
+    public default Result<V> getResult(long timeout, TimeUnit unit)
     	throws InterruptedException, TimeoutException {
     	try {
     		return Result.some(get(timeout, unit));
@@ -113,6 +145,6 @@ public interface AsyncExecution<T> extends Future<T>, AutoCloseable {
 	 */
 	public boolean waitForDone(long timeout, TimeUnit unit) throws InterruptedException;
 
-	public void whenStarted(Consumer<AsyncExecution<T>> listener);
-	public void whenDone(Consumer<AsyncExecution<T>> result);
+	public void whenStarted(Runnable listener);
+	public void whenDone(Consumer<Result<V>> resultConsumer);
 }

@@ -2,6 +2,7 @@ package utils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -15,6 +16,7 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -26,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Sets;
 
 import io.vavr.control.Option;
+import net.sf.cglib.proxy.MethodProxy;
 
 /**
  *
@@ -404,5 +407,29 @@ public class Utilities {
 		else {
 			return (!value.equals(nullValue)) ? Option.some(value) : Option.none(); 
 		}
+	}
+	
+	public static <T extends AutoCloseable> T attachCloser(T object, Consumer<T> closer) {
+		return ProxyUtils.replaceAction(object, new CloseAttacher<T>(closer));
+	}
+	private static class CloseAttacher<T extends AutoCloseable> implements CallHandler<T> {
+		private final Consumer<T> m_closer;
+		
+		CloseAttacher(Consumer<T> closer) {
+			m_closer = closer;
+		}
+		
+		@Override
+		public boolean test(Method method) {
+			return method.getName().equals("close") && method.getParameterTypes().length == 0;
+		}
+
+		@Override
+		public Object intercept(T baseObject, Method method, Object[] args, MethodProxy proxy)
+				throws Throwable {
+			Unchecked.runIE(() -> m_closer.accept(baseObject));
+			return proxy.invokeSuper(baseObject, new Object[0]);
+		}
+		
 	}
 }

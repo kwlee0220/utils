@@ -37,7 +37,7 @@ public class Lambdas {
 		};
 	}
 	
-	public static void guraded(Lock lock, Runnable work) {
+	public static void guradedRun(Lock lock, Runnable work) {
 		lock.lock();
 		try {
 			work.run();
@@ -47,7 +47,7 @@ public class Lambdas {
 		}
 	}
 	
-	public static <T> T guraded(Lock lock, Supplier<T> suppl) {
+	public static <T> T guardedGet(Lock lock, Supplier<T> suppl) {
 		lock.lock();
 		try {
 			return suppl.get();

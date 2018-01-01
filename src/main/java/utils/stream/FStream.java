@@ -166,7 +166,7 @@ public interface FStream<T> {
 	}
 	
 	public default <S> S foldLeft(S accum, Function2<S,T,S> folder) {
-		Preconditions.checkArgument(accum != null, "accum is null");
+//		Preconditions.checkArgument(accum != null, "accum is null");
 		Preconditions.checkArgument(folder != null, "folder is null");
 		
 		Option<T> next;
@@ -268,14 +268,15 @@ public interface FStream<T> {
 			throw new IllegalStateException("not Tuple2 FStream: this=" + stream);
 		}
 		
-		return () -> (Option<Tuple2<K,V>>)stream.next();
+		FStream<T> stream2 = otuple.get()._2;
+		return () -> (Option<Tuple2<K,V>>)stream2.next();
 	}
 	
 	public default <K,V> Map<K,V> toHashMap() {
 		return toMap(Maps.newHashMap());
 	}
 	
-	public default <K,V> Map<K,V> toMap(Map<K,V> map) {
+	public default <K, V, S extends Map<K,V>> S toMap(S map) {
 		return FStream.<T,K,V>toTupleStream(this)
 					.foldLeft(map, (accum,t) -> {
 						accum.put(t._1, t._2);
@@ -323,8 +324,29 @@ public interface FStream<T> {
 		return sorted((t1,t2) -> ((Comparable)t1).compareTo(t2));
 	}
 	
+	public default Option<T> max(Comparator<? super T> cmp) {
+		Option<T> max = Option.none();
+		
+		Option<T> next;
+		while ( (next = next()).isDefined() ) {
+			if ( max.isDefined() ) {
+				if ( cmp.compare(next.get(), max.get()) > 0 ) {
+					max = next;
+				}
+			}
+			else {
+				max = next;
+			}
+		}
+		
+		return max;
+	}
+	
 	public default String join(String delim, String begin, String end) {
-		return foldLeft(new StringBuilder(begin), (b,t) -> b.append(t.toString()).append(delim))
+		return zipWithIndex()
+				.foldLeft(new StringBuilder(begin),
+							(b,t) -> (t._2 > 0) ? b.append(delim).append(t._1.toString())
+												: b.append(t._1.toString()))
 					.append(end)
 					.toString();
 	}

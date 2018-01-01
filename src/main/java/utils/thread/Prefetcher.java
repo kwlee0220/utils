@@ -10,7 +10,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
@@ -19,8 +18,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 
 import net.jcip.annotations.GuardedBy;
-import utils.Throwables;
 import utils.LoggerSettable;
+import utils.Throwables;
 
 
 
@@ -28,17 +27,17 @@ import utils.LoggerSettable;
  * 
  * @author Kang-Woo Lee
  */
-public class Prefetcher<T> implements LoggerSettable, ExecutorAware {
+public class Prefetcher<T> implements LoggerSettable {
 	private static final Logger s_logger = LoggerFactory.getLogger(Prefetcher.class);
 	
-	enum PrefetchState { IDLE, REQUESTED, PREFETCHING, };
+	private enum PrefetchState { IDLE, REQUESTED, PREFETCHING, };
 	
-	@Nonnull private final Callable<T> m_fetcher;
+	private final Callable<T> m_fetcher;
 	private volatile long m_timeout = -1;
     private volatile Executor m_executor = null;	// null 이면 그때그때 thread를 만들어서 수행한다.
     private volatile boolean m_reuseFlag = false;	// 사용한 pre-fetched 데이터의 재사용 여부.
     
-    @Nonnull private volatile Logger m_logger = s_logger;
+    private volatile Logger m_logger = s_logger;
     
     private final ReentrantLock m_lock = new ReentrantLock();
     private final Condition m_cond = m_lock.newCondition();
@@ -59,7 +58,7 @@ public class Prefetcher<T> implements LoggerSettable, ExecutorAware {
      * @param reuse		사용한 pre-fetched 데이터의 재사용 여부.
      * @param executor	사용할 쓰레드 풀 객체. {@code null}인 경우는 별도의 쓰레드 풀을 사용하지 않는 것으로 간주.
      */
-	public Prefetcher(@Nonnull Callable<T> fetcher, long validityTimeout, boolean reuse,
+	public Prefetcher(Callable<T> fetcher, long validityTimeout, boolean reuse,
 						@Nullable Executor executor) {
 		Preconditions.checkNotNull(fetcher, "fetcher is null");
 		Preconditions.checkArgument(validityTimeout > 0,
@@ -79,12 +78,10 @@ public class Prefetcher<T> implements LoggerSettable, ExecutorAware {
 		m_reuseFlag = flag;
 	}
 
-	@Override
 	public Executor getExecutor() {
 		return m_executor;
 	}
 
-	@Override
 	public void setExecutor(Executor executor) {
 		m_executor = executor;
 	}
@@ -95,7 +92,7 @@ public class Prefetcher<T> implements LoggerSettable, ExecutorAware {
 	}
 
 	@Override
-	public void setLogger(@Nonnull Logger logger) {
+	public void setLogger(Logger logger) {
 		Preconditions.checkNotNull(logger);
 		
 		m_logger = logger;
@@ -244,7 +241,12 @@ public class Prefetcher<T> implements LoggerSettable, ExecutorAware {
 	
 	private void requestPrefetchInGuard() {
 		m_state = PrefetchState.REQUESTED;
-		CompletableFuture.runAsync(m_prefetchingWorker, m_executor);
+		if ( m_executor != null ) {
+			CompletableFuture.runAsync(m_prefetchingWorker, m_executor);
+		}
+		else {
+			CompletableFuture.runAsync(m_prefetchingWorker);
+		}
 	}
 	
 	private final Runnable m_prefetchingWorker = new Runnable() {
