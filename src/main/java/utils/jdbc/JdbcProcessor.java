@@ -1,5 +1,6 @@
 package utils.jdbc;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -26,7 +27,8 @@ import utils.stream.FStream;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class JdbcProcessor {
+public class JdbcProcessor implements Serializable {
+	private static final long serialVersionUID = -7730009459945414576L;
 	private final Logger s_logger = LoggerFactory.getLogger(JdbcProcessor.class);
 
 	private final String m_jdbcUrl;
