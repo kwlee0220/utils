@@ -1,12 +1,13 @@
 package utils;
 
+import java.io.Serializable;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class Holder<T> {
-	private T m_value;
+public class Holder<T> implements Serializable {
+	private transient T m_value;
 	
 	public Holder() {
 		m_value = null;

@@ -1,5 +1,6 @@
 package utils.stream;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -53,6 +54,10 @@ public class Grouped<K,V> {
 	
 	public Set<K> keySet() {
 		return m_map.keySet();
+	}
+	
+	public Collection<List<V>> groups() {
+		return m_map.values();
 	}
 	
 	@Override

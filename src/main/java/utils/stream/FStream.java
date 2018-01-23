@@ -1,5 +1,6 @@
 package utils.stream;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -250,6 +251,13 @@ public interface FStream<T> {
 	
 	public default List<T> toList() {
 		return foldLeft(Lists.newArrayList(), (l,t) -> { l.add(t); return l; });
+	}
+	
+	public default T[] toArray(Class<T> componentType) {
+		List<T> list = toList();
+		@SuppressWarnings("unchecked")
+		T[] array = (T[])Array.newInstance(componentType, list.size());
+		return list.toArray(array);
 	}
 	
 	public default Option<Tuple2<T,FStream<T>>> peekFirst() {

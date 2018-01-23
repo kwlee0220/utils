@@ -8,6 +8,7 @@ import com.google.common.base.Preconditions;
 
 import io.vavr.CheckedConsumer;
 import io.vavr.CheckedRunnable;
+import io.vavr.control.Either;
 import io.vavr.control.Try;
 
 
