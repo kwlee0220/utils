@@ -1,6 +1,6 @@
 package utils.async;
 
-import rx.Observable;
+import io.reactivex.Observable;
 
 /**
  * 

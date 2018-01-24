@@ -2,8 +2,8 @@ package utils.async;
 
 import java.util.concurrent.CompletableFuture;
 
+import io.reactivex.Observable;
 import io.vavr.Lazy;
-import rx.Observable;
 import utils.Throwables;
 
 
