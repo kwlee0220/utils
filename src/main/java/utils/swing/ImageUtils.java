@@ -58,15 +58,15 @@ public class ImageUtils {
 //		
 //		return Scalr.resize(bimage, Method.SPEED, Mode.AUTOMATIC, width, height);
 //	}
-//	
-//	public static BufferedImage toBufferedImage(File file) throws IOException {
-//		BufferedImage bi = ImageIO.read(file);
-//		if ( bi == null ) {
-//			throw new RuntimeException("unknown image format");
-//		}
-//		
-//		return bi;
-//	}
+	
+	public static BufferedImage toBufferedImage(File file) throws IOException {
+		BufferedImage bi = ImageIO.read(file);
+		if ( bi == null ) {
+			throw new RuntimeException("unknown image format");
+		}
+		
+		return bi;
+	}
 
 	/**
 	 * 주어진 JPEG 입력 스트림을 읽어 {@link BufferedImage} 객체를 생성한다.
