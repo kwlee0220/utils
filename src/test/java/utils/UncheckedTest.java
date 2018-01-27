@@ -92,11 +92,11 @@ public class UncheckedTest {
 		};
 
 		m_result = INIT;
-		Assert.assertEquals(true, Unchecked.runIE(cr0));
+		Assert.assertEquals(true, Try.run(cr0).isSuccess());
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
-		Assert.assertEquals(false, Unchecked.runIE(cr1));
+		Assert.assertEquals(false, Try.run(cr1).isFailure());
 		Assert.assertEquals(FAILED, m_result);
 	}
 	
@@ -132,13 +132,13 @@ public class UncheckedTest {
 		};
 
 		m_result = INIT;
-		Try<Void> ret0 = Unchecked.tryToRun(cr0);
+		Try<Void> ret0 = Try.run(cr0);
 		Assert.assertEquals(true, ret0.isSuccess());
 		Assert.assertNull(ret0.get());
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
-		Try<Void> ret1 = Unchecked.tryToRun(cr1);
+		Try<Void> ret1 = Try.run(cr1);
 		Assert.assertEquals(true, ret1.isFailure());
 		Assert.assertEquals(IOException.class, ret1.getCause().getClass());
 		Assert.assertEquals(FAILED, m_result);

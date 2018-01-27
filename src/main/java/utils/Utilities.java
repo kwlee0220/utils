@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Sets;
 
 import io.vavr.control.Option;
+import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
 
 /**
@@ -427,7 +428,7 @@ public class Utilities {
 		@Override
 		public Object intercept(T baseObject, Method method, Object[] args, MethodProxy proxy)
 				throws Throwable {
-			Unchecked.runIE(() -> m_closer.accept(baseObject));
+			Try.run(() -> m_closer.accept(baseObject));
 			return proxy.invokeSuper(baseObject, new Object[0]);
 		}
 		

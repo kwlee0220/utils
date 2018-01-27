@@ -8,7 +8,6 @@ import com.google.common.base.Preconditions;
 
 import io.vavr.CheckedConsumer;
 import io.vavr.CheckedRunnable;
-import io.vavr.control.Either;
 import io.vavr.control.Try;
 
 
@@ -52,36 +51,14 @@ public class Unchecked {
 			}
 		};
 	}
-	public static boolean runIE(CheckedRunnable task) {
-		Preconditions.checkArgument(task != null, "Runnable is null");
-		
-		try {
-			task.run();
-			return true;
-		}
-		catch ( Throwable ignored ) {
-			return false;
-		}
-	}
 	public static void runRTE(CheckedRunnable task) {
-		Preconditions.checkArgument(task != null, "Runnable is null");
+		Preconditions.checkNotNull(task, "Runnable is null");
 		
 		try {
 			task.run();
 		}
 		catch ( Throwable e ) {
 			throw Throwables.toRuntimeException(e);
-		}
-	}
-	public static Try<Void> tryToRun(CheckedRunnable task) {
-		Preconditions.checkArgument(task != null, "Runnable is null");
-		
-		try {
-			task.run();
-			return Try.of(() -> null);
-		}
-		catch ( Throwable e ) {
-			return Try.failure(e);
 		}
 	}
 

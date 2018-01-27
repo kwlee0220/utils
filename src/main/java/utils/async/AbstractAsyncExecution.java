@@ -15,8 +15,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import io.vavr.CheckedRunnable;
+import io.vavr.control.Try;
 import utils.Lambdas;
-import utils.Unchecked;
 import utils.func.Result;
 
 /**
@@ -299,7 +299,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	@Override
 	public boolean cancel(boolean mayInterruptIfRunning) {
 		cancel();
-		Unchecked.runIE(this::waitForDone);
+		Try.run(this::waitForDone);
 		
 		return isCancelled();
 	}

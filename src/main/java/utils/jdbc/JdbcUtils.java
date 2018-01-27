@@ -8,10 +8,10 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
 import utils.CallHandler;
 import utils.ProxyUtils;
-import utils.Unchecked;
 import utils.Utilities;
 import utils.io.IOUtils;
 
@@ -69,8 +69,8 @@ public class JdbcUtils {
 			public Object intercept(ResultSet rs, Method method, Object[] args, MethodProxy proxy)
 				throws Throwable {
 				Connection conn = rs.getStatement().getConnection();
-				
-				Unchecked.runIE(() -> proxy.invoke(rs, args));
+
+				Try.run(() -> proxy.invoke(rs, args));
 				IOUtils.closeQuietly(conn);
 				
 				return null;

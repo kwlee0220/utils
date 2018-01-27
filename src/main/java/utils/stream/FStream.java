@@ -223,6 +223,16 @@ public interface FStream<T> {
 		return next;
 	}
 	
+	public default Option<T> last() {
+		Option<T> last = Option.none();
+		Option<T> next;
+		while ( (next = next()).isDefined() ) {
+			last = next;
+		}
+		
+		return last;
+	}
+	
 	public static <T> FStream<T> concat(FStream<T> head, FStream<T> tail) {
 		Preconditions.checkArgument(head != null, "head is null");
 		Preconditions.checkArgument(tail != null, "tail is null");
