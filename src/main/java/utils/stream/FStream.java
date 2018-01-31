@@ -223,6 +223,11 @@ public interface FStream<T> {
 		return next;
 	}
 	
+	public default Option<T> first() {
+		List<T> list = take(1).toList();
+		return list.isEmpty() ? Option.none() : Option.some(list.get(0));
+	}
+	
 	public default Option<T> last() {
 		Option<T> last = Option.none();
 		Option<T> next;
