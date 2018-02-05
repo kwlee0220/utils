@@ -1,5 +1,6 @@
 package utils;
 
+import java.util.Objects;
 
 /**
  * 
@@ -35,5 +36,24 @@ public class DimensionInt {
 	@Override
 	public String toString() {
 		return String.format("%dx%d", m_width, m_height);
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if ( this == obj ) {
+			return true;
+		}
+		else if ( obj == null || getClass() != obj.getClass() ) {
+			return false;
+		}
+		
+		DimensionInt other = (DimensionInt)obj;
+		return Objects.equals(m_width, other.m_width)
+			&& Objects.equals(m_height, other.m_height);
+	}
+	
+	@Override
+	public int hashCode() {
+		return Objects.hash(m_width, m_height);
 	}
 }
