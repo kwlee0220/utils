@@ -141,6 +141,20 @@ public interface FStream<T> {
 		return map(mapper).foldLeft(empty(), (a,s) -> concat(a,s));
 	}
 	
+	public default <V> FStream<V> flatMapOption(Function<T,Option<V>> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		
+		return map(mapper).foldLeft(empty(), (a,opt) -> 
+			opt.isDefined() ? concat(a,of(opt.get())) : a
+		);
+	}
+	
+	public default <V> FStream<V> flatMapIterable(Function<T,Iterable<V>> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		
+		return map(mapper).foldLeft(empty(), (a,s) -> concat(a,of(s)));
+	}
+	
 	public default boolean exists(Predicate<T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
 		
@@ -345,6 +359,94 @@ public interface FStream<T> {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public default FStream<T> sorted() {
 		return sorted((t1,t2) -> ((Comparable)t1).compareTo(t2));
+	}
+	
+	@SuppressWarnings("unchecked")
+	public default Option<T> max() {
+		Comparable<T> max = null;
+		
+		Option<T> next;
+		while ( (next = next()).isDefined() ) {
+			if ( max != null ) {
+				if ( max.compareTo(next.get()) < 0 ) {
+					max = (Comparable<T>)next.get();
+				}
+			}
+			else {
+				if ( !(next.get() instanceof Comparable) ) {
+					throw new IllegalStateException("FStream elements are not Comparable");
+				}
+				
+				max = (Comparable<T>)next.get();
+			}
+		}
+		
+		return Option.of(((T)max));
+	}
+
+	@SuppressWarnings("unchecked")
+	public default Option<T> min() {
+		Comparable<T> max = null;
+		
+		Option<T> next;
+		while ( (next = next()).isDefined() ) {
+			if ( max != null ) {
+				if ( max.compareTo(next.get()) > 0 ) {
+					max = (Comparable<T>)next.get();
+				}
+			}
+			else {
+				if ( !(next.get() instanceof Comparable) ) {
+					throw new IllegalStateException("FStream elements are not Comparable");
+				}
+				
+				max = (Comparable<T>)next.get();
+			}
+		}
+		
+		return Option.of(((T)max));
+	}
+	
+	public default <K extends Comparable<K>> Option<T> max(Function<T,K> keySelector) {
+		Option<T> max = Option.none();
+		K maxKey = null;
+		
+		Option<T> next;
+		while ( (next = next()).isDefined() ) {
+			if ( max.isDefined() ) {
+				K key = next.map(keySelector).get();
+				if ( maxKey.compareTo(key) < 0 ) {
+					max = next;
+					maxKey = key;
+				}
+			}
+			else {
+				max = next;
+			}
+		}
+		
+		return max;
+	}
+	
+	public default <K extends Comparable<K>> Option<T> min(Function<T,K> keySelector) {
+		Option<T> max = Option.none();
+		K maxKey = null;
+		
+		Option<T> next;
+		while ( (next = next()).isDefined() ) {
+			if ( max.isDefined() ) {
+				K key = next.map(keySelector).get();
+				if ( maxKey.compareTo(key) > 0 ) {
+					max = next;
+					maxKey = key;
+				}
+			}
+			else {
+				max = next;
+			}
+		}
+		
+		return max;
 	}
 	
 	public default Option<T> max(Comparator<? super T> cmp) {
