@@ -3,6 +3,7 @@ package utils.thread;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
+import java.util.function.Supplier;
 
 import com.google.common.base.Preconditions;
 
@@ -12,20 +13,15 @@ import com.google.common.base.Preconditions;
  */
 public class ConditionVariable {
 	private final Condition m_cond;
-	private final WaitCondition m_waitCond;
+	private final Supplier<Boolean> m_waitCond;
 	
-	@FunctionalInterface
-	public interface WaitCondition {
-		public boolean test();
-	}
-	
-	public ConditionVariable(Condition cond, WaitCondition waitCond) {
+	public ConditionVariable(Condition cond, Supplier<Boolean> waitCond) {
 		m_cond = cond;
 		m_waitCond = waitCond;
 	}
 	
 	public void await() throws InterruptedException {
-		while ( m_waitCond.test() ) {
+		while ( m_waitCond.get() ) {
 			m_cond.await();
 		}
 	}
@@ -38,7 +34,7 @@ public class ConditionVariable {
 	}
 	
 	public boolean awaitUntil(Date deadline) throws InterruptedException {
-		while ( m_waitCond.test() ) {
+		while ( m_waitCond.get() ) {
 			if ( !m_cond.awaitUntil(deadline) ) {
 				return false;
 			}
