@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -227,6 +228,18 @@ public interface FStream<T> {
 		}
 	}
 	
+	public default <S> S collectLeft(S collector, BiConsumer<S,T> collect) {
+		Preconditions.checkNotNull(collector);
+		Preconditions.checkNotNull(collect);
+		
+		Option<T> next;
+		while ( (next = next()).isDefined() ) {
+			collect.accept(collector, next.get());
+		}
+		
+		return collector;
+	}
+	
 	public default Option<T> find(Predicate<T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
 		
@@ -413,8 +426,8 @@ public interface FStream<T> {
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {
+			K key = next.map(keySelector).get();
 			if ( max.isDefined() ) {
-				K key = next.map(keySelector).get();
 				if ( maxKey.compareTo(key) < 0 ) {
 					max = next;
 					maxKey = key;
@@ -422,6 +435,7 @@ public interface FStream<T> {
 			}
 			else {
 				max = next;
+				maxKey = key;
 			}
 		}
 		
@@ -434,8 +448,8 @@ public interface FStream<T> {
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {
+			K key = next.map(keySelector).get();
 			if ( max.isDefined() ) {
-				K key = next.map(keySelector).get();
 				if ( maxKey.compareTo(key) > 0 ) {
 					max = next;
 					maxKey = key;
@@ -443,6 +457,7 @@ public interface FStream<T> {
 			}
 			else {
 				max = next;
+				maxKey = key;
 			}
 		}
 		
