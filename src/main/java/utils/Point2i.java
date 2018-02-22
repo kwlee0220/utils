@@ -1,14 +1,19 @@
 package utils;
 
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.google.common.base.Preconditions;
+
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public final class Point2i implements Comparable<Point2i> {
+	private static final Pattern PATTERN = Pattern.compile("\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)");
+	
 	private final int m_x;
 	private final int m_y;
 	
@@ -30,9 +35,15 @@ public final class Point2i implements Comparable<Point2i> {
 	}
 	
 	public static Point2i fromString(String str) {
-		String[] parts = str.split("x");
+		Matcher matcher = PATTERN.matcher(str);
+		if ( !matcher.find() ) {
+			throw new IllegalArgumentException(String.format("invalid: '%s'", str));
+		}
 		
-		return new Point2i(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+		int x = Integer.parseInt(matcher.group(1));
+		int y = Integer.parseInt(matcher.group(2));
+		
+		return new Point2i(x, y);
 	}
 	
 	@Override

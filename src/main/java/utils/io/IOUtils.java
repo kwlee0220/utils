@@ -4,6 +4,8 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -16,10 +18,14 @@ import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
+
+import com.google.common.collect.Lists;
 
 import io.vavr.control.Option;
 
@@ -250,11 +256,58 @@ public class IOUtils {
 		}
 	}
 	
+	public static void writeOptionDouble(Option<Double> opt,
+										DataOutput out) throws IOException {
+		if ( opt.isDefined() ) {
+			out.writeBoolean(true);
+			out.writeDouble(opt.get());
+		}
+		else {
+			out.writeBoolean(false);
+		}
+	}
+	
 	@SuppressWarnings("unchecked")
 	public static <T extends Serializable>
 	Option<T> deserializeOption(ObjectInputStream ois, Class<T> cls) throws ClassNotFoundException, IOException {
 		return (ois.readBoolean())
 				? Option.some((T)ois.readObject())
 				: Option.none();
+	}
+
+	public static <T extends Serializable>
+	void serializeList(List<T> list, ObjectOutputStream oos) throws IOException {
+		oos.writeInt(list.size());
+		for ( T item: list ) {
+			oos.writeObject(item);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends Serializable>
+	List<T> deserializeList(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		int count = ois.readInt();
+		List<T> list = Lists.newArrayListWithExpectedSize(count);
+		for ( int i =0; i < count; ++i ) {
+			list.add((T)ois.readObject());
+		}
+		
+		return list;
+	}
+	
+	public static void readStringCollection(Consumer<String> consumer, DataInput in)
+		throws IOException {
+		int count = in.readInt();
+		for ( int i =0; i < count; ++i ) {
+			consumer.accept(in.readUTF());
+		}
+	}
+	
+	public static void writeStringCollection(Collection<String> coll,
+											DataOutput out) throws IOException {
+		out.writeInt(coll.size());
+		for ( String item: coll ) {
+			out.writeUTF(item);
+		}
 	}
 }

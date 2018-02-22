@@ -38,7 +38,9 @@ public class Size2d {
 	public static Size2d fromString(String str) {
 		String[] parts = str.split("x");
 		
-		return new Size2d(Double.parseDouble(parts[0]), Double.parseDouble(parts[1]));
+		double x = Double.parseDouble(parts[0].trim());
+		double y = Double.parseDouble(parts[1].trim());
+		return new Size2d(x, y);
 	}
 	
 	@Override
