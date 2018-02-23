@@ -8,6 +8,10 @@ package utils.stream;
 public class FStreamException extends RuntimeException {
 	private static final long serialVersionUID = 1336895421748344085L;
 
+	public FStreamException(String msg) {
+		super(msg);
+	}
+
 	public FStreamException(Throwable cause) {
 		super(cause);
 	}

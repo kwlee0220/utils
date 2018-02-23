@@ -1,151 +1,206 @@
 package utils.stream;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Maps;
 
-import io.vavr.CheckedConsumer;
-import io.vavr.Function2;
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import io.vavr.control.Option;
-import utils.Utilities;
-import utils.func.FLists;
+
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public interface FStream<T> {
+public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
+	public Option<KeyValue<K, V>> next();
+	
+	public static <K,V> KVFStream<K,V> of(Map<K,V> map) {
+		Iterator<Map.Entry<K,V>> iter = map.entrySet().iterator();
+		return () -> {
+			if ( !iter.hasNext() ) {
+				return Option.none();
+			}
+			else {
+				Map.Entry<K,V> e = iter.next();
+				return Option.some(new KeyValue<>(e.getKey(), e.getValue()));
+			}
+		};
+	}
+	
+	public default KVFStream<K,V> filterKey(Predicate<K> pred) {
+		Preconditions.checkArgument(pred != null, "pred is null");
+
+		Predicate<K> negated = pred.negate();
+		return () -> {
+			Option<KeyValue<K,V>> next;
+			while ( (next = next()).filter(kv -> negated.test(kv.key())).isDefined() );
+			return next;
+		};
+	}
+	
+	public default KVFStream<K,V> filterValue(Predicate<V> pred) {
+		Preconditions.checkArgument(pred != null, "pred is null");
+
+		Predicate<V> negated = pred.negate();
+		return () -> {
+			Option<KeyValue<K,V>> next;
+			while ( (next = next()).filter(kv -> negated.test(kv.value())).isDefined() );
+			return next;
+		};
+	}
+	
+	public default <S> KVFStream<S,V> mapKey(Function<K,S> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		
+		return () -> next().map(kv -> kv.mapKey(mapper));
+	}
+	
+	public default <U> KVFStream<K,U> mapValue(Function<V,U> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		
+		return () -> next().map(kv -> kv.mapValue(mapper));
+	}
+	
+	public default <U> KVFStream<K,U> castValue(Class<U> cls) {
+		Preconditions.checkArgument(cls != null, "target class is null");
+		
+		return mapValue(cls::cast);
+	}
+	
+	public default FStream<K> toKeyStream() {
+		return () -> next().map(KeyValue::key);
+	}
+	
+	public default FStream<V> toValueStream() {
+		return () -> next().map(KeyValue::value);
+	}
+	
+	public default <T extends Map<K,V>> T toMap(T map) {
+		return collectLeft(map, (accum,kv) -> accum.put(kv.key(), kv.value()));
+	}
+	
+	public default Map<K,V> toHashMap() {
+		return toMap(Maps.newHashMap());
+	}
+
+/*
+	
+	public default <V> FStream<V> map(Function<T,V> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		
+		return () -> next().map(mapper);
+	}
+	
+	public <S> KVFStream<K,S> mapValue(Function<V,S> m) {
+		return () -> next().map(mapper);
+	}
+
 	public Option<T> next();
 	
 	@SuppressWarnings("unchecked")
-	public static <T> FStream<T> empty() {
+	public static <T> KVFStream<T> empty() {
 		return Streams.EMPTY;
 	}
 	
 	@SafeVarargs
-	public static <T> FStream<T> of(T... values) {
+	public static <T> KVFStream<T> of(T... values) {
 		return of(Arrays.asList(values));
 	}
 	
-	public static <T> FStream<T> of(Iterable<T> values) {
+	public static <T> KVFStream<T> of(Iterable<T> values) {
 		return of(values.iterator());
 	}
 	
-	public static <T> FStream<T> of(Iterator<T> iter) {
+	public static <T> KVFStream<T> of(Iterator<T> iter) {
 		return () -> iter.hasNext() ? Option.some(iter.next()) : Option.none();
 	}
 	
-	public static <T> FStream<T> of(Stream<T> strm) {
+	public static <T> KVFStream<T> of(Stream<T> strm) {
 		return of(strm.iterator());
 	}
 	
-	public static <K,V> FStream<Tuple2<K,V>> of(Map<K,V> map) {
+	public static <K,V> KVFStream<Tuple2<K,V>> of(Map<K,V> map) {
 		return of(map.entrySet())
-					.map(ent -> Tuple.of(ent.getKey(), ent.getValue()));
+					.map(ent -> Tuple.of(ent.key(), ent.getValue()));
 	}
 	
-	public static <S,T> FStream<T> unfold(S init, Function<S,Option<Tuple2<T,S>>> generator) {
+	public static <S,T> KVFStream<T> unfold(S init, Function<S,Option<Tuple2<T,S>>> generator) {
 		Preconditions.checkArgument(init != null, "init is null");
 		Preconditions.checkArgument(generator != null, "generator is null");
 		
 		return new Streams.UnfoldStream<T, S>(init, generator);
 	}
 	
-	public static <T> FStream<T> generate(T init, Function<T,T> inc) {
+	public static <T> KVFStream<T> generate(T init, Function<T,T> inc) {
 		Preconditions.checkArgument(init != null, "init is null");
 		Preconditions.checkArgument(inc != null, "inc is null");
 		
 		return new Streams.GeneratedStream<>(init, inc);
 	}
 	
-	public static FStream<Integer> range(int start, int end) {
+	public static KVFStream<Integer> range(int start, int end) {
 		return new Streams.RangedStream(start, end, false);
 	}
-	public static FStream<Integer> rangeClosed(int start, int end) {
+	public static KVFStream<Integer> rangeClosed(int start, int end) {
 		return new Streams.RangedStream(start, end, true);
 	}
 	
-	public default FStream<T> take(long count) {
+	public default KVFStream<T> take(long count) {
 		Preconditions.checkArgument(count >= 0, "count < 0");
 		return new Streams.TakenStream<>(this, count);
 	}
-	public default FStream<T> drop(long count) {
+	public default KVFStream<T> drop(long count) {
 		Preconditions.checkArgument(count >= 0, "count < 0");
 		return new Streams.DroppedStream<>(this, count);
 	}
 
-	public default FStream<T> takeWhile(Predicate<T> pred) {
+	public default KVFStream<T> takeWhile(Predicate<T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
 		
 		return new Streams.TakeWhileStream<>(this, pred);
 	}
-	public default FStream<T> dropWhile(Predicate<T> pred) {
+	public default KVFStream<T> dropWhile(Predicate<T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
 		
 		return new Streams.DropWhileStream<>(this, pred);
 	}
 	
-	public default FStream<T> filter(Predicate<T> pred) {
-		Preconditions.checkArgument(pred != null, "pred is null");
-		
-		Predicate<T> negated = pred.negate();
-		return () -> {
-			Option<T> next;
-			while ( (next = next()).filter(negated).isDefined() );
-			return next;
-		};
-	}
-	
-	public default <S> FStream<S> map(Function<T,S> mapper) {
+	public default <V> KVFStream<V> map(Function<T,V> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return () -> next().map(mapper);
 	}
 	
-	public default <V> FStream<V> cast(Class<V> cls) {
+	public default <V> KVFStream<V> cast(Class<V> cls) {
 		Preconditions.checkArgument(cls != null, "target class is null");
 		
 		return () -> next().map(cls::cast);
 	}
 	
-	public default <V> FStream<V> castSafely(Class<V> cls) {
+	public default <V> KVFStream<V> castSafely(Class<V> cls) {
 		Preconditions.checkArgument(cls != null, "target class is null");
 		
 		return () -> next().filter(cls::isInstance)
 							.map(cls::cast);
 	}
 	
-	public default FStream<T> peek(Consumer<? super T> consumer) {
+	public default KVFStream<T> peek(Consumer<? super T> consumer) {
 		Preconditions.checkArgument(consumer != null, "consumer is null");
 		
 		return () -> next().peek(consumer);
 	}
 	
-	public default <V> FStream<V> flatMap(Function<T,FStream<V>> mapper) {
+	public default <V> KVFStream<V> flatMap(Function<T,KVFStream<V>> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return map(mapper).foldLeft(empty(), (a,s) -> concat(a,s));
 	}
 	
-	public default <V> FStream<V> flatMapOption(Function<T,Option<V>> mapper) {
+	public default <V> KVFStream<V> flatMapOption(Function<T,Option<V>> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return map(mapper).foldLeft(empty(), (a,opt) -> 
@@ -153,7 +208,7 @@ public interface FStream<T> {
 		);
 	}
 	
-	public default <V> FStream<V> flatMapIterable(Function<T,Iterable<V>> mapper) {
+	public default <V> KVFStream<V> flatMapIterable(Function<T,Iterable<V>> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return map(mapper).foldLeft(empty(), (a,s) -> concat(a,of(s)));
@@ -216,7 +271,7 @@ public interface FStream<T> {
 	}
 	
 	public default <S> S foldRight(S accum, BiFunction<T,S,S> folder) {
-		return FLists.foldRight(toArrayList(), accum, folder);
+		return FLists.foldRight(toList(), accum, folder);
 	}
 	
 	public default T reduce(BiFunction<T,T,T> reducer) {
@@ -254,7 +309,7 @@ public interface FStream<T> {
 	}
 	
 	public default Option<T> first() {
-		List<T> list = take(1).toArrayList();
+		List<T> list = take(1).toList();
 		return list.isEmpty() ? Option.none() : Option.some(list.get(0));
 	}
 	
@@ -268,18 +323,18 @@ public interface FStream<T> {
 		return last;
 	}
 	
-	public static <T> FStream<T> concat(FStream<T> head, FStream<T> tail) {
+	public static <T> KVFStream<T> concat(KVFStream<T> head, KVFStream<T> tail) {
 		Preconditions.checkArgument(head != null, "head is null");
 		Preconditions.checkArgument(tail != null, "tail is null");
 		
 		return new Streams.AppendedStream<>(head, tail);
 	}
 	
-	public default FStream<Tuple2<T,Integer>> zipWithIndex() {
+	public default KVFStream<Tuple2<T,Integer>> zipWithIndex() {
 		return zip(range(0,Integer.MAX_VALUE));
 	}
 	
-	public default <U> FStream<Tuple2<T,U>> zip(FStream<U> other) {
+	public default <U> KVFStream<Tuple2<T,U>> zip(KVFStream<U> other) {
 		return () -> {
 			Option<T> next1 = this.next();
 			Option<U> next2 = other.next();
@@ -294,80 +349,36 @@ public interface FStream<T> {
 		return new FStreamIterator<>(this);
 	}
 	
-	public default <C extends Collection<T>> C toCollection(C coll) {
-		return collectLeft(coll, (l,t) -> l.add(t));
-	}
-	
-	public default ArrayList<T> toArrayList() {
-		return toCollection(Lists.newArrayList());
-	}
-	
-	public default HashSet<T> toHashSet() {
-		return toCollection(Sets.newHashSet());
+	public default List<T> toList() {
+		return foldLeft(Lists.newArrayList(), (l,t) -> { l.add(t); return l; });
 	}
 	
 	public default T[] toArray(Class<T> componentType) {
-		List<T> list = toArrayList();
+		List<T> list = toList();
 		@SuppressWarnings("unchecked")
 		T[] array = (T[])Array.newInstance(componentType, list.size());
 		return list.toArray(array);
 	}
 	
-	public default Option<Tuple2<T,FStream<T>>> peekFirst() {
+	public default Option<Tuple2<T,KVFStream<T>>> peekFirst() {
 		return next().map(head -> Tuple.of(head, concat(of(head), this)));
 	}
 	
-	public default <K> KVFStream<K,T> toKVFStream(Function<T,K> keyGen) {
-		return () -> next().map(t -> new KeyValue<>(keyGen.apply(t), t));
-	}
-	
-	public default <K,V> KVFStream<K,V> toKVFStream(Function<T,K> keyGen,
-													Function<T,V> valueGen) {
-		return () -> next().map(t -> new KeyValue<>(keyGen.apply(t), valueGen.apply(t)));
-	}
-	
-	public default <K,V> KVFStream<K,V> toKVFStream() {
-		return () -> next().map(t -> {
-			if ( !(t instanceof Tuple2) ) {
-				throw new IllegalStateException("source FStream is not a stream of Tuple2: "
-												+ t.getClass());
-			}
-			
-			@SuppressWarnings("unchecked")
-			Tuple2<K,V> tuple = (Tuple2<K,V>)t;
-			return new KeyValue<>(tuple._1, tuple._2);
-		});
-	}
-	
-/*
 	@SuppressWarnings("unchecked")
-	public static <T,K,V> FStream<Tuple2<K,V>> toTupleStream(FStream<T> stream) {
-		Option<Tuple2<T,FStream<T>>> otuple = stream.peekFirst();
+	public static <T,K,V> KVFStream<Tuple2<K,V>> toTupleStream(KVFStream<T> stream) {
+		Option<Tuple2<T,KVFStream<T>>> otuple = stream.peekFirst();
 		if ( otuple.isEmpty() ) {
-			return FStream.empty();
+			return KVFStream.empty();
 		}
 		
-		Tuple2<T,FStream<T>> tuple = otuple.get();
+		Tuple2<T,KVFStream<T>> tuple = otuple.get();
 		if ( !(tuple._1 instanceof Tuple2) ) {
 			throw new IllegalStateException("not Tuple2 FStream: this=" + stream);
 		}
 		
-		FStream<T> stream2 = otuple.get()._2;
+		KVFStream<T> stream2 = otuple.get()._2;
 		return () -> (Option<Tuple2<K,V>>)stream2.next();
 	}
-	
-	public default <K,V> Map<K,V> toHashMap() {
-		return toMap(Maps.newHashMap());
-	}
-	
-	public default <K, V, S extends Map<K,V>> S toMap(S map) {
-		return FStream.<T,K,V>toTupleStream(this)
-					.foldLeft(map, (accum,t) -> {
-						accum.put(t._1, t._2);
-						return accum;
-					});
-	}
-*/
 	
 	public default Stream<T> stream() {
 		return Utilities.stream(iterator());
@@ -398,14 +409,14 @@ public interface FStream<T> {
 		return foldLeft(new Grouped<>(), (g,t) -> g.add(keyer.apply(t), t));
 	}
 	
-	public default FStream<T> sorted(Comparator<? super T> cmp) {
-		List<T> list = toArrayList();
+	public default KVFStream<T> sorted(Comparator<? super T> cmp) {
+		List<T> list = toList();
 		list.sort(cmp);
 		return of(list);
 	}
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public default FStream<T> sorted() {
+	public default KVFStream<T> sorted() {
 		return sorted((t1,t2) -> ((Comparable)t1).compareTo(t2));
 	}
 	
@@ -530,7 +541,7 @@ public interface FStream<T> {
 		return join(delim, "", "");
 	}
 
-	public default boolean startsWith(FStream<T> subList) {
+	public default boolean startsWith(KVFStream<T> subList) {
 		Preconditions.checkArgument(subList != null, "subList is null");
 		
 		Option<T> subNext = subList.next();
@@ -546,4 +557,5 @@ public interface FStream<T> {
 		
 		return (next.isDefined() && subNext.isEmpty());
 	}
+*/
 }
