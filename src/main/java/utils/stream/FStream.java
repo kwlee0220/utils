@@ -13,6 +13,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -395,7 +396,12 @@ public interface FStream<T> {
 	}
 	
 	public default <K> Grouped<K,T> groupBy(Function<T,K> keyer) {
-		return foldLeft(new Grouped<>(), (g,t) -> g.add(keyer.apply(t), t));
+		return collectLeft(new Grouped<>(), (g,t) -> g.add(keyer.apply(t), t));
+	}
+	
+	public default <K,V> Grouped<K,V> groupBy(Function<T,K> keySelector, Function<T,V> valueSelector) {
+		return collectLeft(new Grouped<>(),
+							(g,t) -> g.add(keySelector.apply(t), valueSelector.apply(t)));
 	}
 	
 	public default FStream<T> sorted(Comparator<? super T> cmp) {

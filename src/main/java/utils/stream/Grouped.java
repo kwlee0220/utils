@@ -21,48 +21,49 @@ import utils.func.FLists;
  * @author Kang-Woo Lee (ETRI)
  */
 public class Grouped<K,V> {
-	private final Map<K,List<V>> m_map = Maps.newHashMap();
+	private final Map<K,List<V>> m_groups = Maps.newHashMap();
 	
 	public static <K,V> Grouped<K,V> empty() {
 		return new Grouped<>();
 	}
 	
 	public List<V> get(final K key) {
-		return m_map.getOrDefault(key, Collections.unmodifiableList(Collections.emptyList()));
+		return m_groups.getOrDefault(key, Collections.unmodifiableList(Collections.emptyList()));
 	}
 	
-	public Grouped<K,V> add(K key, V value) {
-		Preconditions.checkArgument(key != null, "key cannot be null");
-		Preconditions.checkArgument(value != null, "value cannot be null");
+	public void add(K key, V value) {
+		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNull(value);
 		
-		List<V> group = m_map.get(key);
-		if ( group == null ) {
-			m_map.put(key, group = Lists.newArrayList());
-		}
-		group.add(value);
+		m_groups.computeIfAbsent(key, k -> Lists.newArrayList())
+			.add(value);
+	}
+	
+	public Option<List<V>> remove(K key) {
+		Preconditions.checkNotNull(key);
 		
-		return this;
+		return Option.of(m_groups.get(key));
 	}
 	
 	public <A> FStream<Tuple2<K,A>> fold(A init, BiFunction<A,V,A> folder) {
-		return new FoldedStream<>(m_map, init, folder);
+		return new FoldedStream<>(m_groups, init, folder);
 	}
 	
-	public FStream<Tuple2<K,V>> fold(BiFunction<V,V,V> reducer) {
-		return new ReducedStream<>(m_map, reducer);
+	public FStream<Tuple2<K,V>> reduce(BiFunction<V,V,V> reducer) {
+		return new ReducedStream<>(m_groups, reducer);
 	}
 	
 	public Set<K> keySet() {
-		return m_map.keySet();
+		return m_groups.keySet();
 	}
 	
 	public Collection<List<V>> groups() {
-		return m_map.values();
+		return m_groups.values();
 	}
 	
 	@Override
 	public String toString() {
-		return m_map.toString();
+		return m_groups.toString();
 	}
 	
 	private static class FoldedStream<K,V,A> implements FStream<Tuple2<K,A>> {

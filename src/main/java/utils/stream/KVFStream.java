@@ -71,6 +71,10 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return mapValue(cls::cast);
 	}
 	
+	public default Grouped<K,V> groupBy() {
+		return collectLeft(new Grouped<>(), (g,kv) -> g.add(kv.key(), kv.value()));
+	}
+	
 	public default FStream<K> toKeyStream() {
 		return () -> next().map(KeyValue::key);
 	}
