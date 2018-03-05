@@ -36,6 +36,10 @@ public class Grouped<K,V> {
 		m_groups = map;
 	}
 	
+	public Map<K,List<V>> asMap() {
+		return Collections.unmodifiableMap(m_groups);
+	}
+	
 	public List<V> get(final K key) {
 		return m_groups.getOrDefault(key, Collections.unmodifiableList(Collections.emptyList()));
 	}
@@ -78,18 +82,24 @@ public class Grouped<K,V> {
 		return m_groups.values();
 	}
 	
-	public <K2> Grouped<K2,V> mapKey(Function<K,K2> mapper) {
+	public <K2> Grouped<K2,V> mapKey(BiFunction<K,List<V>,K2> mapper) {
 		return new Grouped<>(KVFStream.of(m_groups)
 									.mapKey(mapper)
-									.toHashMap());
+									.toMap());
 	}
 	
 	public <V2> Grouped<K,V2> mapValue(Function<V,V2> mapper) {
 		return new Grouped<>(KVFStream.of(m_groups)
 									.mapValue(list -> (List<V2>)FStream.of(list)
 															.map(mapper)
-															.toArrayList())
-									.toHashMap());
+															.toList())
+									.toMap());
+	}
+	
+	public <V2> Grouped<K,V2> mapValueList(Function<List<V>, List<V2>> mapper) {
+		return new Grouped<>(KVFStream.of(m_groups)
+									.mapValue(mapper)
+									.toMap());
 	}
 	
 	@Override

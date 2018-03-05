@@ -1,6 +1,7 @@
 package utils.stream;
 
 import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import io.vavr.Tuple2;
@@ -30,12 +31,16 @@ public class KeyValue<K,V> {
 		return m_value;
 	}
 	
-	public <S> KeyValue<S,V> mapKey(Function<K,S> mapper) {
-		return new KeyValue<>(mapper.apply(m_key), m_value);
+	public <S> KeyValue<S,V> mapKey(BiFunction<K,V,S> mapper) {
+		return new KeyValue<>(mapper.apply(m_key, m_value), m_value);
 	}
 	
 	public <U> KeyValue<K,U> mapValue(Function<V,U> mapper) {
 		return new KeyValue<>(m_key, mapper.apply(m_value));
+	}
+	
+	public <U> KeyValue<K,U> mapValue(BiFunction<K,V,U> mapper) {
+		return new KeyValue<>(m_key, mapper.apply(m_key, m_value));
 	}
 	
 	@Override

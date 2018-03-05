@@ -216,7 +216,7 @@ public interface FStream<T> {
 	}
 	
 	public default <S> S foldRight(S accum, BiFunction<T,S,S> folder) {
-		return FLists.foldRight(toArrayList(), accum, folder);
+		return FLists.foldRight(toList(), accum, folder);
 	}
 	
 	public default T reduce(BiFunction<T,T,T> reducer) {
@@ -254,7 +254,7 @@ public interface FStream<T> {
 	}
 	
 	public default Option<T> first() {
-		List<T> list = take(1).toArrayList();
+		List<T> list = take(1).toList();
 		return list.isEmpty() ? Option.none() : Option.some(list.get(0));
 	}
 	
@@ -298,7 +298,7 @@ public interface FStream<T> {
 		return collectLeft(coll, (l,t) -> l.add(t));
 	}
 	
-	public default ArrayList<T> toArrayList() {
+	public default ArrayList<T> toList() {
 		return toCollection(Lists.newArrayList());
 	}
 	
@@ -307,7 +307,7 @@ public interface FStream<T> {
 	}
 	
 	public default T[] toArray(Class<T> componentType) {
-		List<T> list = toArrayList();
+		List<T> list = toList();
 		@SuppressWarnings("unchecked")
 		T[] array = (T[])Array.newInstance(componentType, list.size());
 		return list.toArray(array);
@@ -403,15 +403,15 @@ public interface FStream<T> {
 							(g,t) -> g.add(keySelector.apply(t), valueSelector.apply(t)));
 	}
 	
-	public default FStream<T> sorted(Comparator<? super T> cmp) {
-		List<T> list = toArrayList();
+	public default FStream<T> sort(Comparator<? super T> cmp) {
+		List<T> list = toList();
 		list.sort(cmp);
 		return of(list);
 	}
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public default FStream<T> sorted() {
-		return sorted((t1,t2) -> ((Comparable)t1).compareTo(t2));
+		return sort((t1,t2) -> ((Comparable)t1).compareTo(t2));
 	}
 	
 	@SuppressWarnings("unchecked")

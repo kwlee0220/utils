@@ -1,7 +1,9 @@
 package utils.stream;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -53,10 +55,16 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		};
 	}
 	
-	public default <S> KVFStream<S,V> mapKey(Function<K,S> mapper) {
+	public default <S> KVFStream<S,V> mapKey(BiFunction<K,V,S> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return () -> next().map(kv -> kv.mapKey(mapper));
+	}
+	
+	public default <U> KVFStream<K,U> mapValue(BiFunction<K,V,U> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		
+		return () -> next().map(kv -> kv.mapValue(mapper));
 	}
 	
 	public default <U> KVFStream<K,U> mapValue(Function<V,U> mapper) {
@@ -87,7 +95,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return collectLeft(map, (accum,kv) -> accum.put(kv.key(), kv.value()));
 	}
 	
-	public default Map<K,V> toHashMap() {
+	public default HashMap<K,V> toMap() {
 		return toMap(Maps.newHashMap());
 	}
 
