@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -21,10 +22,18 @@ import utils.func.FLists;
  * @author Kang-Woo Lee (ETRI)
  */
 public class Grouped<K,V> {
-	private final Map<K,List<V>> m_groups = Maps.newHashMap();
+	private final Map<K,List<V>> m_groups;
 	
 	public static <K,V> Grouped<K,V> empty() {
 		return new Grouped<>();
+	}
+	
+	private Grouped() {
+		this(Maps.newHashMap());
+	}
+	
+	private Grouped(Map<K,List<V>> map) {
+		m_groups = map;
 	}
 	
 	public List<V> get(final K key) {
@@ -39,10 +48,18 @@ public class Grouped<K,V> {
 			.add(value);
 	}
 	
+	public void addAll(K key, Collection<V> values) {
+		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNull(values);
+		
+		m_groups.computeIfAbsent(key, k -> Lists.newArrayList())
+			.addAll(values);
+	}
+	
 	public Option<List<V>> remove(K key) {
 		Preconditions.checkNotNull(key);
 		
-		return Option.of(m_groups.get(key));
+		return Option.of(m_groups.remove(key));
 	}
 	
 	public <A> FStream<Tuple2<K,A>> fold(A init, BiFunction<A,V,A> folder) {
@@ -59,6 +76,20 @@ public class Grouped<K,V> {
 	
 	public Collection<List<V>> groups() {
 		return m_groups.values();
+	}
+	
+	public <K2> Grouped<K2,V> mapKey(Function<K,K2> mapper) {
+		return new Grouped<>(KVFStream.of(m_groups)
+									.mapKey(mapper)
+									.toHashMap());
+	}
+	
+	public <V2> Grouped<K,V2> mapValue(Function<V,V2> mapper) {
+		return new Grouped<>(KVFStream.of(m_groups)
+									.mapValue(list -> (List<V2>)FStream.of(list)
+															.map(mapper)
+															.toArrayList())
+									.toHashMap());
 	}
 	
 	@Override
