@@ -317,6 +317,10 @@ public interface FStream<T> {
 		return next().map(head -> Tuple.of(head, concat(of(head), this)));
 	}
 	
+	public default FStream<List<T>> buffer(int count, int skip) {
+		return new BufferedStream<>(this, count, skip);
+	}
+	
 	public default <K> KVFStream<K,T> toKVFStream(Function<T,K> keyGen) {
 		return () -> next().map(t -> new KeyValue<>(keyGen.apply(t), t));
 	}
