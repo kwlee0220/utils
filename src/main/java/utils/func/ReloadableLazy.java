@@ -21,12 +21,20 @@ public class ReloadableLazy<T> {
 		m_supplier = supplier;
 	}
 	
+	public synchronized boolean isEvaluated() {
+		return m_loaded.isDefined();
+	}
+	
 	public synchronized T get() {
 		if ( m_loaded.isEmpty() ) {
 			m_loaded = Option.some(m_supplier.get());
 		}
 		
 		return m_loaded.get();
+	}
+	
+	public synchronized void set(T value) {
+		m_loaded = Option.some(value);
 	}
 	
 	public synchronized void setDirty() {
