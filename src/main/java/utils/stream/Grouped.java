@@ -28,6 +28,10 @@ public class Grouped<K,V> {
 		return new Grouped<>();
 	}
 	
+	public static <K,V> Grouped<K,V> fromMap(Map<K,List<V>> map) {
+		return new Grouped<>(map);
+	}
+	
 	private Grouped() {
 		this(Maps.newHashMap());
 	}

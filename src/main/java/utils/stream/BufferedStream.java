@@ -19,6 +19,8 @@ class BufferedStream<T> implements FStream<List<T>> {
 	private final int m_skip;
 	private final List<T> m_buffer;
 	
+	private boolean m_endOfSource = false;
+	
 	BufferedStream(FStream<T> src, int count, int skip) {
 		Preconditions.checkNotNull(src);
 		Preconditions.checkArgument(count > 0);
@@ -68,11 +70,14 @@ class BufferedStream<T> implements FStream<List<T>> {
 	}
 	
 	private void fill() {
-		while ( m_buffer.size() < m_count ) {
-			Option<T> onext = m_src.next();
-			onext.forEach(m_buffer::add);
-			if ( onext.isEmpty() ) {
-				return;
+		if ( !m_endOfSource ) {
+			while ( m_buffer.size() < m_count ) {
+				Option<T> onext = m_src.next();
+				onext.forEach(m_buffer::add);
+				if ( onext.isEmpty() ) {
+					m_endOfSource = true;
+					return;
+				}
 			}
 		}
 	}

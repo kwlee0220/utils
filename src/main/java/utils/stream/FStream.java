@@ -414,7 +414,7 @@ public interface FStream<T> {
 	}
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public default FStream<T> sorted() {
+	public default FStream<T> sort() {
 		return sort((t1,t2) -> ((Comparable)t1).compareTo(t2));
 	}
 	
