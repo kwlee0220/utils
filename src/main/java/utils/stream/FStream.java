@@ -243,6 +243,15 @@ public interface FStream<T> {
 		return collector;
 	}
 	
+	public default long count() {
+		long count = 0;
+		while ( next().isDefined() ) {
+			++count;
+		}
+		
+		return count;
+	}
+	
 	public default Option<T> find(Predicate<T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
 		
