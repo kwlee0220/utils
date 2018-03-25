@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
+import io.vavr.control.Try;
 import utils.Throwables;
 import utils.stream.FStream;
 
@@ -208,26 +209,63 @@ public class JdbcProcessor implements Serializable {
 		}
 	}
 	
-	public Map<String,String> getColumns(String tblName) throws SQLException, ExecutionException {
-		Map<String,String> columns = Maps.newLinkedHashMap();
+	public long rowCount(String tableName) throws SQLException {
+		return fstreamQuery("select count(*) from " + tableName)
+					.map(rs -> Try.of(() -> rs.getLong(1)))
+					.first()
+					.get()
+					.get();
+	}
+	
+	public static final class ColumnInfo {
+		private final String m_name;
+		private final int m_type;
+		private final String m_typeName;
+		private final boolean m_nullable;
+		
+		private ColumnInfo(String name, int type, String typeName, boolean nullable) {
+			m_name = name;
+			m_type = type;
+			m_typeName = typeName;
+			m_nullable = nullable;
+		}
+		
+		public String name() {
+			return m_name;
+		}
+		
+		public int type() {
+			return m_type;
+		}
+		
+		public String typeName() {
+			return m_typeName;
+		}
+		
+		public boolean nullable() {
+			return m_nullable;
+		}
+	}
+	
+	public Map<String,ColumnInfo> getColumns(String tblName) throws SQLException {
+		Map<String,ColumnInfo> columns = Maps.newLinkedHashMap();
 
 		try ( Connection conn = connect() ) {
 			DatabaseMetaData meta = conn.getMetaData();
 			ResultSet rs = meta.getColumns(null, null, tblName, null);
 			while ( rs.next() ) {
 				String name = rs.getString("COLUMN_NAME");
-				String type = rs.getString("TYPE_NAME");
+				int type = rs.getInt("DATA_TYPE");
+				String typeName = rs.getString("TYPE_NAME");
+				boolean nullable = rs.getInt("NULLABLE") != 0; 
 				
-				columns.put(name, type);
+				columns.put(name, new ColumnInfo(name, type, typeName, nullable));
 			}
 			
 			return columns;
 		}
 		catch ( SQLException e ) {
 			throw e;
-		}
-		catch ( Throwable e ) {
-			throw new ExecutionException(Throwables.unwrapThrowable(e));
 		}
 	}
 	

@@ -133,9 +133,13 @@ public class CSV {
 			strm = strm.map(str -> str.replace(""+m_delim, ""+m_escape+m_delim));
 		}
 		if ( m_quote != null ) {
-			strm = strm.map(str -> "\"" + str + "\"");
+			strm = strm.map(str -> m_quote + str + m_quote);
 		}
 		return strm.collect(Collectors.joining(""+m_delim));
+	}
+	
+	public String toString(String... values) {
+		return toString(Arrays.asList(values));
 	}
 	
 	public static String toString(String[] csv, char delim, char esc) {
