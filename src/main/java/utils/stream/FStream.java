@@ -14,12 +14,14 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import io.reactivex.Observable;
 import io.vavr.CheckedConsumer;
 import io.vavr.Function2;
 import io.vavr.Tuple;
@@ -55,6 +57,10 @@ public interface FStream<T> {
 	
 	public static <T> FStream<T> of(Stream<T> strm) {
 		return of(strm.iterator());
+	}
+	
+	public static <T> FStream<T> of(Supplier<T> supplier) {
+		return of(Utilities.toIterator(supplier));
 	}
 	
 	public static <K,V> FStream<Tuple2<K,V>> of(Map<K,V> map) {
@@ -384,6 +390,10 @@ public interface FStream<T> {
 	
 	public default Stream<T> stream() {
 		return Utilities.stream(iterator());
+	}
+	
+	public default Observable<T> observe() {
+		return Observable.create(new FStreamSubscriber<>(this));
 	}
 	
 	public default void forEach(Consumer<? super T> effect) {

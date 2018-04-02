@@ -11,6 +11,7 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -19,6 +20,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -432,5 +434,50 @@ public class Utilities {
 			return proxy.invokeSuper(baseObject, new Object[0]);
 		}
 		
+	}
+	
+	public static <T> Supplier<T> toSupplier(Iterator<T> iter) {
+		return new IteratorSupplier<>(iter);
+	}
+	private static class IteratorSupplier<T> implements Supplier<T> {
+		private final Iterator<T> m_iter;
+		
+		private IteratorSupplier(Iterator<T> iter) {
+			m_iter = iter;
+		}
+
+		@Override
+		public T get() {
+			return m_iter.hasNext() ? m_iter.next() : null;
+		}
+	}
+	
+	public static <T> Iterator<T> toIterator(Supplier<T> supplier) {
+		return new SupplyingIterator<>(supplier);
+	}
+	private static class SupplyingIterator<T> implements Iterator<T> {
+		private final Supplier<T> m_supplier;
+		private T m_next;
+		
+		private SupplyingIterator(Supplier<T> supplier) {
+			m_supplier = supplier;
+			m_next = m_supplier.get();
+		}
+
+		@Override
+		public boolean hasNext() {
+			return m_next != null;
+		}
+
+		@Override
+		public T next() {
+			T next = m_next;
+			if ( next == null ) {
+				throw new NoSuchElementException();
+			}
+			m_next = m_supplier.get();
+			
+			return next;
+		}
 	}
 }

@@ -56,7 +56,6 @@ public final class ProxyUtils {
 		callbacks[0] = new NoOpHandler<>(obj);
 		
 		Enhancer enhancer = new Enhancer();
-//		enhancer.setSuperclass(obj.getClass());
 		enhancer.setInterfaces(obj.getClass().getInterfaces());
 		enhancer.setCallbackFilter(new CallFilter<>(handlers));
 		enhancer.setCallbacks(callbacks);

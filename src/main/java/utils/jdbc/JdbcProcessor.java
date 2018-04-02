@@ -127,6 +127,11 @@ public class JdbcProcessor implements Serializable {
 		return JdbcUtils.bindToConnection(rs);
 	}
 	
+	public ResultSet executeQuery(Statement stmt, String sql) throws SQLException {
+		ResultSet rs = stmt.executeQuery(sql);
+		return JdbcUtils.bindToConnection(rs);
+	}
+	
 	public Stream<ResultSet> streamQuery(String sql) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
 		rs = JdbcUtils.bindToConnection(rs);
