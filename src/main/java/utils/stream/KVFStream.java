@@ -55,6 +55,12 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		};
 	}
 	
+	public default <S> FStream<S> map(BiFunction<K,V,S> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		
+		return () -> next().map(kv -> kv.map(mapper));
+	}
+	
 	public default <S> KVFStream<S,V> mapKey(BiFunction<K,V,S> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
@@ -71,6 +77,12 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return () -> next().map(kv -> kv.mapValue(mapper));
+	}
+	
+	public default <T> FStream<T> flatMap(BiFunction<K,V,FStream<T>> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		
+		return flatMap(kv -> mapper.apply(kv.key(), kv.value()));
 	}
 	
 	public default <U> KVFStream<K,U> castValue(Class<U> cls) {

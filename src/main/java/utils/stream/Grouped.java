@@ -86,6 +86,10 @@ public class Grouped<K,V> {
 		return m_groups.values();
 	}
 	
+	public KVFStream<K, List<V>> stream() {
+		return KVFStream.of(m_groups);
+	}
+	
 	public <K2> Grouped<K2,V> mapKey(BiFunction<K,List<V>,K2> mapper) {
 		return new Grouped<>(KVFStream.of(m_groups)
 									.mapKey(mapper)

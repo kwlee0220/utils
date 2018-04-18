@@ -31,6 +31,10 @@ public class KeyValue<K,V> {
 		return m_value;
 	}
 	
+	public <T> T map(BiFunction<K,V,T> mapper) {
+		return mapper.apply(m_key, m_value);
+	}
+	
 	public <S> KeyValue<S,V> mapKey(BiFunction<K,V,S> mapper) {
 		return new KeyValue<>(mapper.apply(m_key, m_value), m_value);
 	}
@@ -41,6 +45,10 @@ public class KeyValue<K,V> {
 	
 	public <U> KeyValue<K,U> mapValue(BiFunction<K,V,U> mapper) {
 		return new KeyValue<>(m_key, mapper.apply(m_key, m_value));
+	}
+	
+	public <T> FStream<T> flatMap(BiFunction<K,V,FStream<T>> mapper) {
+		return mapper.apply(m_key, m_value);
 	}
 	
 	@Override
