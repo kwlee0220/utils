@@ -63,6 +63,10 @@ public interface FStream<T> {
 		return of(Utilities.toIterator(supplier));
 	}
 	
+	public static <T> FStream<T> from(Stream<T> stream) {
+		return of(stream.iterator());
+	}
+	
 	public static <K,V> FStream<Tuple2<K,V>> of(Map<K,V> map) {
 		return of(map.entrySet())
 					.map(ent -> Tuple.of(ent.getKey(), ent.getValue()));
@@ -424,6 +428,15 @@ public interface FStream<T> {
 	public default <K,V> Grouped<K,V> groupBy(Function<T,K> keySelector, Function<T,V> valueSelector) {
 		return collectLeft(Grouped.empty(),
 							(g,t) -> g.add(keySelector.apply(t), valueSelector.apply(t)));
+	}
+	
+	public default <K,V> Grouped<K,V> multiGroupBy(Function<T,FStream<K>> keysSelector,
+													Function<T,FStream<V>> valuesSelector) {
+		return flatMap(t -> keysSelector.apply(t).map(k -> Tuple.of(k,t)))
+				.collectLeft(Grouped.empty(), (groups,t) -> {
+					valuesSelector.apply(t._2)
+									.forEach(v -> groups.add(t._1,v));
+				});
 	}
 	
 	public default FStream<T> sort(Comparator<? super T> cmp) {
