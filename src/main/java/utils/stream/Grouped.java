@@ -24,7 +24,7 @@ import utils.func.FLists;
 public class Grouped<K,V> {
 	private final Map<K,List<V>> m_groups;
 	
-	public static <K,V> Grouped<K,V> empty() {
+	public static <K,V> Grouped<K,V> create() {
 		return new Grouped<>();
 	}
 	
@@ -61,13 +61,17 @@ public class Grouped<K,V> {
 		Preconditions.checkNotNull(values);
 		
 		m_groups.computeIfAbsent(key, k -> Lists.newArrayList())
-			.addAll(values);
+				.addAll(values);
 	}
 	
 	public Option<List<V>> remove(K key) {
 		Preconditions.checkNotNull(key);
 		
 		return Option.of(m_groups.remove(key));
+	}
+	
+	public KVFStream<K,List<V>> fstream() {
+		return KVFStream.of(m_groups);
 	}
 	
 	public <A> FStream<Tuple2<K,A>> fold(A init, BiFunction<A,V,A> folder) {

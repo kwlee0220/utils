@@ -91,8 +91,21 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return mapValue(cls::cast);
 	}
 	
+	public default <C> C collectLeft(C collector, TriConsumer<C,K,V> collect) {
+		Preconditions.checkNotNull(collector);
+		Preconditions.checkNotNull(collect);
+		
+		Option<KeyValue<K,V>> next;
+		while ( (next = next()).isDefined() ) {
+			KeyValue<K,V> kv = next.get();
+			collect.accept(collector, kv.key(), kv.value());
+		}
+		
+		return collector;
+	}
+	
 	public default Grouped<K,V> groupBy() {
-		return collectLeft(Grouped.empty(), (g,kv) -> g.add(kv.key(), kv.value()));
+		return collectLeft(Grouped.create(), (g,kv) -> g.add(kv.key(), kv.value()));
 	}
 	
 	public default FStream<K> toKeyStream() {

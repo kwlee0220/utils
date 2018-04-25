@@ -422,18 +422,18 @@ public interface FStream<T> {
 	}
 	
 	public default <K> Grouped<K,T> groupBy(Function<T,K> keyer) {
-		return collectLeft(Grouped.empty(), (g,t) -> g.add(keyer.apply(t), t));
+		return collectLeft(Grouped.create(), (g,t) -> g.add(keyer.apply(t), t));
 	}
 	
 	public default <K,V> Grouped<K,V> groupBy(Function<T,K> keySelector, Function<T,V> valueSelector) {
-		return collectLeft(Grouped.empty(),
+		return collectLeft(Grouped.create(),
 							(g,t) -> g.add(keySelector.apply(t), valueSelector.apply(t)));
 	}
 	
 	public default <K,V> Grouped<K,V> multiGroupBy(Function<T,FStream<K>> keysSelector,
 													Function<T,FStream<V>> valuesSelector) {
 		return flatMap(t -> keysSelector.apply(t).map(k -> Tuple.of(k,t)))
-				.collectLeft(Grouped.empty(), (groups,t) -> {
+				.collectLeft(Grouped.create(), (groups,t) -> {
 					valuesSelector.apply(t._2)
 									.forEach(v -> groups.add(t._1,v));
 				});
