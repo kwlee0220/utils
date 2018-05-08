@@ -287,6 +287,18 @@ public interface FStream<T> {
 		return last;
 	}
 	
+	public default FStream<T> concatWith(FStream<T> tail) {
+		Preconditions.checkArgument(tail != null, "tail is null");
+		
+		return new Streams.AppendedStream<>(this, tail);
+	}
+	
+	public default FStream<T> concatWith(T tail) {
+		Preconditions.checkArgument(tail != null, "tail is null");
+		
+		return concatWith(FStream.of(tail));
+	}
+	
 	public static <T> FStream<T> concat(FStream<T> head, FStream<T> tail) {
 		Preconditions.checkArgument(head != null, "head is null");
 		Preconditions.checkArgument(tail != null, "tail is null");
@@ -451,93 +463,136 @@ public interface FStream<T> {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public default Option<T> max() {
+	public default List<T> max() {
 		Comparable<T> max = null;
+		List<T> maxList = Lists.newArrayList();
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {
+			T data = next.get();
+			
 			if ( max != null ) {
-				if ( max.compareTo(next.get()) < 0 ) {
-					max = (Comparable<T>)next.get();
+				int cmp = max.compareTo(data);
+				
+				if ( cmp < 0 ) {
+					max = (Comparable<T>)data;
+					maxList.clear();
+					maxList.add(data);
+				}
+				else if ( cmp == 0 ) {
+					maxList.add(data);
 				}
 			}
 			else {
-				if ( !(next.get() instanceof Comparable) ) {
+				if ( !(data instanceof Comparable) ) {
 					throw new IllegalStateException("FStream elements are not Comparable");
 				}
 				
-				max = (Comparable<T>)next.get();
+				max = (Comparable<T>)data;
+				maxList.add(data);
 			}
 		}
-		
-		return Option.of(((T)max));
+
+		return maxList;
 	}
 
 	@SuppressWarnings("unchecked")
-	public default Option<T> min() {
-		Comparable<T> max = null;
+	public default List<T> min() {
+		Comparable<T> min = null;
+		List<T> minList = Lists.newArrayList();
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {
-			if ( max != null ) {
-				if ( max.compareTo(next.get()) > 0 ) {
-					max = (Comparable<T>)next.get();
+			T data = next.get();
+			
+			if ( min != null ) {
+				int cmp = min.compareTo(data);
+				if ( cmp > 0 ) {
+					min = (Comparable<T>)data;
+					minList.clear();
+					minList.add(data);
+				}
+				else if ( cmp == 0 ) {
+					minList.add(data);
 				}
 			}
 			else {
-				if ( !(next.get() instanceof Comparable) ) {
+				if ( !(data instanceof Comparable) ) {
 					throw new IllegalStateException("FStream elements are not Comparable");
 				}
 				
-				max = (Comparable<T>)next.get();
+				min = (Comparable<T>)data;
+				minList.add(data);
 			}
 		}
 		
-		return Option.of(((T)max));
+		return minList;
 	}
 	
-	public default <K extends Comparable<K>> Option<T> max(Function<T,K> keySelector) {
-		Option<T> max = Option.none();
+	public default <K extends Comparable<K>> List<T> max(Function<T,K> keySelector) {
+		T max = null;
 		K maxKey = null;
+		List<T> maxList = Lists.newArrayList();
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {
-			K key = next.map(keySelector).get();
-			if ( max.isDefined() ) {
-				if ( maxKey.compareTo(key) < 0 ) {
-					max = next;
+			T data = next.get();
+			K key = keySelector.apply(data);
+
+			if ( max != null ) {
+				int cmp = maxKey.compareTo(key);
+				if ( cmp < 0 ) {
+					max = data;
+					maxList.clear();
+					maxList.add(data);
 					maxKey = key;
+				}
+				else if ( cmp == 0 ) {
+					maxList.add(data);
 				}
 			}
 			else {
-				max = next;
+				max = data;
+				maxList.clear();
+				maxList.add(data);
 				maxKey = key;
 			}
 		}
 		
-		return max;
+		return maxList;
 	}
 	
-	public default <K extends Comparable<K>> Option<T> min(Function<T,K> keySelector) {
-		Option<T> max = Option.none();
-		K maxKey = null;
+	public default <K extends Comparable<K>> List<T> min(Function<T,K> keySelector) {
+		T min = null;
+		K minKey = null;
+		List<T> minList = Lists.newArrayList();
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {
-			K key = next.map(keySelector).get();
-			if ( max.isDefined() ) {
-				if ( maxKey.compareTo(key) > 0 ) {
-					max = next;
-					maxKey = key;
+			T data = next.get();
+			K key = keySelector.apply(data);
+
+			if ( min != null ) {
+				int cmp = minKey.compareTo(key);
+				if ( cmp < 0 ) {
+					min = data;
+					minList.clear();
+					minList.add(data);
+					minKey = key;
+				}
+				else if ( cmp == 0 ) {
+					minList.add(data);
 				}
 			}
 			else {
-				max = next;
-				maxKey = key;
+				min = data;
+				minList.clear();
+				minList.add(data);
+				minKey = key;
 			}
 		}
 		
-		return max;
+		return minList;
 	}
 	
 	public default Option<T> max(Comparator<? super T> cmp) {
