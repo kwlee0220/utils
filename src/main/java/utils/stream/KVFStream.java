@@ -10,7 +10,7 @@ import java.util.function.Predicate;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
-import io.vavr.control.Option;
+import utils.func.FOptional;
 
 
 /**
@@ -18,17 +18,17 @@ import io.vavr.control.Option;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
-	public Option<KeyValue<K, V>> next();
+	public FOptional<KeyValue<K, V>> next();
 	
 	public static <K,V> KVFStream<K,V> of(Map<K,V> map) {
 		Iterator<Map.Entry<K,V>> iter = map.entrySet().iterator();
 		return () -> {
 			if ( !iter.hasNext() ) {
-				return Option.none();
+				return FOptional.none();
 			}
 			else {
 				Map.Entry<K,V> e = iter.next();
-				return Option.some(new KeyValue<>(e.getKey(), e.getValue()));
+				return FOptional.some(new KeyValue<>(e.getKey(), e.getValue()));
 			}
 		};
 	}
@@ -38,8 +38,8 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 
 		Predicate<K> negated = pred.negate();
 		return () -> {
-			Option<KeyValue<K,V>> next;
-			while ( (next = next()).filter(kv -> negated.test(kv.key())).isDefined() );
+			FOptional<KeyValue<K,V>> next;
+			while ( (next = next()).filter(kv -> negated.test(kv.key())).isPresent() );
 			return next;
 		};
 	}
@@ -49,8 +49,8 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 
 		Predicate<V> negated = pred.negate();
 		return () -> {
-			Option<KeyValue<K,V>> next;
-			while ( (next = next()).filter(kv -> negated.test(kv.value())).isDefined() );
+			FOptional<KeyValue<K,V>> next;
+			while ( (next = next()).filter(kv -> negated.test(kv.value())).isPresent() );
 			return next;
 		};
 	}
@@ -95,8 +95,8 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkNotNull(collector);
 		Preconditions.checkNotNull(collect);
 		
-		Option<KeyValue<K,V>> next;
-		while ( (next = next()).isDefined() ) {
+		FOptional<KeyValue<K,V>> next;
+		while ( (next = next()).isPresent() ) {
 			KeyValue<K,V> kv = next.get();
 			collect.accept(collector, kv.key(), kv.value());
 		}
@@ -241,7 +241,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return map(mapper).foldLeft(empty(), (a,opt) -> 
-			opt.isDefined() ? concat(a,of(opt.get())) : a
+			opt.isPresent() ? concat(a,of(opt.get())) : a
 		);
 	}
 	
@@ -281,7 +281,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(folder != null, "folder is null");
 		
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			accum = folder.apply(accum, next.get());
 		}
 		
@@ -297,7 +297,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		}
 		
 		Option<T> next = next();
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			accum = folder.apply(accum, next.get());
 			if ( accum.equals(stopper) ) {
 				return accum;
@@ -315,7 +315,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(reducer != null, "reducer is null");
 		
 		Option<T> next = next();
-		if ( next.isDefined() ) {
+		if ( next.isPresent() ) {
 			return foldLeft(next.get(), (a,t) -> reducer.apply(a, t));
 		}
 		else {
@@ -328,7 +328,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkNotNull(collect);
 		
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			collect.accept(collector, next.get());
 		}
 		
@@ -340,7 +340,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		
 		Option<T> next;
 		Predicate<T> negated = pred.negate();
-		while ( (next = next()).filter(negated).isDefined() );
+		while ( (next = next()).filter(negated).isPresent() );
 		
 		return next;
 	}
@@ -353,7 +353,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	public default Option<T> last() {
 		Option<T> last = Option.none();
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			last = next;
 		}
 		
@@ -376,7 +376,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 			Option<T> next1 = this.next();
 			Option<U> next2 = other.next();
 			
-			return ( next1.isDefined() && next2.isDefined() )
+			return ( next1.isPresent() && next2.isPresent() )
 					? Option.some(new Tuple2<>(next1.get(), next2.get()))
 					: Option.none();
 		};
@@ -425,7 +425,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(effect != null, "effect is null");
 		
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			effect.accept(next.get());
 		}
 	}
@@ -434,7 +434,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(effect != null, "effect is null");
 		
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			try {
 				effect.accept(next.get());
 			}
@@ -462,7 +462,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Comparable<T> max = null;
 		
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			if ( max != null ) {
 				if ( max.compareTo(next.get()) < 0 ) {
 					max = (Comparable<T>)next.get();
@@ -485,7 +485,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Comparable<T> max = null;
 		
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			if ( max != null ) {
 				if ( max.compareTo(next.get()) > 0 ) {
 					max = (Comparable<T>)next.get();
@@ -508,9 +508,9 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		K maxKey = null;
 		
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			K key = next.map(keySelector).get();
-			if ( max.isDefined() ) {
+			if ( max.isPresent() ) {
 				if ( maxKey.compareTo(key) < 0 ) {
 					max = next;
 					maxKey = key;
@@ -530,9 +530,9 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		K maxKey = null;
 		
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		while ( (next = next()).isPresent() ) {
 			K key = next.map(keySelector).get();
-			if ( max.isDefined() ) {
+			if ( max.isPresent() ) {
 				if ( maxKey.compareTo(key) > 0 ) {
 					max = next;
 					maxKey = key;
@@ -551,8 +551,8 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Option<T> max = Option.none();
 		
 		Option<T> next;
-		while ( (next = next()).isDefined() ) {
-			if ( max.isDefined() ) {
+		while ( (next = next()).isPresent() ) {
+			if ( max.isPresent() ) {
 				if ( cmp.compare(next.get(), max.get()) > 0 ) {
 					max = next;
 				}
@@ -583,7 +583,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		
 		Option<T> subNext = subList.next();
 		Option<T> next = next();
-		while ( subNext.isDefined() && next.isDefined() ) {
+		while ( subNext.isPresent() && next.isPresent() ) {
 			if ( !subNext.get().equals(next.get()) ) {
 				return false;
 			}
@@ -592,7 +592,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 			next = next();
 		}
 		
-		return (next.isDefined() && subNext.isEmpty());
+		return (next.isPresent() && subNext.isEmpty());
 	}
 */
 }

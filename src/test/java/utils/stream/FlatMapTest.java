@@ -8,7 +8,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
+import utils.func.FOptional;
 
 /**
  * 
@@ -28,15 +28,15 @@ public class FlatMapTest {
 		FStream<Integer> strm = FStream.of(0, 1, 2, 3);
 		FStream<Integer> stream = strm.flatMap(i -> strmList.get(i));
 
-		Option<Integer> r;
+		FOptional<Integer> r;
 		for ( int i =0; i <= 7; ++i ) {
 			r = stream.next();
-			Assert.assertEquals(true, r.isDefined());
+			Assert.assertEquals(true, r.isPresent());
 			Assert.assertEquals(Integer.valueOf(i), r.get());
 		}
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -48,10 +48,10 @@ public class FlatMapTest {
 		FStream<Integer> strm = FStream.of(0, 1);
 		FStream<Integer> stream = strm.flatMap(i -> strmList.get(i));
 		
-		Option<Integer> r;
+		FOptional<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -63,15 +63,15 @@ public class FlatMapTest {
 		FStream<Integer> strm = FStream.of(0);
 		FStream<Integer> stream = strm.flatMap(i -> strmList.get(i));
 
-		Option<Integer> r;
+		FOptional<Integer> r;
 		for ( int i =0; i <= 2; ++i ) {
 			r = stream.next();
-			Assert.assertEquals(true, r.isDefined());
+			Assert.assertEquals(true, r.isPresent());
 			Assert.assertEquals(Integer.valueOf(i), r.get());
 		}
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test(expected=IllegalArgumentException.class)

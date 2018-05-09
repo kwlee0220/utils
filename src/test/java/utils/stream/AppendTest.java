@@ -7,6 +7,7 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 import io.vavr.control.Option;
+import utils.func.FOptional;
 
 /**
  * 
@@ -19,34 +20,34 @@ public class AppendTest {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
-		Option<Integer> r;
+		FOptional<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(5), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(3), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -55,22 +56,22 @@ public class AppendTest {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
-		Option<Integer> r;
+		FOptional<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -79,22 +80,22 @@ public class AppendTest {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
-		Option<Integer> r;
+		FOptional<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(5), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(3), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -103,10 +104,10 @@ public class AppendTest {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
-		Option<Integer> r;
+		FOptional<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test(expected=IllegalArgumentException.class)

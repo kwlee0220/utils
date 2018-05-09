@@ -29,9 +29,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
-import io.vavr.control.Option;
 import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
+import utils.func.FOptional;
 
 /**
  *
@@ -403,12 +403,12 @@ public class Utilities {
 		return (T)ctor.newInstance(new Object[0]);
 	}
 	
-	public static <T> Option<T> toOption(T value, T nullValue) {
+	public static <T> FOptional<T> toOption(T value, T nullValue) {
 		if ( value == null ) {
-			return Option.none();
+			return FOptional.none();
 		}
 		else {
-			return (!value.equals(nullValue)) ? Option.some(value) : Option.none(); 
+			return (!value.equals(nullValue)) ? FOptional.some(value) : FOptional.none(); 
 		}
 	}
 	

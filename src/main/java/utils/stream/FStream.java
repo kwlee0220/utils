@@ -26,16 +26,16 @@ import io.vavr.CheckedConsumer;
 import io.vavr.Function2;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
 import utils.Utilities;
 import utils.func.FLists;
+import utils.func.FOptional;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public interface FStream<T> {
-	public Option<T> next();
+	public FOptional<T> next();
 	
 	@SuppressWarnings("unchecked")
 	public static <T> FStream<T> empty() {
@@ -52,7 +52,7 @@ public interface FStream<T> {
 	}
 	
 	public static <T> FStream<T> of(Iterator<T> iter) {
-		return () -> iter.hasNext() ? Option.some(iter.next()) : Option.none();
+		return () -> iter.hasNext() ? FOptional.some(iter.next()) : FOptional.none();
 	}
 	
 	public static <T> FStream<T> of(Stream<T> strm) {
@@ -72,7 +72,7 @@ public interface FStream<T> {
 					.map(ent -> Tuple.of(ent.getKey(), ent.getValue()));
 	}
 	
-	public static <S,T> FStream<T> unfold(S init, Function<S,Option<Tuple2<T,S>>> generator) {
+	public static <S,T> FStream<T> unfold(S init, Function<S,FOptional<Tuple2<T,S>>> generator) {
 		Preconditions.checkArgument(init != null, "init is null");
 		Preconditions.checkArgument(generator != null, "generator is null");
 		
@@ -118,8 +118,8 @@ public interface FStream<T> {
 		
 		Predicate<T> negated = pred.negate();
 		return () -> {
-			Option<T> next;
-			while ( (next = next()).filter(negated).isDefined() );
+			FOptional<T> next;
+			while ( (next = next()).filter(negated).isPresent() );
 			return next;
 		};
 	}
@@ -155,11 +155,11 @@ public interface FStream<T> {
 		return map(mapper).foldLeft(empty(), (a,s) -> concat(a,s));
 	}
 	
-	public default <V> FStream<V> flatMapOption(Function<T,Option<V>> mapper) {
+	public default <V> FStream<V> flatMapFOptional(Function<T,FOptional<V>> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return map(mapper).foldLeft(empty(), (a,opt) -> 
-			opt.isDefined() ? concat(a,of(opt.get())) : a
+			opt.isPresent() ? concat(a,of(opt.get())) : a
 		);
 	}
 	
@@ -198,8 +198,8 @@ public interface FStream<T> {
 //		Preconditions.checkArgument(accum != null, "accum is null");
 		Preconditions.checkArgument(folder != null, "folder is null");
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
 			accum = folder.apply(accum, next.get());
 		}
 		
@@ -214,8 +214,8 @@ public interface FStream<T> {
 			return accum;
 		}
 		
-		Option<T> next = next();
-		while ( (next = next()).isDefined() ) {
+		FOptional<T> next = next();
+		while ( (next = next()).isPresent() ) {
 			accum = folder.apply(accum, next.get());
 			if ( accum.equals(stopper) ) {
 				return accum;
@@ -232,8 +232,8 @@ public interface FStream<T> {
 	public default T reduce(BiFunction<T,T,T> reducer) {
 		Preconditions.checkArgument(reducer != null, "reducer is null");
 		
-		Option<T> next = next();
-		if ( next.isDefined() ) {
+		FOptional<T> next = next();
+		if ( next.isPresent() ) {
 			return foldLeft(next.get(), (a,t) -> reducer.apply(a, t));
 		}
 		else {
@@ -245,8 +245,8 @@ public interface FStream<T> {
 		Preconditions.checkNotNull(collector);
 		Preconditions.checkNotNull(collect);
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
 			collect.accept(collector, next.get());
 		}
 		
@@ -255,32 +255,32 @@ public interface FStream<T> {
 	
 	public default long count() {
 		long count = 0;
-		while ( next().isDefined() ) {
+		while ( next().isPresent() ) {
 			++count;
 		}
 		
 		return count;
 	}
 	
-	public default Option<T> find(Predicate<T> pred) {
+	public default FOptional<T> find(Predicate<T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
 		
-		Option<T> next;
+		FOptional<T> next;
 		Predicate<T> negated = pred.negate();
-		while ( (next = next()).filter(negated).isDefined() );
+		while ( (next = next()).filter(negated).isPresent() );
 		
 		return next;
 	}
 	
-	public default Option<T> first() {
+	public default FOptional<T> first() {
 		List<T> list = take(1).toList();
-		return list.isEmpty() ? Option.none() : Option.some(list.get(0));
+		return list.isEmpty() ? FOptional.none() : FOptional.some(list.get(0));
 	}
 	
-	public default Option<T> last() {
-		Option<T> last = Option.none();
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+	public default FOptional<T> last() {
+		FOptional<T> last = FOptional.none();
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
 			last = next;
 		}
 		
@@ -312,12 +312,12 @@ public interface FStream<T> {
 	
 	public default <U> FStream<Tuple2<T,U>> zip(FStream<U> other) {
 		return () -> {
-			Option<T> next1 = this.next();
-			Option<U> next2 = other.next();
+			FOptional<T> next1 = this.next();
+			FOptional<U> next2 = other.next();
 			
-			return ( next1.isDefined() && next2.isDefined() )
-					? Option.some(new Tuple2<>(next1.get(), next2.get()))
-					: Option.none();
+			return ( next1.isPresent() && next2.isPresent() )
+					? FOptional.some(new Tuple2<>(next1.get(), next2.get()))
+					: FOptional.none();
 		};
 	}
 	
@@ -344,7 +344,7 @@ public interface FStream<T> {
 		return list.toArray(array);
 	}
 	
-	public default Option<Tuple2<T,FStream<T>>> peekFirst() {
+	public default FOptional<Tuple2<T,FStream<T>>> peekFirst() {
 		return next().map(head -> Tuple.of(head, concat(of(head), this)));
 	}
 	
@@ -415,8 +415,8 @@ public interface FStream<T> {
 	public default void forEach(Consumer<? super T> effect) {
 		Preconditions.checkArgument(effect != null, "effect is null");
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
 			effect.accept(next.get());
 		}
 	}
@@ -424,8 +424,8 @@ public interface FStream<T> {
 	public default void forEachIE(CheckedConsumer<T> effect) {
 		Preconditions.checkArgument(effect != null, "effect is null");
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
 			try {
 				effect.accept(next.get());
 			}
@@ -467,8 +467,8 @@ public interface FStream<T> {
 		Comparable<T> max = null;
 		List<T> maxList = Lists.newArrayList();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
 			T data = next.get();
 			
 			if ( max != null ) {
@@ -501,8 +501,8 @@ public interface FStream<T> {
 		Comparable<T> min = null;
 		List<T> minList = Lists.newArrayList();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
 			T data = next.get();
 			
 			if ( min != null ) {
@@ -534,8 +534,8 @@ public interface FStream<T> {
 		K maxKey = null;
 		List<T> maxList = Lists.newArrayList();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
 			T data = next.get();
 			K key = keySelector.apply(data);
 
@@ -567,8 +567,8 @@ public interface FStream<T> {
 		K minKey = null;
 		List<T> minList = Lists.newArrayList();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
 			T data = next.get();
 			K key = keySelector.apply(data);
 
@@ -595,12 +595,12 @@ public interface FStream<T> {
 		return minList;
 	}
 	
-	public default Option<T> max(Comparator<? super T> cmp) {
-		Option<T> max = Option.none();
+	public default FOptional<T> max(Comparator<? super T> cmp) {
+		FOptional<T> max = FOptional.none();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
-			if ( max.isDefined() ) {
+		FOptional<T> next;
+		while ( (next = next()).isPresent() ) {
+			if ( max.isPresent() ) {
 				if ( cmp.compare(next.get(), max.get()) > 0 ) {
 					max = next;
 				}
@@ -629,9 +629,9 @@ public interface FStream<T> {
 	public default boolean startsWith(FStream<T> subList) {
 		Preconditions.checkArgument(subList != null, "subList is null");
 		
-		Option<T> subNext = subList.next();
-		Option<T> next = next();
-		while ( subNext.isDefined() && next.isDefined() ) {
+		FOptional<T> subNext = subList.next();
+		FOptional<T> next = next();
+		while ( subNext.isPresent() && next.isPresent() ) {
 			if ( !subNext.get().equals(next.get()) ) {
 				return false;
 			}
@@ -640,6 +640,6 @@ public interface FStream<T> {
 			next = next();
 		}
 		
-		return (next.isDefined() && subNext.isEmpty());
+		return (next.isPresent() && subNext.isAbsent());
 	}
 }

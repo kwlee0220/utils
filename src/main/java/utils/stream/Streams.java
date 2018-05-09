@@ -6,7 +6,7 @@ import java.util.function.Predicate;
 import com.google.common.base.Preconditions;
 
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
+import utils.func.FOptional;
 
 /**
  * 
@@ -14,11 +14,11 @@ import io.vavr.control.Option;
  */
 public class Streams {
 	@SuppressWarnings("rawtypes")
-	static final FStream EMPTY = () -> { return Option.none(); };
+	static final FStream EMPTY = () -> { return FOptional.none(); };
 	
-	static <T> Option<T> skipWhile(FStream<T> stream, Predicate<T> pred) {
-		Option<T> next;
-		while ( (next = stream.next()).filter(pred).isDefined() );
+	static <T> FOptional<T> skipWhile(FStream<T> stream, Predicate<T> pred) {
+		FOptional<T> next;
+		while ( (next = stream.next()).filter(pred).isPresent() );
 		return next;
 	}
 	
@@ -32,9 +32,9 @@ public class Streams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOptional<T> next() {
 			if ( m_remains <= 0 ) {
-				return Option.none();
+				return FOptional.none();
 			}
 			else {
 				--m_remains;
@@ -53,7 +53,7 @@ public class Streams {
 		}
 	
 		@Override
-		public Option<T> next() {
+		public FOptional<T> next() {
 			while ( m_remains > 0 ) {
 				m_src.next();
 				--m_remains;
@@ -66,7 +66,7 @@ public class Streams {
 	static class TakeWhileStream<T,S> implements FStream<T> {
 		private final FStream<T> m_src;
 		private Predicate<T> m_pred;
-		private Option<T> m_last = null;
+		private FOptional<T> m_last = null;
 		
 		TakeWhileStream(FStream<T> src, Predicate<T> pred) {
 			m_src = src;
@@ -74,10 +74,10 @@ public class Streams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOptional<T> next() {
 			if ( m_last == null ) {
-				Option<T> next = m_src.next().filter(m_pred);
-				next.onEmpty(() -> m_last = next);
+				FOptional<T> next = m_src.next().filter(m_pred);
+				next.ifAbsent(() -> m_last = next);
 				return next;
 			}
 			else {
@@ -96,9 +96,9 @@ public class Streams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOptional<T> next() {
 			if ( m_pred != null) {
-				Option<T> next = Streams.skipWhile(m_src, m_pred);
+				FOptional<T> next = Streams.skipWhile(m_src, m_pred);
 				
 				m_pred = null;
 				return next;
@@ -111,16 +111,16 @@ public class Streams {
 
 	static class GeneratedStream<T> implements FStream<T> {
 		private final Function<T,T> m_inc;
-		private Option<T> m_next;
+		private FOptional<T> m_next;
 		
 		GeneratedStream(T init, Function<T,T> inc) {
-			m_next = Option.of(init);
+			m_next = FOptional.of(init);
 			m_inc = inc;
 		}
 
 		@Override
-		public Option<T> next() {
-			Option<T> next = m_next;
+		public FOptional<T> next() {
+			FOptional<T> next = m_next;
 			m_next = m_next.map(m_inc);
 			return next;
 		}
@@ -141,15 +141,15 @@ public class Streams {
 		}
 
 		@Override
-		public Option<Integer> next() {
+		public FOptional<Integer> next() {
 			if ( m_next < m_end ) {
-				return Option.some(m_next++);
+				return FOptional.some(m_next++);
 			}
 			else if ( m_next == m_end && m_closed ) {
-				return Option.some(m_next++);
+				return FOptional.some(m_next++);
 			}
 			
-			return Option.none();
+			return FOptional.none();
 		}
 	}
 	
@@ -165,9 +165,9 @@ public class Streams {
 		}
 
 		@Override
-		public Option<T> next() {
-			Option<T> next = m_current.next();
-			if ( next.isEmpty() ) {
+		public FOptional<T> next() {
+			FOptional<T> next = m_current.next();
+			if ( next.isAbsent() ) {
 				return (m_current == m_first) ? (m_current = m_second).next() : next;
 			}
 			else {
@@ -177,20 +177,21 @@ public class Streams {
 	}
 	
 	static class UnfoldStream<T,S> implements FStream<T> {
-		private final Function<S,Option<Tuple2<T,S>>> m_gen;
-		private Option<S> m_token;
+		private final Function<S,FOptional<Tuple2<T,S>>> m_gen;
+		private FOptional<S> m_token;
 		
-		UnfoldStream(S init, Function<S,Option<Tuple2<T,S>>> gen) {
-			m_token = Option.of(init);
+		UnfoldStream(S init, Function<S,FOptional<Tuple2<T,S>>> gen) {
+			m_token = FOptional.of(init);
 			m_gen = gen;
 		}
 
 		@Override
-		public Option<T> next() {
-			return m_token.flatMap(m_gen).map(tup -> tup.apply((t,s) -> {
-				m_token = Option.some(s);
-				return t;
-			}));
+		public FOptional<T> next() {
+			return m_token.flatMap(m_gen)
+							.map(tup -> tup.apply((t,s) -> {
+									m_token = FOptional.some(s);
+									return t;
+								}));
 		}
 	}
 }

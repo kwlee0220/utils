@@ -3,7 +3,7 @@ package utils.stream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import io.vavr.control.Option;
+import utils.func.FOptional;
 
 
 /**
@@ -12,7 +12,7 @@ import io.vavr.control.Option;
  */
 class FStreamIterator<T> implements Iterator<T> {
 	private final FStream<T> m_fstrm;
-	private Option<T> m_next;
+	private FOptional<T> m_next;
 	
 	FStreamIterator(FStream<T> rset) {
 		m_fstrm = rset;
@@ -21,7 +21,7 @@ class FStreamIterator<T> implements Iterator<T> {
 	
 	@Override
 	public boolean hasNext() {
-		return m_next.isDefined();
+		return m_next.isPresent();
 	}
 
 	@Override
@@ -31,7 +31,7 @@ class FStreamIterator<T> implements Iterator<T> {
 		}
 		
 		return m_next.flatMap(v -> {
-						Option<T> result = m_next;
+						FOptional<T> result = m_next;
 						m_next = m_fstrm.next();
 						return result;
 					})
