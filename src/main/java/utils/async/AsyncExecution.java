@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 
 import utils.func.Result;
 
+
 /**
  * @param <V>	비동기 연산의 결과 타입
  * 
@@ -24,11 +25,6 @@ public interface AsyncExecution<V> extends Future<V>, AutoCloseable {
 	 * 비동기 작업이 성공적으로 시작될 때까지 대기하려는 경우는 명시적으로
 	 * {@link #waitForStarted()} 또는 {@link #waitForStarted(long, TimeUnit)}를
 	 * 호출하여야 한다.
-	 * 
-	 * 작업 시작 시도가 실패한 경우는 {@code false}를 반환한다.
-	 * 본 메소드가 {@code true} 반환한 경우에도 
-	 * 
-	 * @return	시작 작업 성공 여부.
 	 */
 	public void start() throws IllegalStateException;
 	public void cancel() throws IllegalStateException;

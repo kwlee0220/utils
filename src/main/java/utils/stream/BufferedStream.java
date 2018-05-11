@@ -6,7 +6,7 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import utils.func.FOptional;
+import io.vavr.control.Option;
 
 
 /**
@@ -30,8 +30,8 @@ class BufferedStream<T> implements FStream<List<T>> {
 		m_skip = skip;
 		m_buffer = Lists.newArrayListWithExpectedSize(count);
 		
-		FOptional<T> next;
-		for ( int i =0; i < count-1 && (next = src.next()).isPresent(); ++i ) {
+		Option<T> next;
+		for ( int i =0; i < count-1 && (next = src.next()).isDefined(); ++i ) {
 			if ( i == 0 ) {
 				m_buffer.add(next.get());
 			}
@@ -44,16 +44,16 @@ class BufferedStream<T> implements FStream<List<T>> {
 	}
 
 	@Override
-	public FOptional<List<T>> next() {
+	public Option<List<T>> next() {
 		if ( m_buffer.size() > 0 ) {
 			drain();
 			fill();
 			if ( m_buffer.size() > 0 ) {
-				return FOptional.some(Collections.unmodifiableList(m_buffer));
+				return Option.some(Collections.unmodifiableList(m_buffer));
 			}
 		}
 		
-		return FOptional.none();
+		return Option.none();
 	}
 	
 	private void drain() {
@@ -62,7 +62,7 @@ class BufferedStream<T> implements FStream<List<T>> {
 				m_buffer.remove(0);
 			}
 			else {
-				if ( m_src.next().isAbsent() ) {
+				if ( m_src.next().isEmpty() ) {
 					return;
 				}
 			}
@@ -72,9 +72,9 @@ class BufferedStream<T> implements FStream<List<T>> {
 	private void fill() {
 		if ( !m_endOfSource ) {
 			while ( m_buffer.size() < m_count ) {
-				FOptional<T> onext = m_src.next()
+				Option<T> onext = m_src.next()
 										.peek(m_buffer::add);
-				if ( onext.isAbsent() ) {
+				if ( onext.isEmpty() ) {
 					m_endOfSource = true;
 					return;
 				}

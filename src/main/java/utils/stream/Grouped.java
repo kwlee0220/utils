@@ -16,7 +16,6 @@ import com.google.common.collect.Maps;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
 import utils.func.FLists;
-import utils.func.FOptional;
 
 /**
  * 
@@ -132,14 +131,14 @@ public class Grouped<K,V> {
 		}
 
 		@Override
-		public FOptional<Tuple2<K, A>> next() {
+		public Option<Tuple2<K, A>> next() {
 			if ( !m_iter.hasNext() ) {
-				return FOptional.none();
+				return Option.none();
 			}
 			
 			Map.Entry<K, List<V>> ent = m_iter.next();
 			A folded = FLists.foldLeft(ent.getValue(), m_init, m_folder);
-			return FOptional.of(new Tuple2<>(ent.getKey(), folded));
+			return Option.of(new Tuple2<>(ent.getKey(), folded));
 		}
 	}
 	
@@ -153,14 +152,14 @@ public class Grouped<K,V> {
 		}
 
 		@Override
-		public FOptional<Tuple2<K, V>> next() {
+		public Option<Tuple2<K, V>> next() {
 			if ( !m_iter.hasNext() ) {
-				return FOptional.none();
+				return Option.none();
 			}
 			
 			Map.Entry<K, List<V>> ent = m_iter.next();
 			V reduced = FLists.reduce(ent.getValue(), m_reducer).get();
-			return FOptional.of(new Tuple2<>(ent.getKey(), reduced));
+			return Option.of(new Tuple2<>(ent.getKey(), reduced));
 		}
 	}
 }

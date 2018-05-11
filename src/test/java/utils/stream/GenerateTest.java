@@ -6,7 +6,7 @@ import java.util.function.Function;
 import org.junit.Assert;
 import org.junit.Test;
 
-import utils.func.FOptional;
+import io.vavr.control.Option;
 
 /**
  * 
@@ -17,25 +17,25 @@ public class GenerateTest {
 	public void test0() throws Exception {
 		FStream<Integer> stream = FStream.generate(0, i -> i+1).take(3);
 		
-		FOptional<Integer> r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(0), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 	}
 
 	@Test(expected=RuntimeException.class)
@@ -50,18 +50,18 @@ public class GenerateTest {
 		};
 		FStream<Integer> stream = FStream.generate(0, gen);
 		
-		FOptional<Integer> r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(0), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();

@@ -9,9 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.jcip.annotations.GuardedBy;
-import utils.Throwables;
 import utils.LoggerSettable;
 import utils.LongVariableSmoother;
+import utils.Throwables;
 
 
 /**

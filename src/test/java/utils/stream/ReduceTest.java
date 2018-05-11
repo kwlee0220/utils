@@ -6,8 +6,6 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import utils.func.Result;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)

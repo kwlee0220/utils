@@ -9,6 +9,7 @@ import java.util.function.BiFunction;
 import com.google.common.collect.Iterables;
 
 import io.vavr.Tuple2;
+import io.vavr.control.Option;
 
 /**
  * 
@@ -19,13 +20,13 @@ public class FLists {
 		throw new AssertionError("Should not be called: class=" + FLists.class);
 	}
 	
-	public static <T> FOptional<T> getFirst(Iterable<T> list) {
+	public static <T> Option<T> getFirst(Iterable<T> list) {
 		Iterator<T> iter = list.iterator();
-		return iter.hasNext() ? FOptional.some(iter.next()) : FOptional.none();
+		return iter.hasNext() ? Option.some(iter.next()) : Option.none();
 	}
 	
-	public static <T> FOptional<T> getLast(Iterable<T> list) {
-		return FOptional.of(Iterables.getLast(list, null));
+	public static <T> Option<T> getLast(Iterable<T> list) {
+		return Option.of(Iterables.getLast(list, null));
 	}
 	
 	public static <T,U> U foldLeft(List<T> list, U init, BiFunction<U, T, U> fold) {

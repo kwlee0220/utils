@@ -6,7 +6,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import utils.func.FOptional;
+import io.vavr.control.Option;
 
 /**
  * 
@@ -16,26 +16,26 @@ public class FindTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<Integer> stream;
-		FOptional<Integer> ret;
+		Option<Integer> ret;
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		ret = stream.find(i -> i > 3);
-		Assert.assertEquals(true, ret.isPresent());
+		Assert.assertEquals(true, ret.isDefined());
 		Assert.assertEquals(Integer.valueOf(4), ret.get());
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		ret = stream.find(i -> i > 4);
-		Assert.assertEquals(true, ret.isAbsent());
+		Assert.assertEquals(true, ret.isEmpty());
 	}
 
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> stream;
-		FOptional<Integer> ret;
+		Option<Integer> ret;
 		
 		stream = FStream.empty();
 		ret = stream.find(i -> i > 2);
-		Assert.assertEquals(true, ret.isAbsent());
+		Assert.assertEquals(true, ret.isEmpty());
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -49,7 +49,7 @@ public class FindTest {
 	@Test(expected=RuntimeException.class)
 	public void test5() throws Exception {
 		FStream<String> stream;
-		FOptional<String> ret;
+		Option<String> ret;
 		
 		RuntimeException error = new RuntimeException();
 		

@@ -6,7 +6,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import utils.func.FOptional;
+import io.vavr.control.Option;
 
 /**
  * 
@@ -18,21 +18,21 @@ public class DropTest {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(2);
 		
-		FOptional<Integer> r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -40,29 +40,29 @@ public class DropTest {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(0);
 		
-		FOptional<Integer> r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(true, r.isDefined());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -70,13 +70,13 @@ public class DropTest {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(4);
 		
-		FOptional<Integer> r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -84,13 +84,13 @@ public class DropTest {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(10);
 		
-		FOptional<Integer> r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -98,13 +98,13 @@ public class DropTest {
 		FStream<Integer> stream = FStream.empty();
 		stream = stream.drop(1);
 		
-		FOptional<Integer> r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test(expected=IllegalArgumentException.class)

@@ -7,7 +7,13 @@ import java.io.Serializable;
  * @author Kang-Woo Lee (ETRI)
  */
 public class Holder<T> implements Serializable {
+	private static final long serialVersionUID = -102726106391846640L;
+	
 	private transient T m_value;
+	
+	public static final <T> Holder<T> of(T value) {
+		return new Holder<>(value);
+	}
 	
 	public Holder() {
 		m_value = null;
