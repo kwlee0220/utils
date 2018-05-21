@@ -48,6 +48,11 @@ public interface FStream<T> {
 		return of(Arrays.asList(values));
 	}
 	
+	public static <T> FStream<T> of(Option<T> opt) {
+		return opt.map(t -> FStream.of(t))
+					.getOrElse(FStream.empty());
+	}
+	
 	public static <T> FStream<T> of(Iterable<T> values) {
 		return of(values.iterator());
 	}
@@ -153,19 +158,25 @@ public interface FStream<T> {
 	public default <V> FStream<V> flatMap(Function<T,FStream<V>> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
-		return map(mapper).foldLeft(empty(), (a,s) -> concat(a,s));
+		return new FlatMappedStream<>(this, mapper);
 	}
 	
 	public default <V> FStream<V> flatMapOption(Function<T,Option<V>> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
-		
-		return map(mapper).filter(Option::isDefined).map(Option::get);
+
+		return flatMap(t -> FStream.of(mapper.apply(t)));
 	}
 	
 	public default <V> FStream<V> flatMapIterable(Function<T,Iterable<V>> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
-		return map(mapper).foldLeft(empty(), (a,s) -> concat(a,of(s)));
+		return flatMap(t -> FStream.of(mapper.apply(t)));
+	}
+	
+	public default <V> FStream<V> flatMapStream(Function<T,Stream<V>> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		
+		return flatMap(t -> FStream.of(mapper.apply(t)));
 	}
 	
 	public default boolean exists(Predicate<T> pred) {
