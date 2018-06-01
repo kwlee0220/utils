@@ -21,6 +21,7 @@ import java.util.stream.Stream;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Ints;
 
 import io.reactivex.Observable;
 import io.vavr.CheckedConsumer;
@@ -46,6 +47,9 @@ public interface FStream<T> {
 	@SafeVarargs
 	public static <T> FStream<T> of(T... values) {
 		return of(Arrays.asList(values));
+	}
+	public static FStream<Integer> of(int... values) {
+		return of(Ints.asList(values));
 	}
 	
 	public static <T> FStream<T> of(Option<T> opt) {
@@ -349,6 +353,16 @@ public interface FStream<T> {
 	
 	public default HashSet<T> toHashSet() {
 		return toCollection(Sets.newHashSet());
+	}
+	
+	public default int[] toIntArray() {
+		List<T> list = toList();
+		int[] array = new int[list.size()];
+		for ( int i =0; i < array.length; ++i ) {
+			array[i] = (int)list.get(i);
+		}
+		
+		return array;
 	}
 	
 	public default T[] toArray(Class<T> componentType) {
