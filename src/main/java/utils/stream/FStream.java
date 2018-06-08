@@ -359,7 +359,7 @@ public interface FStream<T> {
 		List<T> list = toList();
 		int[] array = new int[list.size()];
 		for ( int i =0; i < array.length; ++i ) {
-			array[i] = (int)list.get(i);
+			array[i] = (Integer)list.get(i);
 		}
 		
 		return array;
