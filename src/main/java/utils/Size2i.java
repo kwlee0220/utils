@@ -1,5 +1,6 @@
 package utils;
 
+import java.awt.Dimension;
 import java.util.Objects;
 
 /**
@@ -29,6 +30,10 @@ public class Size2i {
 	
 	public Point2i toPoint2i() {
 		return new Point2i(m_width, m_height);
+	}
+	
+	public Dimension toDimension() {
+		return new Dimension(m_width, m_height);
 	}
 	
 	public static Size2i fromString(String str) {

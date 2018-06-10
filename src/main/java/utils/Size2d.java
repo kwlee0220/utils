@@ -35,6 +35,10 @@ public class Size2d {
 		return new Size2i((int)Math.floor(m_width), (int)Math.floor(m_height));
 	}
 	
+	public Size2i ceilToInt() {
+		return new Size2i((int)Math.ceil(m_width), (int)Math.ceil(m_height));
+	}
+	
 	public static Size2d fromString(String str) {
 		String[] parts = str.split("x");
 		
