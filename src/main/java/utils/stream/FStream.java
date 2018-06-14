@@ -141,7 +141,7 @@ public interface FStream<T> {
 	}
 	
 	public default <V> FStream<V> cast(Class<V> cls) {
-		Preconditions.checkArgument(cls != null, "target class is null");
+		Preconditions.checkNotNull(cls, "target class is null");
 		
 		return () -> next().map(cls::cast);
 	}
