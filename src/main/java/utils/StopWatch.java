@@ -1,5 +1,6 @@
 package utils;
 
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
@@ -36,6 +37,10 @@ public class StopWatch {
 	
 	public long stopInSeconds() {
 		return stopInMillis() / 1000;
+	}
+	
+	public Duration getElapsed() {
+		return Duration.ofMillis(getElapsedInMillis());
 	}
 	
 	public long getElapsedInMillis() {
