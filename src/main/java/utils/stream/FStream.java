@@ -402,6 +402,14 @@ public interface FStream<T> {
 		});
 	}
 	
+	public default Supplier<T> toSupplier() {
+		return new Supplier<T>() {
+			public T get() {
+				return next().getOrNull();
+			}
+		};
+	}
+	
 /*
 	@SuppressWarnings("unchecked")
 	public static <T,K,V> FStream<Tuple2<K,V>> toTupleStream(FStream<T> stream) {
