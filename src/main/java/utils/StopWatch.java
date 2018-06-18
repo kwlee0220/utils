@@ -74,10 +74,14 @@ public class StopWatch {
 	
 	public String stopAndGetElpasedTimeString() {
 		stop();
-		return getElapsedTimeString();
+		return getElapsedMillisString();
 	}
 	
-	public String getElapsedTimeString() {
-		return UnitUtils.toTimeString(getElapsedInMillis());
+	public String getElapsedMillisString() {
+		return UnitUtils.toMillisString(getElapsedInMillis());
+	}
+	
+	public String getElapsedSecondString() {
+		return UnitUtils.toSecondString(getElapsedInMillis());
 	}
 }

@@ -151,7 +151,7 @@ public class UnitUtils {
 	    }
 	}
 
-	public static String toTimeString(long millis) {
+	public static String toMillisString(long millis) {
 		long seconds = millis / 1000;
 		if ( seconds == 0 ) {
 			return String.format("%dms", millis);
@@ -173,6 +173,27 @@ public class UnitUtils {
 		return (millis != 0 )
 				? String.format("%d:%02d:%02d.%03d", hours, minutes, seconds, millis)
 				: String.format("%d:%02d:%02d", hours, minutes, seconds);
+	}
+
+	public static String toSecondString(long millis) {
+		long seconds = Math.round(millis / 1000d);
+		if ( seconds == 0 ) {
+			return "0";
+		}
+		
+		long minutes = seconds / 60;
+		if ( minutes == 0 ) {
+			return String.format("%02d", seconds);
+		}
+		seconds = seconds % 60;
+		
+		long hours = minutes / 60;
+		if ( hours == 0 ) {
+			return String.format("%02d:%02d", minutes, seconds);
+		}
+		minutes = minutes % 60;
+		
+		return String.format("%d:%02d:%02d", hours, minutes, seconds);
 	}
 
 	public static String toDateString(long date, boolean toMilliSeconds) {
