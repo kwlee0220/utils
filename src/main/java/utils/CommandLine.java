@@ -8,6 +8,8 @@ import java.util.List;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 
+import io.vavr.control.Option;
+
 
 /**
  * 
@@ -64,7 +66,7 @@ public class CommandLine {
 		return args[idx];
 	}
 
-    public String getOptionValue(String optId) {
+    public String getString(String optId) {
     	String value = m_cl.getOptionValue(optId);
     	if ( value == null ) {
     		throw new IllegalArgumentException("option[" + optId + "] is not given");
@@ -73,45 +75,45 @@ public class CommandLine {
     	return value;
     }
 
-    public String getOptionValue(String optId, String defValue) {
+    public Option<String> getOptionString(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return (value != null) ? value : defValue;
+        return (value != null) ? Option.some(value) : Option.none();
     }
     
-    public int getOptionInt(String optId) {
-    	return Integer.parseInt(getOptionValue(optId));
+    public int getInt(String optId) {
+    	return Integer.parseInt(getString(optId));
     }
     
-    public int getOptionInt(String optId, int defValue) {
+    public Option<Integer> getOptionInt(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return value != null ? Integer.parseInt(value) : defValue;
+        return value != null ? Option.some(Integer.parseInt(value)) : Option.none();
     }
     
-    public long getOptionLong(String optId) {
-    	return Long.parseLong(getOptionValue(optId));
+    public long getLong(String optId) {
+    	return Long.parseLong(getString(optId));
     }
     
-    public long getOptionLong(String optId, long defValue) {
+    public Option<Long> getOptionLong(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return value != null ? Long.parseLong(value) : defValue;
+        return value != null ? Option.some(Long.parseLong(value)) : Option.none();
     }
     
-    public double getOptionDouble(String optId) {
-    	return Double.parseDouble(getOptionValue(optId));
+    public double getDouble(String optId) {
+    	return Double.parseDouble(getString(optId));
     }
     
-    public double getOptionDouble(String optId, double defValue) {
+    public Option<Double> getOptionDouble(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return value != null ? Double.parseDouble(value) : defValue;
+        return value != null ? Option.some(Double.parseDouble(value)) : Option.none();
     }
     
-    public File getOptionFile(String optId) {
-    	return Paths.get(getOptionValue(optId)).toFile();
+    public File getFile(String optId) {
+    	return Paths.get(getString(optId)).toFile();
     }
     
-    public File getOptionFile(String optId, File defValue) {
+    public Option<File> getOptionFile(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return value != null ? Paths.get(value).toFile() : defValue;
+        return value != null ? Option.some(Paths.get(value).toFile()) : Option.none();
     }
 
     public boolean hasOptionValue(String optId) {
