@@ -17,7 +17,7 @@ import io.vavr.control.Option;
 public class UnfoldTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<String> stream = FStream.unfold(0, i -> Option.of(Tuple.of(""+i, i+1)))
+		FStream<String> stream = FStream.unfold(0, i -> Tuple.of(Option.some(""+i), i+1))
 										.take(3);
 		
 		Option<String> r;
@@ -40,9 +40,9 @@ public class UnfoldTest {
 	
 	@Test(expected=RuntimeException.class)
 	public void test1() throws Exception {
-		Function<Integer,Option<Tuple2<String,Integer>>> gen = (Integer i) -> {
+		Function<Integer,Tuple2<Option<String>,Integer>> gen = (Integer i) -> {
 			if ( i < 2 ) {
-				return Option.of(Tuple.of(""+i, i+1));
+				return Tuple.of(Option.of(""+i), i+1);
 			}
 			else {
 				throw new RuntimeException();
@@ -70,6 +70,6 @@ public class UnfoldTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test3() throws Exception {
-		FStream<String> stream = FStream.unfold((Integer)null, i -> Option.of(Tuple.of(""+i, i+1)));
+		FStream<String> stream = FStream.unfold((Integer)null, i -> Tuple.of(Option.some(""+i), i+1));
 	}
 }

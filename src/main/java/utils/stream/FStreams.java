@@ -7,15 +7,14 @@ import com.google.common.base.Preconditions;
 
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
+import io.vavr.control.Try;
+import utils.Utilities;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class Streams {
-	@SuppressWarnings("rawtypes")
-	static final FStream EMPTY = () -> { return Option.none(); };
-	
+public class FStreams {
 	static <T> Option<T> skipWhile(FStream<T> stream, Predicate<T> pred) {
 		Option<T> next;
 		while ( (next = stream.next()).filter(pred).isDefined() );
@@ -27,8 +26,15 @@ public class Streams {
 		private long m_remains;
 		
 		TakenStream(FStream<T> src, long count) {
+			Preconditions.checkArgument(count >= 0, "count < 0");
+			
 			m_src = src;
 			m_remains = count;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
 		}
 
 		@Override
@@ -48,8 +54,15 @@ public class Streams {
 		private long m_remains;
 		
 		DroppedStream(FStream<T> src, long count) {
+			Preconditions.checkArgument(count >= 0, "count < 0");
+			
 			m_src = src;
 			m_remains = count;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
 		}
 	
 		@Override
@@ -69,8 +82,15 @@ public class Streams {
 		private Option<T> m_last = null;
 		
 		TakeWhileStream(FStream<T> src, Predicate<T> pred) {
+			Preconditions.checkNotNull(pred);
+			
 			m_src = src;
 			m_pred = pred;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
 		}
 
 		@Override
@@ -91,14 +111,21 @@ public class Streams {
 		private Predicate<T> m_pred;
 		
 		DropWhileStream(FStream<T> src, Predicate<T> pred) {
+			Preconditions.checkNotNull(pred);
+			
 			m_src = src;
 			m_pred = pred;
 		}
 
 		@Override
+		public void close() throws Exception {
+			m_src.close();
+		}
+
+		@Override
 		public Option<T> next() {
 			if ( m_pred != null) {
-				Option<T> next = Streams.skipWhile(m_src, m_pred);
+				Option<T> next = FStreams.skipWhile(m_src, m_pred);
 				
 				m_pred = null;
 				return next;
@@ -110,13 +137,16 @@ public class Streams {
 	}
 
 	static class GeneratedStream<T> implements FStream<T> {
-		private final Function<T,T> m_inc;
+		private final Function<? super T,? extends T> m_inc;
 		private Option<T> m_next;
 		
-		GeneratedStream(T init, Function<T,T> inc) {
+		GeneratedStream(T init, Function<? super T,? extends T> inc) {
 			m_next = Option.of(init);
 			m_inc = inc;
 		}
+
+		@Override
+		public void close() throws Exception { }
 
 		@Override
 		public Option<T> next() {
@@ -141,6 +171,9 @@ public class Streams {
 		}
 
 		@Override
+		public void close() throws Exception { }
+
+		@Override
 		public Option<Integer> next() {
 			if ( m_next < m_end ) {
 				return Option.some(m_next++);
@@ -154,21 +187,37 @@ public class Streams {
 	}
 	
 	static class AppendedStream<T,S> implements FStream<T> {
-		private final FStream<T> m_first;
-		private final FStream<T> m_second;
-		private FStream<T> m_current;
+		private final FStream<? extends T> m_first;
+		private final FStream<? extends T> m_second;
+		private FStream<? extends T> m_current;
+		private boolean m_closed = false;
 		
-		AppendedStream(FStream<T> first, FStream<T> second) {
+		AppendedStream(FStream<? extends T> first, FStream<? extends T> second) {
 			m_first = first;
 			m_second = second;
 			m_current = m_first;
 		}
 
 		@Override
+		public void close() throws Exception {
+			if ( !m_closed ) {
+				Try<Void> ret1 = Try.run(() -> m_first.close());
+				Try<Void> ret2 = Try.run(() -> m_second.close());
+				m_closed = true;
+				
+				ret1.get();
+				ret2.get();
+			}
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
 		public Option<T> next() {
-			Option<T> next = m_current.next();
+			Preconditions.checkState(!m_closed, "AppendedStream is closed already");
+			
+			Option<T> next = (Option<T>)m_current.next();
 			if ( next.isEmpty() ) {
-				return (m_current == m_first) ? (m_current = m_second).next() : next;
+				return (m_current == m_first) ? (Option<T>)(m_current = m_second).next() : next;
 			}
 			else {
 				return next;
@@ -177,21 +226,28 @@ public class Streams {
 	}
 	
 	static class UnfoldStream<T,S> implements FStream<T> {
-		private final Function<S,Option<Tuple2<T,S>>> m_gen;
-		private Option<S> m_token;
+		private final Function<? super S,Tuple2<Option<T>,S>> m_gen;
+		private S m_seed;
 		
-		UnfoldStream(S init, Function<S,Option<Tuple2<T,S>>> gen) {
-			m_token = Option.of(init);
+		UnfoldStream(S init, Function<? super S,Tuple2<Option<T>,S>> gen) {
+			m_seed = init;
 			m_gen = gen;
 		}
 
 		@Override
+		public void close() throws Exception {
+			if ( m_seed instanceof AutoCloseable ) {
+				((AutoCloseable)m_seed).close();
+			}
+		}
+
+		@Override
 		public Option<T> next() {
-			return m_token.flatMap(m_gen)
-							.map(tup -> tup.apply((t,s) -> {
-									m_token = Option.some(s);
-									return t;
-								}));
+			return m_gen.apply(m_seed)
+						.apply((opt,seed) -> {
+							m_seed = seed;
+							return opt;
+						});
 		}
 	}
 }

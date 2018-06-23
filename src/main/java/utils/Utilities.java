@@ -20,7 +20,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -32,6 +31,7 @@ import com.google.common.collect.Sets;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
+import utils.func.OptionSupplier;
 
 /**
  *
@@ -46,6 +46,10 @@ public class Utilities {
 	
 	public static String getLineSeparator() {
 		return LINE_SEPARATOR;
+	}
+
+	public static void executeAsynchronously(Runnable task) {
+		new Thread(task).start();
 	}
 
 	public static void executeAsynchronously(Executor executor, Runnable task) {
@@ -114,7 +118,7 @@ public class Utilities {
 		return StreamSupport.stream(Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED), false);
 	}
 
-	public static <T,U> U mapIfNotNull(T value, Function<T,U> func) {
+	public static <T,U> U mapIfNotNull(T value, Function<? super T,? extends U> func) {
 		if ( value != null ) {
 			return func.apply(value);
 		}
@@ -436,32 +440,36 @@ public class Utilities {
 		
 	}
 	
-	public static <T> Supplier<T> toSupplier(Iterator<T> iter) {
+	public static <T> Iterable<T> toIterable(Iterator<T> iter) {
+		return () -> iter;
+	}
+	
+	public static <T> OptionSupplier<T> toSupplier(Iterator<? extends T> iter) {
 		return new IteratorSupplier<>(iter);
 	}
-	private static class IteratorSupplier<T> implements Supplier<T> {
-		private final Iterator<T> m_iter;
+	private static class IteratorSupplier<T> implements OptionSupplier<T> {
+		private final Iterator<? extends T> m_iter;
 		
-		private IteratorSupplier(Iterator<T> iter) {
+		private IteratorSupplier(Iterator<? extends T> iter) {
 			m_iter = iter;
 		}
 
 		@Override
-		public T get() {
-			return m_iter.hasNext() ? m_iter.next() : null;
+		public Option<T> get() {
+			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
 		}
 	}
 	
-	public static <T> Iterator<T> toIterator(Supplier<T> supplier) {
+	public static <T> Iterator<T> toIterator(OptionSupplier<? extends T> supplier) {
 		return new SupplyingIterator<>(supplier);
 	}
 	private static class SupplyingIterator<T> implements Iterator<T> {
-		private final Supplier<T> m_supplier;
+		private final OptionSupplier<? extends T> m_supplier;
 		private T m_next;
 		
-		private SupplyingIterator(Supplier<T> supplier) {
+		private SupplyingIterator(OptionSupplier<? extends T> supplier) {
 			m_supplier = supplier;
-			m_next = m_supplier.get();
+			m_next = m_supplier.get().getOrNull();
 		}
 
 		@Override
@@ -475,7 +483,7 @@ public class Utilities {
 			if ( next == null ) {
 				throw new NoSuchElementException();
 			}
-			m_next = m_supplier.get();
+			m_next = m_supplier.get().getOrNull();
 			
 			return next;
 		}

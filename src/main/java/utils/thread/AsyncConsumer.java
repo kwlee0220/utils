@@ -11,26 +11,29 @@ import java.util.function.Consumer;
  * @author Kang-Woo Lee (ETRI)
  */
 public class AsyncConsumer<T> implements Consumer<T> {
-	private final Consumer<T> m_consumer;
+	private final Consumer<? super T> m_consumer;
 	private final ExecutorService m_executor;
 	
-	public static <T> AsyncConsumer<T> singleWorker(Consumer<T> consumer) {
+	public static <T> AsyncConsumer<T> singleWorker(Consumer<? super T> consumer) {
 		return new AsyncConsumer<>(consumer, Executors.newSingleThreadExecutor());
 	}
 	
-	public static <T> AsyncConsumer<T> singleWorker(Consumer<T> consumer, ExecutorService executor) {
+	public static <T> AsyncConsumer<T> singleWorker(Consumer<? super T> consumer,
+													ExecutorService executor) {
 		return new AsyncConsumer<>(consumer, executor);
 	}
 	
-	public static <T> AsyncConsumer<T> multipleWorkers(Consumer<T> statelessConsumer, int nThreads) {
+	public static <T> AsyncConsumer<T> multipleWorkers(Consumer<? super T> statelessConsumer,
+														int nThreads) {
 		return new AsyncConsumer<>(statelessConsumer, Executors.newFixedThreadPool(nThreads));
 	}
 	
-	public static <T> AsyncConsumer<T> from(Consumer<T> statelessConsumer, ExecutorService executor) {
+	public static <T> AsyncConsumer<T> from(Consumer<? super T> statelessConsumer,
+											ExecutorService executor) {
 		return new AsyncConsumer<>(statelessConsumer, executor);
 	}
 	
-	protected AsyncConsumer(Consumer<T> consumer, ExecutorService executor) {
+	protected AsyncConsumer(Consumer<? super T> consumer, ExecutorService executor) {
 		m_consumer = consumer;
 		m_executor = executor;
 	}

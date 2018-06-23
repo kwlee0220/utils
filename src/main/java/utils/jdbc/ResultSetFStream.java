@@ -19,6 +19,11 @@ class ResultSetFStream implements FStream<ResultSet> {
 	}
 
 	@Override
+	public void close() throws Exception {
+		m_rs.close();
+	}
+
+	@Override
 	public Option<ResultSet> next() {
 		try {
 			return m_rs.next() ? Option.some(m_rs) : Option.none();

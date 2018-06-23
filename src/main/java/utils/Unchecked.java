@@ -61,6 +61,16 @@ public class Unchecked {
 			throw Throwables.toRuntimeException(e);
 		}
 	}
+	public static <T> T supplyRTE(CheckedSupplier<T> supplier) {
+		Preconditions.checkNotNull(supplier);
+		
+		try {
+			return supplier.get();
+		}
+		catch ( Throwable e ) {
+			throw Throwables.toRuntimeException(e);
+		}
+	}
 
 // ******************************************************************************
 // ******************************************************************************

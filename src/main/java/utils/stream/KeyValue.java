@@ -18,6 +18,10 @@ public class KeyValue<K,V> {
 		return new KeyValue<>(t._1, t._2);
 	}
 	
+	public static <K,V> KeyValue<K,V> of(K key, V value) {
+		return new KeyValue<>(key, value);
+	}
+	
 	public KeyValue(K key, V value) {
 		m_key = key;
 		m_value = value;
@@ -31,25 +35,25 @@ public class KeyValue<K,V> {
 		return m_value;
 	}
 	
-	public <T> T map(BiFunction<K,V,T> mapper) {
+	public <T> T map(BiFunction<? super K,? super V,? extends T> mapper) {
 		return mapper.apply(m_key, m_value);
 	}
 	
-	public <S> KeyValue<S,V> mapKey(BiFunction<K,V,S> mapper) {
+	public <S> KeyValue<S,V> mapKey(BiFunction<? super K,? super V,? extends S> mapper) {
 		return new KeyValue<>(mapper.apply(m_key, m_value), m_value);
 	}
 	
-	public <U> KeyValue<K,U> mapValue(Function<V,U> mapper) {
+	public <U> KeyValue<K,U> mapValue(Function<? super V,? extends U> mapper) {
 		return new KeyValue<>(m_key, mapper.apply(m_value));
 	}
 	
-	public <U> KeyValue<K,U> mapValue(BiFunction<K,V,U> mapper) {
+	public <U> KeyValue<K,U> mapValue(BiFunction<? super K,? super V,? extends U> mapper) {
 		return new KeyValue<>(m_key, mapper.apply(m_key, m_value));
 	}
 	
-	public <T> FStream<T> flatMap(BiFunction<K,V,FStream<T>> mapper) {
-		return mapper.apply(m_key, m_value);
-	}
+//	public <T> FStream<T> flatMap(BiFunction<K,V,FStream<T>> mapper) {
+//		return mapper.apply(m_key, m_value);
+//	}
 	
 	@Override
 	public int hashCode() {

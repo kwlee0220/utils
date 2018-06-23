@@ -38,6 +38,11 @@ class BufferedStream<T> implements FStream<List<T>> {
 			m_buffer.add(next.get());
 		}
 	}
+
+	@Override
+	public void close() throws Exception {
+		m_src.close();
+	}
 	
 	public int getCount() {
 		return m_count;

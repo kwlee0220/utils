@@ -52,7 +52,8 @@ public class FLists {
 		return foldLeft(list, identity, (u, t)->fold.apply(u).apply(t));
 	}
 	
-	public static <T,U> U foldRight(List<T> list, U init, BiFunction<T, U, U> fold) {
+	public static <T,U> U foldRight(List<? extends T> list, U init,
+									BiFunction<? super T, ? super U, ? extends U> fold) {
 		U accum = init;
 		for ( int i = list.size()-1; i >= 0; --i ) {
 			final T t = list.get(i);

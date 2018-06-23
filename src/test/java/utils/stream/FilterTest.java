@@ -70,7 +70,7 @@ public class FilterTest {
 		stream.next();
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test5() throws Exception {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.filter(null);

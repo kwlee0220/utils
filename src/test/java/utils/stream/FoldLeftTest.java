@@ -35,14 +35,14 @@ public class FoldLeftTest {
 		Assert.assertEquals(0, sum);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
-	public void test3() throws Exception {
-		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
-
-		String c = stream.foldLeft(null, (s,t) -> s+t);
-	}
+//	@Test(expected=IllegalArgumentException.class)
+//	public void test3() throws Exception {
+//		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
+//
+//		String c = stream.foldLeft(null, (s,t) -> s+t);
+//	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test4() throws Exception {
 		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
 

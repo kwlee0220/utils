@@ -13,16 +13,21 @@ import io.vavr.control.Option;
  */
 class FlatMappedStream<S,T> implements FStream<T> {
 	private final FStream<S> m_src;
-	private final Function<S,FStream<T>> m_mapper;
+	private final Function<? super S,? extends FStream<T>> m_mapper;
 	
 	private FStream<T> m_mapped = FStream.empty();
 	
-	FlatMappedStream(FStream<S> src, Function<S,FStream<T>> mapper) {
+	FlatMappedStream(FStream<S> src, Function<? super S,? extends FStream<T>> mapper) {
 		Preconditions.checkNotNull(src);
 		Preconditions.checkNotNull(mapper);
 		
 		m_src = src;
 		m_mapper = mapper;
+	}
+
+	@Override
+	public void close() throws Exception {
+		m_src.close();
 	}
 
 	@Override

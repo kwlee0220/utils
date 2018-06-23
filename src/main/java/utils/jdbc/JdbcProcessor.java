@@ -19,9 +19,12 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
+import io.vavr.control.Option;
 import io.vavr.control.Try;
 import utils.Throwables;
 import utils.stream.FStream;
+import utils.stream.FStreamException;
+import utils.stream.FStreamImpl;
 
 
 /**
@@ -141,6 +144,7 @@ public class JdbcProcessor implements Serializable {
 	public FStream<ResultSet> fstreamQuery(String sql) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
 		rs = JdbcUtils.bindToConnection(rs);
+
 		return new ResultSetFStream(rs);
 	}
 	

@@ -25,6 +25,11 @@ class ScannedStream<T> implements FStream<T> {
 	}
 
 	@Override
+	public void close() throws Exception {
+		m_src.close();
+	}
+
+	@Override
 	public Option<T> next() {
 		if ( m_current == null ) {
 			return m_current = m_src.next();
