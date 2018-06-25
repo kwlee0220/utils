@@ -8,14 +8,13 @@ import com.google.common.base.Preconditions;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
-import utils.Utilities;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public class FStreams {
-	static <T> Option<T> skipWhile(FStream<T> stream, Predicate<T> pred) {
+	static <T> Option<T> skipWhile(FStream<T> stream, Predicate<? super T> pred) {
 		Option<T> next;
 		while ( (next = stream.next()).filter(pred).isDefined() );
 		return next;
@@ -78,10 +77,10 @@ public class FStreams {
 	
 	static class TakeWhileStream<T,S> implements FStream<T> {
 		private final FStream<T> m_src;
-		private Predicate<T> m_pred;
+		private Predicate<? super T> m_pred;
 		private Option<T> m_last = null;
 		
-		TakeWhileStream(FStream<T> src, Predicate<T> pred) {
+		TakeWhileStream(FStream<T> src, Predicate<? super T> pred) {
 			Preconditions.checkNotNull(pred);
 			
 			m_src = src;
@@ -108,9 +107,9 @@ public class FStreams {
 
 	static class DropWhileStream<T,S> implements FStream<T> {
 		private final FStream<T> m_src;
-		private Predicate<T> m_pred;
+		private Predicate<? super T> m_pred;
 		
-		DropWhileStream(FStream<T> src, Predicate<T> pred) {
+		DropWhileStream(FStream<T> src, Predicate<? super T> pred) {
 			Preconditions.checkNotNull(pred);
 			
 			m_src = src;
@@ -226,10 +225,10 @@ public class FStreams {
 	}
 	
 	static class UnfoldStream<T,S> implements FStream<T> {
-		private final Function<? super S,Tuple2<Option<T>,S>> m_gen;
+		private final Function<? super S,Option<Tuple2<T,S>>> m_gen;
 		private S m_seed;
 		
-		UnfoldStream(S init, Function<? super S,Tuple2<Option<T>,S>> gen) {
+		UnfoldStream(S init, Function<? super S,Option<Tuple2<T,S>>> gen) {
 			m_seed = init;
 			m_gen = gen;
 		}
@@ -241,13 +240,12 @@ public class FStreams {
 			}
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public Option<T> next() {
 			return m_gen.apply(m_seed)
-						.apply((opt,seed) -> {
-							m_seed = seed;
-							return opt;
-						});
+						.peek(t -> m_seed = t._2)
+						.map(t -> t._1);
 		}
 	}
 }

@@ -82,7 +82,7 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public static <S,T> FStream<T> unfold(S init,
-									Function<? super S,Tuple2<Option<T>,S>> generator) {
+									Function<? super S,Option<Tuple2<T,S>>> generator) {
 		Preconditions.checkArgument(init != null, "init is null");
 		Preconditions.checkArgument(generator != null, "generator is null");
 		
@@ -110,10 +110,10 @@ public interface FStream<T> extends AutoCloseable {
 		return new FStreams.DroppedStream<>(this, count);
 	}
 
-	public default FStream<T> takeWhile(Predicate<T> pred) {
+	public default FStream<T> takeWhile(Predicate<? super T> pred) {
 		return new FStreams.TakeWhileStream<>(this, pred);
 	}
-	public default FStream<T> dropWhile(Predicate<T> pred) {
+	public default FStream<T> dropWhile(Predicate<? super T> pred) {
 		return new FStreams.DropWhileStream<>(this, pred);
 	}
 	

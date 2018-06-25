@@ -1,12 +1,12 @@
 package utils.stream;
 
-import java.util.function.Supplier;
-
 import com.google.common.base.Preconditions;
 
 import io.vavr.CheckedRunnable;
 import io.vavr.control.Option;
 import utils.Throwables;
+import utils.func.OptionSupplier;
+
 
 /**
  * 
@@ -14,18 +14,18 @@ import utils.Throwables;
  */
 public class FStreamImpl<T> implements FStream<T> {
 	private final String m_name;
-	private final Supplier<Option<? extends T>> m_supplier;
+	private final OptionSupplier<? extends T> m_supplier;
 	private final CheckedRunnable m_closer;
 	private boolean m_closed = false;
 	
-	public FStreamImpl(String name, Supplier<Option<? extends T>> nextSupplier,
+	public FStreamImpl(String name, OptionSupplier<? extends T> nextSupplier,
 						CheckedRunnable closer) {
 		m_name = name;
 		m_supplier = nextSupplier;
 		m_closer = closer;
 	}
 	
-	public FStreamImpl(String name, Supplier<Option<? extends T>> nextSupplier) {
+	public FStreamImpl(String name, OptionSupplier<? extends T> nextSupplier) {
 		this(name, nextSupplier, null);
 	}
 
