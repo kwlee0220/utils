@@ -56,6 +56,11 @@ public class KeyValue<K,V> {
 //	}
 	
 	@Override
+	public String toString() {
+		return "" + m_key + "=" + m_value;
+	}
+	
+	@Override
 	public int hashCode() {
 		return Objects.hash(m_key, m_value);
 	}

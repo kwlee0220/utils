@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -18,8 +19,8 @@ import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Ints;
 
 import io.reactivex.Observable;
 import io.vavr.CheckedConsumer;
@@ -29,6 +30,7 @@ import io.vavr.control.Option;
 import utils.Utilities;
 import utils.func.FLists;
 import utils.func.OptionSupplier;
+import utils.stream.FStreams.IntArrayStream;
 
 /**
  * 
@@ -45,8 +47,8 @@ public interface FStream<T> extends AutoCloseable {
 	public static <T> FStream<T> of(T... values) {
 		return of(Arrays.asList(values));
 	}
-	public static FStream<Integer> of(int... values) {
-		return of(Ints.asList(values));
+	public static IntFStream of(int... values) {
+		return new IntArrayStream(Arrays.stream(values).iterator());
 	}
 	
 	public static <T> FStream<T> of(Option<? extends T> opt) {
@@ -142,6 +144,36 @@ public interface FStream<T> extends AutoCloseable {
 		);
 	}
 	
+	public default IntFStream mapToInt(Function<? super T, Integer> mapper) {
+		Preconditions.checkNotNull(mapper);
+		
+		return new IntFStreamImpl(
+			"mapToInt",
+			() -> next().map(mapper),
+			() -> close()
+		);
+	}
+	
+	public default LongFStream mapToLong(Function<? super T, Long> mapper) {
+		Preconditions.checkNotNull(mapper);
+		
+		return new LongFStreamImpl(
+			"mapToLong",
+			() -> next().map(mapper),
+			() -> close()
+		);
+	}
+	
+	public default DoubleFStream mapToDouble(Function<? super T, Double> mapper) {
+		Preconditions.checkNotNull(mapper);
+		
+		return new DoubleFStreamImpl(
+			"mapToDouble",
+			() -> next().map(mapper),
+			() -> close()
+		);
+	}
+	
 	public default <V> FStream<V> cast(Class<? extends V> cls) {
 		Preconditions.checkNotNull(cls, "target class is null");
 		return map(cls::cast);
@@ -163,7 +195,7 @@ public interface FStream<T> extends AutoCloseable {
 		);
 	}
 	
-	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<V>> mapper) {
+	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<? extends V>> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return new FlatMappedStream<>(this, mapper);
@@ -285,14 +317,14 @@ public interface FStream<T> extends AutoCloseable {
 		return count;
 	}
 	
-	public default Option<T> find(Predicate<? super T> pred) {
+	public default boolean anyMatch(Predicate<? super T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
-		
-		Option<T> next;
+
 		Predicate<? super T> negated = pred.negate();
+		Option<T> next;
 		while ( (next = next()).filter(negated).isDefined() );
 		
-		return next;
+		return next.isDefined();
 	}
 	
 	public default Option<T> first() {
@@ -351,6 +383,17 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default HashSet<T> toHashSet() {
 		return toCollection(Sets.newHashSet());
+	}
+	
+	public default <K,V> Map<K,V> toMap(Map<K,V> map,
+										Function<? super T,? extends K> toKey,
+										Function<? super T,? extends V> toValue) {
+		return collectLeft(map, (m,kv) -> m.put(toKey.apply(kv), toValue.apply(kv)));
+	}
+	
+	public default <K,V> Map<K,V> toMap(Function<? super T,? extends K> toKey,
+										Function<? super T,? extends V> toValue) {
+		return toMap(Maps.newHashMap(), toKey, toValue);
 	}
 	
 	public default int[] toIntArray() {
@@ -482,12 +525,20 @@ public interface FStream<T> extends AutoCloseable {
 							(g,t) -> g.add(keySelector.apply(t), valueSelector.apply(t)));
 	}
 	
+	public default <K,V> KeyedGroups<K,V> groupByKeyValue(Function<? super T,KeyValue<K,V>> selector) {
+		return collectLeft(KeyedGroups.create(),
+							(g,t) -> {
+								KeyValue<K,V> kv = selector.apply(t);
+								g.add(kv.key(), kv.value());
+							});
+	}
+	
 	public default <K,V> KeyedGroups<K,V> multiGroupBy(Function<? super T,FStream<K>> keysSelector,
 													Function<? super T,FStream<V>> valuesSelector) {
 		return flatMap(t -> keysSelector.apply(t).map(k -> Tuple.of(k,t)))
 				.collectLeft(KeyedGroups.create(), (groups,t) -> {
 					valuesSelector.apply(t._2)
-									.forEach(v -> groups.add(t._1,v));
+								.forEach(v -> groups.add(t._1,v));
 				});
 	}
 	
@@ -614,7 +665,7 @@ public interface FStream<T> extends AutoCloseable {
 
 			if ( min != null ) {
 				int cmp = minKey.compareTo(key);
-				if ( cmp < 0 ) {
+				if ( cmp > 0 ) {
 					min = data;
 					minList.clear();
 					minList.add(data);
@@ -681,5 +732,9 @@ public interface FStream<T> extends AutoCloseable {
 		}
 		
 		return (next.isDefined() && subNext.isEmpty());
+	}
+	
+	public default FStream<T> distinct() {
+		return FStream.of(toCollection(Sets.newHashSet()));
 	}
 }

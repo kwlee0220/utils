@@ -13,11 +13,11 @@ import io.vavr.control.Option;
  */
 class FlatMappedStream<S,T> implements FStream<T> {
 	private final FStream<S> m_src;
-	private final Function<? super S,? extends FStream<T>> m_mapper;
+	private final Function<? super S,? extends FStream<? extends T>> m_mapper;
 	
-	private FStream<T> m_mapped = FStream.empty();
+	private FStream<? extends T> m_mapped = FStream.empty();
 	
-	FlatMappedStream(FStream<S> src, Function<? super S,? extends FStream<T>> mapper) {
+	FlatMappedStream(FStream<S> src, Function<? super S,? extends FStream<? extends T>> mapper) {
 		Preconditions.checkNotNull(src);
 		Preconditions.checkNotNull(mapper);
 		
@@ -30,6 +30,7 @@ class FlatMappedStream<S,T> implements FStream<T> {
 		m_src.close();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Option<T> next() {
 		if ( m_mapped == null ) {
@@ -38,7 +39,7 @@ class FlatMappedStream<S,T> implements FStream<T> {
 		
 		Option<T> onext;
 		while ( true ) {
-			if ( (onext = m_mapped.next()).isDefined() ) {
+			if ( (onext = (Option<T>)m_mapped.next()).isDefined() ) {
 				return onext;
 			}
 			

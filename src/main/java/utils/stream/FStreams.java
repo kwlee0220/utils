@@ -1,5 +1,6 @@
 package utils.stream;
 
+import java.util.Iterator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -240,12 +241,29 @@ public class FStreams {
 			}
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
 		public Option<T> next() {
 			return m_gen.apply(m_seed)
 						.peek(t -> m_seed = t._2)
 						.map(t -> t._1);
+		}
+	}
+	
+	static class IntArrayStream implements IntFStream {
+		private final Iterator<Integer> m_iter;
+		
+		IntArrayStream(Iterator<Integer> iter) {
+			Preconditions.checkNotNull(iter);
+			
+			m_iter = iter;
+		}
+
+		@Override
+		public void close() throws Exception { }
+
+		@Override
+		public Option<Integer> next() {
+			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
 		}
 	}
 }

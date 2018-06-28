@@ -16,26 +16,25 @@ public class FindTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<Integer> stream;
-		Option<Integer> ret;
+		boolean ret;
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
-		ret = stream.find(i -> i > 3);
-		Assert.assertEquals(true, ret.isDefined());
-		Assert.assertEquals(Integer.valueOf(4), ret.get());
+		ret = stream.anyMatch(i -> i > 3);
+		Assert.assertEquals(true, ret);
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
-		ret = stream.find(i -> i > 4);
-		Assert.assertEquals(true, ret.isEmpty());
+		ret = stream.anyMatch(i -> i > 4);
+		Assert.assertEquals(false, ret);
 	}
 
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> stream;
-		Option<Integer> ret;
+		boolean ret;
 		
 		stream = FStream.empty();
-		ret = stream.find(i -> i > 2);
-		Assert.assertEquals(true, ret.isEmpty());
+		ret = stream.anyMatch(i -> i > 2);
+		Assert.assertEquals(false, ret);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -43,17 +42,17 @@ public class FindTest {
 		FStream<Integer> stream;
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
-		stream.find(null);
+		stream.anyMatch(null);
 	}
 
 	@Test(expected=RuntimeException.class)
 	public void test5() throws Exception {
 		FStream<String> stream;
-		Option<String> ret;
+		boolean ret;
 		
 		RuntimeException error = new RuntimeException();
 		
 		stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
-		ret = stream.find(s -> {throw error;});
+		ret = stream.anyMatch(s -> {throw error;});
 	}
 }

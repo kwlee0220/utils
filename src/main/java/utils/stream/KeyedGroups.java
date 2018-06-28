@@ -42,6 +42,10 @@ public class KeyedGroups<K,V> {
 		m_groups = map;
 	}
 	
+	public int size() {
+		return m_groups.size();
+	}
+	
 	public Map<K,List<V>> asMap() {
 		return m_groups;
 	}
@@ -172,7 +176,7 @@ public class KeyedGroups<K,V> {
 		return m_groups.keySet();
 	}
 	
-	public Collection<List<V>> groups() {
+	public Collection<List<V>> values() {
 		return m_groups.values();
 	}
 	
