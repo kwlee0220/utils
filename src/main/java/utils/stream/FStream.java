@@ -144,6 +144,15 @@ public interface FStream<T> extends AutoCloseable {
 		);
 	}
 	
+	public default FStream<T> transformIf(boolean flag, Function<FStream<T>,FStream<T>> mapper) {
+		if ( flag ) {
+			return mapper.apply(this);
+		}
+		else {
+			return this;
+		}
+	}
+	
 	public default IntFStream mapToInt(Function<? super T, Integer> mapper) {
 		Preconditions.checkNotNull(mapper);
 		
