@@ -27,10 +27,11 @@ import io.vavr.CheckedConsumer;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
+import io.vavr.control.Try;
+import utils.Unchecked;
 import utils.Utilities;
 import utils.func.FLists;
 import utils.func.OptionSupplier;
-import utils.stream.FStreams.IntArrayStream;
 
 /**
  * 
@@ -46,9 +47,6 @@ public interface FStream<T> extends AutoCloseable {
 	@SafeVarargs
 	public static <T> FStream<T> of(T... values) {
 		return of(Arrays.asList(values));
-	}
-	public static IntFStream of(int... values) {
-		return new IntArrayStream(Arrays.stream(values).iterator());
 	}
 	
 	public static <T> FStream<T> of(Option<? extends T> opt) {
@@ -96,6 +94,10 @@ public interface FStream<T> extends AutoCloseable {
 		Preconditions.checkArgument(inc != null, "inc is null");
 		
 		return new FStreams.GeneratedStream<>(init, inc);
+	}
+	
+	public default Try<Void> closeQuietly() {
+		return Try.run(()->close());
 	}
 	
 	public static FStream<Integer> range(int start, int end) {
@@ -313,6 +315,7 @@ public interface FStream<T> extends AutoCloseable {
 		while ( (next = next()).isDefined() ) {
 			collect.accept(collector, next.get());
 		}
+		Unchecked.runRTE(this::close);
 		
 		return collector;
 	}
@@ -445,21 +448,21 @@ public interface FStream<T> extends AutoCloseable {
 		);
 	}
 	
-	@SuppressWarnings("unchecked")
-	public default <K,V> KVFStream<K,V> toKVFStream() {
-		return new KVFStreamImpl<>(
-				() -> next().map(t -> {
-					if ( !(t instanceof Tuple2) ) {
-						throw new IllegalStateException("source FStream is not a stream of Tuple2: "
-														+ t.getClass());
-					}
-					
-					Tuple2<K,V> tuple = (Tuple2<K,V>)t;
-					return new KeyValue<>(tuple._1, tuple._2);
-				}),
-				() -> close()
-			);
-	}
+//	@SuppressWarnings("unchecked")
+//	public default <K,V> KVFStream<K,V> toKVFStream() {
+//		return new KVFStreamImpl<>(
+//				() -> next().map(t -> {
+//					if ( !(t instanceof Tuple2) ) {
+//						throw new IllegalStateException("source FStream is not a stream of Tuple2: "
+//														+ t.getClass());
+//					}
+//					
+//					Tuple2<K,V> tuple = (Tuple2<K,V>)t;
+//					return new KeyValue<>(tuple._1, tuple._2);
+//				}),
+//				() -> close()
+//			);
+//	}
 	
 	public default OptionSupplier<T> toSupplier() {
 		return () -> next();

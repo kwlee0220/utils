@@ -1,5 +1,6 @@
 package utils.stream;
 
+import java.util.Arrays;
 import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
@@ -8,12 +9,17 @@ import com.google.common.primitives.Ints;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
+import utils.stream.FStreams.IntArrayStream;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public interface IntFStream extends FStream<Integer> {
+	public static IntFStream of(int... values) {
+		return new IntArrayStream(Arrays.stream(values).iterator());
+	}
+	
 	public default <T> FStream<T> mapToObj(Function<Integer,? extends T> mapper) {
 		Preconditions.checkNotNull(mapper);
 		

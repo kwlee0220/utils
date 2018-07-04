@@ -6,8 +6,6 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)

@@ -47,7 +47,9 @@ task sourceJar(type: Jar) {
 javadoc {
 	options.encoding = 'UTF-8'
 	options.links("https://docs.oracle.com/javase/8/docs/api/")
-	options.links("http://www.javadoc.io/doc/io.vavr/vavr/0.9.2")
+	options.links("https://google.github.io/guava/releases/23.0/api/docs/")
+	options.links("http://reactivex.io/RxJava/javadoc/")
+//	options.links("http://www.javadoc.io/doc/io.vavr/vavr/0.9.2")
 }
 task javadocJar(type: Jar) {
 	classifier 'javadoc'
@@ -75,6 +77,18 @@ eclipse {
 				def node = it.asNode()
 				node.appendNode('classpathentry', [kind: 'output', path: 'classes'])
 			}
+		}
+	}
+}
+
+apply plugin: 'maven-publish'
+publishing {
+	publications {
+		utils(MavenPublication) {
+			from components.java
+			artifactId 'utils'
+			
+			artifact javadocJar
 		}
 	}
 }

@@ -1,5 +1,6 @@
 package utils.stream;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -11,6 +12,7 @@ import java.util.function.Predicate;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
+import io.vavr.Tuple2;
 import io.vavr.control.Option;
 
 
@@ -20,6 +22,20 @@ import io.vavr.control.Option;
  */
 public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	public Option<KeyValue<K,V>> next();
+	
+	public static <K,V> KVFStream<K,V> fromKeyValueFStream(FStream<KeyValue<K,V>> stream) {
+		return new KVFStreamImpl<>(
+			() -> stream.next(),
+			() -> stream.close()
+		);
+	}
+	
+	public static <K,V> KVFStream<K,V> fromTupleFStream(FStream<Tuple2<K,V>> stream) {
+		return new KVFStreamImpl<>(
+			() -> stream.next().map(t -> KeyValue.of(t._1, t._2)),
+			() -> stream.close()
+		);
+	}
 	
 	public static <K,V> KVFStream<K,V> of(Map<? extends K, ? extends V> map) {
 		Preconditions.checkNotNull(map);
@@ -126,6 +142,18 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	
 	public default KeyedGroups<K,V> groupBy() {
 		return foldLeft(KeyedGroups.create(), (groups,kv) -> groups.add(kv.key(), kv.value()));
+	}
+	
+	public default KVFStream<K,V> sortByKey() {
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		FStream<KeyValue<K,V>> sorted = sort((kv1,kv2) -> ((Comparable)kv1.key()).compareTo(kv2.key()));
+		return fromKeyValueFStream(sorted);
+	}
+	
+	public default KVFStream<K,V> sortByKey(Comparator<? super K> cmp) {
+		FStream<KeyValue<K,V>> sorted = sort((kv1,kv2) -> cmp.compare(kv1.key(), kv2.key()));
+		return fromKeyValueFStream(sorted);
+		
 	}
 	
 	public default FStream<K> toKeyStream() {
