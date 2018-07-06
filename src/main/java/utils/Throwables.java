@@ -52,10 +52,6 @@ public class Throwables {
 		}
 	}
 	
-	public static RuntimeException throwAsRuntimeException(Throwable e) {
-		throw toRuntimeException(e);
-	}
-	
 	public static <T extends Throwable> void throwIfInstanceOf(Throwable e,
 															Class<T> thrCls) throws T {
 		if ( thrCls.isInstance(e) ) {

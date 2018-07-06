@@ -25,6 +25,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	
 	public static <K,V> KVFStream<K,V> fromKeyValueFStream(FStream<KeyValue<K,V>> stream) {
 		return new KVFStreamImpl<>(
+			"fromKeyValueFStream",
 			() -> stream.next(),
 			() -> stream.close()
 		);
@@ -32,6 +33,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	
 	public static <K,V> KVFStream<K,V> fromTupleFStream(FStream<Tuple2<K,V>> stream) {
 		return new KVFStreamImpl<>(
+			"fromTupleFStream",
 			() -> stream.next().map(t -> KeyValue.of(t._1, t._2)),
 			() -> stream.close()
 		);
@@ -42,6 +44,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		
 		Iterator<? extends Entry<? extends K, ? extends V>> iter = map.entrySet().iterator();
 		return new KVFStreamImpl<>(
+			"ofMap",
 			() -> {
 				if ( iter.hasNext() ) {
 					Map.Entry<? extends K,? extends V> entry = iter.next();
@@ -58,7 +61,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkNotNull(pred);
 
 		Predicate<? super K> negated = pred.negate();
-		return new KVFStreamImpl<>(() -> {
+		return new KVFStreamImpl<>("filterKey", () -> {
 			Option<KeyValue<K,V>> next;
 			while ( (next = next()).filter(kv -> negated.test(kv.key())).isDefined() );
 			return next;
@@ -70,7 +73,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 
 		Predicate<? super V> negated = pred.negate();
 		next();
-		return new KVFStreamImpl<>(() -> {
+		return new KVFStreamImpl<>("filterValue", () -> {
 			Option<KeyValue<K,V>> next;
 			while ( (next = next()).filter(kv -> negated.test(kv.value())).isDefined() );
 			return next;
@@ -92,6 +95,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return new KVFStreamImpl<>(
+			"mapKey",
 			() -> next().map(kv -> kv.mapKey(mapper)),
 			() -> close()
 		);
@@ -101,6 +105,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return new KVFStreamImpl<>(
+			"mapValue",
 			() -> next().map(kv -> kv.mapValue(mapper)),
 			() -> close()
 		);
@@ -110,6 +115,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return new KVFStreamImpl<>(
+			"mapValue",
 			() -> next().map(kv -> kv.mapValue(mapper)),
 			() -> close()
 		);

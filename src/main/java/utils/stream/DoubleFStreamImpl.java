@@ -38,7 +38,7 @@ public class DoubleFStreamImpl implements DoubleFStream {
 			}
 			catch ( Throwable e ) {
 				Throwables.throwIfInstanceOf(e, Exception.class);
-				Throwables.throwAsRuntimeException(e);
+				throw Throwables.toRuntimeException(e);
 			}
 		}
 	}

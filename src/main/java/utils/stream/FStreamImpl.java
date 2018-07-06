@@ -37,7 +37,7 @@ public class FStreamImpl<T> implements FStream<T> {
 			}
 			catch ( Throwable e ) {
 				Throwables.throwIfInstanceOf(e, Exception.class);
-				Throwables.throwAsRuntimeException(e);
+				throw Throwables.toRuntimeException(e);
 			}
 		}
 	}

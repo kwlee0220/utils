@@ -14,28 +14,31 @@ import utils.Throwables;
  * @author Kang-Woo Lee (ETRI)
  */
 class KVFStreamImpl<K,V> implements KVFStream<K,V> {
+	private final String m_name;
 	private final Supplier<Option<KeyValue<K,V>>> m_supplier;
 	private final CheckedRunnable m_closer;
+	private boolean m_closed = false;
 	
-	KVFStreamImpl(Supplier<Option<KeyValue<K,V>>> supplier, CheckedRunnable closer) {
+	KVFStreamImpl(String name, Supplier<Option<KeyValue<K,V>>> supplier, CheckedRunnable closer) {
 		Preconditions.checkNotNull(supplier);
 		
+		m_name = name;
 		m_supplier = supplier;
 		m_closer = closer;
 	}
 	
-	KVFStreamImpl(Supplier<Option<KeyValue<K,V>>> supplier) {
-		this(supplier, null);
+	KVFStreamImpl(String name, Supplier<Option<KeyValue<K,V>>> supplier) {
+		this(name, supplier, null);
 	}
 	
 	public void close() throws Exception {
-		if ( m_closer != null) {
+		if ( !m_closed && m_closer != null ) {
 			try {
 				m_closer.run();
 			}
 			catch ( Throwable e ) {
 				Throwables.throwIfInstanceOf(e, Exception.class);
-				Throwables.throwAsRuntimeException(e);
+				throw Throwables.toRuntimeException(e);
 			}
 		}
 	}
@@ -43,5 +46,10 @@ class KVFStreamImpl<K,V> implements KVFStream<K,V> {
 	@Override
 	public Option<KeyValue<K,V>> next() {
 		return m_supplier.get();
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("%s%s", m_name, m_closed ? "(closed)" : "");
 	}
 }

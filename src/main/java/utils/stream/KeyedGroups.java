@@ -138,7 +138,7 @@ public class KeyedGroups<K,V> {
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public KVFStream<K,V> ungroup() {
-		return new KVFStreamImpl(() -> fstream().flatMap(this::ungroup).toSupplier());
+		return new KVFStreamImpl("ungrouped", () -> fstream().flatMap(this::ungroup).toSupplier());
 	}
 	
 	public <K2> KeyedGroups<K2,V> mapKey(BiFunction<? super K,List<V>,? extends K2> mapper) {
@@ -190,7 +190,7 @@ public class KeyedGroups<K,V> {
 		Supplier<Option<KeyValue<K,V>>> supplier = FStream.of(group.value())
 														.map(v -> new KeyValue<>(group.key(),v))
 														.toSupplier();
-		return new KVFStreamImpl(() -> supplier);
+		return new KVFStreamImpl("ungrouped", () -> supplier);
 	}
 	
 	private static class FoldedStream<K,V,A> implements KVFStream<K,A> {

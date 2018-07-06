@@ -435,6 +435,7 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default <K> KVFStream<K,T> toKVFStream(Function<? super T,? extends K> keyGen) {
 		return new KVFStreamImpl<>(
+			"toKVFStream",
 			() -> next().map(t -> new KeyValue<>(keyGen.apply(t), t)),
 			() -> close()
 		);
@@ -443,6 +444,7 @@ public interface FStream<T> extends AutoCloseable {
 	public default <K,V> KVFStream<K,V> toKVFStream(Function<? super T,? extends K> keyGen,
 													Function<? super T,? extends V> valueGen) {
 		return new KVFStreamImpl<>(
+			"toKVFStream",
 			() -> next().map(t -> KeyValue.of(keyGen.apply(t), valueGen.apply(t))),
 			() -> close()
 		);
@@ -525,6 +527,41 @@ public interface FStream<T> extends AutoCloseable {
 			}
 			catch ( Throwable ignored ) { }
 		}
+	}
+	
+	public default <K> KVFStream<K,T> reduceByKey(Function<? super T,? extends K> keyer,
+												BiFunction<? super T,? super T,? extends T> reducer) {
+		Map<K,T> accums = Maps.newHashMap();
+		
+		Option<T> ovalue;
+		while ( (ovalue = next()).isDefined() ) {
+			T value = ovalue.get();
+			K key = keyer.apply(value);
+			accums.compute(key, (k,old) -> (old != null) ? reducer.apply(old, value) : value);
+		}
+		
+		return KVFStream.of(accums);
+	}
+	
+	public default <K,S> KVFStream<K,S> foldLeftByKey(Function<? super T,? extends K> keyer,
+													Function<? super K,? extends S> accumInitializer,
+													BiFunction<? super S,? super T,? extends S> folder) {
+		Map<K,S> accums = Maps.newHashMap();
+		
+		Option<T> ovalue;
+		while ( (ovalue = next()).isDefined() ) {
+			T value = ovalue.get();
+			K key = keyer.apply(value);
+					
+			accums.compute(key, (k,accum) -> {
+				if ( accum == null ) {
+					accum = accumInitializer.apply(k);
+				}
+				return folder.apply(accum, value);
+			});
+		}
+		
+		return KVFStream.of(accums);
 	}
 	
 	public default <K> KeyedGroups<K,T> groupBy(Function<? super T,? extends K> keyer) {
