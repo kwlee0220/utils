@@ -45,6 +45,18 @@ public class UnitUtils {
 	    	throw new IllegalArgumentException("unit not specified: str=" + lengthStr);
 	    }
 	}
+	
+	public static String toMeterString(double length) {
+		if ( length < 1 ) {
+			return String.format("%.1fm", length);
+		}
+		if ( length < 1000 ) {
+			return String.format("%.0fm", length);
+		}
+		
+		length = length / 1000;	// km
+		return String.format("%.0fkm", length);
+	}
 
 	public static long parseByteSize(String szStr) {
 		szStr = szStr.toLowerCase();
