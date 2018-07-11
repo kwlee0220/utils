@@ -425,8 +425,8 @@ public interface FStream<T> extends AutoCloseable {
 		return list.toArray(array);
 	}
 	
-	public default Option<Tuple2<T,FStream<T>>> peekFirst() {
-		return next().map(head -> Tuple.of(head, concat(of(head), this)));
+	public default PeekableFStream<T> toPeekable() {
+		return new PeekableFStream<>(this);
 	}
 	
 	public default FStream<List<T>> buffer(int count, int skip) {
