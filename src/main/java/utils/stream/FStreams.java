@@ -156,36 +156,6 @@ public class FStreams {
 		}
 	}
 	
-	static class RangedStream implements FStream<Integer> {
-		private int m_next;
-		private final int m_end;
-		private boolean m_closed;
-		
-		RangedStream(int start, int end, boolean closed) {
-			Preconditions.checkArgument(start <= end,
-										String.format("invalid range: start=%d end=%d", start, end));	
-			
-			m_next = start;
-			m_end = end;
-			m_closed = closed;
-		}
-
-		@Override
-		public void close() throws Exception { }
-
-		@Override
-		public Option<Integer> next() {
-			if ( m_next < m_end ) {
-				return Option.some(m_next++);
-			}
-			else if ( m_next == m_end && m_closed ) {
-				return Option.some(m_next++);
-			}
-			
-			return Option.none();
-		}
-	}
-	
 	static class AppendedStream<T,S> implements FStream<T> {
 		private final FStream<? extends T> m_first;
 		private final FStream<? extends T> m_second;

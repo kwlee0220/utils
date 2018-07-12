@@ -100,11 +100,11 @@ public interface FStream<T> extends AutoCloseable {
 		return Try.run(()->close());
 	}
 	
-	public static FStream<Integer> range(int start, int end) {
-		return new FStreams.RangedStream(start, end, false);
+	public static IntFStream range(int start, int end) {
+		return new IntFStream.RangedStream(start, end, false);
 	}
-	public static FStream<Integer> rangeClosed(int start, int end) {
-		return new FStreams.RangedStream(start, end, true);
+	public static IntFStream rangeClosed(int start, int end) {
+		return new IntFStream.RangedStream(start, end, true);
 	}
 	
 	public default FStream<T> take(long count) {

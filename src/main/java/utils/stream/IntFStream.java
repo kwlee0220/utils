@@ -44,4 +44,34 @@ public interface IntFStream extends FStream<Integer> {
 	public default int[] toArray() {
 		return Ints.toArray(toList());
 	}
+	
+	static class RangedStream implements IntFStream {
+		private int m_next;
+		private final int m_end;
+		private boolean m_closed;
+		
+		RangedStream(int start, int end, boolean closed) {
+			Preconditions.checkArgument(start <= end,
+										String.format("invalid range: start=%d end=%d", start, end));	
+			
+			m_next = start;
+			m_end = end;
+			m_closed = closed;
+		}
+
+		@Override
+		public void close() throws Exception { }
+
+		@Override
+		public Option<Integer> next() {
+			if ( m_next < m_end ) {
+				return Option.some(m_next++);
+			}
+			else if ( m_next == m_end && m_closed ) {
+				return Option.some(m_next++);
+			}
+			
+			return Option.none();
+		}
+	}
 }
