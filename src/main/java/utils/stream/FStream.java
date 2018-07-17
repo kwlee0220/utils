@@ -44,6 +44,18 @@ public interface FStream<T> extends AutoCloseable {
 		return new FStreamImpl<>("empty", Option::none);
 	}
 	
+	public static IntFStream of(int[] values) {
+		return IntFStream.of(values);
+	}
+	
+	public static LongFStream of(long[] values) {
+		return LongFStream.of(values);
+	}
+	
+	public static DoubleFStream of(double[] values) {
+		return DoubleFStream.of(values);
+	}
+	
 	@SafeVarargs
 	public static <T> FStream<T> of(T... values) {
 		return of(Arrays.asList(values));

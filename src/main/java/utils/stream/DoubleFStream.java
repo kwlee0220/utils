@@ -1,5 +1,7 @@
 package utils.stream;
 
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
@@ -14,6 +16,10 @@ import io.vavr.control.Option;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface DoubleFStream extends FStream<Double> {
+	public static DoubleFStream of(double... values) {
+		return new DoubleArrayStream(Arrays.stream(values).iterator());
+	}
+	
 	public default <T> FStream<T> mapToObj(Function<Double,? extends T> mapper) {
 		Preconditions.checkNotNull(mapper);
 		
@@ -37,5 +43,23 @@ public interface DoubleFStream extends FStream<Double> {
 	
 	public default double[] toArray() {
 		return Doubles.toArray(toList());
+	}
+	
+	static class DoubleArrayStream implements DoubleFStream {
+		private final Iterator<Double> m_iter;
+		
+		DoubleArrayStream(Iterator<Double> iter) {
+			Preconditions.checkNotNull(iter);
+			
+			m_iter = iter;
+		}
+
+		@Override
+		public void close() throws Exception { }
+
+		@Override
+		public Option<Double> next() {
+			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
+		}
 	}
 }

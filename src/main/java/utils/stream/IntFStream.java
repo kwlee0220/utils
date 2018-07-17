@@ -1,6 +1,7 @@
 package utils.stream;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
@@ -9,7 +10,6 @@ import com.google.common.primitives.Ints;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
-import utils.stream.FStreams.IntArrayStream;
 
 /**
  * 
@@ -24,7 +24,7 @@ public interface IntFStream extends FStream<Integer> {
 		Preconditions.checkNotNull(mapper);
 		
 		return new FStreamImpl<>(
-			"LongFStream::mapToObj",
+			"IntFStream::mapToObj",
 			() -> next().map(mapper),
 			() -> close()
 		);
@@ -43,6 +43,24 @@ public interface IntFStream extends FStream<Integer> {
 	
 	public default int[] toArray() {
 		return Ints.toArray(toList());
+	}
+	
+	static class IntArrayStream implements IntFStream {
+		private final Iterator<Integer> m_iter;
+		
+		IntArrayStream(Iterator<Integer> iter) {
+			Preconditions.checkNotNull(iter);
+			
+			m_iter = iter;
+		}
+
+		@Override
+		public void close() throws Exception { }
+
+		@Override
+		public Option<Integer> next() {
+			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
+		}
 	}
 	
 	static class RangedStream implements IntFStream {

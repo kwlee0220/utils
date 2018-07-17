@@ -1,5 +1,7 @@
 package utils.stream;
 
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
@@ -14,6 +16,10 @@ import io.vavr.control.Option;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface LongFStream extends FStream<Long> {
+	public static LongFStream of(long... values) {
+		return new LongArrayStream(Arrays.stream(values).iterator());
+	}
+	
 	public default <T> FStream<T> mapToObj(Function<Long,? extends T> mapper) {
 		Preconditions.checkNotNull(mapper);
 		
@@ -37,5 +43,23 @@ public interface LongFStream extends FStream<Long> {
 	
 	public default long[] toArray() {
 		return Longs.toArray(toList());
+	}
+	
+	static class LongArrayStream implements LongFStream {
+		private final Iterator<Long> m_iter;
+		
+		LongArrayStream(Iterator<Long> iter) {
+			Preconditions.checkNotNull(iter);
+			
+			m_iter = iter;
+		}
+
+		@Override
+		public void close() throws Exception { }
+
+		@Override
+		public Option<Long> next() {
+			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
+		}
 	}
 }
