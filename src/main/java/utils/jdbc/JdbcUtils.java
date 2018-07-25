@@ -14,6 +14,7 @@ import utils.CallHandler;
 import utils.ProxyUtils;
 import utils.Utilities;
 import utils.io.IOUtils;
+import utils.stream.FStream;
 
 /**
  * 
@@ -50,6 +51,11 @@ public class JdbcUtils {
 	
 	public static Stream<ResultSet> stream(ResultSet rs) throws SQLException {
 		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
+	}
+
+	public static <T> FStream<T> fstream(ResultSet rs, Function<ResultSet,T> trans)
+		throws SQLException {
+		return FStream.of(new JdbcObjectIterator<T>(rs, trans));
 	}
 
 	public static <T> Stream<T> stream(ResultSet rs, Function<ResultSet,T> trans)
