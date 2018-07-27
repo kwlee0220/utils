@@ -84,4 +84,9 @@ public class StopWatch {
 	public String getElapsedSecondString() {
 		return UnitUtils.toSecondString(getElapsedInMillis());
 	}
+	
+	@Override
+	public String toString() {
+		return getElapsedSecondString();
+	}
 }
