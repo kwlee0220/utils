@@ -7,13 +7,28 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class StopWatch {
 	private long m_started;
 	private long m_finished;
-	private final AtomicBoolean m_working = new AtomicBoolean(false);
+	private final AtomicBoolean m_working;
+	
+	public static StopWatch create() {
+		return new StopWatch();
+	}
 	
 	public static StopWatch start() {
-		StopWatch watch = new StopWatch();
-		watch.m_started = System.currentTimeMillis();
-		watch.m_working.set(true);
+		StopWatch watch = create();
+		watch.restart();
 		return watch;
+	}
+	
+	public static StopWatch start(long startMillis) {
+		StopWatch watch = create();
+		watch.m_started = startMillis;
+		watch.m_working.set(true);
+		
+		return watch;
+	}
+	
+	private StopWatch() {
+		m_working = new AtomicBoolean(false);
 	}
 	
 	public boolean isWorking() {
