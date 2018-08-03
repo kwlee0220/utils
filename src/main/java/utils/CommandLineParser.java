@@ -25,18 +25,10 @@ public class CommandLineParser {
 		m_msgPrefix = msgPrefix;
 	}
 	
-	public CommandLine parseArgs(String[] args) {
-	    try {
-	    	BasicParser parser = new BasicParser();
-		    return new CommandLine(m_msgPrefix, m_argNames, m_options,
-		    							parser.parse(m_options, args, m_stopAtNonOption));
-	    }
-	    catch ( ParseException e ) {
-	        System.err.println(e);
-	        exitWithUsage(-1);
-	    }
-	    
-	    throw new RuntimeException();
+	public CommandLine parseArgs(String[] args) throws ParseException {
+    	BasicParser parser = new BasicParser();
+	    return new CommandLine(m_msgPrefix, m_argNames, m_options,
+	    							parser.parse(m_options, args, m_stopAtNonOption));
 	}
 	
 	public CommandLineParser stopAtNonOption(boolean flag) {

@@ -40,11 +40,11 @@ public class CommandLine {
 	public String getArgument(int index) {
 		String[] args = m_cl.getArgs();
 		if ( index < 0 || index >= m_argNames.size() ) {
-			throw new IllegalArgumentException("invalid argument index=" + index);
+			throw new CommandLineException("invalid argument index=" + index);
 		}
 		
 		if ( index >= args.length ) {
-			throw new IllegalArgumentException(String.format("undefined argument: '%s'",
+			throw new CommandLineException(String.format("undefined argument: '%s'",
 															m_argNames.get(index)));
 		}
 		
@@ -54,12 +54,12 @@ public class CommandLine {
 	public String getArgument(String name) {
 		int idx = m_argNames.indexOf(name);
 		if ( idx < 0 ) {
-			throw new IllegalArgumentException("unknown argument: name=" + name);
+			throw new CommandLineException("unknown argument: name=" + name);
 		}
 		
 		String[] args = m_cl.getArgs();
 		if ( idx >= args.length ) {
-			throw new IllegalArgumentException(String.format("undefined argument: '%s'",
+			throw new CommandLineException(String.format("undefined argument: '%s'",
 															m_argNames.get(idx)));
 		}
 		
@@ -69,7 +69,7 @@ public class CommandLine {
     public String getString(String optId) {
     	String value = m_cl.getOptionValue(optId);
     	if ( value == null ) {
-    		throw new IllegalArgumentException("option[" + optId + "] is not given");
+    		throw new CommandLineException("option[" + optId + "] is not given");
     	}
     	
     	return value;
