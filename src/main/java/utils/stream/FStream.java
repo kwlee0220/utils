@@ -31,7 +31,7 @@ import io.vavr.control.Try;
 import utils.Unchecked;
 import utils.Utilities;
 import utils.func.FLists;
-import utils.func.OptionSupplier;
+import utils.func.MultipleSupplier;
 
 /**
  * 
@@ -81,7 +81,7 @@ public interface FStream<T> extends AutoCloseable {
 								() -> iter.hasNext() ? Option.some(iter.next()) : Option.none());
 	}
 	
-	public static <T> FStream<T> of(OptionSupplier<? extends T> supplier) {
+	public static <T> FStream<T> of(MultipleSupplier<? extends T> supplier) {
 		Preconditions.checkNotNull(supplier);
 		
 		return of(Utilities.toIterator(supplier));
@@ -478,7 +478,7 @@ public interface FStream<T> extends AutoCloseable {
 //			);
 //	}
 	
-	public default OptionSupplier<T> toSupplier() {
+	public default MultipleSupplier<T> toSupplier() {
 		return () -> next();
 	}
 	

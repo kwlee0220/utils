@@ -31,7 +31,7 @@ import com.google.common.collect.Sets;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
-import utils.func.OptionSupplier;
+import utils.func.MultipleSupplier;
 
 /**
  *
@@ -444,10 +444,10 @@ public class Utilities {
 		return () -> iter;
 	}
 	
-	public static <T> OptionSupplier<T> toSupplier(Iterator<? extends T> iter) {
+	public static <T> MultipleSupplier<T> toSupplier(Iterator<? extends T> iter) {
 		return new IteratorSupplier<>(iter);
 	}
-	private static class IteratorSupplier<T> implements OptionSupplier<T> {
+	private static class IteratorSupplier<T> implements MultipleSupplier<T> {
 		private final Iterator<? extends T> m_iter;
 		
 		private IteratorSupplier(Iterator<? extends T> iter) {
@@ -460,14 +460,14 @@ public class Utilities {
 		}
 	}
 	
-	public static <T> Iterator<T> toIterator(OptionSupplier<? extends T> supplier) {
+	public static <T> Iterator<T> toIterator(MultipleSupplier<? extends T> supplier) {
 		return new SupplyingIterator<>(supplier);
 	}
 	private static class SupplyingIterator<T> implements Iterator<T> {
-		private final OptionSupplier<? extends T> m_supplier;
+		private final MultipleSupplier<? extends T> m_supplier;
 		private T m_next;
 		
-		private SupplyingIterator(OptionSupplier<? extends T> supplier) {
+		private SupplyingIterator(MultipleSupplier<? extends T> supplier) {
 			m_supplier = supplier;
 			m_next = m_supplier.get().getOrNull();
 		}
