@@ -2,10 +2,9 @@ package utils.jdbc;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.Spliterators;
 import java.util.function.Consumer;
-
-import com.google.common.base.Preconditions;
 
 import io.vavr.control.Try;
 import utils.io.IOUtils;

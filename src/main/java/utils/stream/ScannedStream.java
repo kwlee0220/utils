@@ -1,8 +1,7 @@
 package utils.stream;
 
+import java.util.Objects;
 import java.util.function.BinaryOperator;
-
-import com.google.common.base.Preconditions;
 
 import io.vavr.control.Option;
 

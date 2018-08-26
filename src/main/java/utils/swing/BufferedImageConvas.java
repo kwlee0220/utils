@@ -14,10 +14,9 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
+import java.util.Objects;
 
 import javax.annotation.Nonnull;
-
-import com.google.common.base.Preconditions;
 
 import net.jcip.annotations.GuardedBy;
 

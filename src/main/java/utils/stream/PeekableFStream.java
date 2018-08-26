@@ -1,6 +1,6 @@
 package utils.stream;
 
-import com.google.common.base.Preconditions;
+import java.util.Objects;
 
 import io.vavr.control.Option;
 

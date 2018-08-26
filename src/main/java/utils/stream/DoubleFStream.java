@@ -2,9 +2,9 @@ package utils.stream;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.function.Function;
 
-import com.google.common.base.Preconditions;
 import com.google.common.primitives.Doubles;
 
 import io.vavr.Tuple;
