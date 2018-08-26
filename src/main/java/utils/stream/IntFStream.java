@@ -21,7 +21,7 @@ public interface IntFStream extends FStream<Integer> {
 	}
 	
 	public default <T> FStream<T> mapToObj(Function<Integer,? extends T> mapper) {
-		Preconditions.checkNotNull(mapper);
+		Objects.requireNonNull(mapper);
 		
 		return new FStreamImpl<>(
 			"IntFStream::mapToObj",
@@ -49,7 +49,7 @@ public interface IntFStream extends FStream<Integer> {
 		private final Iterator<Integer> m_iter;
 		
 		IntArrayStream(Iterator<Integer> iter) {
-			Preconditions.checkNotNull(iter);
+			Objects.requireNonNull(iter);
 			
 			m_iter = iter;
 		}

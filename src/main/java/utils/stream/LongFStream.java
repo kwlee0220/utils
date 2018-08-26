@@ -21,7 +21,7 @@ public interface LongFStream extends FStream<Long> {
 	}
 	
 	public default <T> FStream<T> mapToObj(Function<Long,? extends T> mapper) {
-		Preconditions.checkNotNull(mapper);
+		Objects.requireNonNull(mapper);
 		
 		return new FStreamImpl<>(
 			"LongFStream::mapToObj",
@@ -49,7 +49,7 @@ public interface LongFStream extends FStream<Long> {
 		private final Iterator<Long> m_iter;
 		
 		LongArrayStream(Iterator<Long> iter) {
-			Preconditions.checkNotNull(iter);
+			Objects.requireNonNull(iter);
 			
 			m_iter = iter;
 		}

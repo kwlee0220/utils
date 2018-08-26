@@ -60,7 +60,7 @@ public final class Point2f implements Comparable<Point2f> {
 
 	@Override
 	public int compareTo(Point2f o) {
-		Preconditions.checkNotNull(o);
+		Objects.requireNonNull(o);
 		
 		int cmp = Float.compare(m_x, o.m_x);
 		if ( cmp != 0 ) {

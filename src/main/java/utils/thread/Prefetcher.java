@@ -60,7 +60,7 @@ public class Prefetcher<T> implements LoggerSettable {
      */
 	public Prefetcher(Callable<T> fetcher, long validityTimeout, boolean reuse,
 						@Nullable Executor executor) {
-		Preconditions.checkNotNull(fetcher, "fetcher is null");
+		Objects.requireNonNull(fetcher, "fetcher is null");
 		Preconditions.checkArgument(validityTimeout > 0,
 									"validityTimeout was invalid: value=" + validityTimeout
 									+ ",  class=" + getClass().getName());
@@ -93,7 +93,7 @@ public class Prefetcher<T> implements LoggerSettable {
 
 	@Override
 	public void setLogger(Logger logger) {
-		Preconditions.checkNotNull(logger);
+		Objects.requireNonNull(logger);
 		
 		m_logger = logger;
 	}

@@ -35,7 +35,7 @@ class ResultSetSpliterator extends Spliterators.AbstractSpliterator<ResultSet>
 
 	@Override
 	public boolean tryAdvance(Consumer<? super ResultSet> consumer) {
-		Preconditions.checkNotNull(consumer, "Consumer is null");
+		Objects.requireNonNull(consumer, "Consumer is null");
 		
 		if ( m_rs == null ) {
 			return false;

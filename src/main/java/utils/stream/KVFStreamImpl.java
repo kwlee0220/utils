@@ -20,7 +20,7 @@ class KVFStreamImpl<K,V> implements KVFStream<K,V> {
 	private boolean m_closed = false;
 	
 	KVFStreamImpl(String name, Supplier<Option<KeyValue<K,V>>> supplier, CheckedRunnable closer) {
-		Preconditions.checkNotNull(supplier);
+		Objects.requireNonNull(supplier);
 		
 		m_name = name;
 		m_supplier = supplier;

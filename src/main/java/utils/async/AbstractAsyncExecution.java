@@ -455,7 +455,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	}
 	
 	protected void start(CheckedRunnable starter) {
-		Preconditions.checkNotNull(starter, "starter is null");
+		Objects.requireNonNull(starter, "starter is null");
 		
 		m_aopLock.lock();
 		try {
@@ -489,7 +489,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	}
 	
 	protected void cancel(CheckedRunnable canceller) throws IllegalStateException {
-		Preconditions.checkNotNull(canceller, "canceller is null");
+		Objects.requireNonNull(canceller, "canceller is null");
 		
 		m_aopLock.lock();
 		try {

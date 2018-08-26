@@ -62,33 +62,33 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public static <T> FStream<T> of(Option<? extends T> opt) {
-		Preconditions.checkNotNull(opt);
+		Objects.requireNonNull(opt);
 		
 		return opt.map(t -> FStream.of((T)t))
 					.getOrElse(FStream.empty());
 	}
 	
 	public static <T> FStream<T> of(Iterable<? extends T> values) {
-		Preconditions.checkNotNull(values);
+		Objects.requireNonNull(values);
 		
 		return of(values.iterator());
 	}
 	
 	public static <T> FStream<T> of(Iterator<? extends T> iter) {
-		Preconditions.checkNotNull(iter);
+		Objects.requireNonNull(iter);
 		
 		return new FStreamImpl<>("fromIterator",
 								() -> iter.hasNext() ? Option.some(iter.next()) : Option.none());
 	}
 	
 	public static <T> FStream<T> of(MultipleSupplier<? extends T> supplier) {
-		Preconditions.checkNotNull(supplier);
+		Objects.requireNonNull(supplier);
 		
 		return of(Utilities.toIterator(supplier));
 	}
 	
 	public static <T> FStream<T> of(Stream<? extends T> stream) {
-		Preconditions.checkNotNull(stream);
+		Objects.requireNonNull(stream);
 		
 		return of(stream.iterator());
 	}
@@ -134,7 +134,7 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default FStreamImpl<T> filter(Predicate<? super T> pred) {
-		Preconditions.checkNotNull(pred);
+		Objects.requireNonNull(pred);
 		
 		Predicate<? super T> negated = pred.negate();
 		return new FStreamImpl<>(
@@ -149,7 +149,7 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default <S> FStream<S> map(Function<? super T,? extends S> mapper) {
-		Preconditions.checkNotNull(mapper);
+		Objects.requireNonNull(mapper);
 		
 		return new FStreamImpl<>(
 			"map",
@@ -168,7 +168,7 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default IntFStream mapToInt(Function<? super T, Integer> mapper) {
-		Preconditions.checkNotNull(mapper);
+		Objects.requireNonNull(mapper);
 		
 		return new IntFStreamImpl(
 			"mapToInt",
@@ -178,7 +178,7 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default LongFStream mapToLong(Function<? super T, Long> mapper) {
-		Preconditions.checkNotNull(mapper);
+		Objects.requireNonNull(mapper);
 		
 		return new LongFStreamImpl(
 			"mapToLong",
@@ -188,7 +188,7 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default DoubleFStream mapToDouble(Function<? super T, Double> mapper) {
-		Preconditions.checkNotNull(mapper);
+		Objects.requireNonNull(mapper);
 		
 		return new DoubleFStreamImpl(
 			"mapToDouble",
@@ -198,18 +198,18 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default <V> FStream<V> cast(Class<? extends V> cls) {
-		Preconditions.checkNotNull(cls, "target class is null");
+		Objects.requireNonNull(cls, "target class is null");
 		return map(cls::cast);
 	}
 	
 	public default <V> FStream<V> castSafely(Class<? extends V> cls) {
-		Preconditions.checkNotNull(cls, "target class is null");
+		Objects.requireNonNull(cls, "target class is null");
 		
 		return filter(cls::isInstance).map(cls::cast);
 	}
 	
 	public default FStream<T> peek(Consumer<? super T> consumer) {
-		Preconditions.checkNotNull(consumer);
+		Objects.requireNonNull(consumer);
 		
 		return new FStreamImpl<> (
 			"peek",
@@ -269,7 +269,7 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default <S> S foldLeft(S accum, BiFunction<? super S,? super T,? extends S> folder) {
 //		Preconditions.checkArgument(accum != null, "accum is null");
-		Preconditions.checkNotNull(folder);
+		Objects.requireNonNull(folder);
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {
@@ -320,8 +320,8 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default <S> S collectLeft(S collector, BiConsumer<? super S,? super T> collect) {
-		Preconditions.checkNotNull(collector);
-		Preconditions.checkNotNull(collect);
+		Objects.requireNonNull(collector);
+		Objects.requireNonNull(collect);
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {

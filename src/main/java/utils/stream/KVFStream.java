@@ -40,7 +40,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 	
 	public static <K,V> KVFStream<K,V> of(Map<? extends K, ? extends V> map) {
-		Preconditions.checkNotNull(map);
+		Objects.requireNonNull(map);
 		
 		Iterator<? extends Entry<? extends K, ? extends V>> iter = map.entrySet().iterator();
 		return new KVFStreamImpl<>(
@@ -58,7 +58,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 	
 	public default KVFStream<K,V> filterKey(Predicate<? super K> pred) {
-		Preconditions.checkNotNull(pred);
+		Objects.requireNonNull(pred);
 
 		Predicate<? super K> negated = pred.negate();
 		return new KVFStreamImpl<>("filterKey", () -> {
@@ -69,7 +69,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 	
 	public default KVFStream<K,V> filterValue(Predicate<? super V> pred) {
-		Preconditions.checkNotNull(pred);
+		Objects.requireNonNull(pred);
 
 		Predicate<? super V> negated = pred.negate();
 		next();
@@ -134,8 +134,8 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 	
 	public default <C> C collectLeft(C collector, TriConsumer<? super C,? super K,? super V> collect) {
-		Preconditions.checkNotNull(collector);
-		Preconditions.checkNotNull(collect);
+		Objects.requireNonNull(collector);
+		Objects.requireNonNull(collect);
 		
 		Option<KeyValue<K,V>> next;
 		while ( (next = next()).isDefined() ) {
@@ -386,8 +386,8 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 	
 	public default <S> S collectLeft(S collector, BiConsumer<S,T> collect) {
-		Preconditions.checkNotNull(collector);
-		Preconditions.checkNotNull(collect);
+		Objects.requireNonNull(collector);
+		Objects.requireNonNull(collect);
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {

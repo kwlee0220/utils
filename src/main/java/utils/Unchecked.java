@@ -52,7 +52,7 @@ public class Unchecked {
 		};
 	}
 	public static void runRTE(CheckedRunnable task) {
-		Preconditions.checkNotNull(task, "Runnable is null");
+		Objects.requireNonNull(task, "Runnable is null");
 		
 		try {
 			task.run();
@@ -62,7 +62,7 @@ public class Unchecked {
 		}
 	}
 	public static <T> T supplyRTE(CheckedSupplier<T> supplier) {
-		Preconditions.checkNotNull(supplier);
+		Objects.requireNonNull(supplier);
 		
 		try {
 			return supplier.get();

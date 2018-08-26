@@ -71,7 +71,7 @@ public final class Point2i implements Comparable<Point2i> {
 
 	@Override
 	public int compareTo(Point2i o) {
-		Preconditions.checkNotNull(o);
+		Objects.requireNonNull(o);
 		
 		int cmp = Integer.compare(m_x, o.m_x);
 		if ( cmp != 0 ) {

@@ -46,10 +46,10 @@ public class JdbcProcessor implements Serializable {
 	 * @param driverClsName	JDBC driver class name
 	 */
 	public JdbcProcessor(String jdbcUrl, String user, String passwd, String driverClsName) {
-		Preconditions.checkNotNull(jdbcUrl, "JDBC URL is null");
-		Preconditions.checkNotNull(user, "JDBC user is null");
-		Preconditions.checkNotNull(passwd, "JDBC password is null");
-		Preconditions.checkNotNull(driverClsName, "JDBC driver class is null");
+		Objects.requireNonNull(jdbcUrl, "JDBC URL is null");
+		Objects.requireNonNull(user, "JDBC user is null");
+		Objects.requireNonNull(passwd, "JDBC password is null");
+		Objects.requireNonNull(driverClsName, "JDBC driver class is null");
 		
 		m_jdbcUrl = jdbcUrl;
 		m_user = user;
@@ -97,7 +97,7 @@ public class JdbcProcessor implements Serializable {
 	 * 			삭제가 실패된 경우
 	 */
 	public boolean dropTable(String tblName) {
-		Preconditions.checkNotNull(tblName, "table name is null");
+		Objects.requireNonNull(tblName, "table name is null");
 		
 		try ( Connection conn = connect();
 				Statement stmt = conn.createStatement() ) {

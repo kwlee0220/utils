@@ -60,7 +60,7 @@ public final class Point2l implements Comparable<Point2l> {
 
 	@Override
 	public int compareTo(Point2l o) {
-		Preconditions.checkNotNull(o);
+		Objects.requireNonNull(o);
 		
 		int cmp = Long.compare(m_x, o.m_x);
 		if ( cmp != 0 ) {

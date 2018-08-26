@@ -81,7 +81,7 @@ public class FStreams {
 		private Option<T> m_last = null;
 		
 		TakeWhileStream(FStream<T> src, Predicate<? super T> pred) {
-			Preconditions.checkNotNull(pred);
+			Objects.requireNonNull(pred);
 			
 			m_src = src;
 			m_pred = pred;
@@ -110,7 +110,7 @@ public class FStreams {
 		private Predicate<? super T> m_pred;
 		
 		DropWhileStream(FStream<T> src, Predicate<? super T> pred) {
-			Preconditions.checkNotNull(pred);
+			Objects.requireNonNull(pred);
 			
 			m_src = src;
 			m_pred = pred;

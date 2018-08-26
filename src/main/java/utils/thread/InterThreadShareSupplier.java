@@ -40,7 +40,7 @@ public class InterThreadShareSupplier<T> implements CheckedSupplier<T>, LoggerSe
 	private final ConditionVariable m_cvDone = new ConditionVariable(m_cond, ()->m_isProducing);
 	
 	public InterThreadShareSupplier(CheckedSupplier<T> srcSupplier) {
-		Preconditions.checkNotNull(srcSupplier);
+		Objects.requireNonNull(srcSupplier);
 		
 		m_srcSupplier = srcSupplier;
 	}

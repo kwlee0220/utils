@@ -23,9 +23,9 @@ public final class ProxyUtils {
 
 	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(ClassLoader loader, T obj, CallHandler<T>... handlers) {
-		Preconditions.checkNotNull(loader, "ClassLoader is null");
-		Preconditions.checkNotNull(obj, "target object is null");
-		Preconditions.checkNotNull(handlers, "CallHandler is null");
+		Objects.requireNonNull(loader, "ClassLoader is null");
+		Objects.requireNonNull(obj, "target object is null");
+		Objects.requireNonNull(handlers, "CallHandler is null");
 		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
 		
 		Callback[] callbacks = new Callback[handlers.length+1];
@@ -45,8 +45,8 @@ public final class ProxyUtils {
 	@SafeVarargs
 	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(T obj, CallHandler<T>... handlers) {
-		Preconditions.checkNotNull(obj, "target object is null");
-		Preconditions.checkNotNull(handlers, "CallHandler is null");
+		Objects.requireNonNull(obj, "target object is null");
+		Objects.requireNonNull(handlers, "CallHandler is null");
 		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
 		
 		Callback[] callbacks = new Callback[handlers.length+1];

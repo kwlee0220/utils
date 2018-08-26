@@ -17,8 +17,8 @@ class ScannedStream<T> implements FStream<T> {
 	private Option<T> m_current;
 	
 	ScannedStream(FStream<T> src, BinaryOperator<T> combine) {
-		Preconditions.checkNotNull(src);
-		Preconditions.checkNotNull(combine);
+		Objects.requireNonNull(src);
+		Objects.requireNonNull(combine);
 		
 		m_src = src;
 		m_combine = combine;

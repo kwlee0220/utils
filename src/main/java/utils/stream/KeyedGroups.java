@@ -55,8 +55,8 @@ public class KeyedGroups<K,V> {
 	}
 	
 	public KeyedGroups<K,V> add(K key, V value) {
-		Preconditions.checkNotNull(key);
-		Preconditions.checkNotNull(value);
+		Objects.requireNonNull(key);
+		Objects.requireNonNull(value);
 		
 		m_groups.computeIfAbsent(key, k -> Lists.newArrayList())
 				.add(value);
@@ -64,7 +64,7 @@ public class KeyedGroups<K,V> {
 	}
 	
 	KeyedGroups<K,V> put(K key, List<V> values) {
-		Preconditions.checkNotNull(key);
+		Objects.requireNonNull(key);
 		
 		m_groups.compute(key, (k, old) -> {
 			if ( old == null ) {
@@ -79,8 +79,8 @@ public class KeyedGroups<K,V> {
 	}
 	
 	public KeyedGroups<K,V> addAll(K key, Iterator<? extends V> values) {
-		Preconditions.checkNotNull(key);
-		Preconditions.checkNotNull(values);
+		Objects.requireNonNull(key);
+		Objects.requireNonNull(values);
 		
 		m_groups.compute(key, (k, group) -> {
 			if ( group == null ) {
@@ -96,8 +96,8 @@ public class KeyedGroups<K,V> {
 	}
 	
 	public KeyedGroups<K,V> addAll(K key, Collection<? extends V> values) {
-		Preconditions.checkNotNull(key);
-		Preconditions.checkNotNull(values);
+		Objects.requireNonNull(key);
+		Objects.requireNonNull(values);
 		
 		m_groups.compute(key, (k, group) -> {
 			if ( group == null ) {
@@ -112,8 +112,8 @@ public class KeyedGroups<K,V> {
 	}
 	
 	public KeyedGroups<K,V> addAll(K key, FStream<? extends V> values) {
-		Preconditions.checkNotNull(key);
-		Preconditions.checkNotNull(values);
+		Objects.requireNonNull(key);
+		Objects.requireNonNull(values);
 		
 		m_groups.compute(key, (k, group) -> {
 			if ( group == null ) {
@@ -127,7 +127,7 @@ public class KeyedGroups<K,V> {
 	}
 	
 	public Option<Collection<V>> remove(K key) {
-		Preconditions.checkNotNull(key);
+		Objects.requireNonNull(key);
 		
 		return Option.of(m_groups.remove(key));
 	}

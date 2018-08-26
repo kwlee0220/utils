@@ -16,8 +16,8 @@ class ZippedFStream<T,U> implements FStream<Tuple2<T,U>> {
 	private final FStream<? extends U> m_src2;;
 	
 	ZippedFStream(FStream<? extends T> src, FStream<? extends U> src2) {
-		Preconditions.checkNotNull(src);
-		Preconditions.checkNotNull(src2);
+		Objects.requireNonNull(src);
+		Objects.requireNonNull(src2);
 		
 		m_src = src;
 		m_src2 = src2;

@@ -22,7 +22,7 @@ class BufferedStream<T> implements FStream<List<T>> {
 	private boolean m_endOfSource = false;
 	
 	BufferedStream(FStream<T> src, int count, int skip) {
-		Preconditions.checkNotNull(src);
+		Objects.requireNonNull(src);
 		Preconditions.checkArgument(count > 0);
 		
 		m_src = src;

@@ -95,8 +95,8 @@ public class XmlUtils {
 	}
 	
 	public static Option<Element> getFirstChildElement(Element parent, String childElmName) {
-		Preconditions.checkNotNull(parent, "parent should not be null");
-		Preconditions.checkNotNull(childElmName, "childElmName should not be null");
+		Objects.requireNonNull(parent, "parent should not be null");
+		Objects.requireNonNull(childElmName, "childElmName should not be null");
 
 		NodeList children = parent.getChildNodes();
 		for (int i = 0; i < children.getLength(); ++i) {

@@ -21,7 +21,7 @@ public interface DoubleFStream extends FStream<Double> {
 	}
 	
 	public default <T> FStream<T> mapToObj(Function<Double,? extends T> mapper) {
-		Preconditions.checkNotNull(mapper);
+		Objects.requireNonNull(mapper);
 		
 		return new FStreamImpl<>(
 			"DoubleFStream::mapToObj",
@@ -49,7 +49,7 @@ public interface DoubleFStream extends FStream<Double> {
 		private final Iterator<Double> m_iter;
 		
 		DoubleArrayStream(Iterator<Double> iter) {
-			Preconditions.checkNotNull(iter);
+			Objects.requireNonNull(iter);
 			
 			m_iter = iter;
 		}

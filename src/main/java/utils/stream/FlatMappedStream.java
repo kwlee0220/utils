@@ -18,8 +18,8 @@ class FlatMappedStream<S,T> implements FStream<T> {
 	private FStream<? extends T> m_mapped = FStream.empty();
 	
 	FlatMappedStream(FStream<S> src, Function<? super S,? extends FStream<? extends T>> mapper) {
-		Preconditions.checkNotNull(src);
-		Preconditions.checkNotNull(mapper);
+		Objects.requireNonNull(src);
+		Objects.requireNonNull(mapper);
 		
 		m_src = src;
 		m_mapper = mapper;

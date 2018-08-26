@@ -39,7 +39,7 @@ public class BufferedImageConvas implements Convas {
 	}
 	
 	public BufferedImageConvas(BufferedImage bi) {
-		Preconditions.checkNotNull(bi);
+		Objects.requireNonNull(bi);
 		
 		m_size = new Dimension(bi.getWidth(), bi.getHeight());
 		m_bi = bi;

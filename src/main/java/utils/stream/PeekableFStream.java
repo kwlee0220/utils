@@ -13,7 +13,7 @@ public class PeekableFStream<T> implements FStream<T> {
 	private Option<T> m_peeked;
 	
 	PeekableFStream(FStream<T> src) {
-		Preconditions.checkNotNull(src);
+		Objects.requireNonNull(src);
 		
 		m_src = src;
 	}
