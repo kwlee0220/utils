@@ -209,6 +209,12 @@ public interface FStream<T> extends AutoCloseable {
 		return filter(cls::isInstance).map(cls::cast);
 	}
 	
+	public default <V> FStream<V> ofExactClass(Class<? extends V> cls) {
+		Objects.requireNonNull(cls, "target class is null");
+		
+		return filter(v -> v.getClass().equals(cls)).map(cls::cast);
+	}
+	
 	public default FStream<T> peek(Consumer<? super T> consumer) {
 		Objects.requireNonNull(consumer);
 		
