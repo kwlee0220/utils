@@ -1,5 +1,6 @@
 package utils;
 
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -47,6 +48,17 @@ public class Lambdas {
 		}
 	}
 	
+	public static void guradedRun(Lock lock, Condition cond, Runnable work) {
+		lock.lock();
+		try {
+			work.run();
+			cond.signalAll();
+		}
+		finally {
+			lock.unlock();
+		}
+	}
+	
 	public static <T> T guardedGet(Lock lock, Supplier<T> suppl) {
 		lock.lock();
 		try {
@@ -57,7 +69,7 @@ public class Lambdas {
 		}
 	}
 	
-	public static <T> void guraded(Lock lock, Consumer<T> consumer, T data) {
+	public static <T> void guraded(Lock lock, T data, Consumer<T> consumer) {
 		lock.lock();
 		try {
 			consumer.accept(data);
