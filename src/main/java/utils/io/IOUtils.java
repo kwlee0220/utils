@@ -109,6 +109,10 @@ public class IOUtils {
 		}
     }
     
+    public static String toString(File file) throws IOException {
+		return new String(IOUtils.toBytes(file));
+    }
+    
     public static String toString(InputStream is, Charset charset) throws IOException {
 		byte[] bytes = IOUtils.toBytes(new BufferedInputStream(is), true);
 		return new String(bytes, charset);
