@@ -9,9 +9,9 @@ import java.util.function.Supplier;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class Lambdas {
-	private Lambdas() {
-		throw new AssertionError("Should not be called: " + Lambdas.class);
+public class Guards {
+	private Guards() {
+		throw new AssertionError("Should not be called: " + Guards.class);
 	}
 	
 	public static class Holder<T> {
@@ -38,7 +38,7 @@ public class Lambdas {
 		};
 	}
 	
-	public static void guradedRun(Lock lock, Runnable work) {
+	public static void run(Lock lock, Runnable work) {
 		lock.lock();
 		try {
 			work.run();
@@ -48,7 +48,7 @@ public class Lambdas {
 		}
 	}
 	
-	public static void guradedRun(Lock lock, Condition cond, Runnable work) {
+	public static void run(Lock lock, Condition cond, Runnable work) {
 		lock.lock();
 		try {
 			work.run();
@@ -59,7 +59,7 @@ public class Lambdas {
 		}
 	}
 	
-	public static <T> T guardedGet(Lock lock, Supplier<T> suppl) {
+	public static <T> T get(Lock lock, Supplier<T> suppl) {
 		lock.lock();
 		try {
 			return suppl.get();
@@ -69,7 +69,7 @@ public class Lambdas {
 		}
 	}
 	
-	public static <T> void guraded(Lock lock, T data, Consumer<T> consumer) {
+	public static <T> void accept(Lock lock, T data, Consumer<T> consumer) {
 		lock.lock();
 		try {
 			consumer.accept(data);

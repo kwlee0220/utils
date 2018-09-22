@@ -16,8 +16,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import io.vavr.CheckedRunnable;
+import io.vavr.control.Option;
 import io.vavr.control.Try;
-import utils.Lambdas;
+import utils.Guards;
 import utils.func.Result;
 
 /**
@@ -105,6 +106,23 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 					default:
 						return true;
 				}
+			}
+		}
+		finally {
+			m_aopLock.unlock();
+		}
+	}
+	
+	public Option<Result<V>> pollResult() {
+		m_aopLock.lock();
+		try {
+			switch ( m_aopState ) {
+				case COMPLETED:
+				case FAILED:
+				case CANCELLED:
+					return Option.some(m_result);
+				default:
+					return Option.none();
 			}
 		}
 		finally {
@@ -452,7 +470,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	}
 	
 	protected final void guarded(Runnable action) {
-		Lambdas.guradedRun(m_aopLock, action);
+		Guards.run(m_aopLock, action);
 	}
 	
 	protected void start(CheckedRunnable starter) {
@@ -472,7 +490,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 		try {
 			starter.run();
 			
-			Lambdas.guradedRun(m_aopLock, () -> {
+			Guards.run(m_aopLock, () -> {
 				m_aopState = ImplState.RUNNING;
 				m_aopCond.signalAll();
 			});
@@ -480,7 +498,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 			notifyStartListeners();
 		}
 		catch ( Throwable e ) {
-			Lambdas.guradedRun(m_aopLock, () -> {
+			Guards.run(m_aopLock, () -> {
 				m_aopState = ImplState.FAILED;
 				m_aopCond.signalAll();
 			});
@@ -528,7 +546,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 			notifyCancelled();
 		}
 		catch ( Throwable e ) {
-			Lambdas.guradedRun(m_aopLock, () -> {
+			Guards.run(m_aopLock, () -> {
 				if ( m_aopState == ImplState.CANCELLING ) {
 					m_aopState = ImplState.RUNNING;
 					m_aopCond.signalAll();

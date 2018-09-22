@@ -621,6 +621,16 @@ public interface FStream<T> extends AutoCloseable {
 		return sort((t1,t2) -> ((Comparable)t1).compareTo(t2));
 	}
 	
+    public default FStream<T> takeTopK(int k, Comparator<? super T> cmp) {
+        return new TopKPickedFStream<>(this, k, cmp);
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public default FStream<T> takeTopK(int k) {
+        return new TopKPickedFStream<>(this, k, (t1,t2) -> ((Comparable)t1).compareTo(t2));
+    }
+
+	
 	@SuppressWarnings("unchecked")
 	public default List<T> max() {
 		Comparable<T> max = null;
