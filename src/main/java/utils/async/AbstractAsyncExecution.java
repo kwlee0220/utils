@@ -12,29 +12,39 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import io.vavr.CheckedRunnable;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
-import utils.Guards;
-import utils.func.Result;
+import net.jcip.annotations.GuardedBy;
+import utils.Guard;
+import utils.LoggerSettable;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
+public abstract class AbstractAsyncExecution<T> implements AsyncExecution<T>, LoggerSettable {
 	protected enum ImplState { NOT_STARTED, STARTING, RUNNING, COMPLETED, FAILED,
 								CANCELLING, CANCELLED };
 	
 	protected final ReentrantLock m_aopLock = new ReentrantLock();
 	protected final Condition m_aopCond = m_aopLock.newCondition();
-	protected ImplState m_aopState = ImplState.NOT_STARTED;
-	private Result<V> m_result;
-	private final List<Runnable> m_startListeners = Lists.newCopyOnWriteArrayList();
-	private final List<Consumer<Result<V>>> m_finishListeners = Lists.newCopyOnWriteArrayList();
+	protected final Guard m_guard = Guard.by(m_aopLock, m_aopCond);
+	@GuardedBy("m_aopLock") protected ImplState m_aopState = ImplState.NOT_STARTED;
+	@GuardedBy("m_aopLock") private Result<T> m_result;		// may null
+	@GuardedBy("m_aopLock") private final List<Runnable> m_startListeners = Lists.newCopyOnWriteArrayList();
+	@GuardedBy("m_aopLock") private final List<Consumer<Result<T>>> m_finishListeners = Lists.newCopyOnWriteArrayList();
+	@GuardedBy("m_aopLock") private Option<CheckedRunnable> m_startHook = Option.none();
+	@GuardedBy("m_aopLock") private volatile Option<Runnable> m_completeHook = Option.none();
+	@GuardedBy("m_aopLock") private volatile Option<Runnable> m_cancelHook = Option.none();
+	@GuardedBy("m_aopLock") private volatile Option<Consumer<Throwable>> m_failureHook = Option.none();
+	private Logger m_logger = LoggerFactory.getLogger(AbstractAsyncExecution.class);
 	
 	@Override
 	public void waitForStarted() throws InterruptedException {
@@ -113,7 +123,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 		}
 	}
 	
-	public Option<Result<V>> pollResult() {
+	public Option<Result<T>> pollResult() {
 		m_aopLock.lock();
 		try {
 			switch ( m_aopState ) {
@@ -131,26 +141,12 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	}
 
 	@Override
-	public Result<V> getResult() throws InterruptedException {
+	public Result<T> waitForResult() throws InterruptedException {
+		waitForDone();
+		
 		m_aopLock.lock();
 		try {
-			while ( true ) {
-				if ( m_aopState == ImplState.COMPLETED
-					|| m_aopState == ImplState.FAILED
-					|| m_aopState == ImplState.CANCELLED ) {
-					break;
-				}
-				m_aopCond.await();
-			}
-			
-			switch ( m_aopState ) {
-				case COMPLETED:
-				case FAILED:
-				case CANCELLED:
-					return m_result;
-				default:
-					throw new AssertionError();
-			}
+			return m_result;
 		}
 		finally {
 			m_aopLock.unlock();
@@ -158,29 +154,13 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	}
 
 	@Override
-	public Result<V> getResult(long timeout, TimeUnit unit) throws InterruptedException,
+	public Result<T> waitForResult(long timeout, TimeUnit unit) throws InterruptedException,
 																	TimeoutException {
+		waitForDone(timeout, unit);
+		
 		m_aopLock.lock();
 		try {
-			while ( true ) {
-				if ( m_aopState == ImplState.COMPLETED
-					|| m_aopState == ImplState.FAILED
-					|| m_aopState == ImplState.CANCELLED ) {
-					break;
-				}
-				if ( !m_aopCond.await(timeout, unit) ) {
-					throw new TimeoutException("" + timeout + unit);
-				}
-			}
-			
-			switch ( m_aopState ) {
-				case COMPLETED:
-				case FAILED:
-				case CANCELLED:
-					return m_result;
-				default:
-					throw new AssertionError();
-			}
+			return m_result;
 		}
 		finally {
 			m_aopLock.unlock();
@@ -269,12 +249,12 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	}
 
 	@Override
-	public V get() throws InterruptedException, ExecutionException, CancellationException {
+	public T get() throws InterruptedException, ExecutionException, CancellationException {
 		waitForDone();
 		
 		m_aopLock.lock();
 		try {
-			switch ( m_aopState ) {
+			switch ( getState() ) {
 				case COMPLETED:
 					return m_result.get();
 				case FAILED:
@@ -282,7 +262,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 				case CANCELLED:
 					throw new CancellationException();
 				default:
-					throw new IllegalStateException();
+					throw new AssertionError();
 			}
 		}
 		finally {
@@ -291,7 +271,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	}
 
 	@Override
-	public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
+	public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
 													TimeoutException, CancellationException {
 		if ( !waitForDone(timeout, unit) ) {
 			throw new TimeoutException("time=" + timeout + unit);
@@ -299,7 +279,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 		
 		m_aopLock.lock();
 		try {
-			switch ( m_aopState ) {
+			switch ( getState() ) {
 				case COMPLETED:
 					return m_result.get();
 				case FAILED:
@@ -307,8 +287,35 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 				case CANCELLED:
 					throw new CancellationException();
 				default:
-					throw new IllegalStateException();
+					throw new AssertionError();
 			}
+		}
+		finally {
+			m_aopLock.unlock();
+		}
+	}
+	
+	@Override
+	public boolean cancel() {
+		m_aopLock.lock();
+		try {
+			while ( m_aopState == ImplState.NOT_STARTED ) {
+				m_aopCond.await();
+			}
+			
+			switch ( m_aopState ) {
+				case RUNNING:
+					m_aopState = ImplState.CANCELLING;
+					m_aopCond.signalAll();
+				case CANCELLING:
+				case CANCELLED:
+					return true;
+				default:
+					return false;
+			}
+		}
+		catch ( InterruptedException e ) {
+			throw new RuntimeException();
 		}
 		finally {
 			m_aopLock.unlock();
@@ -329,27 +336,42 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 			switch ( m_aopState ) {
 				case NOT_STARTED:
 					m_aopState = ImplState.RUNNING;
+					if ( m_startHook.isDefined() ) {
+						m_startHook.get().run();
+					}
+					
 					m_aopCond.signalAll();
 					notifyStartListeners();
 			    	return true;
+				case CANCELLING:
+					notifyStartListeners();
+					notifyCancelled();
+					return false;
+				case CANCELLED:
+					return false;
 				default:
 					throw new IllegalStateException("unexpected state: " + m_aopState);
 			}
 			
+		}
+		catch ( Throwable e ) {
+			notifyFailed(e);
+			return false;
 		}
 		finally {
 			m_aopLock.unlock();
 		}
 	}
 
-	public boolean notifyCompleted(V result) {
+	public boolean notifyCompleted(T result) {
 		m_aopLock.lock();
 		try {
 			switch ( m_aopState ) {
 				case RUNNING:
 				case CANCELLING:
-					m_result = Result.some(result);
+					m_result = Result.completed(result);
 					m_aopState = ImplState.COMPLETED;
+					m_completeHook.forEach(Runnable::run);
 					m_aopCond.signalAll();
 			    	notifyFinishListeners();
 			    	return true;
@@ -374,8 +396,9 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 				case NOT_STARTED:	// start 과정에서 오류가 발생된 경우.
 				case RUNNING:
 				case CANCELLING:
-					m_result = Result.failure(cause);
+					m_result = Result.failed(cause);
 			    	m_aopState = ImplState.FAILED;
+			    	m_failureHook.forEach(act -> act.accept(cause));
 			    	m_aopCond.signalAll();
 			    	notifyFinishListeners();
 			    	
@@ -402,8 +425,9 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 					return false;
 				case RUNNING:
 				case CANCELLING:
-					m_result = Result.none();
+					m_result = Result.cancelled();
 					m_aopState = ImplState.CANCELLED;
+					m_cancelHook.forEach(Runnable::run);
 					m_aopCond.signalAll();
 			    	notifyFinishListeners();
 				case CANCELLED:
@@ -437,7 +461,7 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	}
 
 	@Override
-	public void whenDone(Consumer<Result<V>> listener) {
+	public void whenDone(Consumer<Result<T>> listener) {
     	m_aopLock.lock();
     	try {
 			switch ( m_aopState ) {
@@ -456,8 +480,13 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 	}
 
 	@Override
-	public void close() throws Exception {
-		cancel();
+	public Logger getLogger() {
+		return m_logger;
+	}
+
+	@Override
+	public void setLogger(Logger logger) {
+		m_logger = logger;
 	}
 	
 	@Override
@@ -469,8 +498,8 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 		return m_aopLock;
 	}
 	
-	protected final void guarded(Runnable action) {
-		Guards.run(m_aopLock, action);
+	protected final Condition getCondition() {
+		return m_aopCond;
 	}
 	
 	protected void start(CheckedRunnable starter) {
@@ -490,24 +519,16 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 		try {
 			starter.run();
 			
-			Guards.run(m_aopLock, () -> {
-				m_aopState = ImplState.RUNNING;
-				m_aopCond.signalAll();
-			});
-			
+			m_guard.runAndSignal(() -> m_aopState = ImplState.RUNNING);
 			notifyStartListeners();
 		}
 		catch ( Throwable e ) {
-			Guards.run(m_aopLock, () -> {
-				m_aopState = ImplState.FAILED;
-				m_aopCond.signalAll();
-			});
-			
+			m_guard.runAndSignal(() -> m_aopState = ImplState.FAILED);
 			notifyFailed(e);
 		}
 	}
 	
-	protected void cancel(CheckedRunnable canceller) throws IllegalStateException {
+	protected boolean cancel(CheckedRunnable canceller) throws IllegalStateException {
 		Objects.requireNonNull(canceller, "canceller is null");
 		
 		m_aopLock.lock();
@@ -521,18 +542,14 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 				case NOT_STARTED:
 					m_aopState = ImplState.CANCELLED;
 					m_aopCond.signalAll();
-					return;
 				case CANCELLED:
-					return;
-				case COMPLETED:
-				case FAILED:
-					throw new IllegalStateException("AsyncExecution has been finished, "
-													+ "state=" + m_aopState);
+					return true;
 				case RUNNING:
 					m_aopState = ImplState.CANCELLING;
 					m_aopCond.signalAll();
-				default:
 					break;
+				default:
+					return false;
 			}
 		}
 		catch ( InterruptedException e ) {
@@ -540,13 +557,16 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 		}
 		finally { m_aopLock.unlock(); }
 		
+		// m_aopState 상태가 RUNNING -> CANCELLING으로 바뀐 상태에서만 수행됨
 		try {
 			canceller.run();
 			
 			notifyCancelled();
+			
+			return true;
 		}
 		catch ( Throwable e ) {
-			Guards.run(m_aopLock, () -> {
+			m_guard.run(() -> {
 				if ( m_aopState == ImplState.CANCELLING ) {
 					m_aopState = ImplState.RUNNING;
 					m_aopCond.signalAll();
@@ -555,6 +575,34 @@ public abstract class AbstractAsyncExecution<V> implements AsyncExecution<V> {
 			
 			throw new RuntimeException("AsyncExecution cancellation is failed");
 		}
+	}
+	
+	protected void setStartHook(CheckedRunnable action) {
+		m_startHook = Option.of(action);
+	}
+	
+	protected void setCompleteHook(Runnable action) {
+		m_completeHook = Option.of(action);
+	}
+	
+	protected void setCancelHook(Runnable action) {
+		m_cancelHook = Option.of(action);
+	}
+	
+	protected void setFailureHook(Consumer<Throwable> action) {
+		m_failureHook = Option.of(action);
+	}
+	
+	protected boolean isCancelRequested() {
+		return m_guard.get(() -> {
+			switch ( m_aopState ) {
+				case CANCELLING:
+				case CANCELLED:
+					return true;
+				default:
+					return false;
+			}
+		});
 	}
 	
 	private void notifyStartListeners() {

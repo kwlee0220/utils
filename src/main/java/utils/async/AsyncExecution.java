@@ -1,5 +1,6 @@
 package utils.async;
 
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -7,15 +8,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
-import utils.func.Result;
+import io.vavr.control.Option;
 
 
 /**
- * @param <V>	비동기 연산의 결과 타입
+ * @param <T>	비동기 연산의 결과 타입
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public interface AsyncExecution<V> extends Future<V>, AutoCloseable {
+public interface AsyncExecution<T> extends Future<T> {
 	public enum State { NOT_STARTED, RUNNING, COMPLETED, FAILED, CANCELLED };
 	
 	/**
@@ -27,7 +28,21 @@ public interface AsyncExecution<V> extends Future<V>, AutoCloseable {
 	 * 호출하여야 한다.
 	 */
 	public void start() throws IllegalStateException;
-	public void cancel() throws IllegalStateException;
+	
+	/**
+	 * 비동기 작업을 중단시킨다.
+	 * 함수는 작업 중단이 실제로 마무리되기 전에 반환될 수 있기 때문에, 본 메소드 호출한 결과로
+	 * 바로 종료되는 것을 의미하지 않는다.
+	 * 또한 메소드 호출 당시 비동기 작업 상태에 따라 중단 요청을 무시되기도 한다.
+	 * 이는 본 메소드의 반환값이 {@code false}인 경우는 요청이 무시된 것을 의미하고,
+	 * 반환 값이 {@code true}인 경우는 중단 요청이 접수되어 중단 작업이 시작된 것을 의미한다.
+	 * 물론, 이때도 중단이 반드시 성공하는 것을 의미하지 않는다.
+	 * 작업 중단을 확인하기 위해서는 {@link #waitForDone()}이나 {@link #waitForDone(long, TimeUnit)}
+	 * 메소드를 사용하여 최종적으로 확인할 수 있다.
+	 * 
+	 * @return	중단 요청의 접수 여부.
+	 */
+	public boolean cancel();
 	
 	public State getState();
 	
@@ -53,9 +68,11 @@ public interface AsyncExecution<V> extends Future<V>, AutoCloseable {
 			|| getState() == State.CANCELLED;
 	}
 	
-    public V get() throws InterruptedException, ExecutionException, CancellationException;
-    public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
+    public T get() throws InterruptedException, ExecutionException, CancellationException;
+    public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
     												TimeoutException, CancellationException;
+    
+	public Option<Result<T>> pollResult();
 
 	/**
 	 * 비동기 작업이 종료될 때까지 기다려 그 결과를 반환한다.
@@ -67,17 +84,7 @@ public interface AsyncExecution<V> extends Future<V>, AutoCloseable {
 	 * 			{@code true}가 됨.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-    public default Result<V> getResult() throws InterruptedException {
-    	try {
-    		return Result.some(get());
-    	}
-    	catch ( ExecutionException e ) {
-    		return Result.failure(e.getCause());
-    	}
-    	catch ( CancellationException e ) {
-    		return Result.none();
-    	}
-    }
+    public Result<T> waitForResult() throws InterruptedException;
 	
 	/**
 	 * 본 작업이 제한시간 동안 종료될 때까지 기다려 그 결과를 반환한다.
@@ -92,18 +99,8 @@ public interface AsyncExecution<V> extends Future<V>, AutoCloseable {
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 * @throws TimeoutException	작업 종료 대기 중 시간제한이 걸린 경우.
 	 */
-    public default Result<V> getResult(long timeout, TimeUnit unit)
-    	throws InterruptedException, TimeoutException {
-    	try {
-    		return Result.some(get(timeout, unit));
-    	}
-    	catch ( ExecutionException e ) {
-    		return Result.failure(e.getCause());
-    	}
-    	catch ( CancellationException e ) {
-    		return Result.none();
-    	}
-    }
+    public Result<T> waitForResult(long timeout, TimeUnit unit)
+    	throws InterruptedException, TimeoutException;
     
 	/**
 	 * 비동기 작업이 시작될 때까지 대기한다.
@@ -142,5 +139,23 @@ public interface AsyncExecution<V> extends Future<V>, AutoCloseable {
 	public boolean waitForDone(long timeout, TimeUnit unit) throws InterruptedException;
 
 	public void whenStarted(Runnable listener);
-	public void whenDone(Consumer<Result<V>> resultConsumer);
+	public void whenDone(Consumer<Result<T>> resultConsumer);
+	
+	public default void whenCompleted(Consumer<T> handler) {
+		Objects.requireNonNull(handler, "handler is null");
+		
+		whenDone(r -> r.ifCompleted(handler));
+	}
+	
+	public default void whenFailed(Consumer<Throwable> handler) {
+		Objects.requireNonNull(handler, "handler is null");
+		
+		whenDone(r -> r.ifFailed(handler));
+	}
+	
+	public default void whenCancelled(Runnable handler) {
+		Objects.requireNonNull(handler, "handler is null");
+		
+		whenDone(r -> r.ifCancelled(handler));
+	}
 }
