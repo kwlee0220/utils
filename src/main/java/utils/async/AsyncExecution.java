@@ -78,9 +78,9 @@ public interface AsyncExecution<T> extends Future<T> {
 	 * 비동기 작업이 종료될 때까지 기다려 그 결과를 반환한다.
 	 * 
 	 * @return	종료 결과.
-	 * 			성공적으로 종료된 경우는 {@link Result#isSuccess()}가 {@code true},
-	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailure()}가 {@code true},
-	 * 			또는 작업이 취소되어 종료된 경우는 {@link Result#isEmpty()}가
+	 * 			성공적으로 종료된 경우는 {@link Result#isCompleted()}가 {@code true},
+	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailed()}가 {@code true},
+	 * 			또는 작업이 취소되어 종료된 경우는 {@link Result#isCancelled()}가
 	 * 			{@code true}가 됨.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
@@ -92,10 +92,10 @@ public interface AsyncExecution<T> extends Future<T> {
 	 * @param timeout	제한시간
 	 * @param unit		제한시간 단위
 	 * @return	종료 결과.
-	 * 			성공적으로 종료된 경우는 {@link Result#isSuccess()}가 {@code true},
-	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailure()}가 {@code true},
+	 * 			성공적으로 종료된 경우는 {@link Result#isCompleted()}가 {@code true},
+	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailed()}가 {@code true},
 	 * 			또는 작업이 취소되어 종료된 경우거나 시간제한으로 반환되는 경우
-	 * 			{@link Result#isEmpty()}가 {@code true}가 됨.
+	 * 			{@link Result#isCancelled()}가 {@code true}가 됨.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 * @throws TimeoutException	작업 종료 대기 중 시간제한이 걸린 경우.
 	 */
