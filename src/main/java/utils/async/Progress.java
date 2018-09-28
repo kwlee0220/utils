@@ -41,11 +41,11 @@ public class Progress<T,P> extends CompletableFuture<T> implements ProgressRepor
 	}
 	
 	public Progress(CompletableFuture<T> promise, ProgressReporter<P> reporter) {
-		this(promise, reporter.reportProgress());
+		this(promise, reporter.getProgressObservable());
 	}
 	
 	@Override
-	public Observable<P> reportProgress() {
+	public Observable<P> getProgressObservable() {
 		return m_observable;
 	}
 	
