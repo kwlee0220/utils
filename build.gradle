@@ -16,10 +16,6 @@ repositories {
 		name = "io.vavr"
 		url "https://oss.sonatype.org/content/repositories/snapshots"
 	}
-	maven {
-		name = 'dist'
-		url = "file:${distRepositoryDir}"
-	}
 }
 
 ext.slf4j_log4j_version = '1.7.25'
@@ -61,7 +57,6 @@ javadoc {
 	options.links("https://docs.oracle.com/javase/8/docs/api/")
 	options.links("https://google.github.io/guava/releases/23.0/api/docs/")
 	options.links("http://reactivex.io/RxJava/javadoc/")
-//	options.links("http://www.javadoc.io/doc/io.vavr/vavr/0.9.2")
 }
 task javadocJar(type: Jar) {
 	classifier 'javadoc'
@@ -71,14 +66,6 @@ task javadocJar(type: Jar) {
 artifacts {
 	archives sourceJar
 	archives javadocJar
-}
-
-uploadArchives {
-	repositories {
-		mavenDeployer {
-			repository(url: "file:${distRepositoryDir}")
-		}
-	}
 }
 
 apply plugin: 'eclipse'
