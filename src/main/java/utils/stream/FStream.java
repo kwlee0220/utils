@@ -359,8 +359,12 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default Option<T> first() {
-		List<T> list = take(1).toList();
-		return list.isEmpty() ? Option.none() : Option.some(list.get(0));
+		try ( FStream<T> taken = take(1) ) {
+			return taken.next();
+		}
+		catch ( Exception ignored ) {
+			throw new FStreamException("" + ignored);
+		}
 	}
 	
 	public default Option<T> last() {

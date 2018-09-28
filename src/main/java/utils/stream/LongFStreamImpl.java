@@ -1,5 +1,7 @@
 package utils.stream;
 
+import java.util.Iterator;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 import com.google.common.base.Preconditions;
@@ -13,13 +15,13 @@ import utils.Throwables;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class LongFStreamImpl implements LongFStream {
+class LongFStreamImpl implements LongFStream {
 	private final String m_name;
 	private final Supplier<Option<Long>> m_supplier;
 	private final CheckedRunnable m_closer;
 	private boolean m_closed = false;
 	
-	public LongFStreamImpl(String name, Supplier<Option<Long>> nextSupplier,
+	LongFStreamImpl(String name, Supplier<Option<Long>> nextSupplier,
 							CheckedRunnable closer) {
 		m_name = name;
 		m_supplier = nextSupplier;
@@ -53,5 +55,51 @@ public class LongFStreamImpl implements LongFStream {
 	@Override
 	public String toString() {
 		return String.format("%s%s", m_name, m_closed ? "(closed)" : "");
+	}
+	
+	static class TakenLongStream implements LongFStream {
+		private final LongFStream m_src;
+		private long m_remains;
+		
+		TakenLongStream(LongFStream src, long count) {
+			Preconditions.checkArgument(count >= 0, "count < 0");
+			
+			m_src = src;
+			m_remains = count;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
+		}
+
+		@Override
+		public Option<Long> next() {
+			if ( m_remains <= 0 ) {
+				return Option.none();
+			}
+			else {
+				--m_remains;
+				return m_src.next();
+			}
+		}
+	}
+	
+	static class LongArrayStream implements LongFStream {
+		private final Iterator<Long> m_iter;
+		
+		LongArrayStream(Iterator<Long> iter) {
+			Objects.requireNonNull(iter);
+			
+			m_iter = iter;
+		}
+
+		@Override
+		public void close() throws Exception { }
+
+		@Override
+		public Option<Long> next() {
+			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
+		}
 	}
 }

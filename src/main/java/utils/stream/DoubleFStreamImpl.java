@@ -54,4 +54,32 @@ public class DoubleFStreamImpl implements DoubleFStream {
 	public String toString() {
 		return String.format("%s%s", m_name, m_closed ? "(closed)" : "");
 	}
+	
+	static class TakenStream implements DoubleFStream {
+		private final DoubleFStream m_src;
+		private long m_remains;
+		
+		TakenStream(DoubleFStream src, long count) {
+			Preconditions.checkArgument(count >= 0, "count < 0");
+			
+			m_src = src;
+			m_remains = count;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
+		}
+
+		@Override
+		public Option<Double> next() {
+			if ( m_remains <= 0 ) {
+				return Option.none();
+			}
+			else {
+				--m_remains;
+				return m_src.next();
+			}
+		}
+	}
 }

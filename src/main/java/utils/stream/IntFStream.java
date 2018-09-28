@@ -30,6 +30,21 @@ public interface IntFStream extends FStream<Integer> {
 			() -> close()
 		);
 	}
+
+	@Override
+	public default IntFStream take(long count) {
+		return new TakenStream(this, count);
+	}
+	
+	@Override
+	public default Option<Integer> first() {
+		try ( IntFStream taken = take(1) ) {
+			return taken.next();
+		}
+		catch ( Exception ignored ) {
+			throw new FStreamException("" + ignored);
+		}
+	}
 	
 	public default long sum() {
 		return foldLeft(0L, (s,v) -> s+v);
@@ -91,6 +106,34 @@ public interface IntFStream extends FStream<Integer> {
 			}
 			
 			return Option.none();
+		}
+	}
+	
+	static class TakenStream implements IntFStream {
+		private final IntFStream m_src;
+		private long m_remains;
+		
+		TakenStream(IntFStream src, long count) {
+			Preconditions.checkArgument(count >= 0, "count < 0");
+			
+			m_src = src;
+			m_remains = count;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
+		}
+
+		@Override
+		public Option<Integer> next() {
+			if ( m_remains <= 0 ) {
+				return Option.none();
+			}
+			else {
+				--m_remains;
+				return m_src.next();
+			}
 		}
 	}
 }

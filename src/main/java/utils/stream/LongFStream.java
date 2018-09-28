@@ -1,7 +1,6 @@
 package utils.stream;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -10,6 +9,8 @@ import com.google.common.primitives.Longs;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
+import utils.stream.LongFStreamImpl.LongArrayStream;
+import utils.stream.LongFStreamImpl.TakenLongStream;
 
 /**
  * 
@@ -40,26 +41,23 @@ public interface LongFStream extends FStream<Long> {
 		return (state._2 > 0) ? Option.some(state._1 / (double)state._2)
 								: Option.none();
 	}
+
+	@Override
+	public default LongFStream take(long count) {
+		return new TakenLongStream(this, count);
+	}
+	
+	@Override
+	public default Option<Long> first() {
+		try ( LongFStream taken = take(1) ) {
+			return taken.next();
+		}
+		catch ( Exception ignored ) {
+			throw new FStreamException("" + ignored);
+		}
+	}
 	
 	public default long[] toArray() {
 		return Longs.toArray(toList());
-	}
-	
-	static class LongArrayStream implements LongFStream {
-		private final Iterator<Long> m_iter;
-		
-		LongArrayStream(Iterator<Long> iter) {
-			Objects.requireNonNull(iter);
-			
-			m_iter = iter;
-		}
-
-		@Override
-		public void close() throws Exception { }
-
-		@Override
-		public Option<Long> next() {
-			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
-		}
 	}
 }

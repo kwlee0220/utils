@@ -10,6 +10,7 @@ import com.google.common.primitives.Doubles;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
+import utils.stream.DoubleFStreamImpl.TakenStream;
 
 /**
  * 
@@ -28,6 +29,21 @@ public interface DoubleFStream extends FStream<Double> {
 			() -> next().map(mapper),
 			() -> close()
 		);
+	}
+
+	@Override
+	public default DoubleFStream take(long count) {
+		return new TakenStream(this, count);
+	}
+	
+	@Override
+	public default Option<Double> first() {
+		try ( DoubleFStream taken = take(1) ) {
+			return taken.next();
+		}
+		catch ( Exception ignored ) {
+			throw new FStreamException("" + ignored);
+		}
 	}
 	
 	public default double sum() {
