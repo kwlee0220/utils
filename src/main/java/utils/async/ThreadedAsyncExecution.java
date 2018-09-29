@@ -25,19 +25,15 @@ import utils.Guards;
  * ThreadedAsyncExecution은 runTask()이 정상적으로 호출되어 반환되는 경우
  * 이를 지정된 작업이 정상적으로 수행 완료된 것으로 간주하기 때문에, 만일 작업 수행 중
  * 타 쓰레드의 cancelTask() 메소드 호출 또는 기타 다른 이유로 인해
- * <b>작업이 중지되는 경우는 반드시 OperationStoppedException 예외를 발생시켜야 한다</b>.
- * 만일 그렇지 않은 경우는 작업 수행이 정상적으로 종료된 것으로 간주된다.
- * 또한 작업 수행 중 여러가지 원인에 의해 작업 수행이 실패하는 경우는 해당 예외를
- * ExecutionException으로 wrapping하여 발생시키고 반환되어야 한다.
- * 대부분의 경우 비동기 연산의 결과로 특정한 값이 생성되지 않는 경우가 많다.
- * 이 경우는 runTask() 메소드는 null을 반환한다.
+ * <b>작업이 중지되는 경우는 반드시 CancellationException 또는 InterruptedException 예외를
+ * 발생시켜야 한다</b>.
+ * 만일 그렇지 않은 경우는 작업 수행이 정상적으로 종료된 것으로 간주된다.</dd>
  * <dt>{@link #cancelTask()}:
  * <dd>
  * runTask() 호출로 수행 중인 작업을 중지시키기 위해 필요한 작업을 구현한다.
- * ThreadedAsyncExecution을 상속하여 구현된 비동기 연산의 수행 중 AsyncOperation.stop()이
+ * ThreadedAsyncExecution을 상속하여 구현된 비동기 연산의 수행 중 {@link AsyncExecution#cancel()}이
  * 호출되는 경우 본 메소드가 호출된다. 본 메소드는 일반적으로 수행 중인 작업을 중지시키기 위한
- * 작업을 수행한다. 본 메소드가 호출되면 runTask() 메소드를 호출로 pending 중인
- * 쓰레드는 OperationStoppedException 예외를 받게 되어야 한다.
+ * 작업을 수행한다. 
  * 만일 본 메소드 호출 당시 비동기 작업이 수행 중이지 않은 경우는 호출이 무시된다.
  * 또한 메소드 호출 중 발생되는 모든 예외는 모두 내부적으로 처리되어야 한다. cancelTask()를
  * 통한 작업 중지는 *best-effort* 의미를 갖기 때문에 메소드 호출로 반드시 대상 비동기 작업이
