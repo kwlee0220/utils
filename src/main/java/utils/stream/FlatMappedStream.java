@@ -42,12 +42,12 @@ class FlatMappedStream<S,T> implements FStream<T> {
 				return onext;
 			}
 			
-			Option<S> osrc;
-			if ( (osrc = m_src.next()).isEmpty() ) {
-				m_mapped = null;
+			m_src.next()
+				.onEmpty(() -> m_mapped = null)
+				.forEach(src -> m_mapped = m_mapper.apply(src));
+			if ( m_mapped == null ) {
 				return Option.none();
 			}
-			m_mapped = m_mapper.apply(osrc.get());
 		}
 	}
 }

@@ -134,6 +134,10 @@ public interface FStream<T> extends AutoCloseable {
 		return new FStreams.DropWhileStream<>(this, pred);
 	}
 	
+	public default FStream<T> sample(double ratio) {
+		return new FStreams.SampledStream<>(this, ratio);
+	}
+	
 	public default FStreamImpl<T> filter(Predicate<? super T> pred) {
 		Objects.requireNonNull(pred);
 		

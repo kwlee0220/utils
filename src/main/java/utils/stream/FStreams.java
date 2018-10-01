@@ -1,6 +1,7 @@
 package utils.stream;
 
 import java.util.Objects;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -216,6 +217,35 @@ public class FStreams {
 			return m_gen.apply(m_seed)
 						.peek(t -> m_seed = t._2)
 						.map(t -> t._1);
+		}
+	}
+
+	static class SampledStream<T> implements FStream<T> {
+		private final FStream<T> m_src;
+		private final double m_ratio;
+		private final Random m_randGen = new Random(System.currentTimeMillis());
+		
+		SampledStream(FStream<T> src, double ratio) {
+			Objects.requireNonNull(src);
+			Preconditions.checkArgument(ratio >= 0, "sample ration must be larger or equal to zero");
+			
+			m_src = src;
+			m_ratio = ratio;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
+		}
+
+		@Override
+		public Option<T> next() {
+			while ( true ) {
+				Option<T> next = m_src.next();
+				if ( next.isEmpty() || m_randGen.nextDouble() < m_ratio ) {
+					return next;
+				}
+			}
 		}
 	}
 }
