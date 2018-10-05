@@ -22,16 +22,15 @@ import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
 import utils.LoggerSettable;
+import utils.Throwables;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
-	protected enum ImplState { NOT_STARTED, STARTING, RUNNING, COMPLETED, FAILED,
-								CANCELLING, CANCELLED };
-	
-	private ExecutableWork<T> m_work;							
+public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable, Runnable {
+	protected static enum ImplState { NOT_STARTED, STARTING, RUNNING, COMPLETED, FAILED,
+								CANCELLING, CANCELLED };		
 								
 	protected final ReentrantLock m_aopLock = new ReentrantLock();
 	protected final Condition m_aopCond = m_aopLock.newCondition();
@@ -40,7 +39,7 @@ public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
 	@GuardedBy("m_aopLock") private Result<T> m_result;		// may null
 	@GuardedBy("m_aopLock") private final List<Runnable> m_startListeners = Lists.newCopyOnWriteArrayList();
 	@GuardedBy("m_aopLock") private final List<Runnable> m_finishListeners = Lists.newCopyOnWriteArrayList();
-	@GuardedBy("m_aopLock") private Option<CheckedRunnable> m_startHook = Option.none();
+	@GuardedBy("m_aopLock") private volatile Option<CheckedRunnable> m_startHook = Option.none();
 	@GuardedBy("m_aopLock") private volatile Option<Runnable> m_completeHook = Option.none();
 	@GuardedBy("m_aopLock") private volatile Option<Runnable> m_cancelHook = Option.none();
 	@GuardedBy("m_aopLock") private volatile Option<Consumer<Throwable>> m_failureHook = Option.none();
@@ -48,20 +47,7 @@ public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
 	@GuardedBy("m_aopLock") protected Thread m_thread = null;
 	private Logger m_logger = LoggerFactory.getLogger(ExecutionHandle.class);
 	
-	public ExecutionHandle(ExecutableWork<T> work) {
-		m_work = work;
-	}
-	public ExecutionHandle() {
-		m_work = null;
-	}
-	
-	public ExecutableWork<T> getExecutableWork() {
-		return m_work;
-	}
-	
-	public void setExecutableWork(ExecutableWork<T> work) {
-		m_work = work;
-	}
+	public abstract ExecutableWork<T> getExecutableWork();
 	
 	@Override
 	public void waitForStarted() throws InterruptedException {
@@ -325,8 +311,9 @@ public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
 				case RUNNING:
 					// 작업이 cancellable인 경우는 명시적으로 'cancel()'을 호출하고,
 					// 그렇지 않은 경우는 수행 쓰레드의 interrupt를 시도한다.
-					if ( m_work != null && m_work instanceof CancellableWork ) {
-						if ( !((CancellableWork)m_work).cancelWork() ) {
+					ExecutableWork<T> work = getExecutableWork();
+					if ( work != null && work instanceof CancellableWork ) {
+						if ( !((CancellableWork)work).cancelWork() ) {
 							return false;
 						}
 					}
@@ -343,7 +330,7 @@ public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
 			}
 		}
 		catch ( InterruptedException e ) {
-			throw new RuntimeException();
+			return false;
 		}
 		finally {
 			m_aopLock.unlock();
@@ -352,13 +339,14 @@ public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
 	
 	@Override
 	public boolean cancel(boolean mayInterruptIfRunning) {
-		cancel();
-		Try.run(this::waitForDone);
+		if ( cancel() ) {
+			Try.run(this::waitForDone);
+		}
 		
 		return isCancelled();
 	}
 
-	public boolean notifyStarted(Thread thread) {
+	protected boolean notifyStarted(Thread thread) {
 		m_aopLock.lock();
 		try {
 			switch ( m_aopState ) {
@@ -392,7 +380,7 @@ public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
 		}
 	}
 
-	public boolean notifyCompleted(T result) {
+	protected boolean notifyCompleted(T result) {
 		m_aopLock.lock();
 		try {
 			switch ( m_aopState ) {
@@ -418,7 +406,7 @@ public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
 		}
 	}
 	
-    public boolean notifyFailed(Throwable cause) {
+	protected boolean notifyFailed(Throwable cause) {
     	m_aopLock.lock();
     	try {
 			switch ( m_aopState ) {
@@ -445,7 +433,7 @@ public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
     	}
     }
 	
-    public boolean notifyCancelled() {
+	protected boolean notifyCancelled() {
     	m_aopLock.lock();
     	try {
 			switch ( m_aopState ) {
@@ -565,5 +553,43 @@ public class ExecutionHandle<T> implements Execution<T>, LoggerSettable {
 	
 	private void notifyFinishListeners() {
 		CompletableFuture.runAsync(() -> m_finishListeners.forEach(Runnable::run));
+	}
+	
+	@Override
+	public void run() {
+		if ( !notifyStarted(Thread.currentThread()) ) {
+			// 작업 시작에 실패한 경우 (주로 이미 cancel된 경우)는 바로 return한다.
+			return;
+		}
+		
+		// 해당 작업이 수행 작업으로 선정된 것을 알린다.
+		Executors.s_logger.debug("started: {}", this);
+		
+		// 작업을 수행한다.
+		try {
+			T result = getExecutableWork().executeWork();
+			
+			switch ( getState() ) {
+				case RUNNING:
+					// 작업 종료 후에 작업이 종료되었음을 알린다.
+					notifyCompleted(result);
+					Executors.s_logger.debug("completed: {}, result={}", this, result);
+					break;
+				case CANCELLING:
+					notifyCancelled();
+					Executors.s_logger.info("cancelled: {}", this);
+					break;
+				default:
+			}
+			
+		}
+		catch ( InterruptedException | CancellationException e ) {
+			notifyCancelled();
+			Executors.s_logger.info("cancelled: {}", this);
+		}
+		catch ( Throwable e ) {
+			notifyFailed(e);
+			Executors.s_logger.info("failed: {}, cause={}", this, Throwables.unwrapThrowable(e));
+		}
 	}
 }

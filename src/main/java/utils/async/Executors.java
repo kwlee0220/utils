@@ -39,20 +39,16 @@ public class Executors {
 		}
 
 		@Override
-		public void submit(ExecutableWork<T> job, ExecutionHandle<T> handle) {
-			m_executor.submit(new ExecutionRunner<>(job, handle));
-		}
-
-		@Override
-		public ExecutionHandle<T> submit(ExecutableWork<T> job) {
-			ExecutionHandle<T> handle = new ExecutionHandle<>(job);
-			m_executor.submit(new ExecutionRunner<>(job, handle));
+		public Execution<T> submit(ExecutableWork<T> job) {
+			SimpleRunner<T> runner = new SimpleRunner<>(job);
+			m_executor.submit(runner);
 			
-			return handle;
+			return runner;
 		}
 
 		@Override
 		public void submit(ExecutableHandle<T> handle) {
+			m_executor.submit(handle);
 		}
 
 		@Override
@@ -61,35 +57,31 @@ public class Executors {
 		}
 	}
 	
-	public static <T> void start(ExecutableWork<T> job, ExecutionHandle<T> handle) {
-		new Thread(new ExecutionRunner<>(job, handle)).start();
-	}
-	
 	public static <T> ExecutionHandle<T> start(ExecutableWork<T> job) {
-		ExecutionHandle<T> handle = new ExecutionHandle<>(job);
-		new Thread(new ExecutionRunner<>(job, handle)).start();
+		SimpleRunner<T> runner = new SimpleRunner<>(job);
+		new Thread(runner).start();
 		
-		return handle;
+		return runner;
 	}
 	
 	public static <T> void start(ExecutableHandle<T> job) {
-		new Thread(new ExecutionRunner<>(job, job)).start();
+		new Thread(job).start();
 	}
 	
 	private static class DirectThreadExecutor<T> implements Executor<T> {
 		DirectThreadExecutor() { }
 
 		@Override
-		public void submit(ExecutableWork<T> job, ExecutionHandle<T> handle) {
-			new Thread(new ExecutionRunner<>(job, handle)).start();
+		public ExecutionHandle<T> submit(ExecutableWork<T> job) {
+			SimpleRunner<T> runner = new SimpleRunner<>(job);
+			new Thread(runner).start();
+			
+			return runner;
 		}
 
 		@Override
-		public ExecutionHandle<T> submit(ExecutableWork<T> job) {
-			ExecutionHandle<T> handle = new ExecutionHandle<>(job);
-			submit(job, handle);
-			
-			return handle;
+		public void submit(ExecutableHandle<T> handle) {
+			new Thread(handle).start();
 		}
 
 		@Override
