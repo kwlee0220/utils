@@ -1,8 +1,11 @@
 package utils;
 
+import java.util.Date;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 import com.google.common.base.Preconditions;
@@ -18,6 +21,11 @@ import utils.Unchecked.CheckedSupplier;
 public class Guard {
 	private final Lock m_lock;
 	private final Condition m_cond;
+	
+	public static Guard create() {
+		Lock lock = new ReentrantLock();
+		return new Guard(lock, lock.newCondition());
+	}
 	
 	public static Guard by(Lock lock) {
 		return new Guard(lock);
@@ -40,6 +48,14 @@ public class Guard {
 		
 		m_lock = lock;
 		m_cond = cond;
+	}
+	
+	public Lock getLock() {
+		return m_lock;
+	}
+	
+	public Condition getCondition() {
+		return m_cond;
 	}
 	
 	public void run(Runnable work) {
@@ -117,6 +133,30 @@ public class Guard {
 		}
 	}
 	
+	public boolean awaitUntil(Supplier<Boolean> predicate, long timeout, TimeUnit tu)
+		throws InterruptedException {
+		Objects.requireNonNull(predicate, "Until-condition is null");
+		Objects.requireNonNull(tu, "TimeUnit is null");
+		Preconditions.checkArgument(timeout >= 0, "timeout should be larger than zero");
+		Preconditions.checkState(m_cond != null, "Condition is null");
+		
+		
+		Date due = new Date(tu.toMillis(timeout));
+		m_lock.lock();
+		try {
+			while ( !predicate.get() ) {
+				if ( !m_cond.awaitUntil(due) ) {
+					return false;
+				}
+			}
+			
+			return true;
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
 	public void awaitUntilAndRun(Supplier<Boolean> predicate, Runnable work)
 		throws InterruptedException {
 		m_lock.lock();
@@ -144,6 +184,20 @@ public class Guard {
 			m_lock.unlock();
 		}
 	}
+	
+//	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, CheckedSupplier<T> suppl)
+//		throws InterruptedException, Throwable {
+//		m_lock.lock();
+//		try {
+//			while ( !predicate.get() ) {
+//				m_cond.await();
+//			}
+//			return suppl.get();
+//		}
+//		finally {
+//			m_lock.unlock();
+//		}
+//	}
 	
 	public <T> Try<T> awaitUntilAndTryToGet(Supplier<Boolean> predicate, CheckedSupplier<T> suppl)
 		throws InterruptedException {

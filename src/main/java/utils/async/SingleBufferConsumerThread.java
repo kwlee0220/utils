@@ -12,7 +12,6 @@ import com.google.common.base.Preconditions;
 
 import net.jcip.annotations.GuardedBy;
 import utils.LoggerSettable;
-import utils.Throwables;
 
 
 
@@ -32,7 +31,7 @@ import utils.Throwables;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class SingleBufferConsumerThread<T,R> extends Thread implements LoggerSettable {
+class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 	static final Logger s_logger = LoggerFactory.getLogger(SingleBufferConsumerThread.class);
 
 	private static final int STATE_NOT_STARTED = 0;
@@ -40,26 +39,20 @@ public abstract class SingleBufferConsumerThread<T,R> extends Thread implements 
 	private static final int STATE_STOP_REQUESTED = 2;
 	private static final int STATE_STOPPED = 3;
 	
+	private final String m_thrdName;
 	private volatile Logger m_logger = s_logger;
 	
 	private final Lock m_lock = new ReentrantLock();
 	private final Condition m_cond = m_lock.newCondition();
-	@GuardedBy("m_lock") private SingleBufferWork<T, R> m_pendingJob = null;
+	@GuardedBy("m_lock") private ExecutionRunner<T> m_pendingJob = null;
 	@GuardedBy("m_lock") private int m_state = STATE_NOT_STARTED;
 	
-	/**
-	 * 생성된 데이타를 제공한다.
-	 * 
-	 * @param data	생성된 데이타.
-	 * @throws Throwable	데이타 소비 중 예외가 발생된 경우.
-	 */
-	protected abstract R consume(T data) throws Throwable;
-	
-	protected SingleBufferConsumerThread() {
+	SingleBufferConsumerThread() {
+		m_thrdName = getClass().getName();
 		setLogger(s_logger);
 	}
-	protected SingleBufferConsumerThread(String name) {
-		super(name);
+	SingleBufferConsumerThread(String name) {
+		m_thrdName = name;
 		setLogger(s_logger);
 	}
 	
@@ -72,23 +65,50 @@ public abstract class SingleBufferConsumerThread<T,R> extends Thread implements 
 	 * 
 	 * @param job	추가할 작업.
 	 */
-	public final SingleBufferWork<T,R> submit(T job) {
-		Objects.requireNonNull(job, "job is null");
+	@Override
+	public final ExecutionHandle<T> submit(ExecutableWork<T> supplier) {
+		Objects.requireNonNull(supplier, "supplier is null");
 		
 		m_lock.lock();
 		try {
 			if ( m_pendingJob != null ) {
 				// 대기 중인 작업이 있으면, 대기 작업을 삭제한다.
-				m_pendingJob.notifyIgnored();
+				m_pendingJob.getHandle().notifyCancelled();
 
-				getLogger().debug("pending job is ignored: {}", m_pendingJob.getJob());
+				getLogger().debug("pending job is ignored: {}", m_pendingJob);
 			}
 			else {
 				// 대기 중인 작업이 없으면, 작업 쓰레드를 sleep하고 있는 경우가 있으므로 깨운다.
 				m_cond.signalAll();
 			}
 			
-			return m_pendingJob = new SingleBufferWork<>(job);
+			m_pendingJob = new ExecutionRunner<>(supplier);
+			return m_pendingJob.getHandle();
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+
+	@Override
+	public void submit(ExecutableWork<T> supplier, ExecutionHandle<T> handle) {
+		Objects.requireNonNull(supplier, "supplier is null");
+		Objects.requireNonNull(handle, "ExecutionHandle is null");
+		
+		m_lock.lock();
+		try {
+			if ( m_pendingJob != null ) {
+				// 대기 중인 작업이 있으면, 대기 작업을 삭제한다.
+				m_pendingJob.getHandle().notifyCancelled();
+
+				getLogger().debug("pending job is ignored: {}", m_pendingJob);
+			}
+			else {
+				// 대기 중인 작업이 없으면, 작업 쓰레드를 sleep하고 있는 경우가 있으므로 깨운다.
+				m_cond.signalAll();
+			}
+
+			m_pendingJob = new ExecutionRunner<>(supplier);
 		}
 		finally {
 			m_lock.unlock();
@@ -96,43 +116,10 @@ public abstract class SingleBufferConsumerThread<T,R> extends Thread implements 
 	}
 	
 	@Override
-	public final void run() {
-		SingleBufferWork<T,R> work =null;
-		
-		while ( true ) {
-			try {
-				work = waitNextWork();
-				if ( work == null ) {
-					getLogger().info("stopped {}={}", getClass().getName(), this);
-					
-					return;
-				}
-				
-				// 해당 작업이 수행 작업으로 선정된 것을 알린다.
-				work.notifySelected();
-				getLogger().debug("job selected for execution: {}", work.getJob());
-				
-				// 작업을 수행한다.
-				try {
-					R result = consume(work.getJob());
-					
-					// 작업 종료 후에 작업이 종료되었음을 알린다.
-					work.notifyCompleted(result);
-					getLogger().debug("job is completed: {}, result={}", work.getJob(), result);
-				}
-				catch ( Throwable e ) {
-					work.notifyFailed(e);
-					getLogger().warn("fails to consume: data={}, cause={}",
-										work, Throwables.unwrapThrowable(e));
-				}
-			}
-			catch ( InterruptedException e ) {
-				getLogger().warn("" + e);
-				
-				return;
-			}
-		}
+	public void shutdown() {
+		stopConsume();
 	}
+	
 	
 	/**
 	 * 소비자 쓰레드를 시작시킨다.
@@ -142,7 +129,7 @@ public abstract class SingleBufferConsumerThread<T,R> extends Thread implements 
 		try {
 			Preconditions.checkState(m_state == STATE_NOT_STARTED, "already started");
 			
-			start();
+			new Thread(new Worker(), m_thrdName).start();
 			
 			m_state = STATE_RUNNING;
 			m_cond.signalAll();
@@ -211,7 +198,7 @@ public abstract class SingleBufferConsumerThread<T,R> extends Thread implements 
 		m_logger = logger != null ? logger : s_logger;
 	}
 	
-	private SingleBufferWork<T,R> waitNextWork() throws InterruptedException {
+	private ExecutionRunner<T> waitNextWork() throws InterruptedException {
 		// 'stopConsume()' 이 호출된 경우는 null이 반환된다.
 		//
 		m_lock.lock();
@@ -237,13 +224,38 @@ public abstract class SingleBufferConsumerThread<T,R> extends Thread implements 
 				return null;
 			}
 			
-			SingleBufferWork<T,R> nextWork = m_pendingJob;
+			ExecutionRunner<T> nextRunner = m_pendingJob;
 			m_pendingJob = null;
 			
-			return nextWork;
+			return nextRunner;
 		}
 		finally {
 			m_lock.unlock();
+		}
+	}
+	
+	private class Worker implements Runnable {
+		@Override
+		public final void run() {
+			ExecutionRunner<T> work =null;
+			
+			while ( true ) {
+				try {
+					work = waitNextWork();
+					if ( work == null ) {
+						getLogger().info("stopped {}={}", getClass().getName(), this);
+						
+						return;
+					}
+					
+					work.run();
+				}
+				catch ( InterruptedException e ) {
+					getLogger().warn("" + e);
+					
+					return;
+				}
+			}
 		}
 	}
 }

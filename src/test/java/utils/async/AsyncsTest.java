@@ -26,7 +26,7 @@ public class AsyncsTest {
 		Assert.assertEquals(0, task.getTaskState());
 
 		task.whenCompleted(r -> m_done = true);
-		task.start();
+		Executors.start(task);
 		task.waitForStarted();
 		Assert.assertEquals(1, task.getTaskState());
 		
@@ -44,7 +44,7 @@ public class AsyncsTest {
 		Assert.assertEquals(0, task.getTaskState());
 
 		task.whenCancelled(() -> m_done = true);
-		task.start();
+		Executors.start(task);
 		task.waitForStarted();
 		Assert.assertEquals(1, task.getTaskState());
 		
@@ -68,7 +68,7 @@ public class AsyncsTest {
 				m_done = true;
 			}
 		});
-		task.start();
+		Executors.start(task);
 		task.waitForStarted();
 		Assert.assertEquals(1, task.getTaskState());
 
@@ -87,7 +87,7 @@ public class AsyncsTest {
 		Assert.assertEquals(0, task.getTaskState());
 
 		task.whenCompleted(r -> m_done = true);
-		task.start();
+		Executors.start(task);
 		task.waitForStarted();
 		Assert.assertEquals(1, task.getTaskState());
 		
@@ -104,7 +104,7 @@ public class AsyncsTest {
 		Assert.assertEquals(0, task.getTaskState());
 
 		task.whenCancelled(() -> m_done = true);
-		task.start();
+		Executors.start(task);
 		task.waitForStarted();
 		Assert.assertEquals(1, task.getTaskState());
 		
@@ -127,7 +127,7 @@ public class AsyncsTest {
 				m_done = true;
 			}
 		});
-		task.start();
+		Executors.start(task);
 		task.waitForStarted();
 		Assert.assertEquals(1, task.getTaskState());
 
@@ -140,7 +140,7 @@ public class AsyncsTest {
 		Assert.assertEquals(true, m_done);
 	}
 
-	private static class ActiveTask extends ThreadedAsyncExecution<Void> {
+	private static class ActiveTask extends ExecutableHandle<Void> {
 		private Thread m_thread;
 		private int m_state = 0;
 		private RuntimeException m_error;
@@ -161,7 +161,7 @@ public class AsyncsTest {
 		}
 
 		@Override
-		protected Void runTask() throws Exception {
+		public Void executeWork() throws Exception {
 			if ( m_error != null ) {
 				throw m_error;
 			}
@@ -171,12 +171,13 @@ public class AsyncsTest {
 		}
 
 		@Override
-		public void cancelTask() {
+		public boolean cancel() {
 			m_thread.interrupt();
+			return true;
 		}
 	}
 	
-	private static class PassiveTask extends ThreadedAsyncExecution<Void> {
+	private static class PassiveTask extends ExecutableHandle<Void> {
 		private int m_state = 0;
 		private RuntimeException m_error;
 		
@@ -193,7 +194,7 @@ public class AsyncsTest {
 		}
 		
 		@Override
-		protected Void runTask() throws Throwable {
+		public Void executeWork() throws Exception {
 			for ( int i =0; i < 50; ++i ) {
 				synchronized ( this ) {
 					this.wait(50);
