@@ -6,12 +6,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import utils.Throwables;
+import utils.stream.FStream;
 
 
 /**
@@ -185,10 +187,21 @@ public class FileObjectStore<T extends FileObject> {
 		}
     }
     
-    public void traverse(FileObjectVisitor visitor) {
-		if ( visitor == null ) {
-			throw new NullPointerException("FileObject visitor was null");
+    public FStream<String> getFileObjectIdAll() {
+    	return getObjectFileAll().map(m_handler::toFileObjectId);
+    }
+    
+    public FStream<File> getObjectFileAll() {
+    	try {
+			return utils.io.FileUtils.walk(m_rootDir);
 		}
+		catch ( Exception e ) {
+			throw new FileObjectExistsException("" + e);
+		}
+    }
+    
+    public void traverse(FileObjectVisitor visitor) {
+    	Objects.requireNonNull(visitor, "FileObjectVisitor is null");
 		
     	traverseDirectory(m_rootDir, visitor);
     }

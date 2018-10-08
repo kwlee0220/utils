@@ -8,9 +8,6 @@ import java.io.IOException;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface FileObjectHandler<T> {
-	public void save(T fobj, File file) throws IOException;
-	public void destroy(T fobj);
-	
 	/**
 	 * 주어진 파일에 해당하는 파일 객체{@link FileObject}를 생성한다.
 	 * 
