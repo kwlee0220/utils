@@ -20,7 +20,7 @@ import utils.stream.FStream;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class FileObjectStore<T extends FileObject> {
+public class FileObjectStore<T> {
     private static final Logger s_logger = LoggerFactory.getLogger(FileObjectStore.class);
     
 	private final File m_rootDir;
@@ -94,7 +94,7 @@ public class FileObjectStore<T extends FileObject> {
 			}
 			
 			try {
-				fObj = m_handler.newFileObject(file);
+				fObj = m_handler.readFileObject(file);
 			}
 			catch ( Exception e ) {
 				throw new FileObjectStoreException(Throwables.unwrapThrowable(e));
@@ -127,12 +127,8 @@ public class FileObjectStore<T extends FileObject> {
     
     public void insert(String id, T fObj, boolean updateIfExists)
     	throws IOException, FileObjectExistsException {
-		if ( id == null ) {
-			throw new IllegalArgumentException("Object id was null");
-		}
-		if ( fObj == null ) {
-			throw new IllegalArgumentException("FileObject was null");
-		}
+    	Objects.requireNonNull(id, "FileObject id is null");
+    	Objects.requireNonNull(fObj, "FileObject is null");
 		
     	File file = m_handler.toFile(id);
     	if ( file.exists() ) {
@@ -146,7 +142,7 @@ public class FileObjectStore<T extends FileObject> {
     	}
     	
     	Files.createFile(file.toPath());
-    	fObj.save(file);
+    	m_handler.writeFileObject(fObj, file);
     }
     
     public void remove(String id) {
@@ -161,14 +157,6 @@ public class FileObjectStore<T extends FileObject> {
 		File file = m_handler.toFile(id);
 		if ( !file.exists() ) {
 			return;
-		}
-		
-		try {
-			FileObject fObj = m_handler.newFileObject(file);
-			fObj.destroy();
-		}
-		catch ( Exception e ) {
-			s_logger.warn("fails to destroy FileObject: id=" + id, Throwables.unwrapThrowable(e));
 		}
 		
 		boolean done = file.delete();

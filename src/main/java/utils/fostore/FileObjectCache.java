@@ -10,10 +10,10 @@ import com.google.common.cache.CacheBuilder;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class FileObjectCache<T extends FileObject> {
+public class FileObjectCache<T> {
 	private final Cache<String,T> m_cache;
 	
-	public static final <T extends FileObject> FileObjectCache<T> create(String name, int size) {
+	public static final <T> FileObjectCache<T> create(String name, int size) {
 		Cache<String,T> cache = CacheBuilder.newBuilder()
 											.maximumSize(size)
 											.expireAfterAccess(300, TimeUnit.SECONDS)
