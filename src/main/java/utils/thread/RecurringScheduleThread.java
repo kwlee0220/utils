@@ -12,6 +12,7 @@ import net.jcip.annotations.GuardedBy;
 import utils.LoggerSettable;
 import utils.LongVariableSmoother;
 import utils.Throwables;
+import utils.UnitUtils;
 
 
 /**
@@ -263,8 +264,8 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 		
 		_setState(STATE_STOPPED);
 		if ( m_logger.isInfoEnabled() ) {
-			m_logger.info("stopped: " + getClass().getSimpleName()
-							+ "[period=" + getInterval() + "ms]");
+			String str = UnitUtils.toSecondString(getInterval());
+			m_logger.info("stopped: {}[period={}]", getClass().getSimpleName(), str);
 		}
 	}
 
@@ -286,8 +287,9 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 				if ( m_failureCause == null ) {
 					_setState(STATE_RUNNING_IDLE);
 					if ( m_logger.isInfoEnabled() ) {
-						m_logger.info("started: " + getClass().getSimpleName()
-										+ "[period=" + getInterval() + "ms]");
+						String str = UnitUtils.toSecondString(getInterval());
+						m_logger.info("started: {}[period={}]",
+										getClass().getSimpleName(), str);
 					}
 					
 					if ( m_initialDelay > 0 ) {
