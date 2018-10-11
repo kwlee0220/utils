@@ -190,22 +190,24 @@ public class UnitUtils {
 	public static String toSecondString(long millis) {
 		long seconds = Math.round(millis / 1000d);
 		if ( seconds == 0 ) {
-			return "0";
+			return "0s";
 		}
 		
 		long minutes = seconds / 60;
 		if ( minutes == 0 ) {
-			return String.format("%02d", seconds);
+			return String.format("%02ds", seconds);
 		}
 		seconds = seconds % 60;
+		String secStr = (seconds > 0) ? String.format(":%02ds", seconds) : "";
 		
 		long hours = minutes / 60;
 		if ( hours == 0 ) {
-			return String.format("%02d:%02d", minutes, seconds);
+			return String.format("%02dm%s", minutes, secStr);
 		}
 		minutes = minutes % 60;
+		String minStr = (minutes > 0) ? String.format(":%02dm", minutes) : "";
 		
-		return String.format("%d:%02d:%02d", hours, minutes, seconds);
+		return String.format("%dh:%s%s", hours, minStr, seconds);
 	}
 
 	public static String toDateString(long date, boolean toMilliSeconds) {
