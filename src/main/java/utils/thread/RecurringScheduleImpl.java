@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import net.jcip.annotations.GuardedBy;
 import utils.LoggerSettable;
 import utils.Throwables;
+import utils.UnitUtils;
 
 
 /**
@@ -19,7 +20,7 @@ import utils.Throwables;
  * @author Kang-Woo Lee
  */
 public class RecurringScheduleImpl implements RecurringSchedule, LoggerSettable {
-	static final Logger s_logger = LoggerFactory.getLogger("ETRI.THREAD.SCHEDULE");
+	static final Logger s_logger = LoggerFactory.getLogger(RecurringScheduleImpl.class);
 
 	private final RecurringWork m_worker;
 	private final long m_initialDelay;
@@ -238,8 +239,8 @@ public class RecurringScheduleImpl implements RecurringSchedule, LoggerSettable 
 		setState(State.STOPPED);
 
 		if ( m_logger.isInfoEnabled() ) {
-			m_logger.info("stopped: " + getClass().getSimpleName()
-							+ "[period=" + getInterval() + "]");
+			String str = UnitUtils.toSecondString(getInterval());
+			m_logger.info("stopped: {}[period={}]", getClass().getSimpleName(), str);
 		}
 	}
 

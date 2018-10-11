@@ -19,7 +19,7 @@ import utils.Throwables;
  * @author Kang-Woo Lee
  */
 public class RecurringScheduleThread implements RecurringSchedule, LoggerSettable {
-	static final Logger s_logger = LoggerFactory.getLogger("ETRI.THREAD.SCHEDULE");
+	static final Logger s_logger = LoggerFactory.getLogger(RecurringScheduleThread.class);
 	
 	private static final int STATE_NOT_STARTED = 0;
 	private static final int STATE_STARTING = 1;
