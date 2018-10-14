@@ -36,6 +36,15 @@ public class FileObjectStore<T> {
 	 */
     public FileObjectStore(File rootDir, FileObjectHandler<T> handler, int cacheSize) {
     	m_rootDir = rootDir;
+    	if ( !m_rootDir.exists() ) {
+    		try {
+        		FileUtils.forceMkdir(m_rootDir);
+			}
+			catch ( IOException e ) {
+				throw new FileObjectStoreException(e);
+			}
+    	}
+    	
     	m_handler = handler;
     	if ( cacheSize > 0 ) {
     		String cacheName = "focache" + System.identityHashCode(this);
