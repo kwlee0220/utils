@@ -41,10 +41,9 @@ class FlatMappedStream<S,T> implements FStream<T> {
 			if ( (onext = (Option<T>)m_mapped.next()).isDefined() ) {
 				return onext;
 			}
+			m_mapped.closeQuietly();
 			
-			m_src.next()
-				.onEmpty(() -> m_mapped = null)
-				.forEach(src -> m_mapped = m_mapper.apply(src));
+			m_mapped = m_src.next().map(m_mapper::apply).getOrNull();
 			if ( m_mapped == null ) {
 				return Option.none();
 			}

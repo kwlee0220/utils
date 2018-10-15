@@ -220,7 +220,7 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default FStream<T> peek(Consumer<? super T> consumer) {
-		Objects.requireNonNull(consumer);
+		Objects.requireNonNull(consumer, "peek consumer is null");
 		
 		return new FStreamImpl<> (
 			"peek",
@@ -230,31 +230,31 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<? extends V>> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Objects.requireNonNull(mapper, "mapper is null");
 		
 		return new FlatMappedStream<>(this, mapper);
 	}
 	
 	public default <V> FStream<V> flatMapOption(Function<? super T,Option<V>> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Objects.requireNonNull(mapper, "mapper is null");
 
 		return flatMap(t -> FStream.of(mapper.apply(t)));
 	}
 	
 	public default <V> FStream<V> flatMapIterable(Function<? super T,Iterable<V>> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Objects.requireNonNull(mapper, "mapper is null");
 		
 		return flatMap(t -> FStream.of(mapper.apply(t)));
 	}
 	
 	public default <V> FStream<V> flatMapStream(Function<? super T,Stream<V>> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Objects.requireNonNull(mapper, "mapper is null");
 		
 		return flatMap(t -> FStream.of(mapper.apply(t)));
 	}
 	
 	public default boolean exists(Predicate<? super T> pred) {
-		Preconditions.checkArgument(pred != null, "pred is null");
+		Objects.requireNonNull(pred, "predicate is null");
 		
 		return foldLeft(false, true, (a,t) -> { 
 			try {
