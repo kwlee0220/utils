@@ -62,6 +62,14 @@ public class CSV {
 		return this;
 	}
 	
+	public static List<String> parseCSV(String str) {
+		return parse(str, ',', '\\');
+	}
+	
+	public static String[] parseCSVAsArray(String str) {
+		return parseAsArray(str, ',', '\\');
+	}
+	
 	public static List<String> parse(String str, char delim, char esc) {
 		return get().withDelimiter(delim).withEscape(esc).parse(str);
 	}
