@@ -67,6 +67,17 @@ artifacts {
 	archives javadocJar
 }
 
+apply plugin: 'maven-publish'
+publishing {
+	publications {
+		main(MavenPublication) {
+			artifact jar
+			artifact sourceJar
+			artifact javadocJar
+		}
+	}
+}
+
 apply plugin: 'eclipse'
 eclipse {
 	classpath {
@@ -75,18 +86,6 @@ eclipse {
 				def node = it.asNode()
 				node.appendNode('classpathentry', [kind: 'output', path: 'classes'])
 			}
-		}
-	}
-}
-
-apply plugin: 'maven-publish'
-publishing {
-	publications {
-		utils(MavenPublication) {
-			from components.java
-			artifactId 'utils'
-			
-			artifact javadocJar
 		}
 	}
 }
