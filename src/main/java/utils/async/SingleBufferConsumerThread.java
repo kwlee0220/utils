@@ -44,7 +44,7 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 	
 	private final Lock m_lock = new ReentrantLock();
 	private final Condition m_cond = m_lock.newCondition();
-	@GuardedBy("m_lock") private ExecutionHandle<T> m_pendingJob = null;
+	@GuardedBy("m_lock") private AbstractExecution<T> m_pendingJob = null;
 	@GuardedBy("m_lock") private int m_state = STATE_NOT_STARTED;
 	
 	SingleBufferConsumerThread() {
@@ -65,33 +65,9 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 	 * 
 	 * @param job	추가할 작업.
 	 */
-	@Override
-	public final ExecutionHandle<T> submit(ExecutableWork<T> supplier) {
-		Objects.requireNonNull(supplier, "supplier is null");
-		
-		m_lock.lock();
-		try {
-			if ( m_pendingJob != null ) {
-				// 대기 중인 작업이 있으면, 대기 작업을 삭제한다.
-				m_pendingJob.notifyCancelled();
-
-				getLogger().debug("pending job is ignored: {}", m_pendingJob);
-			}
-			else {
-				// 대기 중인 작업이 없으면, 작업 쓰레드를 sleep하고 있는 경우가 있으므로 깨운다.
-				m_cond.signalAll();
-			}
-			
-			m_pendingJob = new SimpleRunner<>(supplier);
-			return m_pendingJob;
-		}
-		finally {
-			m_lock.unlock();
-		}
-	}
 
 	@Override
-	public void submit(ExecutableHandle<T> handle) {
+	public void submit(AbstractExecution<T> handle) {
 		Objects.requireNonNull(handle, "ExecutableHandle is null");
 		
 		m_lock.lock();
@@ -197,7 +173,7 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 		m_logger = logger != null ? logger : s_logger;
 	}
 	
-	private ExecutionHandle<T> waitNextWork() throws InterruptedException {
+	private AbstractExecution<T> waitNextWork() throws InterruptedException {
 		// 'stopConsume()' 이 호출된 경우는 null이 반환된다.
 		//
 		m_lock.lock();
@@ -223,7 +199,7 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 				return null;
 			}
 			
-			ExecutionHandle<T> nextRunner = m_pendingJob;
+			AbstractExecution<T> nextRunner = m_pendingJob;
 			m_pendingJob = null;
 			
 			return nextRunner;
@@ -236,7 +212,7 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 	private class Worker implements Runnable {
 		@Override
 		public final void run() {
-			ExecutionHandle<T> work =null;
+			AbstractExecution<T> work =null;
 			
 			while ( true ) {
 				try {

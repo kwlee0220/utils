@@ -1,6 +1,5 @@
 package utils.async;
 
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -28,14 +27,11 @@ import utils.Throwables;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable, Runnable {
-	protected static enum ImplState { NOT_STARTED, STARTING, RUNNING, COMPLETED, FAILED,
-								CANCELLING, CANCELLED };		
-								
+public abstract class AbstractExecution<T> implements Execution<T>, LoggerSettable, Runnable {
 	protected final ReentrantLock m_aopLock = new ReentrantLock();
 	protected final Condition m_aopCond = m_aopLock.newCondition();
-	protected final Guard m_guard = Guard.by(m_aopLock, m_aopCond);
-	@GuardedBy("m_aopLock") protected ImplState m_aopState = ImplState.NOT_STARTED;
+	protected final Guard m_aopGuard = Guard.by(m_aopLock, m_aopCond);
+	@GuardedBy("m_aopLock") protected State m_aopState = State.NOT_STARTED;
 	@GuardedBy("m_aopLock") private Result<T> m_result;		// may null
 	@GuardedBy("m_aopLock") private final List<Runnable> m_startListeners = Lists.newCopyOnWriteArrayList();
 	@GuardedBy("m_aopLock") private final List<Runnable> m_finishListeners = Lists.newCopyOnWriteArrayList();
@@ -45,90 +41,50 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 	@GuardedBy("m_aopLock") private volatile Option<Consumer<Throwable>> m_failureHook = Option.none();
 
 	@GuardedBy("m_aopLock") protected Thread m_thread = null;
-	private Logger m_logger = LoggerFactory.getLogger(ExecutionHandle.class);
+	private Logger m_logger = LoggerFactory.getLogger(AbstractExecution.class);
 	
-	public abstract ExecutableWork<T> getExecutableWork();
+	public abstract T executeWork() throws CancellationException, Throwable;
 	
 	@Override
 	public void waitForStarted() throws InterruptedException {
-		m_aopLock.lock();
-		try {
-			while ( m_aopState == ImplState.NOT_STARTED ) {
-				m_aopCond.await();
-			}
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		m_aopGuard.awaitWhile(() -> m_aopState == State.NOT_STARTED);
 	}
 	
 	@Override
 	public boolean waitForStarted(long timeout, TimeUnit unit) throws InterruptedException {
-		Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
-		m_aopLock.lock();
-		try {
-			while ( m_aopState == ImplState.NOT_STARTED ) {
-				if ( !m_aopCond.awaitUntil(due) ) {
-					return false;
-				}
-			}
-			
-			return true;
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		return m_aopGuard.awaitWhile(() -> m_aopState == State.NOT_STARTED, timeout, unit);
 	}
 
 	@Override
 	public void waitForDone() throws InterruptedException {
-		m_aopLock.lock();
-		try {
-			while ( true ) {
-				switch ( m_aopState ) {
-					case NOT_STARTED:
-					case RUNNING:
-					case CANCELLING:
-						m_aopCond.await();
-						break;
-					default:
-						return;
-				}
+		m_aopGuard.awaitWhile(() -> {
+			switch ( m_aopState ) {
+				case NOT_STARTED:
+				case RUNNING:
+				case CANCELLING:
+					return true;
+				default:
+					return false;
 			}
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		});
 	}
 
 	@Override
 	public boolean waitForDone(long timeout, TimeUnit unit) throws InterruptedException {
-		Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
-		
-		m_aopLock.lock();
-		try {
-			while ( true ) {
-				switch ( m_aopState ) {
-					case NOT_STARTED:
-					case RUNNING:
-					case CANCELLING:
-						if ( !m_aopCond.awaitUntil(due) ) {
-							return false;
-						}
-						break;
-					default:
-						return true;
-				}
+		return m_aopGuard.awaitWhile(() -> {
+			switch ( m_aopState ) {
+				case NOT_STARTED:
+				case RUNNING:
+				case CANCELLING:
+					return true;
+				default:
+					return false;
 			}
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		}, timeout, unit);
 	}
 	
 	public Option<Result<T>> pollResult() {
-		m_aopLock.lock();
-		try {
+		return m_aopGuard.get(() -> {
 			switch ( m_aopState ) {
 				case COMPLETED:
 				case FAILED:
@@ -137,141 +93,33 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 				default:
 					return Option.none();
 			}
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		});
 	}
 
 	@Override
 	public Result<T> waitForResult() throws InterruptedException {
 		waitForDone();
-		
-		m_aopLock.lock();
-		try {
-			return m_result;
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		return m_aopGuard.get(() -> m_result);
 	}
 
 	@Override
 	public Result<T> waitForResult(long timeout, TimeUnit unit) throws InterruptedException,
 																	TimeoutException {
-		waitForDone(timeout, unit);
+		if ( !waitForDone(timeout, unit) ) {
+			throw new TimeoutException();
+		}
 		
-		m_aopLock.lock();
-		try {
-			return m_result;
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		return m_aopGuard.get(() -> m_result);
 	}
 
 	@Override
 	public State getState() {
-		m_aopLock.lock();
-		try {
-			switch ( m_aopState ) {
-				case NOT_STARTED:
-					return State.NOT_STARTED;
-				case RUNNING:
-					return State.RUNNING;
-				case COMPLETED:
-					return State.COMPLETED;
-				case FAILED:
-					return State.FAILED;
-				case CANCELLED:
-					return State.CANCELLED;
-				case CANCELLING:
-					return State.CANCELLING;
-				default:
-					throw new AssertionError();
-			}
-		}
-		finally {
-			m_aopLock.unlock();
-		}
-	}
-
-	@Override
-	public final boolean isStarted() {
-		m_aopLock.lock();
-		try {
-			return m_aopState != ImplState.NOT_STARTED;
-		}
-		finally {
-			m_aopLock.unlock();
-		}
-	}
-
-	@Override
-	public final boolean isDone() {
-		m_aopLock.lock();
-		try {
-			return m_aopState == ImplState.COMPLETED || m_aopState == ImplState.FAILED
-					|| m_aopState == ImplState.CANCELLED;
-		}
-		finally {
-			m_aopLock.unlock();
-		}
-	}
-
-	@Override
-	public final boolean isCompleted() {
-		m_aopLock.lock();
-		try {
-			return m_aopState == ImplState.COMPLETED;
-		}
-		finally {
-			m_aopLock.unlock();
-		}
-	}
-	
-	@Override
-	public final boolean isCancelled() {
-		m_aopLock.lock();
-		try {
-			return m_aopState == ImplState.CANCELLED;
-		}
-		finally {
-			m_aopLock.unlock();
-		}
-	}
-
-	@Override
-	public final boolean isFailed() {
-		m_aopLock.lock();
-		try {
-			return m_aopState == ImplState.FAILED;
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		return m_aopGuard.get(() -> m_aopState);
 	}
 
 	@Override
 	public T get() throws InterruptedException, ExecutionException, CancellationException {
-		waitForDone();
-		
-		m_aopLock.lock();
-		try {
-			switch ( getState() ) {
-				case COMPLETED:
-					return m_result.get();
-				case FAILED:
-					throw new ExecutionException(m_result.getCause());
-				case CANCELLED:
-					throw new CancellationException();
-				default:
-					throw new AssertionError();
-			}
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		return waitForResult().get();
 	}
 
 	@Override
@@ -281,29 +129,14 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 			throw new TimeoutException("time=" + timeout + unit);
 		}
 		
-		m_aopLock.lock();
-		try {
-			switch ( getState() ) {
-				case COMPLETED:
-					return m_result.get();
-				case FAILED:
-					throw new ExecutionException(m_result.getCause());
-				case CANCELLED:
-					throw new CancellationException();
-				default:
-					throw new AssertionError();
-			}
-		}
-		finally {
-			m_aopLock.unlock();
-		}
+		return m_result.get();
 	}
 	
 	@Override
 	public boolean cancel() {
 		m_aopLock.lock();
 		try {
-			while ( m_aopState == ImplState.NOT_STARTED ) {
+			while ( m_aopState == State.NOT_STARTED ) {
 				m_aopCond.await();
 			}
 			
@@ -311,16 +144,15 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 				case RUNNING:
 					// 작업이 cancellable인 경우는 명시적으로 'cancel()'을 호출하고,
 					// 그렇지 않은 경우는 수행 쓰레드의 interrupt를 시도한다.
-					ExecutableWork<T> work = getExecutableWork();
-					if ( work != null && work instanceof CancellableWork ) {
-						if ( !((CancellableWork)work).cancelWork() ) {
+					if ( this instanceof CancellableWork ) {
+						if ( !((CancellableWork)this).cancelWork() ) {
 							return false;
 						}
 					}
 					else if ( m_thread != null ) {
 						m_thread.interrupt();
 					}
-					m_aopState = ImplState.CANCELLING;
+					m_aopState = State.CANCELLING;
 					m_aopCond.signalAll();
 				case CANCELLING:
 				case CANCELLED:
@@ -352,7 +184,7 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 			switch ( m_aopState ) {
 				case NOT_STARTED:
 					m_thread = thread;
-					m_aopState = ImplState.RUNNING;
+					m_aopState = State.RUNNING;
 					if ( m_startHook.isDefined() ) {
 						m_startHook.get().run();
 					}
@@ -387,7 +219,7 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 				case RUNNING:
 				case CANCELLING:
 					m_result = Result.completed(result);
-					m_aopState = ImplState.COMPLETED;
+					m_aopState = State.COMPLETED;
 					m_completeHook.forEach(Runnable::run);
 					m_aopCond.signalAll();
 			    	notifyFinishListeners();
@@ -414,7 +246,7 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 				case RUNNING:
 				case CANCELLING:
 					m_result = Result.failed(cause);
-			    	m_aopState = ImplState.FAILED;
+			    	m_aopState = State.FAILED;
 			    	m_failureHook.forEach(act -> act.accept(cause));
 			    	m_aopCond.signalAll();
 			    	notifyFinishListeners();
@@ -443,7 +275,7 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 				case RUNNING:
 				case CANCELLING:
 					m_result = Result.cancelled();
-					m_aopState = ImplState.CANCELLED;
+					m_aopState = State.CANCELLED;
 					m_cancelHook.forEach(Runnable::run);
 					m_aopCond.signalAll();
 			    	notifyFinishListeners();
@@ -464,7 +296,6 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
     	try {
 			switch ( m_aopState ) {
 				case NOT_STARTED:
-				case STARTING:
 					m_startListeners.add(listener);
 					break;
 				default:
@@ -536,7 +367,7 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 	}
 	
 	protected boolean isCancelRequested() {
-		return m_guard.get(() -> {
+		return m_aopGuard.get(() -> {
 			switch ( m_aopState ) {
 				case CANCELLING:
 				case CANCELLED:
@@ -567,7 +398,7 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 		
 		// 작업을 수행한다.
 		try {
-			T result = getExecutableWork().executeWork();
+			T result = executeWork();
 			
 			switch ( getState() ) {
 				case RUNNING:
@@ -591,5 +422,9 @@ public abstract class ExecutionHandle<T> implements Execution<T>, LoggerSettable
 			notifyFailed(e);
 			Executors.s_logger.info("failed: {}, cause={}", this, Throwables.unwrapThrowable(e));
 		}
+	}
+	
+	public void start() {
+		Executors.start(this);
 	}
 }

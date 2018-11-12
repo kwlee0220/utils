@@ -231,6 +231,28 @@ public class Guard {
 		}
 	}
 	
+	public boolean awaitWhile(Supplier<Boolean> predicate, long timeout, TimeUnit unit)
+		throws InterruptedException {
+		Objects.requireNonNull(predicate, "While-condition is null");
+		Preconditions.checkState(m_cond != null, "Condition is null");
+		Preconditions.checkArgument(timeout >= 0, "invalid timeout: " + timeout);
+		
+		Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
+		m_lock.lock();
+		try {
+			while ( predicate.get() ) {
+				if ( !m_cond.awaitUntil(due) ) {
+					return false;
+				}
+			}
+			
+			return true;
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
 	public void awaitWhileAndRun(Supplier<Boolean> predicate, Runnable work)
 		throws InterruptedException {
 		m_lock.lock();

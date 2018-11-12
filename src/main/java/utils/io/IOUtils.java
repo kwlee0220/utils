@@ -19,6 +19,7 @@ import java.nio.charset.Charset;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
@@ -28,6 +29,8 @@ import java.util.zip.Inflater;
 import com.google.common.collect.Lists;
 
 import io.vavr.control.Option;
+import utils.async.AbstractExecution;
+import utils.async.CancellableWork;
 
 /**
  * 
@@ -312,6 +315,55 @@ public class IOUtils {
 		out.writeInt(coll.size());
 		for ( String item: coll ) {
 			out.writeUTF(item);
+		}
+	}
+
+	public static CopyStream copyStream(InputStream from, boolean closeFrom,
+										OutputStream to, boolean closeTo) {
+		return new CopyStream(from, closeFrom, to, closeTo);
+	}
+	
+	public static final class CopyStream extends AbstractExecution<Integer>
+											implements CancellableWork {
+		private final InputStream m_from;
+		private final OutputStream m_to;
+		private final boolean m_closeFromStream;
+		private final boolean m_closeToStream;
+		private int m_bufSize = 4096;
+		
+		private CopyStream(InputStream from, boolean closeFrom, OutputStream to, boolean closeTo) {
+			Objects.requireNonNull(from, "from InputStream");
+			Objects.requireNonNull(to, "to OutputStream");
+			
+			m_from = from;
+			m_closeFromStream = closeFrom;
+			m_to = to;
+			m_closeToStream = closeTo;
+		}
+		
+		public CopyStream bufferSize(int size) {
+			m_bufSize = size;
+			return this;
+		}
+		
+		@Override
+		public Integer executeWork() throws Exception {
+			try {
+				return IOUtils.transfer(m_from, m_to, m_bufSize);
+			}
+			finally {
+				if ( m_closeFromStream ) {
+					IOUtils.closeQuietly(m_from);
+				}
+				if ( m_closeToStream ) {
+					IOUtils.closeQuietly(m_to);
+				}
+			}
+		}
+
+		@Override
+		public boolean cancelWork() {
+			return false;
 		}
 	}
 }

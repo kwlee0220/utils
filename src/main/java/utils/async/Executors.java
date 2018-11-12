@@ -39,15 +39,7 @@ public class Executors {
 		}
 
 		@Override
-		public Execution<T> submit(ExecutableWork<T> job) {
-			SimpleRunner<T> runner = new SimpleRunner<>(job);
-			m_executor.submit(runner);
-			
-			return runner;
-		}
-
-		@Override
-		public void submit(ExecutableHandle<T> handle) {
+		public void submit(AbstractExecution<T> handle) {
 			m_executor.submit(handle);
 		}
 
@@ -57,30 +49,17 @@ public class Executors {
 		}
 	}
 	
-	public static <T> ExecutionHandle<T> start(ExecutableWork<T> job) {
-		SimpleRunner<T> runner = new SimpleRunner<>(job);
-		new Thread(runner).start();
-		
-		return runner;
-	}
-	
-	public static <T> void start(ExecutableHandle<T> job) {
+	public static <T extends Runnable> T start(T job) {
 		new Thread(job).start();
+		
+		return job;
 	}
 	
 	private static class DirectThreadExecutor<T> implements Executor<T> {
 		DirectThreadExecutor() { }
 
 		@Override
-		public ExecutionHandle<T> submit(ExecutableWork<T> job) {
-			SimpleRunner<T> runner = new SimpleRunner<>(job);
-			new Thread(runner).start();
-			
-			return runner;
-		}
-
-		@Override
-		public void submit(ExecutableHandle<T> handle) {
+		public void submit(AbstractExecution<T> handle) {
 			new Thread(handle).start();
 		}
 

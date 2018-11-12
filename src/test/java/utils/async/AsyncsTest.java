@@ -140,7 +140,7 @@ public class AsyncsTest {
 		Assert.assertEquals(true, m_done);
 	}
 
-	private static class ActiveTask extends ExecutableHandle<Void> {
+	private static class ActiveTask extends AbstractExecution<Void> {
 		private Thread m_thread;
 		private int m_state = 0;
 		private RuntimeException m_error;
@@ -157,7 +157,7 @@ public class AsyncsTest {
 		}
 		
 		public int getTaskState() {
-			return m_guard.get(() -> m_state);
+			return m_aopGuard.get(() -> m_state);
 		}
 
 		@Override
@@ -177,7 +177,7 @@ public class AsyncsTest {
 		}
 	}
 	
-	private static class PassiveTask extends ExecutableHandle<Void> {
+	private static class PassiveTask extends AbstractExecution<Void> {
 		private int m_state = 0;
 		private RuntimeException m_error;
 		
@@ -190,7 +190,7 @@ public class AsyncsTest {
 		}
 		
 		public int getTaskState() {
-			return m_guard.get(() -> m_state);
+			return m_aopGuard.get(() -> m_state);
 		}
 		
 		@Override

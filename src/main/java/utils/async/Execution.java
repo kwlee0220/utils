@@ -66,6 +66,15 @@ public interface Execution<T> extends Future<T> {
 	public default boolean isStarted() {
 		return getState() != State.NOT_STARTED;
 	}
+	
+	/**
+	 * 연산이 수행 중인지 여부를 반환한다.
+	 * 
+	 * @return	수행 중인 경우는 {@code true} 그렇지 않은 경우는 {@code false}를 반환한다.
+	 */
+	public default boolean isRunning() {
+		return getState() == State.RUNNING;
+	}
 
 	/**
 	 * 연산 수행이 성공적으로 마치고 종료되었는지를 반환한다.

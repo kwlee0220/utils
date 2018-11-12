@@ -1,6 +1,8 @@
 package utils.async;
 
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -63,12 +65,16 @@ public class Result<T> {
 		return m_state == State.CANCELLED;
 	}
 	
-	public T get() {
+	public T get() throws ExecutionException, CancellationException {
 		switch ( m_state ) {
 			case COMPLETED:
 				return m_value;
+			case FAILED:
+				throw new ExecutionException(m_cause);
+			case CANCELLED:
+				throw new CancellationException();
 			default:
-				throw new IllegalStateException("not COMPLETED state: state=" + m_state);
+				throw new AssertionError();
 		}
 	}
 	
