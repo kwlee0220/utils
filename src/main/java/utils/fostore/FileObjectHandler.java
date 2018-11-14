@@ -9,7 +9,7 @@ import javax.tools.FileObject;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public interface FileObjectHandler<T> {
+public interface FileObjectHandler<K,T> {
 	/**
 	 * 주어진 파일에 해당하는 파일 객체{@link FileObject}를 생성한다.
 	 * 
@@ -24,10 +24,10 @@ public interface FileObjectHandler<T> {
 	/**
 	 * 주어진 식별자에 해당하는 파일 객체가 저장된 파일을 반환한다.
 	 *
-	 * @param id	대상 파일 객체의 식별자.
+	 * @param key	대상 파일 객체의 식별자.
      * @return	대상 파일 객체가 저장된 파일.
 	 */
-    public File toFile(String id);
+    public File toFile(K key);
 
     /**
      * 주어진 파일에 해당하는 파일 객체의 식별자를 반환한다.
@@ -35,7 +35,7 @@ public interface FileObjectHandler<T> {
      * @param file	대상 파일
      * @return	대상 객체의 식별자.
      */
-    public String toFileObjectId(File file);
+    public K toFileObjectKey(File file);
 
     /**
      * 주어진 파일이 파일 객체 저장소에서 관리되는 유효한 파일인지 여부를 반환한다.

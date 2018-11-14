@@ -10,11 +10,11 @@ package utils.fostore;
  * @author Kang-Woo Lee
  * @version 1.0
  */
-public interface FileObjectVisitor {
+public interface FileObjectVisitor<K> {
 	/**
 	 * <code>visitee</code> 객체를 방문한다.
 	 *
-	 * @param id       방문할 객체 (non-null)
+	 * @param key       방문할 객체 (non-null)
 	 */
-	void visit(String id);
+	void visit(K key);
 }

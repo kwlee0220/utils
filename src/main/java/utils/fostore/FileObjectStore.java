@@ -4,14 +4,17 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.vavr.control.Option;
 import utils.Throwables;
 import utils.stream.FStream;
 
@@ -20,21 +23,19 @@ import utils.stream.FStream;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class FileObjectStore<T> {
+public class FileObjectStore<K,T> {
     private static final Logger s_logger = LoggerFactory.getLogger(FileObjectStore.class);
     
 	private final File m_rootDir;
-	private final FileObjectHandler<T> m_handler;
-	private final FileObjectCache<T> m_cache;
+	private final FileObjectHandler<K,T> m_handler;
 	
 	/**
 	 * 파일 객체 저장소를 생성한다.
 	 * 
 	 * @param rootDir	저장소가 사용할 최상위 디렉토리.
 	 * @param handler	저장될 파일 객체의 인터페이스.
-	 * @param cacheSize	파일 객체 캐쉬. 음수 또는 0인 경우는 캐쉬를 사용하지 않는 것을 간주한다.
 	 */
-    public FileObjectStore(File rootDir, FileObjectHandler<T> handler, int cacheSize) {
+    public FileObjectStore(File rootDir, FileObjectHandler<K,T> handler) {
     	m_rootDir = rootDir;
     	if ( !m_rootDir.exists() ) {
     		try {
@@ -46,13 +47,6 @@ public class FileObjectStore<T> {
     	}
     	
     	m_handler = handler;
-    	if ( cacheSize > 0 ) {
-    		String cacheName = "focache" + System.identityHashCode(this);
-    		m_cache = FileObjectCache.create(cacheName, cacheSize);
-    	}
-    	else {
-    		m_cache = null;
-    	}
     }
     
     /**
@@ -67,22 +61,20 @@ public class FileObjectStore<T> {
     /**
      * 주어진 식별자에 해당하는 파일 객체의 존재 여부를 반환한다.
      * 
-     * @param id	대상 파일 객체의 식별자.
+     * @param key	대상 파일 객체의 식별자.
      * @return	존재 여부.
      * @throws IllegalArgumentException	<code>id</code>가 <code>null</code>인 경우.
      */
-    public boolean exists(String id) {
-    	if ( id == null ) {
-    		throw new IllegalArgumentException("Object id was null");
-    	}
+    public boolean exists(K key) {
+    	Objects.requireNonNull(key, "FileObject key");
 
-		return m_handler.toFile(id).exists();
+		return m_handler.toFile(key).exists();
     }
     
     /**
      * 식별자에 해당하는 파일 객체를 반환한다.
      * 
-     * @param id		검색 대상 식별자.
+     * @param key		검색 대상 식별자.
      * @return 파일 객체
      * @throws IllegalArgumentException	<code>id</code>가 <code>null</code>인 경우.
      * @throws FileObjectStoreException	파일 객체 획득에 실패한 경우. 자세한 원인은
@@ -90,80 +82,65 @@ public class FileObjectStore<T> {
      * 								원인 예외 객체를 획득할 수 있다.
      * @throws FileObjectNotFoundException 식별자에 해당하는 파일 객체가 없는 경우.
      */
-    public T get(String id) throws FileObjectNotFoundException, FileObjectStoreException  {
-    	if ( id == null ) {
-    		throw new IllegalArgumentException("Object id was null");
-    	}
+    public Option<T> get(K key) throws FileObjectStoreException  {
+    	Objects.requireNonNull(key, "FileObject key");
 
-		T fObj = (m_cache != null) ? m_cache.get(id) : null;
-		if ( fObj == null ) {
-			File file = m_handler.toFile(id);
-			if ( !file.exists() ) {
-				throw new FileObjectNotFoundException("id=" + id);
-			}
-			
-			try {
-				fObj = m_handler.readFileObject(file);
-			}
-			catch ( Exception e ) {
-				throw new FileObjectStoreException(Throwables.unwrapThrowable(e));
-			}
-			
-			if ( m_cache != null ) {
-				m_cache.put(id, fObj);
-			}
-		}
-
-		return fObj;
-    }
-    
-    public File getFile(String id) throws FileObjectNotFoundException {
-    	if ( id == null ) {
-    		throw new IllegalArgumentException("Object id was null");
-    	}
-    	
-		File file = m_handler.toFile(id);
+		File file = m_handler.toFile(key);
 		if ( !file.exists() ) {
-			throw new FileObjectNotFoundException("id=" + id);
+			return Option.none();
 		}
 		
-		return file;
+		try {
+			return Option.some(m_handler.readFileObject(file));
+		}
+		catch ( Exception e ) {
+			throw new FileObjectStoreException(Throwables.unwrapThrowable(e));
+		}
     }
     
-    public void insert(String id, T fObj) throws IOException, FileObjectExistsException {
-        insert(id, fObj, false);
+    public T getOrNull(K key) throws FileObjectStoreException {
+    	return get(key).getOrNull();
     }
     
-    public void insert(String id, T fObj, boolean updateIfExists)
-    	throws IOException, FileObjectExistsException {
-    	Objects.requireNonNull(id, "FileObject id is null");
-    	Objects.requireNonNull(fObj, "FileObject is null");
+    public Option<File> getFile(K key) {
+    	Objects.requireNonNull(key, "FileObject key");
+    	
+		File file = m_handler.toFile(key);
+		if ( !file.exists() ) {
+			return Option.none();
+		}
 		
-    	File file = m_handler.toFile(id);
-    	if ( file.exists() ) {
-    	    if ( updateIfExists && m_cache != null ) {
-    	    	m_cache.put(id, fObj);
-    	    }
-    	    else {
-    	        throw new FileObjectExistsException("File[id=" + id + ", path="
-    	        									+ file.getAbsolutePath() + "]");
-    	    }
+		return Option.some(file);
+    }
+    
+    public File insert(K key, T fObj) throws IOException, FileObjectExistsException {
+    	Objects.requireNonNull(key, "FileObject key");
+    	Objects.requireNonNull(fObj, "FileObject");
+    	
+        return insert(key, fObj, false);
+    }
+    
+    public File insert(K key, T fObj, boolean updateIfExists)
+    	throws IOException, FileObjectExistsException {
+    	Objects.requireNonNull(key, "FileObject key");
+    	Objects.requireNonNull(fObj, "FileObject");
+		
+    	File file = m_handler.toFile(key);
+    	if ( file.exists() && !updateIfExists ) {
+	        throw new FileObjectExistsException("File[id=" + key + ", path="
+	        									+ file.getAbsolutePath() + "]");
     	}
     	
-    	Files.createFile(file.toPath());
+    	FileUtils.forceMkdirParent(file);
     	m_handler.writeFileObject(fObj, file);
+    	
+    	return file;
     }
     
-    public void remove(String id) {
-		if ( id == null ) {
-			throw new IllegalArgumentException("Object id was null");
-		}
+    public void remove(K key) {
+    	Objects.requireNonNull(key, "FileObject key");
 		
-		if ( m_cache != null ) {
-			m_cache.remove(id);
-		}
-		
-		File file = m_handler.toFile(id);
+		File file = m_handler.toFile(key);
 		if ( !file.exists() ) {
 			return;
 		}
@@ -175,17 +152,13 @@ public class FileObjectStore<T> {
     }
     
     public void removeAll() throws IOException {
-		if ( m_cache != null ) {
-			m_cache.removeAll();
-		}
-		
 		for ( File file: m_rootDir.listFiles() ) {
 			FileUtils.deleteDirectory(file);
 		}
     }
     
-    public FStream<String> getFileObjectIdAll() {
-    	return getObjectFileAll().map(m_handler::toFileObjectId);
+    public FStream<K> getFileObjectKeyAll() {
+    	return getObjectFileAll().map(m_handler::toFileObjectKey);
     }
     
     public FStream<File> getObjectFileAll() {
@@ -197,13 +170,20 @@ public class FileObjectStore<T> {
 		}
     }
     
-    public void traverse(FileObjectVisitor visitor) {
+    public void traverse(FileObjectVisitor<K> visitor) {
     	Objects.requireNonNull(visitor, "FileObjectVisitor is null");
 		
     	traverseDirectory(m_rootDir, visitor);
     }
     
-    private void traverseDirectory(File dir, FileObjectVisitor visitor) {
+    public Stream<K> traverse() throws IOException {
+    	return Files.walk(m_rootDir.toPath())
+		    		.map(Path::toFile)
+		    		.filter(m_handler::isVallidFile)
+		    		.map(m_handler::toFileObjectKey);
+    }
+    
+    private void traverseDirectory(File dir, FileObjectVisitor<K> visitor) {
 		final List<File> subDirList = new ArrayList<File>();
 		File[] files = dir.listFiles(new FileFilter() {
 										public boolean accept(File path) {
@@ -219,7 +199,7 @@ public class FileObjectStore<T> {
 		assert files != null;
 		
 		for ( int i =0; i < files.length; ++i ) {
-			visitor.visit(m_handler.toFileObjectId(files[i]));
+			visitor.visit(m_handler.toFileObjectKey(files[i]));
 		}
 		for ( int i =0; i < subDirList.size(); ++i ) {
 			File subDir = (File)subDirList.get(i);
