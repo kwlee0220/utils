@@ -419,8 +419,14 @@ public abstract class AbstractExecution<T> implements Execution<T>, LoggerSettab
 			Executors.s_logger.info("cancelled: {}", this);
 		}
 		catch ( Throwable e ) {
-			notifyFailed(e);
-			Executors.s_logger.info("failed: {}, cause={}", this, Throwables.unwrapThrowable(e));
+			if ( isCancelRequested() ) {
+				notifyCancelled();
+				Executors.s_logger.info("cancelled: {}", this);
+			}
+			else {
+				notifyFailed(e);
+				Executors.s_logger.info("failed: {}, cause={}", this, Throwables.unwrapThrowable(e));
+			}
 		}
 	}
 	
