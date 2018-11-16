@@ -465,16 +465,27 @@ public class Utilities {
 	}
 	private static class SupplyingIterator<T> implements Iterator<T> {
 		private final MultipleSupplier<? extends T> m_supplier;
-		private T m_next;
+		private T m_next = null;
+		private boolean m_eos = false;
 		
 		private SupplyingIterator(MultipleSupplier<? extends T> supplier) {
 			m_supplier = supplier;
-			m_next = m_supplier.get().getOrNull();
 		}
 
 		@Override
 		public boolean hasNext() {
-			return m_next != null;
+			if ( m_eos ) {
+				return false;
+			}
+			if ( m_next == null ) {
+				m_next = m_supplier.get().getOrNull();
+				if ( m_next == null ) {
+					m_eos = true;
+					return false;
+				}
+			}
+			
+			return true;
 		}
 
 		@Override
@@ -483,7 +494,11 @@ public class Utilities {
 			if ( next == null ) {
 				throw new NoSuchElementException();
 			}
+			
 			m_next = m_supplier.get().getOrNull();
+			if ( m_next == null ) {
+				m_eos = true;
+			}
 			
 			return next;
 		}
