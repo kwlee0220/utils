@@ -339,7 +339,13 @@ public abstract class AbstractExecution<T> implements Execution<T>, LoggerSettab
 	
 	@Override
 	public String toString() {
-		return String.format("%s[%s]", getClass().getSimpleName(), m_aopState);
+		switch ( m_aopState ) {
+			case FAILED:
+				return String.format("%s[%s, cause=%s]", getClass().getSimpleName(), m_aopState,
+															m_result.getCause());
+			default:
+				return String.format("%s[%s]", getClass().getSimpleName(), m_aopState);
+		}
 	}
 	
 	protected final ReentrantLock getLock() {
@@ -408,20 +414,22 @@ public abstract class AbstractExecution<T> implements Execution<T>, LoggerSettab
 					break;
 				case CANCELLING:
 					notifyCancelled();
-					Executors.s_logger.info("cancelled: {}", this);
+					getLogger().info("cancelled: {}", this);
+					break;
+				case FAILED:
+					Executors.s_logger.info(this.toString());
 					break;
 				default:
 			}
-			
 		}
 		catch ( InterruptedException | CancellationException e ) {
 			notifyCancelled();
-			Executors.s_logger.info("cancelled: {}", this);
+			getLogger().info("cancelled: {}", this);
 		}
 		catch ( Throwable e ) {
 			if ( isCancelRequested() ) {
 				notifyCancelled();
-				Executors.s_logger.info("cancelled: {}", this);
+				getLogger().info("cancelled: {}", this);
 			}
 			else {
 				notifyFailed(e);
