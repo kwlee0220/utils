@@ -58,23 +58,13 @@ public class Guard {
 		return m_cond;
 	}
 	
-	public void run(Runnable work) {
+	public void run(Runnable work, boolean signal) {
 		m_lock.lock();
 		try {
 			work.run();
-		}
-		finally {
-			m_lock.unlock();
-		}
-	}
-	
-	public void runAndSignal(Runnable work) {
-		Preconditions.checkState(m_cond != null, "Condition is null");
-		
-		m_lock.lock();
-		try {
-			work.run();
-			m_cond.signalAll();
+			if ( signal ) {
+				m_cond.signalAll();
+			}
 		}
 		finally {
 			m_lock.unlock();
@@ -165,6 +155,24 @@ public class Guard {
 				m_cond.await();
 			}
 			work.run();
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
+	public void awaitUntilAndRun(Supplier<Boolean> predicate, Runnable work, boolean signal)
+		throws InterruptedException {
+		m_lock.lock();
+		try {
+			while ( !predicate.get() ) {
+				m_cond.await();
+			}
+			work.run();
+			
+			if ( signal ) {
+				m_cond.signalAll();
+			}
 		}
 		finally {
 			m_lock.unlock();
