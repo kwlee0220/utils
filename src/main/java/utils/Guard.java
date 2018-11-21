@@ -131,7 +131,7 @@ public class Guard {
 		Preconditions.checkState(m_cond != null, "Condition is null");
 		
 		
-		Date due = new Date(tu.toMillis(timeout));
+		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		m_lock.lock();
 		try {
 			while ( !predicate.get() ) {
