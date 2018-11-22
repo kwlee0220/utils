@@ -3,6 +3,7 @@ package utils;
 import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -130,7 +131,6 @@ public class Guard {
 		Preconditions.checkArgument(timeout >= 0, "timeout should be larger than zero");
 		Preconditions.checkState(m_cond != null, "Condition is null");
 		
-		
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		m_lock.lock();
 		try {
@@ -193,19 +193,29 @@ public class Guard {
 		}
 	}
 	
-//	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, CheckedSupplier<T> suppl)
-//		throws InterruptedException, Throwable {
-//		m_lock.lock();
-//		try {
-//			while ( !predicate.get() ) {
-//				m_cond.await();
-//			}
-//			return suppl.get();
-//		}
-//		finally {
-//			m_lock.unlock();
-//		}
-//	}
+	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl,
+									long timeout, TimeUnit tu)
+		throws InterruptedException, TimeoutException {
+		Objects.requireNonNull(predicate, "Until-condition is null");
+		Objects.requireNonNull(tu, "TimeUnit is null");
+		Preconditions.checkArgument(timeout >= 0, "timeout should be larger than zero");
+		Preconditions.checkState(suppl != null, "Supplier is null");
+		
+		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
+		m_lock.lock();
+		try {
+			while ( !predicate.get() ) {
+				if ( !m_cond.awaitUntil(due) ) {
+					throw new TimeoutException();
+				}
+			}
+
+			return suppl.get();
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
 	
 	public <T> Try<T> awaitUntilAndTryToGet(Supplier<Boolean> predicate, CheckedSupplier<T> suppl)
 		throws InterruptedException {
