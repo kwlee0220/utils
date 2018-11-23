@@ -17,7 +17,6 @@ import com.google.common.collect.Lists;
 
 import io.vavr.CheckedRunnable;
 import io.vavr.control.Option;
-import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
 import utils.LoggerSettable;
@@ -82,7 +81,8 @@ public abstract class AbstractExecution<T> implements Execution<T>, LoggerSettab
 			}
 		}, timeout, unit);
 	}
-	
+
+	@Override
 	public Option<Result<T>> pollResult() {
 		return m_aopGuard.get(() -> {
 			switch ( m_aopState ) {
@@ -167,15 +167,6 @@ public abstract class AbstractExecution<T> implements Execution<T>, LoggerSettab
 		finally {
 			m_aopLock.unlock();
 		}
-	}
-	
-	@Override
-	public boolean cancel(boolean mayInterruptIfRunning) {
-		if ( cancel() ) {
-			Try.run(this::waitForDone);
-		}
-		
-		return isCancelled();
 	}
 
 	protected boolean notifyStarted(Thread thread) {

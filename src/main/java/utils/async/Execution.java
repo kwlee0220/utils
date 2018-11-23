@@ -3,7 +3,6 @@ package utils.async;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -16,10 +15,12 @@ import io.vavr.control.Option;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public interface Execution<T> extends Future<T> {
+public interface Execution<T> {
 	public enum State {
 		/** 연산 시작 이전 상태 */
 		NOT_STARTED,
+		/** 연산이 동작을 위해 초기화 중인 상태 */
+		STARTING,
 		/** 연산이 동작 중인 상태 */
 		RUNNING,
 		/** 연산 수행이 성공적으로 종료된 상태. */
@@ -114,7 +115,7 @@ public interface Execution<T> extends Future<T> {
 	public default boolean isDone() {
 		State state = getState();
 		return state == State.COMPLETED || state == State.FAILED
-			|| getState() == State.CANCELLED;
+			|| state == State.CANCELLED;
 	}
 	
 	/**
