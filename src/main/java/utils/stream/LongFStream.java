@@ -24,11 +24,7 @@ public interface LongFStream extends FStream<Long> {
 	public default <T> FStream<T> mapToObj(Function<Long,? extends T> mapper) {
 		Objects.requireNonNull(mapper);
 		
-		return new FStreamImpl<>(
-			"LongFStream::mapToObj",
-			() -> next().map(mapper),
-			() -> close()
-		);
+		return map(mapper);
 	}
 	
 	public default long sum() {
@@ -49,12 +45,10 @@ public interface LongFStream extends FStream<Long> {
 	
 	@Override
 	public default Option<Long> first() {
-		try ( LongFStream taken = take(1) ) {
-			return taken.next();
-		}
-		catch ( Exception ignored ) {
-			throw new FStreamException("" + ignored);
-		}
+		Long v = next();
+		closeQuietly();
+		
+		return Option.of(v);
 	}
 	
 	public default long[] toArray() {

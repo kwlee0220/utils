@@ -3,19 +3,15 @@ package utils.stream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import com.google.common.base.Preconditions;
-
-import io.vavr.control.Option;
-import io.vavr.control.Try;
-
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 class FStreamIterator<T> implements Iterator<T>, AutoCloseable {
-	private FStream<T> m_strm;
-	private Option<T> m_next;
+	private final FStream<T> m_strm;
+	private T m_next;
+	private boolean m_closed = false;
 	
 	FStreamIterator(FStream<T> strm) {
 		m_strm = strm;
@@ -24,28 +20,30 @@ class FStreamIterator<T> implements Iterator<T>, AutoCloseable {
 
 	@Override
 	public void close() throws Exception {
-		if ( m_strm != null ) {
-			FStream<T> strm = m_strm;
-			m_strm = null;
-			m_next = Option.none();
-			
-			strm.close();
+		if ( !m_closed ) {
+			m_closed = true;
+			m_strm.close();
+			m_next = null;
 		}
 	}
 	
 	@Override
 	public boolean hasNext() {
-		return m_next.isDefined();
+		return m_next != null;
 	}
 
 	@Override
 	public T next() {
-		Preconditions.checkState(m_strm != null, "FStreamIterator has been closed already");
+		if ( m_next == null ) {
+			throw new NoSuchElementException();
+		}
 		
-		Option<T> result = m_next;
-		m_next = m_strm.next()
-						.onEmpty(() -> Try.run(this::close));
+		T next = m_next;
+		m_next = m_strm.next();
+		if ( m_next == null ) {
+			m_strm.closeQuietly();
+		}
 		
-		return result.getOrElseThrow(NoSuchElementException::new);
+		return next;
 	}
 }

@@ -24,11 +24,7 @@ public interface IntFStream extends FStream<Integer> {
 	public default <T> FStream<T> mapToObj(Function<Integer,? extends T> mapper) {
 		Objects.requireNonNull(mapper);
 		
-		return new FStreamImpl<>(
-			"IntFStream::mapToObj",
-			() -> next().map(mapper),
-			() -> close()
-		);
+		return map(mapper);
 	}
 
 	@Override
@@ -38,12 +34,10 @@ public interface IntFStream extends FStream<Integer> {
 	
 	@Override
 	public default Option<Integer> first() {
-		try ( IntFStream taken = take(1) ) {
-			return taken.next();
-		}
-		catch ( Exception ignored ) {
-			throw new FStreamException("" + ignored);
-		}
+		Integer v = next();
+		closeQuietly();
+		
+		return Option.of(v);
 	}
 	
 	public default long sum() {
@@ -74,8 +68,8 @@ public interface IntFStream extends FStream<Integer> {
 		public void close() throws Exception { }
 
 		@Override
-		public Option<Integer> next() {
-			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
+		public Integer next() {
+			return m_iter.hasNext() ? m_iter.next() : null;
 		}
 	}
 	
@@ -97,15 +91,15 @@ public interface IntFStream extends FStream<Integer> {
 		public void close() throws Exception { }
 
 		@Override
-		public Option<Integer> next() {
+		public Integer next() {
 			if ( m_next < m_end ) {
-				return Option.some(m_next++);
+				return m_next++;
 			}
 			else if ( m_next == m_end && m_closed ) {
-				return Option.some(m_next++);
+				return m_next++;
 			}
 			
-			return Option.none();
+			return null;
 		}
 	}
 	
@@ -126,9 +120,9 @@ public interface IntFStream extends FStream<Integer> {
 		}
 
 		@Override
-		public Option<Integer> next() {
+		public Integer next() {
 			if ( m_remains <= 0 ) {
-				return Option.none();
+				return null;
 			}
 			else {
 				--m_remains;

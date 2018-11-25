@@ -5,7 +5,6 @@ import java.util.function.Supplier;
 import com.google.common.base.Preconditions;
 
 import io.vavr.CheckedRunnable;
-import io.vavr.control.Option;
 import utils.Throwables;
 
 
@@ -15,18 +14,17 @@ import utils.Throwables;
  */
 public class DoubleFStreamImpl implements DoubleFStream {
 	private final String m_name;
-	private final Supplier<Option<Double>> m_supplier;
+	private final Supplier<Double> m_supplier;
 	private final CheckedRunnable m_closer;
 	private boolean m_closed = false;
 	
-	public DoubleFStreamImpl(String name, Supplier<Option<Double>> nextSupplier,
-							CheckedRunnable closer) {
+	public DoubleFStreamImpl(String name, Supplier<Double> nextSupplier, CheckedRunnable closer) {
 		m_name = name;
 		m_supplier = nextSupplier;
 		m_closer = closer;
 	}
 	
-	public DoubleFStreamImpl(String name, Supplier<Option<Double>> nextSupplier) {
+	public DoubleFStreamImpl(String name, Supplier<Double> nextSupplier) {
 		this(name, nextSupplier, null);
 	}
 
@@ -44,7 +42,7 @@ public class DoubleFStreamImpl implements DoubleFStream {
 	}
 
 	@Override
-	public Option<Double> next() {
+	public Double next() {
 		Preconditions.checkState(!m_closed, "DoubleFStream is closed already");
 		
 		return m_supplier.get();
@@ -72,9 +70,9 @@ public class DoubleFStreamImpl implements DoubleFStream {
 		}
 
 		@Override
-		public Option<Double> next() {
+		public Double next() {
 			if ( m_remains <= 0 ) {
-				return Option.none();
+				return null;
 			}
 			else {
 				--m_remains;

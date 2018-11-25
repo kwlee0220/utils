@@ -24,11 +24,7 @@ public interface DoubleFStream extends FStream<Double> {
 	public default <T> FStream<T> mapToObj(Function<Double,? extends T> mapper) {
 		Objects.requireNonNull(mapper);
 		
-		return new FStreamImpl<>(
-			"DoubleFStream::mapToObj",
-			() -> next().map(mapper),
-			() -> close()
-		);
+		return map(mapper);
 	}
 
 	@Override
@@ -38,12 +34,10 @@ public interface DoubleFStream extends FStream<Double> {
 	
 	@Override
 	public default Option<Double> first() {
-		try ( DoubleFStream taken = take(1) ) {
-			return taken.next();
-		}
-		catch ( Exception ignored ) {
-			throw new FStreamException("" + ignored);
-		}
+		Double next = next();
+		closeQuietly();
+		
+		return (next != null) ? Option.some(next) : Option.none();
 	}
 	
 	public default double sum() {
@@ -74,8 +68,8 @@ public interface DoubleFStream extends FStream<Double> {
 		public void close() throws Exception { }
 
 		@Override
-		public Option<Double> next() {
-			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
+		public Double next() {
+			return m_iter.hasNext() ? m_iter.next() : null;
 		}
 	}
 }

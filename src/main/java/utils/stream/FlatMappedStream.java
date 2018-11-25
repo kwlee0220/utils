@@ -3,8 +3,6 @@ package utils.stream;
 import java.util.Objects;
 import java.util.function.Function;
 
-import io.vavr.control.Option;
-
 
 /**
  * 
@@ -29,24 +27,26 @@ class FlatMappedStream<S,T> implements FStream<T> {
 		m_src.close();
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public Option<T> next() {
+	public T next() {
 		if ( m_mapped == null ) {
-			return Option.none();
+			return null;
 		}
 		
-		Option<T> onext;
+		T next;
 		while ( true ) {
-			if ( (onext = (Option<T>)m_mapped.next()).isDefined() ) {
-				return onext;
+			if ( (next = m_mapped.next()) != null ) {
+				return next;
 			}
 			m_mapped.closeQuietly();
 			
-			m_mapped = m_src.next().map(m_mapper::apply).getOrNull();
-			if ( m_mapped == null ) {
-				return Option.none();
+			S src = m_src.next();
+			if ( src == null ) {
+				m_mapped = null;
+				return null;
 			}
+			
+			m_mapped = m_mapper.apply(src);
 		}
 	}
 }

@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 import com.google.common.base.Preconditions;
 
 import io.vavr.CheckedRunnable;
-import io.vavr.control.Option;
 import utils.Throwables;
 
 
@@ -17,18 +16,17 @@ import utils.Throwables;
  */
 class LongFStreamImpl implements LongFStream {
 	private final String m_name;
-	private final Supplier<Option<Long>> m_supplier;
+	private final Supplier<Long> m_supplier;
 	private final CheckedRunnable m_closer;
 	private boolean m_closed = false;
 	
-	LongFStreamImpl(String name, Supplier<Option<Long>> nextSupplier,
-							CheckedRunnable closer) {
+	LongFStreamImpl(String name, Supplier<Long> nextSupplier, CheckedRunnable closer) {
 		m_name = name;
 		m_supplier = nextSupplier;
 		m_closer = closer;
 	}
 	
-	public LongFStreamImpl(String name, Supplier<Option<Long>> nextSupplier) {
+	public LongFStreamImpl(String name, Supplier<Long> nextSupplier) {
 		this(name, nextSupplier, null);
 	}
 
@@ -46,7 +44,7 @@ class LongFStreamImpl implements LongFStream {
 	}
 
 	@Override
-	public Option<Long> next() {
+	public Long next() {
 		Preconditions.checkState(!m_closed, "LongFStream is closed already");
 		
 		return m_supplier.get();
@@ -74,9 +72,9 @@ class LongFStreamImpl implements LongFStream {
 		}
 
 		@Override
-		public Option<Long> next() {
+		public Long next() {
 			if ( m_remains <= 0 ) {
-				return Option.none();
+				return null;
 			}
 			else {
 				--m_remains;
@@ -98,8 +96,8 @@ class LongFStreamImpl implements LongFStream {
 		public void close() throws Exception { }
 
 		@Override
-		public Option<Long> next() {
-			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
+		public Long next() {
+			return m_iter.hasNext() ? m_iter.next() : null;
 		}
 	}
 }

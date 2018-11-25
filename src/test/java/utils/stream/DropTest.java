@@ -6,8 +6,6 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -18,93 +16,93 @@ public class DropTest {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(2);
 		
-		Option<Integer> r;
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(4), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(4), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(1), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test
 	public void test1() throws Exception {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(0);
-		
-		Option<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(1), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(4), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(2), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(4), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(1), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
+		
+		r = stream.next();
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(4);
-		
-		Option<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
+		
+		r = stream.next();
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test
 	public void test3() throws Exception {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(10);
-		
-		Option<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
+		
+		r = stream.next();
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test
 	public void test4() throws Exception {
 		FStream<Integer> stream = FStream.empty();
 		stream = stream.drop(1);
-		
-		Option<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
+		
+		r = stream.next();
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)

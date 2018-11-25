@@ -17,32 +17,32 @@ import io.vavr.control.Option;
 public class UnfoldTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<String> stream = FStream.unfold(0, i -> Option.some(Tuple.of(""+i, i+1)))
+		FStream<String> stream = FStream.unfold(0, i -> Tuple.of(""+i, i+1))
 										.take(3);
 		
-		Option<String> r;
+		String r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals("0", r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals("0", r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals("1", r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals("1", r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals("2", r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals("2", r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test(expected=RuntimeException.class)
 	public void test1() throws Exception {
-		Function<Integer,Option<Tuple2<String,Integer>>> gen = (Integer i) -> {
+		Function<Integer,Tuple2<String,Integer>> gen = (Integer i) -> {
 			if ( i < 2 ) {
-				return Option.of(Tuple.of(""+i, i+1));
+				return Tuple.of(""+i, i+1);
 			}
 			else {
 				throw new RuntimeException();
@@ -50,26 +50,26 @@ public class UnfoldTest {
 		};
 		FStream<String> stream = FStream.unfold((Integer)0, gen);
 		
-		Option<String> r;
+		String r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals("0", r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals("0", r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals("1", r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals("1", r);
 		
 		r = stream.next();
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test2() throws Exception {
 		FStream<Integer> stream = FStream.unfold(0, null);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test3() throws Exception {
-		FStream<String> stream = FStream.unfold((Integer)null, i -> Option.some(Tuple.of(""+i, i+1)));
+		FStream<String> stream = FStream.unfold((Integer)null, i -> Tuple.of(""+i, i+1));
 	}
 }

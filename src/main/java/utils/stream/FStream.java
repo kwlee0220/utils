@@ -16,6 +16,7 @@ import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
@@ -29,17 +30,32 @@ import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
-import utils.Unchecked;
 import utils.Utilities;
 import utils.func.FLists;
 import utils.func.MultipleSupplier;
+import utils.stream.FStreams.FilteredStream;
+import utils.stream.FStreams.MapToDoubleStream;
+import utils.stream.FStreams.MapToIntStream;
+import utils.stream.FStreams.MapToLongStream;
+import utils.stream.FStreams.MappedStream;
+import utils.stream.FStreams.PeekedStream;
+import utils.stream.KVFStreams.KeyGeneratedKVFStream;
+import utils.stream.KVFStreams.KeyValueGeneratedKVFStream;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public interface FStream<T> extends AutoCloseable {
-	public Option<T> next();
+	/**
+	 * 스트림에 포함된 다음 데이터를 반환한다.
+	 * <p>
+	 * 더 이상의 데이터가 없는 경우는 {@code null}을 반환함.
+	 * 
+	 * @param <T> 데이터 타입
+	 * @return	다음 데이터. 없는 경우는 {@code null}.
+	 */
+	public T next();
 	
 	public static <T> FStream<T> empty() {
 		return new FStreamImpl<>("empty", Option::none);
@@ -95,9 +111,9 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public static <S,T> FStream<T> unfold(S init,
-									Function<? super S,Option<Tuple2<T,S>>> generator) {
-		Preconditions.checkArgument(init != null, "init is null");
-		Preconditions.checkArgument(generator != null, "generator is null");
+									Function<? super S,Tuple2<T,S>> generator) {
+		Objects.requireNonNull(init);
+		Objects.requireNonNull(generator);
 		
 		return new FStreams.UnfoldStream<T, S>(init, generator);
 	}
@@ -121,46 +137,43 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default FStream<T> take(long count) {
+		Preconditions.checkArgument(count >= 0, "count < 0");
+		
 		return new FStreams.TakenStream<>(this, count);
 	}
 	public default FStream<T> drop(long count) {
+		Preconditions.checkArgument(count >= 0, "count < 0");
+		
 		return new FStreams.DroppedStream<>(this, count);
 	}
 
 	public default FStream<T> takeWhile(Predicate<? super T> pred) {
+		Objects.requireNonNull(pred);
+		
 		return new FStreams.TakeWhileStream<>(this, pred);
 	}
 	public default FStream<T> dropWhile(Predicate<? super T> pred) {
+		Objects.requireNonNull(pred);
+		
 		return new FStreams.DropWhileStream<>(this, pred);
 	}
 	
 	public default FStream<T> sample(double ratio) {
+		Preconditions.checkArgument(ratio >= 0, "sample ration must be larger or equal to zero");
+		
 		return new FStreams.SampledStream<>(this, ratio);
 	}
 	
-	public default FStreamImpl<T> filter(Predicate<? super T> pred) {
+	public default FStream<T> filter(Predicate<? super T> pred) {
 		Objects.requireNonNull(pred);
 		
-		Predicate<? super T> negated = pred.negate();
-		return new FStreamImpl<>(
-			"filter",
-			() -> {
-				Option<T> next;
-				while ( (next = next()).filter(negated).isDefined() );
-				return next;
-			},
-			() -> close()
-		);
+		return new FilteredStream<>(this, pred);
 	}
 	
 	public default <S> FStream<S> map(Function<? super T,? extends S> mapper) {
 		Objects.requireNonNull(mapper);
 		
-		return new FStreamImpl<>(
-			"map",
-			() -> next().map(mapper),
-			() -> close()
-		);
+		return new MappedStream<>(this, mapper);
 	}
 	
 	public default FStream<T> transformIf(boolean flag, Function<FStream<T>,FStream<T>> mapper) {
@@ -175,35 +188,24 @@ public interface FStream<T> extends AutoCloseable {
 	public default IntFStream mapToInt(Function<? super T, Integer> mapper) {
 		Objects.requireNonNull(mapper);
 		
-		return new IntFStreamImpl(
-			"mapToInt",
-			() -> next().map(mapper),
-			() -> close()
-		);
+		return new MapToIntStream<>(this, mapper);
 	}
 	
 	public default LongFStream mapToLong(Function<? super T, Long> mapper) {
 		Objects.requireNonNull(mapper);
 		
-		return new LongFStreamImpl(
-			"mapToLong",
-			() -> next().map(mapper),
-			() -> close()
-		);
+		return new MapToLongStream<>(this, mapper);
 	}
 	
 	public default DoubleFStream mapToDouble(Function<? super T, Double> mapper) {
 		Objects.requireNonNull(mapper);
 		
-		return new DoubleFStreamImpl(
-			"mapToDouble",
-			() -> next().map(mapper),
-			() -> close()
-		);
+		return new MapToDoubleStream<>(this, mapper);
 	}
 	
 	public default <V> FStream<V> cast(Class<? extends V> cls) {
 		Objects.requireNonNull(cls, "target class is null");
+		
 		return map(cls::cast);
 	}
 	
@@ -219,14 +221,10 @@ public interface FStream<T> extends AutoCloseable {
 		return filter(v -> v.getClass().equals(cls)).map(cls::cast);
 	}
 	
-	public default FStream<T> peek(Consumer<? super T> consumer) {
-		Objects.requireNonNull(consumer, "peek consumer is null");
+	public default FStream<T> peek(Consumer<? super T> effect) {
+		Objects.requireNonNull(effect, "peek effect is null");
 		
-		return new FStreamImpl<> (
-			"peek",
-			() -> next().peek(consumer),
-			() -> close()
-		);
+		return new PeekedStream<>(this, effect);
 	}
 	
 	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<? extends V>> mapper) {
@@ -266,7 +264,7 @@ public interface FStream<T> extends AutoCloseable {
 		});
 	}
 	public default boolean forAll(Predicate<? super T> pred) {
-		Preconditions.checkArgument(pred != null, "pred is null");
+		Objects.requireNonNull(pred, "predicate");
 		
 		return foldLeft(true, false, (a,t) -> { 
 			try {
@@ -279,12 +277,11 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default <S> S foldLeft(S accum, BiFunction<? super S,? super T,? extends S> folder) {
-//		Preconditions.checkArgument(accum != null, "accum is null");
 		Objects.requireNonNull(folder);
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
-			accum = folder.apply(accum, next.get());
+		T next;
+		while ( (next = next()) != null ) {
+			accum = folder.apply(accum, next);
 		}
 		
 		return accum;
@@ -299,9 +296,9 @@ public interface FStream<T> extends AutoCloseable {
 			return accum;
 		}
 		
-		Option<T> next = next();
-		while ( (next = next()).isDefined() ) {
-			accum = folder.apply(accum, next.get());
+		T next;
+		while ( (next = next()) != null ) {
+			accum = folder.apply(accum, next);
 			if ( accum.equals(stopper) ) {
 				return accum;
 			}
@@ -315,15 +312,17 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default FStream<T> scan(BinaryOperator<T> combiner) {
+		Objects.requireNonNull(combiner);
+		
 		return new ScannedStream<>(this, combiner);
 	}
 	
 	public default T reduce(BiFunction<? super T,? super T,? extends T> reducer) {
 		Preconditions.checkArgument(reducer != null, "reducer is null");
 		
-		Option<T> next = next();
-		if ( next.isDefined() ) {
-			return foldLeft(next.get(), (a,t) -> reducer.apply(a, t));
+		T next = next();
+		if ( next != null ) {
+			return foldLeft(next, (a,t) -> reducer.apply(a, t));
 		}
 		else {
 			throw new IllegalStateException("Stream is empty");
@@ -334,18 +333,18 @@ public interface FStream<T> extends AutoCloseable {
 		Objects.requireNonNull(collector);
 		Objects.requireNonNull(collect);
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
-			collect.accept(collector, next.get());
+		T next;
+		while ( (next = next()) != null ) {
+			collect.accept(collector, next);
 		}
-		Unchecked.runRTE(this::close);
+		closeQuietly();
 		
 		return collector;
 	}
 	
 	public default long count() {
 		long count = 0;
-		while ( next().isDefined() ) {
+		while ( next() != null ) {
 			++count;
 		}
 		
@@ -354,31 +353,25 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default boolean anyMatch(Predicate<? super T> pred) {
 		Preconditions.checkArgument(pred != null, "pred is null");
-
-		Predicate<? super T> negated = pred.negate();
-		Option<T> next;
-		while ( (next = next()).filter(negated).isDefined() );
 		
-		return next.isDefined();
+		T next;
+		while ( (next = next()) != null && !pred.test(next) );
+		return next != null;
 	}
 	
 	public default Option<T> first() {
-		try ( FStream<T> taken = take(1) ) {
-			return taken.next();
-		}
-		catch ( Exception ignored ) {
-			throw new FStreamException("" + ignored);
-		}
+		return Option.of(next());
 	}
 	
 	public default Option<T> last() {
-		Option<T> last = Option.none();
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		T last = null;
+		
+		T next;
+		while ( (next = next()) != null ) {
 			last = next;
 		}
 		
-		return last;
+		return Option.of(last);
 	}
 	
 	public default FStream<T> concatWith(FStream<? extends T> tail) {
@@ -461,20 +454,12 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default <K> KVFStream<K,T> toKVFStream(Function<? super T,? extends K> keyGen) {
-		return new KVFStreamImpl<>(
-			"toKVFStream",
-			() -> next().map(t -> new KeyValue<>(keyGen.apply(t), t)),
-			() -> close()
-		);
+		return new KeyGeneratedKVFStream<>(this, keyGen);
 	}
 	
 	public default <K,V> KVFStream<K,V> toKVFStream(Function<? super T,? extends K> keyGen,
 													Function<? super T,? extends V> valueGen) {
-		return new KVFStreamImpl<>(
-			"toKVFStream",
-			() -> next().map(t -> KeyValue.of(keyGen.apply(t), valueGen.apply(t))),
-			() -> close()
-		);
+		return new KeyValueGeneratedKVFStream<>(this, keyGen, valueGen);
 	}
 	
 //	@SuppressWarnings("unchecked")
@@ -493,7 +478,7 @@ public interface FStream<T> extends AutoCloseable {
 //			);
 //	}
 	
-	public default MultipleSupplier<T> toSupplier() {
+	public default Supplier<T> toSupplier() {
 		return () -> next();
 	}
 	
@@ -538,19 +523,19 @@ public interface FStream<T> extends AutoCloseable {
 	public default void forEach(Consumer<? super T> effect) {
 		Preconditions.checkArgument(effect != null, "effect is null");
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
-			effect.accept(next.get());
+		T next;
+		while ( (next = next()) != null ) {
+			effect.accept(next);
 		}
 	}
 	
 	public default void forEachIE(CheckedConsumer<? super T> effect) {
 		Preconditions.checkArgument(effect != null, "effect is null");
-		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+
+		T next;
+		while ( (next = next()) != null ) {
 			try {
-				effect.accept(next.get());
+				effect.accept(next);
 			}
 			catch ( Throwable ignored ) { }
 		}
@@ -560,11 +545,11 @@ public interface FStream<T> extends AutoCloseable {
 												BiFunction<? super T,? super T,? extends T> reducer) {
 		Map<K,T> accums = Maps.newHashMap();
 		
-		Option<T> ovalue;
-		while ( (ovalue = next()).isDefined() ) {
-			T value = ovalue.get();
+		T value;
+		while ( (value = next()) != null ) {
 			K key = keyer.apply(value);
-			accums.compute(key, (k,old) -> (old != null) ? reducer.apply(old, value) : value);
+			final T v = value;
+			accums.compute(key, (k,old) -> (old != null) ? reducer.apply(old, v) : v);
 		}
 		
 		return KVFStream.of(accums);
@@ -574,17 +559,17 @@ public interface FStream<T> extends AutoCloseable {
 													Function<? super K,? extends S> accumInitializer,
 													BiFunction<? super S,? super T,? extends S> folder) {
 		Map<K,S> accums = Maps.newHashMap();
-		
-		Option<T> ovalue;
-		while ( (ovalue = next()).isDefined() ) {
-			T value = ovalue.get();
+
+		T value;
+		while ( (value = next()) != null ) {
 			K key = keyer.apply(value);
+			final T v = value;
 					
 			accums.compute(key, (k,accum) -> {
 				if ( accum == null ) {
 					accum = accumInitializer.apply(k);
 				}
-				return folder.apply(accum, value);
+				return folder.apply(accum, v);
 			});
 		}
 		
@@ -644,29 +629,27 @@ public interface FStream<T> extends AutoCloseable {
 		Comparable<T> max = null;
 		List<T> maxList = Lists.newArrayList();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
-			T data = next.get();
-			
+		T next;
+		while ( (next = next()) != null ) {
 			if ( max != null ) {
-				int cmp = max.compareTo(data);
+				int cmp = max.compareTo(next);
 				
 				if ( cmp < 0 ) {
-					max = (Comparable<T>)data;
+					max = (Comparable<T>)next;
 					maxList.clear();
-					maxList.add(data);
+					maxList.add(next);
 				}
 				else if ( cmp == 0 ) {
-					maxList.add(data);
+					maxList.add(next);
 				}
 			}
 			else {
-				if ( !(data instanceof Comparable) ) {
+				if ( !(next instanceof Comparable) ) {
 					throw new IllegalStateException("FStream elements are not Comparable");
 				}
 				
-				max = (Comparable<T>)data;
-				maxList.add(data);
+				max = (Comparable<T>)next;
+				maxList.add(next);
 			}
 		}
 
@@ -678,28 +661,26 @@ public interface FStream<T> extends AutoCloseable {
 		Comparable<T> min = null;
 		List<T> minList = Lists.newArrayList();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
-			T data = next.get();
-			
+		T next;
+		while ( (next = next()) != null ) {
 			if ( min != null ) {
-				int cmp = min.compareTo(data);
+				int cmp = min.compareTo(next);
 				if ( cmp > 0 ) {
-					min = (Comparable<T>)data;
+					min = (Comparable<T>)next;
 					minList.clear();
-					minList.add(data);
+					minList.add(next);
 				}
 				else if ( cmp == 0 ) {
-					minList.add(data);
+					minList.add(next);
 				}
 			}
 			else {
-				if ( !(data instanceof Comparable) ) {
+				if ( !(next instanceof Comparable) ) {
 					throw new IllegalStateException("FStream elements are not Comparable");
 				}
 				
-				min = (Comparable<T>)data;
-				minList.add(data);
+				min = (Comparable<T>)next;
+				minList.add(next);
 			}
 		}
 		
@@ -711,27 +692,26 @@ public interface FStream<T> extends AutoCloseable {
 		K maxKey = null;
 		List<T> maxList = Lists.newArrayList();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
-			T data = next.get();
-			K key = keySelector.apply(data);
+		T next;
+		while ( (next = next()) != null ) {
+			K key = keySelector.apply(next);
 
 			if ( max != null ) {
 				int cmp = maxKey.compareTo(key);
 				if ( cmp < 0 ) {
-					max = data;
+					max = next;
 					maxList.clear();
-					maxList.add(data);
+					maxList.add(next);
 					maxKey = key;
 				}
 				else if ( cmp == 0 ) {
-					maxList.add(data);
+					maxList.add(next);
 				}
 			}
 			else {
-				max = data;
+				max = next;
 				maxList.clear();
-				maxList.add(data);
+				maxList.add(next);
 				maxKey = key;
 			}
 		}
@@ -744,27 +724,26 @@ public interface FStream<T> extends AutoCloseable {
 		K minKey = null;
 		List<T> minList = Lists.newArrayList();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
-			T data = next.get();
-			K key = keySelector.apply(data);
+		T next;
+		while ( (next = next()) != null ) {
+			K key = keySelector.apply(next);
 
 			if ( min != null ) {
 				int cmp = minKey.compareTo(key);
 				if ( cmp > 0 ) {
-					min = data;
+					min = next;
 					minList.clear();
-					minList.add(data);
+					minList.add(next);
 					minKey = key;
 				}
 				else if ( cmp == 0 ) {
-					minList.add(data);
+					minList.add(next);
 				}
 			}
 			else {
-				min = data;
+				min = next;
 				minList.clear();
-				minList.add(data);
+				minList.add(next);
 				minKey = key;
 			}
 		}
@@ -775,15 +754,15 @@ public interface FStream<T> extends AutoCloseable {
 	public default Option<T> max(Comparator<? super T> cmp) {
 		Option<T> max = Option.none();
 		
-		Option<T> next;
-		while ( (next = next()).isDefined() ) {
+		T next;
+		while ( (next = next()) != null ) {
 			if ( max.isDefined() ) {
-				if ( cmp.compare(next.get(), max.get()) > 0 ) {
-					max = next;
+				if ( cmp.compare(next, max.get()) > 0 ) {
+					max = Option.some(next);
 				}
 			}
 			else {
-				max = next;
+				max = Option.some(next);
 			}
 		}
 		
@@ -806,10 +785,10 @@ public interface FStream<T> extends AutoCloseable {
 	public default boolean startsWith(FStream<T> subList) {
 		Preconditions.checkArgument(subList != null, "subList is null");
 		
-		Option<T> subNext = subList.next();
-		Option<T> next = next();
-		while ( subNext.isDefined() && next.isDefined() ) {
-			if ( !subNext.get().equals(next.get()) ) {
+		T subNext = subList.next();
+		T next = next();
+		while ( subNext != null && next != null ) {
+			if ( !subNext.equals(next) ) {
 				return false;
 			}
 			
@@ -817,7 +796,7 @@ public interface FStream<T> extends AutoCloseable {
 			next = next();
 		}
 		
-		return (next.isDefined() && subNext.isEmpty());
+		return (next != null && subNext == null);
 	}
 	
 	public default FStream<T> distinct() {

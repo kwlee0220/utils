@@ -1,9 +1,6 @@
 package utils.stream;
 
-import java.util.Objects;
 import java.util.function.BinaryOperator;
-
-import io.vavr.control.Option;
 
 
 /**
@@ -13,12 +10,9 @@ import io.vavr.control.Option;
 class ScannedStream<T> implements FStream<T> {
 	private final FStream<T> m_src;
 	private final BinaryOperator<T> m_combine;
-	private Option<T> m_current;
+	private T m_current;
 	
 	ScannedStream(FStream<T> src, BinaryOperator<T> combine) {
-		Objects.requireNonNull(src);
-		Objects.requireNonNull(combine);
-		
 		m_src = src;
 		m_combine = combine;
 	}
@@ -29,13 +23,18 @@ class ScannedStream<T> implements FStream<T> {
 	}
 
 	@Override
-	public Option<T> next() {
+	public T next() {
 		if ( m_current == null ) {
 			return m_current = m_src.next();
 		}
 		else {
-			return m_current = m_src.next()
-									.map(t -> m_combine.apply(m_current.get(), t));
+			T next = m_src.next();
+			if ( next != null ) {
+				return m_current = m_combine.apply(m_current, next);
+			}
+			else {
+				return null;
+			}
 		}
 	}
 }

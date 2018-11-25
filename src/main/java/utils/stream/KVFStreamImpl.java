@@ -4,7 +4,6 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 import io.vavr.CheckedRunnable;
-import io.vavr.control.Option;
 import utils.Throwables;
 
 
@@ -14,11 +13,11 @@ import utils.Throwables;
  */
 class KVFStreamImpl<K,V> implements KVFStream<K,V> {
 	private final String m_name;
-	private final Supplier<Option<KeyValue<K,V>>> m_supplier;
+	private final Supplier<KeyValue<K,V>> m_supplier;
 	private final CheckedRunnable m_closer;
 	private boolean m_closed = false;
 	
-	KVFStreamImpl(String name, Supplier<Option<KeyValue<K,V>>> supplier, CheckedRunnable closer) {
+	KVFStreamImpl(String name, Supplier<KeyValue<K,V>> supplier, CheckedRunnable closer) {
 		Objects.requireNonNull(supplier);
 		
 		m_name = name;
@@ -26,7 +25,7 @@ class KVFStreamImpl<K,V> implements KVFStream<K,V> {
 		m_closer = closer;
 	}
 	
-	KVFStreamImpl(String name, Supplier<Option<KeyValue<K,V>>> supplier) {
+	KVFStreamImpl(String name, Supplier<KeyValue<K,V>> supplier) {
 		this(name, supplier, null);
 	}
 	
@@ -43,7 +42,7 @@ class KVFStreamImpl<K,V> implements KVFStream<K,V> {
 	}
 
 	@Override
-	public Option<KeyValue<K,V>> next() {
+	public KeyValue<K,V> next() {
 		return m_supplier.get();
 	}
 	

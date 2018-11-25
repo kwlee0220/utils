@@ -6,8 +6,6 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -18,25 +16,25 @@ public class FilterTest {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5));
 		stream = stream.filter(i -> i < 3);
 		
-		Option<Integer> r;
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(1), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(2), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(1), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test
@@ -44,10 +42,10 @@ public class FilterTest {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.filter(i -> i > 5);
 		
-		Option<Integer> r;
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test
@@ -55,10 +53,10 @@ public class FilterTest {
 		FStream<Integer> stream = FStream.empty();
 		stream = stream.filter(i -> i <= 3);
 		
-		Option<Integer> r;
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test(expected=RuntimeException.class)

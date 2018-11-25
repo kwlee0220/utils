@@ -39,7 +39,7 @@ public class ExistsTest {
 		Assert.assertEquals(true, stream.forAll(i -> i > 3));
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test3() throws Exception {
 		FStream<Integer> stream;
 		
@@ -47,7 +47,7 @@ public class ExistsTest {
 		stream.exists(null);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test4() throws Exception {
 		FStream<Integer> stream;
 		

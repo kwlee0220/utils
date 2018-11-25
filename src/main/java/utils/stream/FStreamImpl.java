@@ -3,7 +3,6 @@ package utils.stream;
 import com.google.common.base.Preconditions;
 
 import io.vavr.CheckedRunnable;
-import io.vavr.control.Option;
 import utils.Throwables;
 import utils.func.MultipleSupplier;
 
@@ -42,12 +41,11 @@ public class FStreamImpl<T> implements FStream<T> {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public Option<T> next() {
+	public T next() {
 		Preconditions.checkState(!m_closed, "FStream is closed already");
 		
-		return (Option<T>)m_supplier.get();
+		return m_supplier.get().getOrNull();
 	}
 	
 	@Override

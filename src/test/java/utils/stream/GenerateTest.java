@@ -17,25 +17,25 @@ public class GenerateTest {
 	public void test0() throws Exception {
 		FStream<Integer> stream = FStream.generate(0, i -> i+1).take(3);
 		
-		Option<Integer> r;
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(0), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(0), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(1), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(2), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 	}
 
 	@Test(expected=RuntimeException.class)
@@ -50,19 +50,19 @@ public class GenerateTest {
 		};
 		FStream<Integer> stream = FStream.generate(0, gen);
 		
-		Option<Integer> r;
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(0), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(0), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(1), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(2), r);
 		
 		r = stream.next();
 	}

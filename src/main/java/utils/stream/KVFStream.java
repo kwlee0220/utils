@@ -2,9 +2,7 @@ package utils.stream;
 
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -14,7 +12,17 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
+import utils.stream.KVFStreams.KeyFilteredKVFStream;
+import utils.stream.KVFStreams.KeyMappedKVFStream;
+import utils.stream.KVFStreams.KeyValueKVFStream;
+import utils.stream.KVFStreams.MapEntryIterKVFStream;
+import utils.stream.KVFStreams.MappedKVFStream;
+import utils.stream.KVFStreams.ToKeyStream;
+import utils.stream.KVFStreams.ToValueStream;
+import utils.stream.KVFStreams.TupleKVFStream;
+import utils.stream.KVFStreams.ValueFilteredKVFStream;
+import utils.stream.KVFStreams.ValueMappedKVFStream;
+import utils.stream.KVFStreams.ValueMappedKVFStream2;
 
 
 /**
@@ -22,104 +30,61 @@ import io.vavr.control.Option;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
-	public Option<KeyValue<K,V>> next();
+	public KeyValue<K,V> next();
 	
 	public static <K,V> KVFStream<K,V> fromKeyValueFStream(FStream<KeyValue<K,V>> stream) {
-		return new KVFStreamImpl<>(
-			"fromKeyValueFStream",
-			() -> stream.next(),
-			() -> stream.close()
-		);
+		Objects.requireNonNull(stream);
+		
+		return new KeyValueKVFStream<>(stream);
 	}
 	
 	public static <K,V> KVFStream<K,V> fromTupleFStream(FStream<Tuple2<K,V>> stream) {
-		return new KVFStreamImpl<>(
-			"fromTupleFStream",
-			() -> stream.next().map(t -> KeyValue.of(t._1, t._2)),
-			() -> stream.close()
-		);
+		Objects.requireNonNull(stream);
+		
+		return new TupleKVFStream<>(stream);
 	}
 	
 	public static <K,V> KVFStream<K,V> of(Map<? extends K, ? extends V> map) {
 		Objects.requireNonNull(map);
 		
-		Iterator<? extends Entry<? extends K, ? extends V>> iter = map.entrySet().iterator();
-		return new KVFStreamImpl<>(
-			"ofMap",
-			() -> {
-				if ( iter.hasNext() ) {
-					Map.Entry<? extends K,? extends V> entry = iter.next();
-					return Option.some(new KeyValue<>(entry.getKey(), entry.getValue()));
-				}
-				else {
-					return Option.none();
-				}
-			}
-		);
+		return new MapEntryIterKVFStream<>(map.entrySet().iterator());
 	}
 	
 	public default KVFStream<K,V> filterKey(Predicate<? super K> pred) {
 		Objects.requireNonNull(pred);
-
-		Predicate<? super K> negated = pred.negate();
-		return new KVFStreamImpl<>("filterKey", () -> {
-			Option<KeyValue<K,V>> next;
-			while ( (next = next()).filter(kv -> negated.test(kv.key())).isDefined() );
-			return next;
-		});
+		
+		return new KeyFilteredKVFStream<>(this, pred);
 	}
 	
 	public default KVFStream<K,V> filterValue(Predicate<? super V> pred) {
 		Objects.requireNonNull(pred);
-
-		Predicate<? super V> negated = pred.negate();
-		next();
-		return new KVFStreamImpl<>("filterValue", () -> {
-			Option<KeyValue<K,V>> next;
-			while ( (next = next()).filter(kv -> negated.test(kv.value())).isDefined() );
-			return next;
-		});
+		
+		return new ValueFilteredKVFStream<>(this, pred);
 	}
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public default <S> FStream<S> map(BiFunction<? super K,? super V,? extends S> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
-		return new FStreamImpl(
-			"KVFStream::map",
-			() -> next().map(kv -> kv.map(mapper)),
-			() -> close()
-		);
+		return new MappedKVFStream<>(this, mapper);
 	}
 	
 	public default <S> KVFStream<S,V> mapKey(BiFunction<? super K,? super V,? extends S> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
-		
-		return new KVFStreamImpl<>(
-			"mapKey",
-			() -> next().map(kv -> kv.mapKey(mapper)),
-			() -> close()
-		);
+
+		return new KeyMappedKVFStream<>(this, mapper);
 	}
 	
 	public default <U> KVFStream<K,U> mapValue(BiFunction<? super K,? super V,? extends U> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
-		return new KVFStreamImpl<>(
-			"mapValue",
-			() -> next().map(kv -> kv.mapValue(mapper)),
-			() -> close()
-		);
+		return new ValueMappedKVFStream<>(this, mapper);
 	}
 	
 	public default <U> KVFStream<K,U> mapValue(Function<? super V,? extends U> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
-		return new KVFStreamImpl<>(
-			"mapValue",
-			() -> next().map(kv -> kv.mapValue(mapper)),
-			() -> close()
-		);
+		return new ValueMappedKVFStream2<>(this, mapper);
 	}
 	
 	public default <T> FStream<T> flatMap(BiFunction<? super K,? super V,FStream<T>> mapper) {
@@ -138,10 +103,9 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Objects.requireNonNull(collector);
 		Objects.requireNonNull(collect);
 		
-		Option<KeyValue<K,V>> next;
-		while ( (next = next()).isDefined() ) {
-			KeyValue<K,V> kv = next.get();
-			collect.accept(collector, kv.key(), kv.value());
+		KeyValue<K,V> next;
+		while ( (next = next()) != null ) {
+			collect.accept(collector, next.key(), next.value());
 		}
 		
 		return collector;
@@ -164,19 +128,11 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 	
 	public default FStream<K> toKeyStream() {
-		return new FStreamImpl<>(
-			"KVFStream::toKeyStream",
-			() -> next().map(KeyValue::key),
-			() -> close()
-		);
+		return new ToKeyStream<>(this);
 	}
 	
 	public default FStream<V> toValueStream() {
-		return new FStreamImpl<>(
-			"KVFStream::toValueStream",
-			() -> next().map(KeyValue::value),
-			() -> close()
-		);
+		return new ToValueStream<>(this);
 	}
 	
 	public default <T extends Map<K,V>> T toMap(T map) {
@@ -188,7 +144,6 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 
 /*
-	
 	public default <V> FStream<V> map(Function<T,V> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		

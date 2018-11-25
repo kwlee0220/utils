@@ -7,8 +7,6 @@ import java.util.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
-
 
 /**
  * 
@@ -42,17 +40,17 @@ class BufferedStream<T> implements FStream<List<T>> {
 	}
 
 	@Override
-	public Option<List<T>> next() {
+	public List<T> next() {
 		if ( m_buffer.size() > 0 ) {
 			drain();
 		}
 		fill();
 		
 		if ( m_buffer.size() > 0 ) {
-			return Option.some(Collections.unmodifiableList(m_buffer));
+			return Collections.unmodifiableList(m_buffer);
 		}
 		else {
-			return Option.none();
+			return null;
 		}
 	}
 	
@@ -61,7 +59,7 @@ class BufferedStream<T> implements FStream<List<T>> {
 			if ( m_buffer.size() > 0 ) {
 				m_buffer.remove(0);
 			}
-			else if ( m_src.next().isEmpty() ) {
+			else if ( m_src.next() == null ) {
 				break;
 			}
 		}
@@ -69,9 +67,13 @@ class BufferedStream<T> implements FStream<List<T>> {
 	
 	private void fill() {
 		while ( !m_endOfSource && m_buffer.size() < m_count ) {
-			m_src.next()
-				.onEmpty(() -> m_endOfSource = true)
-				.forEach(m_buffer::add);
+			T next = m_src.next();
+			if ( next != null ) {
+				m_buffer.add(next);
+			}
+			else {
+				m_endOfSource = true;
+			}
 		}
 	}
 }

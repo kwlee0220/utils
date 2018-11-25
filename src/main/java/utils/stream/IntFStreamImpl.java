@@ -5,7 +5,6 @@ import java.util.function.Supplier;
 import com.google.common.base.Preconditions;
 
 import io.vavr.CheckedRunnable;
-import io.vavr.control.Option;
 import utils.Throwables;
 
 
@@ -15,18 +14,17 @@ import utils.Throwables;
  */
 public class IntFStreamImpl implements IntFStream {
 	private final String m_name;
-	private final Supplier<Option<Integer>> m_supplier;
+	private final Supplier<Integer> m_supplier;
 	private final CheckedRunnable m_closer;
 	private boolean m_closed = false;
 	
-	public IntFStreamImpl(String name, Supplier<Option<Integer>> nextSupplier,
-							CheckedRunnable closer) {
+	public IntFStreamImpl(String name, Supplier<Integer> nextSupplier, CheckedRunnable closer) {
 		m_name = name;
 		m_supplier = nextSupplier;
 		m_closer = closer;
 	}
 	
-	public IntFStreamImpl(String name, Supplier<Option<Integer>> nextSupplier) {
+	public IntFStreamImpl(String name, Supplier<Integer> nextSupplier) {
 		this(name, nextSupplier, null);
 	}
 
@@ -44,7 +42,7 @@ public class IntFStreamImpl implements IntFStream {
 	}
 
 	@Override
-	public Option<Integer> next() {
+	public Integer next() {
 		Preconditions.checkState(!m_closed, "IntFStreamImpl is closed already");
 		
 		return m_supplier.get();

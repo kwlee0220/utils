@@ -6,8 +6,6 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -19,34 +17,34 @@ public class AppendTest {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
-		Option<Integer> r;
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(1), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(2), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(4), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(4), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(5), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(5), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(3), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(3), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(2), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test
@@ -54,23 +52,23 @@ public class AppendTest {
 		FStream<Integer> stream1 = FStream.of(Lists.newArrayList(1, 2, 4));
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
-		
-		Option<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(1), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(4), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(2), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(4), r);
+		
+		r = stream.next();
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test
@@ -78,23 +76,23 @@ public class AppendTest {
 		FStream<Integer> stream1 = FStream.empty();
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
-		
-		Option<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(5), r.get());
+
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(3), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(5), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(3), r);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r != null);
+		Assert.assertEquals(Integer.valueOf(2), r);
+		
+		r = stream.next();
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test
@@ -102,11 +100,11 @@ public class AppendTest {
 		FStream<Integer> stream1 = FStream.empty();
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
-		
-		Option<Integer> r;
+
+		Integer r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r == null);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)

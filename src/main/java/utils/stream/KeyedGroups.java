@@ -187,7 +187,7 @@ public class KeyedGroups<K,V> {
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private KVFStream<K,V> ungroup(KeyValue<K,List<V>> group) {
-		Supplier<Option<KeyValue<K,V>>> supplier = FStream.of(group.value())
+		Supplier<KeyValue<K,V>> supplier = FStream.of(group.value())
 														.map(v -> new KeyValue<>(group.key(),v))
 														.toSupplier();
 		return new KVFStreamImpl("ungrouped", () -> supplier);
@@ -209,14 +209,14 @@ public class KeyedGroups<K,V> {
 		public void close() throws Exception { }
 
 		@Override
-		public Option<KeyValue<K, A>> next() {
+		public KeyValue<K, A> next() {
 			if ( !m_iter.hasNext() ) {
-				return Option.none();
+				return null;
 			}
 			
 			Entry<K, List<V>> ent = m_iter.next();
 			A folded = FStream.of(ent.getValue()).foldLeft(m_init, m_folder);
-			return Option.of(new KeyValue<>(ent.getKey(), folded));
+			return new KeyValue<>(ent.getKey(), folded);
 		}
 	}
 	
@@ -233,14 +233,14 @@ public class KeyedGroups<K,V> {
 		public void close() throws Exception { }
 
 		@Override
-		public Option<KeyValue<K, V>> next() {
+		public KeyValue<K, V> next() {
 			if ( !m_iter.hasNext() ) {
-				return Option.none();
+				return null;
 			}
 			
 			Entry<K, List<V>> ent = m_iter.next();
 			V reduced = FStream.of(ent.getValue()).reduce(m_reducer);
-			return Option.of(new KeyValue<>(ent.getKey(), reduced));
+			return new KeyValue<>(ent.getKey(), reduced);
 		}
 	}
 }
