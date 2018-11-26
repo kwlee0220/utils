@@ -430,6 +430,6 @@ public abstract class AbstractExecution<T> implements Execution<T>, LoggerSettab
 	}
 	
 	public void start() {
-		Executors.start(this);
+		new Thread(this).start();
 	}
 }

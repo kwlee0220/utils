@@ -44,7 +44,7 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 	
 	private final Lock m_lock = new ReentrantLock();
 	private final Condition m_cond = m_lock.newCondition();
-	@GuardedBy("m_lock") private AbstractExecution<T> m_pendingJob = null;
+	@GuardedBy("m_lock") private ExecutableExecution<T> m_pendingJob = null;
 	@GuardedBy("m_lock") private int m_state = STATE_NOT_STARTED;
 	
 	SingleBufferConsumerThread() {
@@ -67,7 +67,7 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 	 */
 
 	@Override
-	public void submit(AbstractExecution<T> handle) {
+	public void submit(ExecutableExecution<T> handle) {
 		Objects.requireNonNull(handle, "ExecutableHandle is null");
 		
 		m_lock.lock();
@@ -173,7 +173,7 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 		m_logger = logger != null ? logger : s_logger;
 	}
 	
-	private AbstractExecution<T> waitNextWork() throws InterruptedException {
+	private ExecutableExecution<T> waitNextWork() throws InterruptedException {
 		// 'stopConsume()' 이 호출된 경우는 null이 반환된다.
 		//
 		m_lock.lock();
@@ -199,7 +199,7 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 				return null;
 			}
 			
-			AbstractExecution<T> nextRunner = m_pendingJob;
+			ExecutableExecution<T> nextRunner = m_pendingJob;
 			m_pendingJob = null;
 			
 			return nextRunner;
@@ -212,7 +212,7 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 	private class Worker implements Runnable {
 		@Override
 		public final void run() {
-			AbstractExecution<T> work =null;
+			ExecutableExecution<T> work =null;
 			
 			while ( true ) {
 				try {
@@ -223,7 +223,10 @@ class SingleBufferConsumerThread<T> implements Executor<T>, LoggerSettable {
 						return;
 					}
 					
-					work.run();
+					try {
+						work.execute();
+					}
+					catch ( Exception ignored ) { }
 				}
 				catch ( InterruptedException e ) {
 					getLogger().warn("" + e);

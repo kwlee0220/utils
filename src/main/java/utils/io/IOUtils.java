@@ -29,8 +29,8 @@ import java.util.zip.Inflater;
 import com.google.common.collect.Lists;
 
 import io.vavr.control.Option;
-import utils.async.AbstractExecution;
 import utils.async.CancellableWork;
+import utils.async.ExecutableExecution;
 
 /**
  * 
@@ -323,7 +323,7 @@ public class IOUtils {
 		return new CopyStream(from, closeFrom, to, closeTo);
 	}
 	
-	public static final class CopyStream extends AbstractExecution<Integer>
+	public static final class CopyStream extends ExecutableExecution<Integer>
 											implements CancellableWork {
 		private final InputStream m_from;
 		private final OutputStream m_to;

@@ -65,7 +65,7 @@ public interface Execution<T> {
 	 * @return	연산의 시작 여부.
 	 */
 	public default boolean isStarted() {
-		return getState() != State.NOT_STARTED;
+		return getState().ordinal() >= State.RUNNING.ordinal();
 	}
 	
 	/**

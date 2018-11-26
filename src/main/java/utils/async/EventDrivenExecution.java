@@ -8,22 +8,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
-
-import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.CheckedRunnable;
 import io.vavr.control.Option;
-import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
 import utils.LoggerSettable;
-import utils.Throwables;
 
 /**
  * 
@@ -37,12 +31,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@GuardedBy("m_aopLock") private Result<T> m_result;		// may null
 	@GuardedBy("m_aopLock") private final List<Runnable> m_startListeners = Lists.newCopyOnWriteArrayList();
 	@GuardedBy("m_aopLock") private final List<Runnable> m_finishListeners = Lists.newCopyOnWriteArrayList();
-	@GuardedBy("m_aopLock") @Nullable private volatile CheckedRunnable m_startHook = null;
-	@GuardedBy("m_aopLock") @Nullable private volatile CheckedRunnable m_completeHook = null;
-	@GuardedBy("m_aopLock") @Nullable private volatile Runnable m_cancelHook = null;
-	@GuardedBy("m_aopLock") @Nullable private volatile Consumer<Throwable> m_failureHook = null;
 	
-	private volatile CheckedRunnable m_cancelWork = null;
 	private Logger m_logger = LoggerFactory.getLogger(EventDrivenExecution.class);
 
 	@Override
@@ -55,28 +44,9 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			throw new IllegalStateException("unexpected state: " + getState());
 		}
 	}
-	
-	public void setCancelWork(CheckedRunnable work) {
-		m_cancelWork = work;
-	}
 
-	/**
-	 * 비동기 연산의 상태가 RUNNING이라고 믿는 상태에서 호출되는 것을 가정함
-	 */
+	@Override
 	public boolean cancel() {
-		if ( !notifyCancelling() ) {
-			return false;
-		}
-		
-		if ( m_cancelWork != null ) {
-			try {
-				m_cancelWork.run();
-			}
-			catch ( Throwable e ) {
-				notifyFailed(Throwables.unwrapThrowable(e));
-				return false;
-			}
-		}
 		return notifyCancelled();
 	}
 
@@ -166,15 +136,6 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			switch ( m_aopState ) {
 				case NOT_STARTED:
 				case STARTING:
-					if ( m_startHook != null ) {
-						try {
-							m_startHook.run();
-						}
-						catch ( Throwable e ) {
-							notifyFailed(e);
-							return false;
-						}
-					}
 					m_aopState = State.RUNNING;
 					m_aopCond.signalAll();
 					getLogger().debug("started: {}", this);
@@ -203,14 +164,6 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case RUNNING:
 					m_result = Result.completed(result);
 					m_aopState = State.COMPLETED;
-					if ( m_completeHook != null ) {
-						try {
-							m_completeHook.run();
-						}
-						catch ( Throwable e ) {
-							return notifyFailed(e);
-						}
-					}
 					m_aopCond.signalAll();
 					getLogger().debug("completed: {}, result={}", this, result);
 					
@@ -244,9 +197,6 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case CANCELLING:
 					m_result = Result.failed(cause);
 			    	m_aopState = State.FAILED;
-			    	if ( m_failureHook != null ) {
-			    		Try.run(() -> m_failureHook.accept(cause));
-			    	}
 			    	m_aopCond.signalAll();
 					getLogger().info("failed: {}, cause={}", this, cause.toString());
 					
@@ -320,9 +270,6 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case NOT_STARTED:
 					m_result = Result.cancelled();
 					m_aopState = State.CANCELLED;
-			    	if ( m_cancelHook != null ) {
-			    		Try.run(() -> m_cancelHook.run());
-			    	}
 					m_aopCond.signalAll();
 					getLogger().info("cancelled: {}", this);
 					

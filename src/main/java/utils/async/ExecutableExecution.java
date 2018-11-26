@@ -16,60 +16,83 @@ import utils.Throwables;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class ExecutableExecution<T> implements Execution<T>, LoggerSettable, Runnable {
+public abstract class ExecutableExecution<T> implements Execution<T>, LoggerSettable {
 	private final EventDrivenExecution<T> m_handle = new EventDrivenExecution<>();
 	protected volatile Thread m_thread = null;
-	
-	protected abstract T executeWork() throws CancellationException, Throwable;
+
+	protected abstract T executeWork() throws InterruptedException, CancellationException, Exception;
 	
 	protected ExecutableExecution() {
 		m_handle.setLogger(LoggerFactory.getLogger(ExecutableExecution.class));
-		m_handle.setCancelWork(() -> {
-			if ( m_thread != null ) {
-				m_thread.interrupt();
-			}
-		});
 	}
-	
-//	public EventDrivenExecution<T> getHandle() {
-//		return m_handle;
-//	}
 
 	@Override
 	public State getState() {
 		return m_handle.getState();
 	}
 	
-	@Override
-	public void run() {
+	public final T execute() throws CancellationException, Exception {
 		if ( !m_handle.notifyStarted() ) {
-			// 작업 시작에 실패한 경우 (주로 이미 cancel된 경우)는 바로 return한다.
-			return;
+			String msg = String.format("unexpected state: current[%s], event=[%s]",
+										getState(), State.RUNNING);
+			throw new IllegalStateException(msg);
 		}
-		m_thread = Thread.currentThread();
 		
 		// 작업을 수행한다.
 		try {
 			T result = executeWork();
-			if ( !m_handle.notifyCompleted(result) && !isDone() ) {
-				throw new IllegalStateException("unexpected state: " + getState());
+			if ( m_handle.notifyCompleted(result) ) {
+				return result;
 			}
+			
+			// DONE인 상태 또는 CANCELLING 상태 가능
+			if ( isCancelRequested() ) {
+				m_handle.notifyCancelled();
+			}
+			
+			return m_handle.pollResult().get().get();
 		}
 		catch ( InterruptedException | CancellationException e ) {
-			m_handle.cancel();
+			m_handle.notifyCancelled();
+			throw e;
 		}
 		catch ( Throwable e ) {
 			m_handle.notifyFailed(Throwables.unwrapThrowable(e));
+			throw e;
 		}
 	}
 	
-	public Execution<T> start() {
-		return Executors.start(this);
+	public final void start() {
+		m_handle.notifyStarting();
+
+		Thread thread = new Thread(asRunnable());
+		thread.start();
 	}
-	
+
 	@Override
-	public boolean cancel() {
-		return m_handle.cancel();
+	public final boolean cancel() {
+		if ( !m_handle.notifyCancelling() ) {
+			return false;
+		}
+		
+		if ( this instanceof CancellableWork ) {
+			try {
+				((CancellableWork)this).cancelWork();
+			}
+			catch ( Exception e ) {
+				getLogger().warn("fails to cancel work: {}, cause={}", this, e.toString());
+				m_handle.notifyFailed(e);
+				
+				return false;
+			}
+		}
+		else {
+			if ( m_thread != null ) {
+				m_thread.interrupt();
+			}
+		}
+		
+		return m_handle.notifyCancelled();
 	}
 
 	@Override
@@ -81,16 +104,6 @@ public abstract class ExecutableExecution<T> implements Execution<T>, LoggerSett
 	public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
 													TimeoutException, CancellationException {
 		return m_handle.get(timeout, unit);
-	}
-
-	@Override
-	public Logger getLogger() {
-		return m_handle.getLogger();
-	}
-
-	@Override
-	public void setLogger(Logger logger) {
-		m_handle.setLogger(logger);
 	}
 
 	@Override
@@ -139,27 +152,65 @@ public abstract class ExecutableExecution<T> implements Execution<T>, LoggerSett
 		m_handle.whenDone(listener);
 	}
 	
-	protected boolean notifyStarting() {
-		return m_handle.notifyStarting();
+	public Runnable asRunnable() {
+		return new Runner();
+	}
+
+	@Override
+	public Logger getLogger() {
+		return m_handle.getLogger();
+	}
+
+	@Override
+	public void setLogger(Logger logger) {
+		m_handle.setLogger(logger);
 	}
 	
-	protected boolean notifyStarted() {
-		return m_handle.notifyStarted();
+	@Override
+	public String toString() {
+		return String.format("%s[%s]", getClass().getSimpleName(), getState());
 	}
 	
-	protected boolean notifyCompleted(T result) {
-		return m_handle.notifyCompleted(result);
+	protected final void checkCancelled() {
+		State state = getState();
+		if ( state == State.CANCELLING || state == State.CANCELLED ) {
+			throw new CancellationException();
+		}
 	}
 	
-	protected boolean notifyCancelling() {
-		return m_handle.notifyCancelling();
+	protected final boolean isCancelRequested() {
+		return m_handle.getState() == State.CANCELLING;
 	}
 	
-	protected boolean notifyCancelled() {
+	protected final boolean notifyCancelled() {
 		return m_handle.notifyCancelled();
 	}
 	
-	protected boolean notifyFailed(Throwable cause) {
+	protected final boolean notifyFailed(Throwable cause) {
 		return m_handle.notifyFailed(cause);
+	}
+
+	private class Runner implements Runnable {
+		@Override
+		public void run() {
+			if ( !m_handle.notifyStarted() ) {
+				// 작업 시작에 실패한 경우 (주로 이미 cancel된 경우)는 바로 return한다.
+				return;
+			}
+			m_thread = Thread.currentThread();
+			
+			try {
+				T result = executeWork();
+				if (!m_handle.notifyCompleted(result) && !m_handle.isDone() ) {
+					m_handle.notifyFailed(new IllegalStateException("unexpected state: " + getState()));
+				}
+			}
+			catch ( InterruptedException | CancellationException e ) {
+				m_handle.notifyCancelled();
+			}
+			catch ( Throwable e ) {
+				m_handle.notifyFailed(Throwables.unwrapThrowable(e));
+			}
+		}
 	}
 }
