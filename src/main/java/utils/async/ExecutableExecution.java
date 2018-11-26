@@ -32,7 +32,11 @@ public abstract class ExecutableExecution<T> implements Execution<T>, LoggerSett
 	}
 	
 	public final T execute() throws CancellationException, Exception {
-		m_handle.notifyStarted();
+		if ( !m_handle.notifyStarted() ) {
+			String msg = String.format("unexpected state: current[%s], event=[%s]",
+										getState(), State.RUNNING);
+			throw new IllegalStateException(msg);
+		}
 		
 		// 작업을 수행한다.
 		try {
