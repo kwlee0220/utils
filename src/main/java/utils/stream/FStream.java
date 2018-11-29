@@ -359,6 +359,15 @@ public interface FStream<T> extends AutoCloseable {
 		return next != null;
 	}
 	
+	public default boolean exists() {
+		try {
+			return next() != null;
+		}
+		finally {
+			closeQuietly();
+		}
+	}
+	
 	public default Option<T> first() {
 		return Option.of(next());
 	}
