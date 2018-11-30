@@ -55,6 +55,22 @@ public class Guard {
 		return m_lock;
 	}
 	
+	public void lock() {
+		m_lock.lock();
+	}
+	
+	public void unlock() {
+		m_lock.unlock();
+	}
+	
+	public void signalAll() {
+		m_cond.signalAll();
+	}
+
+	public boolean awaitUntil(Date due) throws InterruptedException {
+		return m_cond.awaitUntil(due);
+	}
+	
 	public Condition getCondition() {
 		return m_cond;
 	}

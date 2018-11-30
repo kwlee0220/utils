@@ -32,11 +32,7 @@ public abstract class ExecutableExecution<T> implements Execution<T>, LoggerSett
 	}
 	
 	public final T execute() throws CancellationException, Exception {
-		if ( !m_handle.notifyStarted() ) {
-			String msg = String.format("unexpected state: current[%s], event=[%s]",
-										getState(), State.RUNNING);
-			throw new IllegalStateException(msg);
-		}
+		m_handle.notifyStarted();
 		
 		// 작업을 수행한다.
 		try {
@@ -44,10 +40,8 @@ public abstract class ExecutableExecution<T> implements Execution<T>, LoggerSett
 			if ( m_handle.notifyCompleted(result) ) {
 				return result;
 			}
-			
-			// DONE인 상태 또는 CANCELLING 상태 가능
-			if ( isCancelRequested() ) {
-				m_handle.notifyCancelled();
+			if ( m_handle.notifyCancelled() ) {
+				throw new CancellationException();
 			}
 			
 			return m_handle.pollResult().get().get();
@@ -186,14 +180,17 @@ public abstract class ExecutableExecution<T> implements Execution<T>, LoggerSett
 		return m_handle.notifyCancelled();
 	}
 	
-	protected final boolean notifyFailed(Throwable cause) {
-		return m_handle.notifyFailed(cause);
+	protected final void notifyFailed(Throwable cause) {
+		m_handle.notifyFailed(cause);
 	}
 
 	private class Runner implements Runnable {
 		@Override
 		public void run() {
-			if ( !m_handle.notifyStarted() ) {
+			try {
+				m_handle.notifyStarted();
+			}
+			catch ( Exception e ) {
 				// 작업 시작에 실패한 경우 (주로 이미 cancel된 경우)는 바로 return한다.
 				return;
 			}
@@ -201,8 +198,11 @@ public abstract class ExecutableExecution<T> implements Execution<T>, LoggerSett
 			
 			try {
 				T result = executeWork();
-				if (!m_handle.notifyCompleted(result) && !m_handle.isDone() ) {
-					m_handle.notifyFailed(new IllegalStateException("unexpected state: " + getState()));
+				if ( m_handle.notifyCompleted(result) ) {
+					return;
+				}
+				if ( m_handle.notifyCancelled() ) {
+					return;
 				}
 			}
 			catch ( InterruptedException | CancellationException e ) {
