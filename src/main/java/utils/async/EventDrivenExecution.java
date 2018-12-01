@@ -1,5 +1,6 @@
 package utils.async;
 
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -24,6 +25,7 @@ import utils.LoggerSettable;
  * @author Kang-Woo Lee (ETRI)
  */
 public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
+	private long m_timeoutMillis = TimeUnit.SECONDS.toMillis(3);	// 3 seconds
 	protected final ReentrantLock m_aopLock = new ReentrantLock();
 	protected final Condition m_aopCond = m_aopLock.newCondition();
 	protected final Guard m_aopGuard = Guard.by(m_aopLock, m_aopCond);
@@ -39,10 +41,12 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		return m_aopGuard.get(() -> m_aopState);
 	}
 	
+	public void setTimeout(long timeout, TimeUnit unit) {
+		m_timeoutMillis = unit.toMillis(timeout);
+	}
+	
 	public void complate(T result) {
-		if ( !notifyCompleted(result) && !isDone() ) {
-			throw new IllegalStateException("unexpected state: " + getState());
-		}
+		notifyCompleted(result);
 	}
 
 	@Override
@@ -114,9 +118,13 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case NOT_STARTED:
 					m_aopState = State.STARTING;
 					m_aopCond.signalAll();
+				case STARTING:
 			    	return true;
+				case RUNNING:
+				case COMPLETED:
 				case CANCELLED:
 				case CANCELLING:
+				case FAILED:
 					return false;
 				default:
 					String msg = String.format("unexpected state: current[%s], event=[%s]",
@@ -141,9 +149,11 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					getLogger().debug("started: {}", this);
 					
 					notifyStartListeners();
+				case RUNNING:
 			    	return true;
-				case CANCELLING:
+				case COMPLETED:
 				case CANCELLED:
+				case CANCELLING:
 				case FAILED:
 					return false;
 				default:
@@ -162,6 +172,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		try {
 			switch ( m_aopState ) {
 				case RUNNING:
+				case CANCELLING:
 					m_result = Result.completed(result);
 					m_aopState = State.COMPLETED;
 					m_aopCond.signalAll();
@@ -169,10 +180,9 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					
 			    	notifyFinishListeners();
 			    	return true;
-				case COMPLETED:
 				case CANCELLED:
-				case CANCELLING:
 				case FAILED:
+				case COMPLETED:
 					return false;
 				case NOT_STARTED:
 				case STARTING:
@@ -202,11 +212,11 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					
 			    	notifyFinishListeners();
 			    	return true;
-				case COMPLETED:
 				case FAILED:
+				case COMPLETED:
 				case CANCELLED:
 					return false;
-				case NOT_STARTED:	
+				case NOT_STARTED:
 				default:
 					String msg = String.format("unexpected state: current[%s], event=[%s]",
 												m_aopState, State.FAILED);
@@ -221,23 +231,28 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	public boolean notifyCancelling() {
     	m_aopLock.lock();
     	try {
-    		while ( m_aopState == State.STARTING ) {
-    			try {
-					m_aopCond.await();
+    		// 시작 중인 상태이면, cancel 작업이 inconsistent한 상태를 볼 수 있기 때문에,
+    		// 일단 start작업이 완료될 때까지 대기한다.
+    		Date due = new Date(System.currentTimeMillis() + m_timeoutMillis);
+			while ( m_aopState == State.STARTING ) {
+				try {
+					if ( !m_aopCond.awaitUntil(due) ) {
+						return false;
+					}
 				}
 				catch ( InterruptedException e ) {
 					return false;
 				}
-    		}
+			}
     		
 			switch ( m_aopState ) {
 				case RUNNING:
+				case NOT_STARTED:
 					m_aopState = State.CANCELLING;
 					m_aopCond.signalAll();
-					return true;
 				case CANCELLING:
 				case CANCELLED:
-				case NOT_STARTED:
+					return true;
 				case COMPLETED:
 				case FAILED:
 					return false;
@@ -255,14 +270,19 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	public boolean notifyCancelled() {
     	m_aopLock.lock();
     	try {
-    		while ( m_aopState == State.STARTING ) {
-    			try {
-					m_aopCond.await();
+    		// 시작 중인 상태이면, cancel 작업이 inconsistent한 상태를 볼 수 있기 때문에,
+    		// 일단 start작업이 완료될 때까지 대기한다.
+    		Date due = new Date(System.currentTimeMillis() + m_timeoutMillis);
+    		try {
+				while ( m_aopState == State.STARTING ) {
+					if ( !m_aopCond.awaitUntil(due) ) {
+						return false;
+					}
 				}
-				catch ( InterruptedException e ) {
-					return false;
-				}
-    		}
+			}
+			catch ( InterruptedException e ) {
+				return false;
+			}
     		
 			switch ( m_aopState ) {
 				case CANCELLING:
@@ -274,8 +294,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					getLogger().info("cancelled: {}", this);
 					
 			    	notifyFinishListeners();
-			    	return true;
 				case CANCELLED:
+			    	return true;
 				case COMPLETED:
 				case FAILED:
 					return false;
