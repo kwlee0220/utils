@@ -5,6 +5,8 @@ import java.util.Objects;
 
 import com.google.common.collect.MinMaxPriorityQueue;
 
+import io.vavr.control.Option;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -46,13 +48,13 @@ public class TopKPickedFStream<T> implements FStream<T> {
 	}
 
 	@Override
-	public T next() {
+	public Option<T> next() {
 		Node node = m_queue.poll();
 		if ( node != null ) {
-			return node.m_value;
+			return Option.some(node.m_value);
 		}
 		else {
-			return null;
+			return Option.none();
 		}
 	}
 }

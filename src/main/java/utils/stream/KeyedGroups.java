@@ -5,12 +5,10 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -136,9 +134,8 @@ public class KeyedGroups<K,V> {
 		return KVFStream.of(m_groups);
 	}
 	
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public KVFStream<K,V> ungroup() {
-		return new KVFStreamImpl("ungrouped", () -> fstream().flatMap(this::ungroup).toSupplier());
+		return KVFStream.downcast(fstream().flatMap(this::ungroup));
 	}
 	
 	public <K2> KeyedGroups<K2,V> mapKey(BiFunction<? super K,List<V>,? extends K2> mapper) {
@@ -164,14 +161,6 @@ public class KeyedGroups<K,V> {
 		});
 	}
 	
-//	public <A> KVFStream<K,A> fold(A init, BiFunction<? super A,? super V,? extends A> folder) {
-//		return new FoldedStream<>(m_groups, init, folder);
-//	}
-//	
-//	public KVFStream<K,V> reduce(BiFunction<? super V,? super V,? extends V> reducer) {
-//		return new ReducedStream<>(m_groups, reducer);
-//	}
-	
 	public Set<K> keySet() {
 		return m_groups.keySet();
 	}
@@ -185,62 +174,7 @@ public class KeyedGroups<K,V> {
 		return m_groups.toString();
 	}
 	
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private KVFStream<K,V> ungroup(KeyValue<K,List<V>> group) {
-		Supplier<KeyValue<K,V>> supplier = FStream.of(group.value())
-														.map(v -> new KeyValue<>(group.key(),v))
-														.toSupplier();
-		return new KVFStreamImpl("ungrouped", () -> supplier);
-	}
-	
-	private static class FoldedStream<K,V,A> implements KVFStream<K,A> {
-		private final A m_init;
-		private final Iterator<Entry<K, List<V>>> m_iter;
-		private final BiFunction<? super A,? super V,? extends A> m_folder;
-		
-		FoldedStream(Map<K,List<V>> groups, A init,
-					BiFunction<? super A,? super V,? extends A> folder) {
-			m_iter = groups.entrySet().iterator();
-			m_init = init;
-			m_folder = folder;
-		}
-
-		@Override
-		public void close() throws Exception { }
-
-		@Override
-		public KeyValue<K, A> next() {
-			if ( !m_iter.hasNext() ) {
-				return null;
-			}
-			
-			Entry<K, List<V>> ent = m_iter.next();
-			A folded = FStream.of(ent.getValue()).foldLeft(m_init, m_folder);
-			return new KeyValue<>(ent.getKey(), folded);
-		}
-	}
-	
-	private static class ReducedStream<K,V> implements KVFStream<K,V> {
-		private final Iterator<Map.Entry<K, List<V>>> m_iter;
-		private final BiFunction<? super V,? super V,? extends V> m_reducer;
-		
-		ReducedStream(Map<K,List<V>> groups, BiFunction<? super V,? super V,? extends V> reducer) {
-			m_iter = groups.entrySet().iterator();
-			m_reducer = reducer;
-		}
-
-		@Override
-		public void close() throws Exception { }
-
-		@Override
-		public KeyValue<K, V> next() {
-			if ( !m_iter.hasNext() ) {
-				return null;
-			}
-			
-			Entry<K, List<V>> ent = m_iter.next();
-			V reduced = FStream.of(ent.getValue()).reduce(m_reducer);
-			return new KeyValue<>(ent.getKey(), reduced);
-		}
+	private FStream<KeyValue<K,V>> ungroup(KeyValue<K,List<V>> group) {
+		return FStream.of(group.value()).map(v -> KeyValue.of(group.key(), v));
 	}
 }

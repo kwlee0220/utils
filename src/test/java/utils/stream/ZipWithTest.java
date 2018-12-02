@@ -20,30 +20,30 @@ public class ZipWithTest {
 		FStream<Integer> stream2 = FStream.range(0, 100);
 		FStream<Tuple2<Integer,String>> stream = stream2.zipWith(stream1);
 		
-		Tuple2<Integer,String> r;
+		Option<Tuple2<Integer,String>> r;
 		
 		r = stream.next();
 		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(0), r._1);
-		Assert.assertEquals("a", r._2);
+		Assert.assertEquals(Integer.valueOf(0), r.get()._1);
+		Assert.assertEquals("a", r.get()._2);
 		
 		r = stream.next();
 		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(1), r._1);
-		Assert.assertEquals("b", r._2);
+		Assert.assertEquals(Integer.valueOf(1), r.get()._1);
+		Assert.assertEquals("b", r.get()._2);
 		
 		r = stream.next();
 		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r._1);
-		Assert.assertEquals("c", r._2);
+		Assert.assertEquals(Integer.valueOf(2), r.get()._1);
+		Assert.assertEquals("c", r.get()._2);
 		
 		r = stream.next();
 		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(3), r._1);
-		Assert.assertEquals("d", r._2);
+		Assert.assertEquals(Integer.valueOf(3), r.get()._1);
+		Assert.assertEquals("d", r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -51,11 +51,11 @@ public class ZipWithTest {
 		FStream<String> stream1 = FStream.empty();
 		FStream<Integer> stream2 = FStream.range(0, 100);
 		FStream<Tuple2<Integer,String>> stream = stream2.zipWith(stream1);
-		
-		Tuple2<Integer,String> r;
+
+		Option<Tuple2<Integer,String>> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 //	@Test
@@ -79,7 +79,7 @@ public class ZipWithTest {
 //		Assert.assertEquals(Integer.valueOf(2), r);
 //		
 //		r = stream.next();
-//		Assert.assertEquals(true, r == null);
+//		Assert.assertEquals(true, r.isEmpty());
 //	}
 //	
 //	@Test
@@ -91,7 +91,7 @@ public class ZipWithTest {
 //		Option<Integer> r;
 //		
 //		r = stream.next();
-//		Assert.assertEquals(true, r == null);
+//		Assert.assertEquals(true, r.isEmpty());
 //	}
 //	
 //	@Test(expected=IllegalArgumentException.class)

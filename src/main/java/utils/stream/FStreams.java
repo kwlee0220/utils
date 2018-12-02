@@ -1,5 +1,6 @@
 package utils.stream;
 
+import java.util.Iterator;
 import java.util.Random;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -8,6 +9,7 @@ import java.util.function.Predicate;
 import com.google.common.base.Preconditions;
 
 import io.vavr.Tuple2;
+import io.vavr.control.Option;
 import io.vavr.control.Try;
 
 /**
@@ -15,6 +17,32 @@ import io.vavr.control.Try;
  * @author Kang-Woo Lee (ETRI)
  */
 public class FStreams {
+	static class EmptyStream<T> implements FStream<T> {
+		@Override
+		public void close() throws Exception { }
+
+		@Override
+		public Option<T> next() {
+			return Option.none();
+		}
+	}
+	
+	static class IteratorStream<T> implements FStream<T> {
+		private final Iterator<? extends T> m_iter;
+		
+		IteratorStream(Iterator<? extends T> iter) {
+			m_iter = iter;
+		}
+
+		@Override
+		public void close() throws Exception { }
+
+		@Override
+		public Option<T> next() {
+			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
+		}
+	}
+	
 	static class FilteredStream<T> implements FStream<T> {
 		private final FStream<T> m_base;
 		private final Predicate<? super T> m_pred;
@@ -30,9 +58,9 @@ public class FStreams {
 		}
 
 		@Override
-		public T next() {
-			T next;
-			while ( (next = m_base.next()) != null && !m_pred.test(next) );
+		public Option<T> next() {
+			Option<T> next;
+			while ( (next = m_base.next()).isDefined() && !m_pred.test(next.get()) );
 			return next;
 		}
 		
@@ -57,9 +85,8 @@ public class FStreams {
 		}
 
 		@Override
-		public S next() {
-			T next = m_base.next();
-			return next != null ? m_mapper.apply(next) : null;
+		public Option<S> next() {
+			return m_base.next().map(m_mapper);
 		}
 		
 		@Override
@@ -83,9 +110,8 @@ public class FStreams {
 		}
 
 		@Override
-		public Integer next() {
-			T next = m_base.next();
-			return next != null ? m_mapper.apply(next) : null;
+		public Option<Integer> next() {
+			return m_base.next().map(m_mapper);
 		}
 		
 		@Override
@@ -109,9 +135,8 @@ public class FStreams {
 		}
 
 		@Override
-		public Long next() {
-			T next = m_base.next();
-			return next != null ? m_mapper.apply(next) : null;
+		public Option<Long> next() {
+			return m_base.next().map(m_mapper);
 		}
 		
 		@Override
@@ -135,9 +160,8 @@ public class FStreams {
 		}
 
 		@Override
-		public Double next() {
-			T next = m_base.next();
-			return next != null ? m_mapper.apply(next) : null;
+		public Option<Double> next() {
+			return m_base.next().map(m_mapper);
 		}
 		
 		@Override
@@ -161,11 +185,9 @@ public class FStreams {
 		}
 
 		@Override
-		public T next() {
-			T next = m_base.next();
-			if ( next != null ) {
-				m_effect.accept(next);
-			}
+		public Option<T> next() {
+			Option<T> next = m_base.next();
+			next.forEach(m_effect);
 			return next;
 		}
 		
@@ -173,13 +195,6 @@ public class FStreams {
 		public String toString() {
 			return String.format("peek");
 		}
-	}
-	
-	static <T> T skipWhile(FStream<T> base, Predicate<? super T> pred) {
-		T next;
-		while ( (next = base.next()) != null && pred.test(next) );
-		
-		return next;
 	}
 	
 	static class TakenStream<T> implements FStream<T> {
@@ -197,9 +212,9 @@ public class FStreams {
 		}
 
 		@Override
-		public T next() {
+		public Option<T> next() {
 			if ( m_remains <= 0 ) {
-				return null;
+				return Option.none();
 			}
 			else {
 				--m_remains;
@@ -210,11 +225,12 @@ public class FStreams {
 
 	static class DroppedStream<T> implements FStream<T> {
 		private final FStream<T> m_src;
-		private long m_remains;
+		private final long m_count;
+		private boolean m_dropped = false;
 		
 		DroppedStream(FStream<T> src, long count) {
 			m_src = src;
-			m_remains = count;
+			m_count = count;
 		}
 
 		@Override
@@ -223,13 +239,17 @@ public class FStreams {
 		}
 	
 		@Override
-		public T next() {
-			while ( m_remains > 0 && m_src.next() != null ) {
-				--m_remains;
+		public Option<T> next() {
+			if ( !m_dropped ) {
+				m_dropped = true;
+				for ( int i =0; i < m_count; ++i ) {
+					if ( m_src.next().isEmpty() ) {
+						return Option.none();
+					}
+				}
 			}
 			
-			// m_src.next()가 null을 반환한 경우 처리
-			return (m_remains > 0) ? null : m_src.next(); 
+			return m_src.next();
 		}
 	}
 	
@@ -250,23 +270,23 @@ public class FStreams {
 		}
 
 		@Override
-		public T next() {
+		public Option<T> next() {
 			if ( m_eos ) {
-				return null;
+				return Option.none();
 			}
 			
-			T next = m_src.next();
-			if ( next == null ) {
+			Option<T> next = m_src.next();
+			if ( next.isEmpty() ) {
 				m_eos = true;
-				return null;
+				return Option.none();
 			}
 			
-			if ( m_pred.test(next) ) {
+			if ( m_pred.test(next.get()) ) {
 				return next;
 			}
 			else {
 				m_eos = true;
-				return null;
+				return Option.none();
 			}
 		}
 	}
@@ -287,10 +307,10 @@ public class FStreams {
 		}
 
 		@Override
-		public T next() {
+		public Option<T> next() {
 			if ( !m_started ) {
-				T next;
-				while ( (next = m_src.next()) != null && m_pred.test(next) );
+				Option<T> next;
+				while ( (next = m_src.next()).isDefined() && m_pred.test(next.get()) );
 				m_started = true;
 				
 				return next;
@@ -314,20 +334,15 @@ public class FStreams {
 		public void close() throws Exception { }
 
 		@Override
-		public T next() {
-			if ( m_next != null ) {
-				T next = m_next;
-				m_next = m_inc.apply(next);
-				
-				return next;
-			}
-			else {
-				return null;
-			}
+		public Option<T> next() {
+			T next = m_next;
+			m_next = m_inc.apply(next);
+			
+			return Option.some(next);
 		}
 	}
 	
-	static class AppendedStream<T,S> implements FStream<T> {
+	static class AppendedStream<T> implements FStream<T> {
 		private final FStream<? extends T> m_first;
 		private final FStream<? extends T> m_second;
 		private FStream<? extends T> m_current;
@@ -352,15 +367,15 @@ public class FStreams {
 		}
 
 		@Override
-		public T next() {
+		public Option<T> next() {
 			Preconditions.checkState(!m_closed, "AppendedStream is closed already");
 			
-			T next = m_current.next();
-			if ( next == null ) {
-				return (m_current == m_first) ? (m_current = m_second).next() : null;
+			Option<? extends T> next;
+			if ( (next = m_current.next()).isEmpty() ) {
+				return (m_current == m_first) ? (Option<T>)(m_current = m_second).next() : Option.none();
 			}
 			else {
-				return next;
+				return (Option<T>)next;
 			}
 		}
 	}
@@ -382,15 +397,15 @@ public class FStreams {
 		}
 
 		@Override
-		public T next() {
+		public Option<T> next() {
 			Tuple2<T,S> unfolded = m_gen.apply(m_seed);
 			if ( unfolded != null ) {
 				m_seed = unfolded._2;
 				
-				return unfolded._1;
+				return Option.some(unfolded._1);
 			}
 			else {
-				return null;
+				return Option.none();
 			}
 		}
 	}
@@ -411,10 +426,10 @@ public class FStreams {
 		}
 
 		@Override
-		public T next() {
+		public Option<T> next() {
 			while ( true ) {
-				T next = m_src.next();
-				if ( next == null || m_randGen.nextDouble() < m_ratio ) {
+				Option<T> next = m_src.next();
+				if ( next.isEmpty() || m_randGen.nextDouble() < m_ratio ) {
 					return next;
 				}
 			}

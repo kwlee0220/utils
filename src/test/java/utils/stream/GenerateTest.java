@@ -1,6 +1,8 @@
 package utils.stream;
 
 
+import static org.hamcrest.Matchers.is;
+
 import java.util.function.Function;
 
 import org.junit.Assert;
@@ -17,25 +19,25 @@ public class GenerateTest {
 	public void test0() throws Exception {
 		FStream<Integer> stream = FStream.generate(0, i -> i+1).take(3);
 		
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(0), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertThat(r.get(), is(Integer.valueOf(0)));
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(1), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 
 	@Test(expected=RuntimeException.class)
@@ -50,19 +52,19 @@ public class GenerateTest {
 		};
 		FStream<Integer> stream = FStream.generate(0, gen);
 		
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(0), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(0), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(1), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
 	}

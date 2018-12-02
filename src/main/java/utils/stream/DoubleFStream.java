@@ -1,7 +1,6 @@
 package utils.stream;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -10,7 +9,6 @@ import com.google.common.primitives.Doubles;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
-import utils.stream.DoubleFStreamImpl.TakenStream;
 
 /**
  * 
@@ -18,7 +16,10 @@ import utils.stream.DoubleFStreamImpl.TakenStream;
  */
 public interface DoubleFStream extends FStream<Double> {
 	public static DoubleFStream of(double... values) {
-		return new DoubleArrayStream(Arrays.stream(values).iterator());
+		return new ToDoubleDowncaster(FStream.of(Arrays.stream(values).iterator()));
+	}
+	public static DoubleFStream downcast(FStream<Double> strm) {
+		return new ToDoubleDowncaster(strm);
 	}
 	
 	public default <T> FStream<T> mapToObj(Function<Double,? extends T> mapper) {
@@ -29,15 +30,7 @@ public interface DoubleFStream extends FStream<Double> {
 
 	@Override
 	public default DoubleFStream take(long count) {
-		return new TakenStream(this, count);
-	}
-	
-	@Override
-	public default Option<Double> first() {
-		Double next = next();
-		closeQuietly();
-		
-		return (next != null) ? Option.some(next) : Option.none();
+		return new ToDoubleDowncaster(new FStreams.TakenStream<>(this, count));
 	}
 	
 	public default double sum() {
@@ -55,21 +48,21 @@ public interface DoubleFStream extends FStream<Double> {
 		return Doubles.toArray(toList());
 	}
 	
-	static class DoubleArrayStream implements DoubleFStream {
-		private final Iterator<Double> m_iter;
+	static class ToDoubleDowncaster implements DoubleFStream {
+		private final FStream<Double> m_src;
 		
-		DoubleArrayStream(Iterator<Double> iter) {
-			Objects.requireNonNull(iter);
-			
-			m_iter = iter;
+		ToDoubleDowncaster(FStream<Double> src) {
+			m_src = src;
 		}
 
 		@Override
-		public void close() throws Exception { }
+		public void close() throws Exception {
+			m_src.close();
+		}
 
 		@Override
-		public Double next() {
-			return m_iter.hasNext() ? m_iter.next() : null;
+		public Option<Double> next() {
+			return m_src.next();
 		}
 	}
 }

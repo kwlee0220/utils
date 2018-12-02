@@ -2,13 +2,15 @@ package utils.stream;
 
 import java.util.Objects;
 
+import io.vavr.control.Option;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public class PeekableFStream<T> implements FStream<T> {
 	private final FStream<T> m_src;
-	private T m_peeked = null;
+	private Option<T> m_peeked = null;
 	
 	PeekableFStream(FStream<T> src) {
 		Objects.requireNonNull(src);
@@ -21,7 +23,7 @@ public class PeekableFStream<T> implements FStream<T> {
 		m_src.close();
 	}
 
-	public T peekNext() {
+	public Option<T> peekNext() {
 		if ( m_peeked == null ) {
 			m_peeked = m_src.next();
 		}
@@ -30,17 +32,18 @@ public class PeekableFStream<T> implements FStream<T> {
 	}
 	
 	public boolean hasNext() {
-		return peekNext() != null;
+		return peekNext().isEmpty();
 	}
 
 	@Override
-	public T next() {
+	public Option<T> next() {
 		if ( m_peeked == null ) {
 			return m_src.next();
 		}
 		else {
-			T ret = m_peeked;
+			Option<T> ret = m_peeked;
 			m_peeked = null;
+			
 			return ret;
 		}
 	}

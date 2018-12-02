@@ -1,7 +1,6 @@
 package utils.stream;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -18,7 +17,7 @@ import io.vavr.control.Option;
  */
 public interface IntFStream extends FStream<Integer> {
 	public static IntFStream of(int... values) {
-		return new IntArrayStream(Arrays.stream(values).iterator());
+		return new FStreamAdaptor(FStream.of(Arrays.stream(values).iterator()));
 	}
 	
 	public default <T> FStream<T> mapToObj(Function<Integer,? extends T> mapper) {
@@ -29,16 +28,13 @@ public interface IntFStream extends FStream<Integer> {
 
 	@Override
 	public default IntFStream take(long count) {
-		return new TakenStream(this, count);
+		return new FStreamAdaptor(new FStreams.TakenStream<>(this, count));
 	}
 	
-	@Override
-	public default Option<Integer> first() {
-		Integer v = next();
-		closeQuietly();
-		
-		return Option.of(v);
-	}
+//	@Override
+//	public default Option<Integer> first() {
+//		return next();
+//	}
 	
 	public default long sum() {
 		return foldLeft(0L, (s,v) -> s+v);
@@ -53,24 +49,6 @@ public interface IntFStream extends FStream<Integer> {
 	
 	public default int[] toArray() {
 		return Ints.toArray(toList());
-	}
-	
-	static class IntArrayStream implements IntFStream {
-		private final Iterator<Integer> m_iter;
-		
-		IntArrayStream(Iterator<Integer> iter) {
-			Objects.requireNonNull(iter);
-			
-			m_iter = iter;
-		}
-
-		@Override
-		public void close() throws Exception { }
-
-		@Override
-		public Integer next() {
-			return m_iter.hasNext() ? m_iter.next() : null;
-		}
 	}
 	
 	static class RangedStream implements IntFStream {
@@ -91,27 +69,23 @@ public interface IntFStream extends FStream<Integer> {
 		public void close() throws Exception { }
 
 		@Override
-		public Integer next() {
+		public Option<Integer> next() {
 			if ( m_next < m_end ) {
-				return m_next++;
+				return Option.some(m_next++);
 			}
 			else if ( m_next == m_end && m_closed ) {
-				return m_next++;
+				return Option.some(m_next++);
 			}
 			
-			return null;
+			return Option.none();
 		}
 	}
 	
-	static class TakenStream implements IntFStream {
-		private final IntFStream m_src;
-		private long m_remains;
+	static class FStreamAdaptor implements IntFStream {
+		private final FStream<Integer> m_src;
 		
-		TakenStream(IntFStream src, long count) {
-			Preconditions.checkArgument(count >= 0, "count < 0");
-			
+		FStreamAdaptor(FStream<Integer> src) {
 			m_src = src;
-			m_remains = count;
 		}
 
 		@Override
@@ -120,14 +94,8 @@ public interface IntFStream extends FStream<Integer> {
 		}
 
 		@Override
-		public Integer next() {
-			if ( m_remains <= 0 ) {
-				return null;
-			}
-			else {
-				--m_remains;
-				return m_src.next();
-			}
+		public Option<Integer> next() {
+			return m_src.next();
 		}
 	}
 }

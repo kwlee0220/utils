@@ -2,6 +2,7 @@ package utils.stream;
 
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import io.vavr.control.Option;
 
 /**
  * 
@@ -17,12 +18,12 @@ class FStreamSubscriber<T> implements ObservableOnSubscribe<T> {
 	@Override
 	public void subscribe(ObservableEmitter<T> emitter) throws Exception {
 		try {
-			T data;
-			while ( (data = m_fstrm.next()) != null ) {
+			Option<T> data;
+			while ( (data = m_fstrm.next()).isDefined() ) {
 				if ( emitter.isDisposed() ) {
 					return;
 				}
-				emitter.onNext(data);
+				emitter.onNext(data.get());
 			}
 			
 			if ( emitter.isDisposed() ) {

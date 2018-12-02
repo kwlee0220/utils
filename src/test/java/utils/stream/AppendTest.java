@@ -6,6 +6,8 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import io.vavr.control.Option;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -17,34 +19,34 @@ public class AppendTest {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(1), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(4), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(5), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(5), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(3), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(3), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -53,22 +55,22 @@ public class AppendTest {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(1), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(4), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -77,22 +79,22 @@ public class AppendTest {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(5), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(5), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(3), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(3), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -101,10 +103,10 @@ public class AppendTest {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test(expected=IllegalArgumentException.class)

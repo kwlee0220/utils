@@ -20,22 +20,22 @@ public class UnfoldTest {
 		FStream<String> stream = FStream.unfold(0, i -> Tuple.of(""+i, i+1))
 										.take(3);
 		
-		String r;
+		Option<String> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals("0", r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals("0", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals("1", r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals("1", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals("2", r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals("2", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test(expected=RuntimeException.class)
@@ -50,15 +50,15 @@ public class UnfoldTest {
 		};
 		FStream<String> stream = FStream.unfold((Integer)0, gen);
 		
-		String r;
+		Option<String> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals("0", r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals("0", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals("1", r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals("1", r.get());
 		
 		r = stream.next();
 	}

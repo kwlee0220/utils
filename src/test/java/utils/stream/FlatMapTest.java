@@ -8,6 +8,8 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import io.vavr.control.Option;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -26,15 +28,15 @@ public class FlatMapTest {
 		FStream<Integer> strm = FStream.of(0, 1, 2, 3);
 		FStream<Integer> stream = strm.flatMap(i -> strmList.get(i));
 
-		Integer r;
+		Option<Integer> r;
 		for ( int i =0; i <= 7; ++i ) {
 			r = stream.next();
-			Assert.assertEquals(true, r != null);
-			Assert.assertEquals(Integer.valueOf(i), r);
+			Assert.assertEquals(true, r.isDefined());
+			Assert.assertEquals(Integer.valueOf(i), r.get());
 		}
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -46,10 +48,10 @@ public class FlatMapTest {
 		FStream<Integer> strm = FStream.of(0, 1);
 		FStream<Integer> stream = strm.flatMap(i -> strmList.get(i));
 		
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
@@ -61,15 +63,15 @@ public class FlatMapTest {
 		FStream<Integer> strm = FStream.of(0);
 		FStream<Integer> stream = strm.flatMap(i -> strmList.get(i));
 
-		Integer r;
+		Option<Integer> r;
 		for ( int i =0; i <= 2; ++i ) {
 			r = stream.next();
-			Assert.assertEquals(true, r != null);
-			Assert.assertEquals(Integer.valueOf(i), r);
+			Assert.assertEquals(true, r.isDefined());
+			Assert.assertEquals(Integer.valueOf(i), r.get());
 		}
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test(expected=NullPointerException.class)

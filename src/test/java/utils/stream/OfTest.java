@@ -7,6 +7,8 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import io.vavr.control.Option;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -20,50 +22,50 @@ public class OfTest {
 	public void test0() throws Exception {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4));
 		
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(1), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(4), r);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
 	public void test1() throws Exception {
 		FStream<Integer> stream = FStream.of(Lists.newArrayList());
 		
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> stream = FStream.empty();
 		
-		Integer r;
+		Option<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r == null);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 }

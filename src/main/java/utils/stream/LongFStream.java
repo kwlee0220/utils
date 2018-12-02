@@ -9,8 +9,6 @@ import com.google.common.primitives.Longs;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
-import utils.stream.LongFStreamImpl.LongArrayStream;
-import utils.stream.LongFStreamImpl.TakenLongStream;
 
 /**
  * 
@@ -18,7 +16,7 @@ import utils.stream.LongFStreamImpl.TakenLongStream;
  */
 public interface LongFStream extends FStream<Long> {
 	public static LongFStream of(long... values) {
-		return new LongArrayStream(Arrays.stream(values).iterator());
+		return new FStreamAdaptor(FStream.of(Arrays.stream(values).iterator()));
 	}
 	
 	public default <T> FStream<T> mapToObj(Function<Long,? extends T> mapper) {
@@ -40,18 +38,28 @@ public interface LongFStream extends FStream<Long> {
 
 	@Override
 	public default LongFStream take(long count) {
-		return new TakenLongStream(this, count);
-	}
-	
-	@Override
-	public default Option<Long> first() {
-		Long v = next();
-		closeQuietly();
-		
-		return Option.of(v);
+		return new FStreamAdaptor(new FStreams.TakenStream<>(this, count));
 	}
 	
 	public default long[] toArray() {
 		return Longs.toArray(toList());
+	}
+	
+	static class FStreamAdaptor implements LongFStream {
+		private final FStream<Long> m_src;
+		
+		FStreamAdaptor(FStream<Long> src) {
+			m_src = src;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
+		}
+
+		@Override
+		public Option<Long> next() {
+			return m_src.next();
+		}
 	}
 }
