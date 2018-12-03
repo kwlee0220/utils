@@ -431,6 +431,13 @@ public interface FStream<T> extends AutoCloseable {
 		return new ZippedFStream<>(this, other);
 	}
 	
+	public default FStream<List<T>> buffer(int count, int skip) {
+		Preconditions.checkArgument(count >= 0);
+		Preconditions.checkArgument(skip > 0);
+		
+		return new BufferedStream<>(this, count, skip);
+	}
+	
 	public default Iterator<T> iterator() {
 		return new FStreamIterator<>(this);
 	}
@@ -477,13 +484,6 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default PrependableFStream<T> toPrependable() {
 		return new PrependableFStream<>(this);
-	}
-	
-	public default FStream<List<T>> buffer(int count, int skip) {
-		Preconditions.checkArgument(count >= 0);
-		Preconditions.checkArgument(skip > 0);
-		
-		return new BufferedStream<>(this, count, skip);
 	}
 	
 	public default <K> KVFStream<K,T> toKVFStream(Function<? super T,? extends K> keyGen) {
