@@ -50,7 +50,6 @@ public interface FStream<T> extends AutoCloseable {
 	 * <p>
 	 * 더 이상의 데이터가 없는 경우는 {@code null}을 반환함.
 	 * 
-	 * @param <T> 데이터 타입
 	 * @return	다음 데이터. 없는 경우는 {@code null}.
 	 */
 	public Option<T> next();
@@ -74,13 +73,6 @@ public interface FStream<T> extends AutoCloseable {
 	@SafeVarargs
 	public static <T> FStream<T> of(T... values) {
 		return of(Arrays.asList(values));
-	}
-	
-	public static <T> FStream<T> of(Option<? extends T> opt) {
-		Objects.requireNonNull(opt);
-		
-		return opt.map(t -> FStream.of((T)t))
-					.getOrElse(FStream.empty());
 	}
 	
 	public static <T> FStream<T> of(Iterable<? extends T> values) {
@@ -107,17 +99,28 @@ public interface FStream<T> extends AutoCloseable {
 		return of(stream.iterator());
 	}
 	
+	public static <T> FStream<T> of(Option<? extends T> opt) {
+		Objects.requireNonNull(opt);
+		
+		return opt.map(t -> FStream.of((T)t))
+					.getOrElse(FStream.empty());
+	}
+	
+	public static <T> SuppliableFStream<T> pipe(int length) {
+		return new SuppliableFStream<>(length);
+	}
+	
 	public static <S,T> FStream<T> unfold(S init,
-									Function<? super S,Tuple2<T,S>> generator) {
-		Objects.requireNonNull(init);
-		Objects.requireNonNull(generator);
+									Function<S,Tuple2<T,S>> generator) {
+		Objects.requireNonNull(init, "initial value");
+		Objects.requireNonNull(generator, "next value generator");
 		
 		return new FStreams.UnfoldStream<T, S>(init, generator);
 	}
 	
 	public static <T> FStream<T> generate(T init, Function<? super T,? extends T> inc) {
-		Preconditions.checkArgument(init != null, "init is null");
-		Preconditions.checkArgument(inc != null, "inc is null");
+		Objects.requireNonNull(init, "initial value");
+		Objects.requireNonNull(inc, "next value generator");
 		
 		return new FStreams.GeneratedStream<>(init, inc);
 	}
@@ -133,6 +136,12 @@ public interface FStream<T> extends AutoCloseable {
 		return new IntFStream.RangedStream(start, end, true);
 	}
 	
+	/**
+	 * 스트림의 첫 count개의 데이터로 구성된 FStream 객체를 생성한다.
+	 * 
+	 * @param count	데이터 갯수.
+	 * @return	'count' 개의  데이터로 구성된 스트림 객체.
+	 */
 	public default FStream<T> take(long count) {
 		Preconditions.checkArgument(count >= 0, "count < 0");
 		
@@ -173,7 +182,7 @@ public interface FStream<T> extends AutoCloseable {
 		return new MappedStream<>(this, mapper);
 	}
 	
-	public default FStream<T> transformIf(boolean flag, Function<FStream<T>,FStream<T>> mapper) {
+	public default FStream<T> mapIf(boolean flag, Function<FStream<T>,FStream<T>> mapper) {
 		if ( flag ) {
 			return mapper.apply(this);
 		}
@@ -212,7 +221,7 @@ public interface FStream<T> extends AutoCloseable {
 		return filter(cls::isInstance).map(cls::cast);
 	}
 	
-	public default <V> FStream<V> ofExactClass(Class<? extends V> cls) {
+	public default <V extends T> FStream<V> ofExactClass(Class<V> cls) {
 		Objects.requireNonNull(cls, "target class is null");
 		
 		return filter(v -> v.getClass().equals(cls)).map(cls::cast);
@@ -224,10 +233,18 @@ public interface FStream<T> extends AutoCloseable {
 		return new PeekedStream<>(this, effect);
 	}
 	
-	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<? extends V>> mapper) {
+	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<V>> mapper) {
 		Objects.requireNonNull(mapper, "mapper is null");
 		
 		return new FlatMappedStream<>(this, mapper);
+	}
+	
+	public default <V> FStream<V> flatMapParallel(Function<? super T,? extends FStream<V>> mapper,
+													int parallelLevel) {
+		Objects.requireNonNull(mapper, "mapper is null");
+		Preconditions.checkArgument(parallelLevel > 0);
+		
+		return mergeParallel(map(mapper), parallelLevel);
 	}
 	
 	public default <V> FStream<V> flatMapOption(Function<? super T,Option<V>> mapper) {
@@ -236,7 +253,7 @@ public interface FStream<T> extends AutoCloseable {
 		return flatMap(t -> FStream.of(mapper.apply(t)));
 	}
 	
-	public default <V> FStream<V> flatMapIterable(Function<? super T,Iterable<V>> mapper) {
+	public default <V> FStream<V> flatMapIterable(Function<? super T,? extends Iterable<V>> mapper) {
 		Objects.requireNonNull(mapper, "mapper is null");
 		
 		return flatMap(t -> FStream.of(mapper.apply(t)));
@@ -254,18 +271,18 @@ public interface FStream<T> extends AutoCloseable {
 		return flatMap(t -> FStream.of(mapper.apply(t)));
 	}
 	
-	public default boolean exists(Predicate<? super T> pred) {
-		Objects.requireNonNull(pred, "predicate is null");
-		
-		return foldLeft(false, true, (a,t) -> { 
-			try {
-				return pred.test(t);
-			}
-			catch ( Exception e ) {
-				return false;
-			}
-		});
+	public default boolean exists() {
+		return next().isDefined();
 	}
+	
+	public default boolean exists(Predicate<? super T> pred) {
+		Objects.requireNonNull(pred, "predicate");
+		
+		Option<T> next;
+		while ( (next = next()).isDefined() && !pred.test(next.get()) );
+		return next.isDefined();
+	}
+	
 	public default boolean forAll(Predicate<? super T> pred) {
 		Objects.requireNonNull(pred, "predicate");
 		
@@ -277,6 +294,12 @@ public interface FStream<T> extends AutoCloseable {
 				return false;
 			}
 		});
+	}
+	
+	public default FStream<T> scan(BinaryOperator<T> combiner) {
+		Objects.requireNonNull(combiner);
+		
+		return new FStreams.ScannedStream<>(this, combiner);
 	}
 	
 	public default <S> S foldLeft(S accum, BiFunction<? super S,? super T,? extends S> folder) {
@@ -310,38 +333,31 @@ public interface FStream<T> extends AutoCloseable {
 		return accum;
 	}
 	
-	public default <S> S foldRight(S accum, BiFunction<? super T,? super S,? extends S> folder) {
-		return FLists.foldRight(toList(), accum, folder);
-	}
-	
-	public default FStream<T> scan(BinaryOperator<T> combiner) {
-		Objects.requireNonNull(combiner);
-		
-		return new ScannedStream<>(this, combiner);
-	}
-	
 	public default T reduce(BiFunction<? super T,? super T,? extends T> reducer) {
-		Preconditions.checkArgument(reducer != null, "reducer is null");
+		Objects.requireNonNull(reducer, "reducer");
 		
 		Option<T> initial = next();
-		if ( initial.isDefined() ) {
-			return foldLeft(initial.get(), (a,t) -> reducer.apply(a, t));
-		}
-		else {
+		if ( initial.isEmpty() ) {
 			throw new IllegalStateException("Stream is empty");
 		}
+		
+		return foldLeft(initial.get(), (a,t) -> reducer.apply(a, t));
 	}
 	
-	public default <S> S collectLeft(S collector, BiConsumer<? super S,? super T> collect) {
-		Objects.requireNonNull(collector);
-		Objects.requireNonNull(collect);
+	public default <S> S collectLeft(S accum, BiConsumer<? super S,? super T> collect) {
+		Objects.requireNonNull(accum, "accumulator");
+		Objects.requireNonNull(collect, "collect operation");
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() ) {
-			collect.accept(collector, next.get());
+			collect.accept(accum, next.get());
 		}
 		
-		return collector;
+		return accum;
+	}
+	
+	public default <S> S foldRight(S accum, BiFunction<? super T,? super S,? extends S> folder) {
+		return FLists.foldRight(toList(), accum, folder);
 	}
 	
 	public default long count() {
@@ -352,17 +368,13 @@ public interface FStream<T> extends AutoCloseable {
 		
 		return count;
 	}
-	
-	public default boolean anyMatch(Predicate<? super T> pred) {
-		Preconditions.checkArgument(pred != null, "pred is null");
+
+	public default Option<T> findFirst(Predicate<? super T> pred) {
+		Objects.requireNonNull(pred, "predicate");
 		
 		Option<T> next;
 		while ( (next = next()).isDefined() && !pred.test(next.get()) );
-		return next.isDefined();
-	}
-	
-	public default boolean exists() {
-		return next().isDefined();
+		return next;
 	}
 	
 	public default Option<T> first() {
@@ -381,22 +393,36 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default FStream<T> concatWith(FStream<? extends T> tail) {
-		Preconditions.checkArgument(tail != null, "tail is null");
+		Objects.requireNonNull(tail, "tail");
 		
-		return new FStreams.AppendedStream<T>(this, tail);
+		return concat(FStream.of(this, tail));
 	}
 	
 	public default FStream<T> concatWith(T tail) {
-		Preconditions.checkArgument(tail != null, "tail is null");
+		Objects.requireNonNull(tail, "tail");
 		
 		return concatWith(FStream.of(tail));
 	}
 	
 	public static <T> FStream<T> concat(FStream<? extends T> head, FStream<? extends T> tail) {
-		Preconditions.checkArgument(head != null, "head is null");
-		Preconditions.checkArgument(tail != null, "tail is null");
+		Objects.requireNonNull(head, "head");
+		Objects.requireNonNull(tail, "tail");
 		
-		return new FStreams.AppendedStream<>(head, tail);
+		return concat(FStream.of(head, tail));
+	}
+	
+	public static <T> FStream<T> concat(FStream<? extends FStream<? extends T>> fact) {
+		Objects.requireNonNull(fact, "source FStream factory");
+		
+		return new ConcatedStream<>(fact);
+	}
+	
+	public static <T> FStream<T> mergeParallel(FStream<? extends FStream<? extends T>> gen,
+												int parallelLevel) {
+		Objects.requireNonNull(gen, "generator");
+		Preconditions.checkArgument(parallelLevel > 0);
+		
+		return new ParallelMergedStream<>(gen, parallelLevel);
 	}
 	
 	public default FStream<Tuple2<T,Integer>> zipWithIndex() {

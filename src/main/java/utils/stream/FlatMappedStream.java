@@ -10,13 +10,13 @@ import io.vavr.control.Option;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-class FlatMappedStream<S,T> implements FStream<T> {
-	private final FStream<S> m_src;
-	private final Function<? super S,? extends FStream<? extends T>> m_mapper;
+class FlatMappedStream<T,S> implements FStream<S> {
+	private final FStream<T> m_src;
+	private final Function<? super T,? extends FStream<? extends S>> m_mapper;
 	
-	private FStream<? extends T> m_mapped = FStream.empty();
+	private FStream<? extends S> m_mapped = FStream.empty();
 	
-	FlatMappedStream(FStream<S> src, Function<? super S,? extends FStream<? extends T>> mapper) {
+	FlatMappedStream(FStream<T> src, Function<? super T,? extends FStream<? extends S>> mapper) {
 		Objects.requireNonNull(src);
 		Objects.requireNonNull(mapper);
 		
@@ -30,19 +30,19 @@ class FlatMappedStream<S,T> implements FStream<T> {
 	}
 
 	@Override
-	public Option<T> next() {
+	public Option<S> next() {
 		if ( m_mapped == null ) {
 			return Option.none();
 		}
 		
-		Option<? extends T> next;
+		Option<? extends S> next;
 		while ( true ) {
 			if ( (next = m_mapped.next()).isDefined() ) {
-				return next.map(n -> (T)n);
+				return next.map(n -> (S)n);
 			}
 			m_mapped.closeQuietly();
 			
-			Option<S> src = m_src.next();
+			Option<T> src = m_src.next();
 			if ( src.isEmpty() ) {
 				m_mapped = null;
 				return Option.none();
