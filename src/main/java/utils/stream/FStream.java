@@ -426,6 +426,8 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default <U> FStream<Tuple2<T,U>> zipWith(FStream<? extends U> other) {
+		Objects.requireNonNull(other, "zip FStream");
+		
 		return new ZippedFStream<>(this, other);
 	}
 	
