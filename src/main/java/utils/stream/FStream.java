@@ -377,10 +377,6 @@ public interface FStream<T> extends AutoCloseable {
 		return next;
 	}
 	
-	public default Option<T> first() {
-		return next();
-	}
-	
 	public default Option<T> last() {
 		Option<T> last = Option.none();
 		

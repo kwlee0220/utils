@@ -218,7 +218,7 @@ public class JdbcProcessor implements Serializable {
 	public long rowCount(String tableName) throws SQLException {
 		return fstreamQuery("select count(*) from " + tableName)
 					.map(rs -> Try.of(() -> rs.getLong(1)))
-					.first()
+					.next()
 					.get()
 					.get();
 	}
