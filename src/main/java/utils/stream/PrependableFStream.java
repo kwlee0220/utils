@@ -25,6 +25,7 @@ public class PrependableFStream<T> implements FStream<T> {
 
 	@Override
 	public void close() throws Exception {
+		m_closed = true;
 		m_src.close();
 	}
 

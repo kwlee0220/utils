@@ -475,10 +475,6 @@ public interface FStream<T> extends AutoCloseable {
 		return list.toArray(array);
 	}
 	
-	public default PeekableFStream<T> toPeekable() {
-		return new PeekableFStream<>(this);
-	}
-	
 	public default PrependableFStream<T> toPrependable() {
 		return new PrependableFStream<>(this);
 	}
