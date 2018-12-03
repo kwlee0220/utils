@@ -479,6 +479,10 @@ public interface FStream<T> extends AutoCloseable {
 		return new PeekableFStream<>(this);
 	}
 	
+	public default PrependableFStream<T> toPrependable() {
+		return new PrependableFStream<>(this);
+	}
+	
 	public default FStream<List<T>> buffer(int count, int skip) {
 		Preconditions.checkArgument(count >= 0);
 		Preconditions.checkArgument(skip > 0);
