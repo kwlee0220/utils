@@ -41,10 +41,7 @@ class FStreamIterator<T> implements Iterator<T>, AutoCloseable {
 		}
 		
 		T next = m_next.get();
-		m_next = m_strm.next();
-		if ( m_next.isEmpty() ) {
-			m_strm.closeQuietly();
-		}
+		m_next = m_strm.next().onEmpty(m_strm::closeQuietly);
 		
 		return next;
 	}
