@@ -6,41 +6,47 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import io.vavr.control.Option;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class FindTest {
+public class FindFirstTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<Integer> stream;
-		boolean ret;
+		Option<Integer> r;
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
-		ret = stream.anyMatch(i -> i > 3);
-		Assert.assertEquals(true, ret);
+		r = stream.findFirst(i -> i > 3);
+		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(4, (int)r.get());
+		
+		r = stream.findFirst(i -> i > 3);
+		Assert.assertEquals(true, r.isEmpty());
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
-		ret = stream.anyMatch(i -> i > 4);
-		Assert.assertEquals(false, ret);
+		r = stream.findFirst(i -> i > 4);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> stream;
-		boolean ret;
+		Option<Integer> r;
 		
 		stream = FStream.empty();
-		ret = stream.anyMatch(i -> i > 2);
-		Assert.assertEquals(false, ret);
+		r = stream.findFirst(i -> i > 2);
+		Assert.assertEquals(true, r.isEmpty());
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test3() throws Exception {
 		FStream<Integer> stream;
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
-		stream.anyMatch(null);
+		stream.findFirst(null);
 	}
 
 	@Test(expected=RuntimeException.class)
@@ -51,6 +57,6 @@ public class FindTest {
 		RuntimeException error = new RuntimeException();
 		
 		stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
-		ret = stream.anyMatch(s -> {throw error;});
+		stream.findFirst(s -> {throw error;});
 	}
 }
