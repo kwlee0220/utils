@@ -131,6 +131,11 @@ public interface Execution<T> {
 	 * 		이때 발생된 예외 객체는 {@code ExecutionException#getCause()}를 통해 얻을 수 있다.
 	 * 	<li> 수행 중 중단 경우에는 {@code CancellationException} 예외를 발생시킨다.
 	 * </ul>
+	 * 
+	 * @return 수행 결과
+	 * @throws InterruptedException	수행 도중 쓰레드 인터럽트로 중단된 경우.
+	 * @throws CancellationException	수행 도중 중단된 경우.
+	 * @throws ExecutionException	수행 도중 예외가 발생된 경우.
 	 */
     public T get() throws InterruptedException, ExecutionException, CancellationException;
     public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,

@@ -2,15 +2,13 @@ package utils.stream;
 
 import java.util.Iterator;
 import java.util.Random;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import com.google.common.base.Preconditions;
-
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
-import io.vavr.control.Try;
 
 /**
  * 
@@ -24,6 +22,11 @@ public class FStreams {
 		@Override
 		public Option<T> next() {
 			return Option.none();
+		}
+		
+		@Override
+		public String toString() {
+			return "empty";
 		}
 	}
 	
@@ -320,10 +323,43 @@ public class FStreams {
 			}
 		}
 	}
+	
+	static class ScannedStream<T> implements FStream<T> {
+		private final FStream<T> m_src;
+		private final BinaryOperator<T> m_combine;
+		private Option<T> m_current = null;
+		
+		ScannedStream(FStream<T> src, BinaryOperator<T> combine) {
+			m_src = src;
+			m_combine = combine;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
+		}
+
+		@Override
+		public Option<T> next() {
+			if ( m_current == null ) {	// 첫번째 call인 경우.
+				return m_current = m_src.next();
+			}
+			else {
+				Option<T> next = m_src.next();
+				if ( next.isDefined() ) {
+					return m_current = Option.some(m_combine.apply(m_current.get(), next.get()));
+				}
+				else {
+					return Option.none();
+				}
+			}
+		}
+	}
 
 	static class GeneratedStream<T> implements FStream<T> {
 		private final Function<? super T,? extends T> m_inc;
 		private T m_next;
+		private volatile boolean m_closed = false;
 		
 		GeneratedStream(T init, Function<? super T,? extends T> inc) {
 			m_next = init;
@@ -331,10 +367,16 @@ public class FStreams {
 		}
 
 		@Override
-		public void close() throws Exception { }
+		public void close() throws Exception {
+			m_closed = true;
+		}
 
 		@Override
 		public Option<T> next() {
+			if ( m_closed ) {
+				return Option.none();
+			}
+			
 			T next = m_next;
 			m_next = m_inc.apply(next);
 			
@@ -342,49 +384,11 @@ public class FStreams {
 		}
 	}
 	
-	static class AppendedStream<T> implements FStream<T> {
-		private final FStream<? extends T> m_first;
-		private final FStream<? extends T> m_second;
-		private FStream<? extends T> m_current;
-		private boolean m_closed = false;
-		
-		AppendedStream(FStream<? extends T> first, FStream<? extends T> second) {
-			m_first = first;
-			m_second = second;
-			m_current = m_first;
-		}
-
-		@Override
-		public void close() throws Exception {
-			if ( !m_closed ) {
-				Try<Void> ret1 = Try.run(() -> m_first.close());
-				Try<Void> ret2 = Try.run(() -> m_second.close());
-				m_closed = true;
-				
-				ret1.get();
-				ret2.get();
-			}
-		}
-
-		@Override
-		public Option<T> next() {
-			Preconditions.checkState(!m_closed, "AppendedStream is closed already");
-			
-			Option<? extends T> next;
-			if ( (next = m_current.next()).isEmpty() ) {
-				return (m_current == m_first) ? (Option<T>)(m_current = m_second).next() : Option.none();
-			}
-			else {
-				return (Option<T>)next;
-			}
-		}
-	}
-	
 	static class UnfoldStream<T,S> implements FStream<T> {
-		private final Function<? super S,Tuple2<T,S>> m_gen;
+		private final Function<S,Tuple2<T,S>> m_gen;
 		private S m_seed;
 		
-		UnfoldStream(S init, Function<? super S,Tuple2<T,S>> gen) {
+		UnfoldStream(S init, Function<S,Tuple2<T,S>> gen) {
 			m_seed = init;
 			m_gen = gen;
 		}
@@ -398,7 +402,7 @@ public class FStreams {
 
 		@Override
 		public Option<T> next() {
-			Tuple2<T,S> unfolded = m_gen.apply(m_seed);
+			Tuple2<? extends T,? extends S> unfolded = m_gen.apply(m_seed);
 			if ( unfolded != null ) {
 				m_seed = unfolded._2;
 				
