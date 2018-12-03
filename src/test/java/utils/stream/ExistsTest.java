@@ -55,7 +55,7 @@ public class ExistsTest {
 		stream.forAll(null);
 	}
 
-	@Test
+	@Test(expected=RuntimeException.class)
 	public void test5() throws Exception {
 		FStream<String> stream;
 		
