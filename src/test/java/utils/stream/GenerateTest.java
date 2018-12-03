@@ -69,14 +69,14 @@ public class GenerateTest {
 		r = stream.next();
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test2() throws Exception {
-		FStream<Integer> stream = FStream.generate(0, null);
+		FStream.generate(0, null);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test3() throws Exception {
 		Function<String,String> gen = s -> s;
-		FStream<String> stream = FStream.generate(null, gen);
+		FStream.generate(null, gen);
 	}
 }

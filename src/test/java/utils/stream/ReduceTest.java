@@ -34,7 +34,7 @@ public class ReduceTest {
 		int sum = stream.reduce((s,t) -> s+t);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void test4() throws Exception {
 		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
 

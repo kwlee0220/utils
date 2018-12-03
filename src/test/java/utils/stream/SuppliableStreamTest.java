@@ -1,7 +1,6 @@
 package utils.stream;
 
 
-import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 import java.util.concurrent.CompletableFuture;
@@ -204,7 +203,7 @@ public class SuppliableStreamTest {
 		}
 	}
 
-	@Test(expected=IllegalStateException.class)
+	@Test
 	public void test9() throws Exception {
 		Option<Integer> r;
 
@@ -222,7 +221,7 @@ public class SuppliableStreamTest {
 		m_stream.supply(1);
 		m_stream.supply(2);
 		Thread.sleep(100);
-		m_stream.supply(3);
+		Assert.assertEquals(false, m_stream.supply(3));
 	}
 
 	@Test

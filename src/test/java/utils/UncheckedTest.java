@@ -96,7 +96,7 @@ public class UncheckedTest {
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
-		Assert.assertEquals(false, Try.run(cr1).isFailure());
+		Assert.assertEquals(true, Try.run(cr1).isFailure());
 		Assert.assertEquals(FAILED, m_result);
 	}
 	
