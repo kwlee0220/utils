@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.io.Reader;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Base64;
@@ -27,6 +28,7 @@ import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
 import com.google.common.collect.Lists;
+import com.google.common.io.CharStreams;
 
 import io.vavr.control.Option;
 import utils.async.CancellableWork;
@@ -119,6 +121,10 @@ public class IOUtils {
     public static String toString(InputStream is, Charset charset) throws IOException {
 		byte[] bytes = IOUtils.toBytes(new BufferedInputStream(is), true);
 		return new String(bytes, charset);
+    }
+    
+    public static String toString(Reader reader) throws IOException {
+    	return CharStreams.toString(reader);
     }
     
     public static String toString(File file, Charset charset) throws IOException {
