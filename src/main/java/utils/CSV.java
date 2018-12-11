@@ -5,9 +5,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.google.common.collect.Lists;
+
+import utils.stream.FStream;
 
 /**
  * 
@@ -25,6 +26,17 @@ public class CSV {
 	
 	public static CSV getTsv() {
 		return new CSV().withDelimiter('\t');
+	}
+	
+	public static CSV getDefaultForRead() {
+		return new CSV().withDelimiter(',')
+						.withEscape('\\')
+						.withQuote('"');
+	}
+	
+	public static CSV getDefaultForWrite() {
+		return new CSV().withDelimiter(',')
+						.withEscape('\\');
 	}
 	
 	private CSV() {
@@ -136,14 +148,11 @@ public class CSV {
 	}
 	
 	public String toString(Collection<String> values) {
-		Stream<String> strm = values.stream();
-		if ( m_escape != null ) {
-			strm = strm.map(str -> str.replace(""+m_delim, ""+m_escape+m_delim));
-		}
-		if ( m_quote != null ) {
-			strm = strm.map(str -> m_quote + str + m_quote);
-		}
-		return strm.collect(Collectors.joining(""+m_delim));
+		return values.stream().map(this::encode).collect(Collectors.joining(""+m_delim));
+	}
+	
+	public String toString(FStream<String> values) {
+		return values.map(this::encode).join("" + m_delim);
 	}
 	
 	public String toString(String... values) {
@@ -156,5 +165,16 @@ public class CSV {
 	
 	public static String toString(Collection<String> csv, char delim, char esc) {
 		return get().withDelimiter(delim).withEscape(esc).toString(csv);
+	}
+	
+	private String encode(String value) {
+		if ( m_escape != null ) {
+			value = value.replace(""+m_delim, ""+m_escape+m_delim);
+		}
+		if ( m_quote != null ) {
+			value = m_quote + value + m_quote;
+		}
+		
+		return value;
 	}
 }

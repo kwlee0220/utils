@@ -29,6 +29,7 @@ import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
+import utils.CSV;
 import utils.Utilities;
 import utils.func.FLists;
 import utils.func.MultipleSupplier;
@@ -475,10 +476,10 @@ public interface FStream<T> extends AutoCloseable {
 		return array;
 	}
 	
-	public default T[] toArray(Class<T> componentType) {
+	public default <S> S[] toArray(Class<S> componentType) {
 		List<T> list = toList();
 		@SuppressWarnings("unchecked")
-		T[] array = (T[])Array.newInstance(componentType, list.size());
+		S[] array = (S[])Array.newInstance(componentType, list.size());
 		return list.toArray(array);
 	}
 	
@@ -775,6 +776,10 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default String join(String delim) {
 		return join(delim, "", "");
+	}
+	
+	public default String join(CSV csv) {
+		return csv.toString(map(Object::toString));
 	}
 
 	public default boolean startsWith(FStream<T> subList) {
