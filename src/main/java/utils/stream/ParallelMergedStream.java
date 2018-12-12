@@ -6,11 +6,11 @@ import java.util.concurrent.CancellationException;
 
 import javax.annotation.Nullable;
 
-import io.vavr.control.Option;
 import net.jcip.annotations.GuardedBy;
 import utils.async.CancellableWork;
 import utils.async.ExecutableExecution;
 import utils.async.ThreadInterruptedException;
+import utils.func.FOption;
 
 /**
  * 
@@ -49,17 +49,17 @@ public class ParallelMergedStream<T> implements FStream<T> {
 	}
 
 	@Override
-	public Option<T> next() {
+	public FOption<T> next() {
 		m_merged.getLock().lock();
 		try {
 			while ( true ) {
-				Option<T> next = m_merged.poll();
-				if ( next.isDefined() ) {
+				FOption<T> next = m_merged.poll();
+				if ( next.isPresent() ) {
 					return next;
 				}
 				
 				if ( m_activeHarvesters.size() == 0 || m_closed ) {
-					return Option.none();
+					return FOption.empty();
 				}
 				
 				try {
@@ -82,8 +82,8 @@ public class ParallelMergedStream<T> implements FStream<T> {
 				m_activeHarvesters.remove(invoker);
 			}
 			
-			Option<? extends FStream<? extends T>> src = m_gen.next();
-			if ( src.isDefined() ) {
+			FOption<? extends FStream<? extends T>> src = m_gen.next();
+			if ( src.isPresent() ) {
 				Harvester harvester = new Harvester(src.get());
 				harvester.whenDone(() -> startNextHarvester(harvester));
 				
@@ -112,9 +112,9 @@ public class ParallelMergedStream<T> implements FStream<T> {
 
 		@Override
 		protected Void executeWork() throws InterruptedException, CancellationException, Exception {
-			Option<? extends T> next;
+			FOption<? extends T> next;
 			try {
-				while ( (next = m_src.next()).isDefined() ) {
+				while ( (next = m_src.next()).isPresent() ) {
 					if ( !isRunning() ) {
 						return null;
 					}

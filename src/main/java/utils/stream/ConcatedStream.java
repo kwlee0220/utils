@@ -2,8 +2,8 @@ package utils.stream;
 
 import javax.annotation.Nullable;
 
-import io.vavr.control.Option;
 import io.vavr.control.Try;
+import utils.func.FOption;
 
 /**
  * 
@@ -28,22 +28,22 @@ class ConcatedStream<T> implements FStream<T> {
 	}
 
 	@Override
-	public Option<T> next() {
+	public FOption<T> next() {
 		if ( m_current == null ) {
-			return Option.none();
+			return FOption.empty();
 		}
 		
-		Option<T> next;
+		FOption<T> next;
 		while ( true ) {
-			if ( (next = m_current.next()).isDefined() ) {
+			if ( (next = m_current.next()).isPresent() ) {
 				return next;
 			}
 			Try.run(m_current::close);
 			
-			Option<? extends FStream<? extends T>> nextStream = m_fact.next();
-			if ( nextStream.isEmpty() ) {
+			FOption<? extends FStream<? extends T>> nextStream = m_fact.next();
+			if ( nextStream.isAbsent() ) {
 				m_current = null;
-				return Option.none();
+				return FOption.empty();
 			}
 			
 			m_current = (FStream<T>)nextStream.get();

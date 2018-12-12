@@ -6,7 +6,7 @@ import java.util.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -14,7 +14,7 @@ import io.vavr.control.Option;
  */
 public class PrependableFStream<T> implements FStream<T> {
 	private final FStream<T> m_src;
-	private final List<Option<T>> m_prefix = Lists.newArrayList();
+	private final List<FOption<T>> m_prefix = Lists.newArrayList();
 	private boolean m_closed = false;
 	
 	PrependableFStream(FStream<T> src) {
@@ -29,10 +29,10 @@ public class PrependableFStream<T> implements FStream<T> {
 		m_src.close();
 	}
 
-	public Option<T> peekNext() {
+	public FOption<T> peekNext() {
 		if ( m_prefix.isEmpty()) {
 			return m_src.next()
-						.peek(v -> m_prefix.add(0, Option.some(v)));
+						.ifPresent(v -> m_prefix.add(0, FOption.of(v)));
 		}
 		else {
 			return m_prefix.get(0);
@@ -40,11 +40,11 @@ public class PrependableFStream<T> implements FStream<T> {
 	}
 	
 	public boolean hasNext() {
-		return peekNext().isDefined();
+		return peekNext().isPresent();
 	}
 
 	@Override
-	public Option<T> next() {
+	public FOption<T> next() {
 		if ( m_prefix.isEmpty() ) {
 			return m_src.next();
 		}
@@ -56,6 +56,6 @@ public class PrependableFStream<T> implements FStream<T> {
 	public void prepend(T value) {
 		Preconditions.checkState(!m_closed);
 		
-		m_prefix.add(0, Option.some(value));
+		m_prefix.add(0, FOption.of(value));
 	}
 }

@@ -8,7 +8,7 @@ import java.util.List;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 
 /**
@@ -75,45 +75,45 @@ public class CommandLine {
     	return value;
     }
 
-    public Option<String> getOptionString(String optId) {
+    public FOption<String> getOptionString(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return (value != null) ? Option.some(value) : Option.none();
+        return (value != null) ? FOption.of(value) : FOption.empty();
     }
     
     public int getInt(String optId) {
     	return Integer.parseInt(getString(optId));
     }
     
-    public Option<Integer> getOptionInt(String optId) {
+    public FOption<Integer> getOptionInt(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return value != null ? Option.some(Integer.parseInt(value)) : Option.none();
+        return value != null ? FOption.of(Integer.parseInt(value)) : FOption.empty();
     }
     
     public long getLong(String optId) {
     	return Long.parseLong(getString(optId));
     }
     
-    public Option<Long> getOptionLong(String optId) {
+    public FOption<Long> getOptionLong(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return value != null ? Option.some(Long.parseLong(value)) : Option.none();
+        return value != null ? FOption.of(Long.parseLong(value)) : FOption.empty();
     }
     
     public double getDouble(String optId) {
     	return Double.parseDouble(getString(optId));
     }
     
-    public Option<Double> getOptionDouble(String optId) {
+    public FOption<Double> getOptionDouble(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return value != null ? Option.some(Double.parseDouble(value)) : Option.none();
+        return value != null ? FOption.of(Double.parseDouble(value)) : FOption.empty();
     }
     
     public File getFile(String optId) {
     	return Paths.get(getString(optId)).toFile();
     }
     
-    public Option<File> getOptionFile(String optId) {
+    public FOption<File> getOptionFile(String optId) {
         String value = m_cl.getOptionValue(optId);
-        return value != null ? Option.some(Paths.get(value).toFile()) : Option.none();
+        return value != null ? FOption.of(Paths.get(value).toFile()) : FOption.empty();
     }
 
     public boolean hasOptionValue(String optId) {

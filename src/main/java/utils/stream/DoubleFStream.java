@@ -8,7 +8,7 @@ import com.google.common.primitives.Doubles;
 
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -37,11 +37,11 @@ public interface DoubleFStream extends FStream<Double> {
 		return reduce((v1,v2) -> v1+v2);
 	}
 	
-	public default Option<Double> average() {
+	public default FOption<Double> average() {
 		Tuple2<Double,Long> state = foldLeft(Tuple.of(0d,0L),
 											(a,v) -> Tuple.of(a._1 + v, a._2 + 1));
-		return (state._2 > 0) ? Option.some(state._1 / state._2)
-								: Option.none();
+		return (state._2 > 0) ? FOption.of(state._1 / state._2)
+								: FOption.empty();
 	}
 	
 	public default double[] toArray() {
@@ -61,7 +61,7 @@ public interface DoubleFStream extends FStream<Double> {
 		}
 
 		@Override
-		public Option<Double> next() {
+		public FOption<Double> next() {
 			return m_src.next();
 		}
 	}

@@ -10,11 +10,11 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import javax.annotation.Nullable;
 
-import io.vavr.control.Option;
 import net.jcip.annotations.GuardedBy;
 import utils.Suppliable;
 import utils.Throwables;
 import utils.async.ThreadInterruptedException;
+import utils.func.FOption;
 
 /**
  * 
@@ -59,7 +59,7 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 	}
 
 	@Override
-	public Option<T> next() {
+	public FOption<T> next() {
 		m_lock.lock();
 		try {
 			while ( true ) {
@@ -67,11 +67,11 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 					T value = m_buffer.remove(0);
 					m_cond.signalAll();
 					
-					return Option.some(value);
+					return FOption.of(value);
 				}
 				else if ( m_eos ) {
 					if ( m_error == null ) {
-						return Option.none();
+						return FOption.empty();
 					}
 					else {
 						throw Throwables.toRuntimeException(m_error);
@@ -90,7 +90,7 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 			m_lock.unlock();
 		}
 	}
-	public Option<T> next(long timeout, TimeUnit tu) throws TimeoutException {
+	public FOption<T> next(long timeout, TimeUnit tu) throws TimeoutException {
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		
 		m_lock.lock();
@@ -100,11 +100,11 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 					T value = m_buffer.remove(0);
 					m_cond.signalAll();
 					
-					return Option.some(value);
+					return FOption.of(value);
 				}
 				else if ( m_eos ) {
 					if ( m_error == null ) {
-						Option.none();
+						FOption.empty();
 					}
 					else {
 						throw Throwables.toRuntimeException(m_error);
@@ -126,25 +126,25 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 		}
 	}
 	
-	public Option<T> poll() {
+	public FOption<T> poll() {
 		m_lock.lock();
 		try {
 			if ( m_buffer.size() > 0 ) {
 				T value = m_buffer.remove(0);
 				m_cond.signalAll();
 				
-				return Option.some(value);
+				return FOption.of(value);
 			}
 			else if ( m_eos ) {
 				if ( m_error == null ) {
-					Option.none();
+					return FOption.empty();
 				}
 				else {
 					throw Throwables.toRuntimeException(m_error);
 				}
 			}
 			
-			return Option.none();
+			return FOption.empty();
 		}
 		finally {
 			m_lock.unlock();

@@ -7,7 +7,7 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -20,7 +20,7 @@ public class ZipWithTest {
 		FStream<Integer> stream2 = FStream.range(0, 100);
 		FStream<Tuple2<Integer,String>> stream = stream2.zipWith(stream1);
 		
-		Option<Tuple2<Integer,String>> r;
+		FOption<Tuple2<Integer,String>> r;
 		
 		r = stream.next();
 		Assert.assertEquals(true, r != null);
@@ -43,7 +43,7 @@ public class ZipWithTest {
 		Assert.assertEquals("d", r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -52,10 +52,10 @@ public class ZipWithTest {
 		FStream<Integer> stream2 = FStream.range(0, 100);
 		FStream<Tuple2<Integer,String>> stream = stream2.zipWith(stream1);
 
-		Option<Tuple2<Integer,String>> r;
+		FOption<Tuple2<Integer,String>> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 //	@Test
@@ -64,7 +64,7 @@ public class ZipWithTest {
 //		Stream<Integer> stream2 = Stream.of(Lists.newArrayList(5, 3, 2));
 //		Stream<Integer> stream = Stream.concat(stream1, stream2);
 //		
-//		Option<Integer> r;
+//		FOption<Integer> r;
 //		
 //		r = stream.next();
 //		Assert.assertEquals(true, r != null);
@@ -79,7 +79,7 @@ public class ZipWithTest {
 //		Assert.assertEquals(Integer.valueOf(2), r);
 //		
 //		r = stream.next();
-//		Assert.assertEquals(true, r.isEmpty());
+//		Assert.assertEquals(true, r.isAbsent());
 //	}
 //	
 //	@Test
@@ -88,10 +88,10 @@ public class ZipWithTest {
 //		Stream<Integer> stream2 = Stream.of(Lists.newArrayList());
 //		Stream<Integer> stream = Stream.concat(stream1, stream2);
 //		
-//		Option<Integer> r;
+//		FOption<Integer> r;
 //		
 //		r = stream.next();
-//		Assert.assertEquals(true, r.isEmpty());
+//		Assert.assertEquals(true, r.isAbsent());
 //	}
 //	
 //	@Test(expected=IllegalArgumentException.class)

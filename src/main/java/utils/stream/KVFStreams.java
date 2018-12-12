@@ -1,6 +1,6 @@
 package utils.stream;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -24,7 +24,7 @@ public class KVFStreams {
 		}
 
 		@Override
-		public Option<KeyValue<K, V>> next() {
+		public FOption<KeyValue<K, V>> next() {
 			return m_base.next();
 		}	
 	}

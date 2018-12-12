@@ -3,7 +3,7 @@ package utils.stream;
 import java.util.Objects;
 import java.util.function.Function;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 
 /**
@@ -30,22 +30,22 @@ class FlatMappedStream<T,S> implements FStream<S> {
 	}
 
 	@Override
-	public Option<S> next() {
+	public FOption<S> next() {
 		if ( m_mapped == null ) {
-			return Option.none();
+			return FOption.empty();
 		}
 		
-		Option<? extends S> next;
+		FOption<? extends S> next;
 		while ( true ) {
-			if ( (next = m_mapped.next()).isDefined() ) {
+			if ( (next = m_mapped.next()).isPresent() ) {
 				return next.map(n -> (S)n);
 			}
 			m_mapped.closeQuietly();
 			
-			Option<T> src = m_src.next();
-			if ( src.isEmpty() ) {
+			FOption<T> src = m_src.next();
+			if ( src.isAbsent() ) {
 				m_mapped = null;
-				return Option.none();
+				return FOption.empty();
 			}
 			
 			m_mapped = m_mapper.apply(src.get());

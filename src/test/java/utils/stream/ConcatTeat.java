@@ -15,7 +15,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import com.google.common.collect.Lists;
 
 import io.vavr.Tuple;
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -29,8 +29,8 @@ public class ConcatTeat {
 	@SuppressWarnings("unchecked")
 	@Before
 	public void setup() {
-		when(m_strm1.next()).thenReturn(Option.some(1), Option.some(2), Option.none());
-		when(m_strm2.next()).thenReturn(Option.some(3), Option.some(4), Option.none());
+		when(m_strm1.next()).thenReturn(FOption.of(1), FOption.of(2), FOption.empty());
+		when(m_strm2.next()).thenReturn(FOption.of(3), FOption.of(4), FOption.empty());
 	}
 	
 	@Test
@@ -39,34 +39,34 @@ public class ConcatTeat {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(5), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(3), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -75,22 +75,22 @@ public class ConcatTeat {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -99,22 +99,22 @@ public class ConcatTeat {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(5), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(3), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -123,10 +123,10 @@ public class ConcatTeat {
 		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test(expected=NullPointerException.class)
@@ -147,41 +147,41 @@ public class ConcatTeat {
 	public void test6() throws Exception {
 		FStream<Integer> stream = FStream.concat(m_strm1, m_strm2);
 		
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		verify(m_strm1, times(1)).next();
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		verify(m_strm1, times(2)).next();
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(3), r.get());
 		verify(m_strm1, times(3)).next();
 		verify(m_strm1, times(1)).close();
 		verify(m_strm2, times(1)).next();
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(4), r.get());
 		verify(m_strm1, times(3)).next();
 		verify(m_strm1, times(1)).close();
 		verify(m_strm2, times(2)).next();
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 		verify(m_strm1, times(3)).next();
 		verify(m_strm1, times(1)).close();
 		verify(m_strm2, times(3)).next();
 		verify(m_strm1, times(1)).close();
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 		verify(m_strm1, times(3)).next();
 		verify(m_strm1, times(1)).close();
 		verify(m_strm2, times(3)).next();
@@ -194,8 +194,8 @@ public class ConcatTeat {
 		FStream<Integer> stream = FStream.concat(gen);
 		
 		for ( int i =0; i < 10; ++i ) {
-			Option<Integer> r = stream.next();
-			Assert.assertEquals(true, r.isDefined());
+			FOption<Integer> r = stream.next();
+			Assert.assertEquals(true, r.isPresent());
 			Assert.assertEquals(Integer.valueOf(i), r.get());
 		}
 	}

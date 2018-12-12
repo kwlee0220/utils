@@ -9,7 +9,7 @@ import com.google.common.primitives.Ints;
 
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -32,7 +32,7 @@ public interface IntFStream extends FStream<Integer> {
 	}
 	
 //	@Override
-//	public default Option<Integer> first() {
+//	public default FOption<Integer> first() {
 //		return next();
 //	}
 	
@@ -40,11 +40,11 @@ public interface IntFStream extends FStream<Integer> {
 		return foldLeft(0L, (s,v) -> s+v);
 	}
 	
-	public default Option<Double> average() {
+	public default FOption<Double> average() {
 		Tuple2<Long,Long> state = foldLeft(Tuple.of(0L,0L),
 											(a,v) -> Tuple.of(a._1 + v, a._2 + 1));
-		return (state._2 > 0) ? Option.some(state._1 / (double)state._2)
-								: Option.none();
+		return (state._2 > 0) ? FOption.of(state._1 / (double)state._2)
+								: FOption.empty();
 	}
 	
 	public default int[] toArray() {
@@ -69,15 +69,15 @@ public interface IntFStream extends FStream<Integer> {
 		public void close() throws Exception { }
 
 		@Override
-		public Option<Integer> next() {
+		public FOption<Integer> next() {
 			if ( m_next < m_end ) {
-				return Option.some(m_next++);
+				return FOption.of(m_next++);
 			}
 			else if ( m_next == m_end && m_closed ) {
-				return Option.some(m_next++);
+				return FOption.of(m_next++);
 			}
 			
-			return Option.none();
+			return FOption.empty();
 		}
 	}
 	
@@ -94,7 +94,7 @@ public interface IntFStream extends FStream<Integer> {
 		}
 
 		@Override
-		public Option<Integer> next() {
+		public FOption<Integer> next() {
 			return m_src.next();
 		}
 	}

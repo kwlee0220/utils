@@ -7,7 +7,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -23,72 +23,72 @@ public class PrependableFStreamTest {
 	
 	@Test
 	public void test0() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(1, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(2, (int)r.get());
 		
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
 	public void test1() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(1, (int)r.get());
 		
 		m_stream.prepend(1);
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(1, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(2, (int)r.get());
 		
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
 	public void test2() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(1, (int)r.get());
 		
 		m_stream.prepend(1);
 		m_stream.prepend(3);
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(3, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(1, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(2, (int)r.get());
 		
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
 	public void test3() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		r = m_stream.next();
 		r = m_stream.next();
@@ -98,15 +98,15 @@ public class PrependableFStreamTest {
 		m_stream.prepend(3);
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(3, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(4, (int)r.get());
 		
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -114,21 +114,21 @@ public class PrependableFStreamTest {
 		FStream<Integer> empty1 = FStream.empty();
 		PrependableFStream<Integer> empty = empty1.toPrependable();
 
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		empty.prepend(4);
 		empty.prepend(3);
 
 		r = empty.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(3, (int)r.get());
 
 		r = empty.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(4, (int)r.get());
 		
 		r = empty.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test(expected=IllegalStateException.class)

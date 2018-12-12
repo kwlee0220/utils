@@ -13,8 +13,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import io.vavr.control.Option;
 import utils.StopWatch;
+import utils.func.FOption;
 
 /**
  * 
@@ -33,10 +33,10 @@ public class SuppliableStreamTest {
 	
 	@Test
 	public void test0() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		r = m_stream.poll();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 
 	@Test(expected=TimeoutException.class)
@@ -61,7 +61,7 @@ public class SuppliableStreamTest {
 	
 	@Test
 	public void test3() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		StopWatch watch = StopWatch.start();
 		CompletableFuture.runAsync(() -> {
@@ -76,34 +76,34 @@ public class SuppliableStreamTest {
 
 		r = m_stream.next();
 		watch.stop();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		Assert.assertThat(watch.getElapsedInMillis(), greaterThanOrEqualTo(300L));
 	}
 	
 	@Test
 	public void test4() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		m_stream.supply(1);
 		m_stream.supply(2);
 		m_stream.endOfSupply();
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
 	public void test5() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		CompletableFuture.runAsync(() -> {
 			try {
@@ -119,19 +119,19 @@ public class SuppliableStreamTest {
 
 		StopWatch watch = StopWatch.start();
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 
 		r = m_stream.next();
 		watch.stop();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 		Assert.assertThat(watch.getElapsedInMillis(), greaterThanOrEqualTo(300L));
 	}
 	
 	@Test
 	public void test6() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		CompletableFuture.runAsync(() -> {
 			try {
@@ -145,30 +145,30 @@ public class SuppliableStreamTest {
 		});
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 
 		StopWatch watch = StopWatch.start();
 		r = m_stream.next();
 		watch.stop();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 		Assert.assertThat(watch.getElapsedInMillis(), greaterThanOrEqualTo(300L));
 	}
 
 	@Test(expected=RuntimeException.class)
 	public void test7() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		m_stream.supply(1);
 		m_stream.supply(2);
 		m_stream.endOfSupply(m_error);
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
 
 		r = m_stream.next();
@@ -176,7 +176,7 @@ public class SuppliableStreamTest {
 
 	@Test
 	public void test8() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		CompletableFuture.runAsync(() -> {
 			try {
@@ -190,7 +190,7 @@ public class SuppliableStreamTest {
 		});
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 
 		StopWatch watch = StopWatch.start();
@@ -205,7 +205,7 @@ public class SuppliableStreamTest {
 
 	@Test
 	public void test9() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		CompletableFuture.runAsync(() -> {
 			try {
@@ -226,7 +226,7 @@ public class SuppliableStreamTest {
 
 	@Test
 	public void test10() throws Exception {
-		Option<Integer> r;
+		FOption<Integer> r;
 
 		CompletableFuture.runAsync(() -> {
 			try {

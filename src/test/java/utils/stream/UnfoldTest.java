@@ -8,7 +8,7 @@ import org.junit.Test;
 
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -20,22 +20,22 @@ public class UnfoldTest {
 		FStream<String> stream = FStream.unfold(0, i -> Tuple.of(""+i, i+1))
 										.take(3);
 		
-		Option<String> r;
+		FOption<String> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals("0", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals("1", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals("2", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test(expected=RuntimeException.class)
@@ -50,14 +50,14 @@ public class UnfoldTest {
 		};
 		FStream<String> stream = FStream.unfold((Integer)0, gen);
 		
-		Option<String> r;
+		FOption<String> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals("0", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals("1", r.get());
 		
 		r = stream.next();

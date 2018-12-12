@@ -6,7 +6,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -16,29 +16,29 @@ public class FindFirstTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<Integer> stream;
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		r = stream.findFirst(i -> i > 3);
-		Assert.assertEquals(true, r.isDefined());
+		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(4, (int)r.get());
 		
 		r = stream.findFirst(i -> i > 3);
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 		
 		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
 		r = stream.findFirst(i -> i > 4);
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> stream;
-		Option<Integer> r;
+		FOption<Integer> r;
 		
 		stream = FStream.empty();
 		r = stream.findFirst(i -> i > 2);
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test(expected=NullPointerException.class)

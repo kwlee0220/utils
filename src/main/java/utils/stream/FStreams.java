@@ -8,7 +8,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -20,8 +20,8 @@ public class FStreams {
 		public void close() throws Exception { }
 
 		@Override
-		public Option<T> next() {
-			return Option.none();
+		public FOption<T> next() {
+			return FOption.empty();
 		}
 		
 		@Override
@@ -41,8 +41,8 @@ public class FStreams {
 		public void close() throws Exception { }
 
 		@Override
-		public Option<T> next() {
-			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
+		public FOption<T> next() {
+			return m_iter.hasNext() ? FOption.of(m_iter.next()) : FOption.empty();
 		}
 	}
 	
@@ -61,9 +61,9 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<T> next() {
-			Option<T> next;
-			while ( (next = m_base.next()).isDefined() && !m_pred.test(next.get()) );
+		public FOption<T> next() {
+			FOption<T> next;
+			while ( (next = m_base.next()).isPresent() && !m_pred.test(next.get()) );
 			return next;
 		}
 		
@@ -88,7 +88,7 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<S> next() {
+		public FOption<S> next() {
 			return m_base.next().map(m_mapper);
 		}
 		
@@ -113,7 +113,7 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<Integer> next() {
+		public FOption<Integer> next() {
 			return m_base.next().map(m_mapper);
 		}
 		
@@ -138,7 +138,7 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<Long> next() {
+		public FOption<Long> next() {
 			return m_base.next().map(m_mapper);
 		}
 		
@@ -163,7 +163,7 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<Double> next() {
+		public FOption<Double> next() {
 			return m_base.next().map(m_mapper);
 		}
 		
@@ -188,10 +188,8 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<T> next() {
-			Option<T> next = m_base.next();
-			next.forEach(m_effect);
-			return next;
+		public FOption<T> next() {
+			return m_base.next().ifPresent(m_effect);
 		}
 		
 		@Override
@@ -215,9 +213,9 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOption<T> next() {
 			if ( m_remains <= 0 ) {
-				return Option.none();
+				return FOption.empty();
 			}
 			else {
 				--m_remains;
@@ -242,12 +240,12 @@ public class FStreams {
 		}
 	
 		@Override
-		public Option<T> next() {
+		public FOption<T> next() {
 			if ( !m_dropped ) {
 				m_dropped = true;
 				for ( int i =0; i < m_count; ++i ) {
-					if ( m_src.next().isEmpty() ) {
-						return Option.none();
+					if ( m_src.next().isAbsent() ) {
+						return FOption.empty();
 					}
 				}
 			}
@@ -273,15 +271,15 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOption<T> next() {
 			if ( m_eos ) {
-				return Option.none();
+				return FOption.empty();
 			}
 			
-			Option<T> next = m_src.next();
-			if ( next.isEmpty() ) {
+			FOption<T> next = m_src.next();
+			if ( next.isAbsent() ) {
 				m_eos = true;
-				return Option.none();
+				return FOption.empty();
 			}
 			
 			if ( m_pred.test(next.get()) ) {
@@ -289,7 +287,7 @@ public class FStreams {
 			}
 			else {
 				m_eos = true;
-				return Option.none();
+				return FOption.empty();
 			}
 		}
 	}
@@ -310,10 +308,10 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOption<T> next() {
 			if ( !m_started ) {
-				Option<T> next;
-				while ( (next = m_src.next()).isDefined() && m_pred.test(next.get()) );
+				FOption<T> next;
+				while ( (next = m_src.next()).isPresent() && m_pred.test(next.get()) );
 				m_started = true;
 				
 				return next;
@@ -327,7 +325,7 @@ public class FStreams {
 	static class ScannedStream<T> implements FStream<T> {
 		private final FStream<T> m_src;
 		private final BinaryOperator<T> m_combine;
-		private Option<T> m_current = null;
+		private FOption<T> m_current = null;
 		
 		ScannedStream(FStream<T> src, BinaryOperator<T> combine) {
 			m_src = src;
@@ -340,17 +338,17 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOption<T> next() {
 			if ( m_current == null ) {	// 첫번째 call인 경우.
 				return m_current = m_src.next();
 			}
 			else {
-				Option<T> next = m_src.next();
-				if ( next.isDefined() ) {
-					return m_current = Option.some(m_combine.apply(m_current.get(), next.get()));
+				FOption<T> next = m_src.next();
+				if ( next.isPresent() ) {
+					return m_current = FOption.of(m_combine.apply(m_current.get(), next.get()));
 				}
 				else {
-					return Option.none();
+					return FOption.empty();
 				}
 			}
 		}
@@ -372,15 +370,15 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOption<T> next() {
 			if ( m_closed ) {
-				return Option.none();
+				return FOption.empty();
 			}
 			
 			T next = m_next;
 			m_next = m_inc.apply(next);
 			
-			return Option.some(next);
+			return FOption.of(next);
 		}
 	}
 	
@@ -401,15 +399,15 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOption<T> next() {
 			Tuple2<? extends T,? extends S> unfolded = m_gen.apply(m_seed);
 			if ( unfolded != null ) {
 				m_seed = unfolded._2;
 				
-				return Option.some(unfolded._1);
+				return FOption.of(unfolded._1);
 			}
 			else {
-				return Option.none();
+				return FOption.empty();
 			}
 		}
 	}
@@ -430,10 +428,10 @@ public class FStreams {
 		}
 
 		@Override
-		public Option<T> next() {
+		public FOption<T> next() {
 			while ( true ) {
-				Option<T> next = m_src.next();
-				if ( next.isEmpty() || m_randGen.nextDouble() < m_ratio ) {
+				FOption<T> next = m_src.next();
+				if ( next.isAbsent() || m_randGen.nextDouble() < m_ratio ) {
 					return next;
 				}
 			}

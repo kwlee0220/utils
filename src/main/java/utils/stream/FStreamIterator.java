@@ -3,7 +3,7 @@ package utils.stream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 
 /**
@@ -12,7 +12,7 @@ import io.vavr.control.Option;
  */
 class FStreamIterator<T> implements Iterator<T>, AutoCloseable {
 	private final FStream<T> m_strm;
-	private Option<T> m_next;
+	private FOption<T> m_next;
 	private boolean m_closed = false;
 	
 	FStreamIterator(FStream<T> strm) {
@@ -31,17 +31,17 @@ class FStreamIterator<T> implements Iterator<T>, AutoCloseable {
 	
 	@Override
 	public boolean hasNext() {
-		return m_next.isDefined();
+		return m_next.isPresent();
 	}
 
 	@Override
 	public T next() {
-		if ( m_next.isEmpty() ) {
+		if ( m_next.isAbsent() ) {
 			throw new NoSuchElementException();
 		}
 		
 		T next = m_next.get();
-		m_next = m_strm.next().onEmpty(m_strm::closeQuietly);
+		m_next = m_strm.next().ifAbsent(m_strm::closeQuietly);
 		
 		return next;
 	}

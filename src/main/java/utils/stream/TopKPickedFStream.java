@@ -5,7 +5,7 @@ import java.util.Objects;
 
 import com.google.common.collect.MinMaxPriorityQueue;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -48,13 +48,13 @@ public class TopKPickedFStream<T> implements FStream<T> {
 	}
 
 	@Override
-	public Option<T> next() {
+	public FOption<T> next() {
 		Node node = m_queue.poll();
 		if ( node != null ) {
-			return Option.some(node.m_value);
+			return FOption.of(node.m_value);
 		}
 		else {
-			return Option.none();
+			return FOption.empty();
 		}
 	}
 }

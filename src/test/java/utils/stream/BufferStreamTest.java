@@ -1,7 +1,8 @@
 package utils.stream;
 
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 
 import java.util.List;
@@ -11,7 +12,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -23,7 +24,7 @@ public class BufferStreamTest {
 		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(2, 1);
 		
-		Option<List<Integer>> r;
+		FOption<List<Integer>> r;
 		
 		r = stream.next();
 		Assert.assertThat(r.get(), hasSize(2));
@@ -47,7 +48,7 @@ public class BufferStreamTest {
 		Assert.assertThat(r.get(), contains(6));
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -55,7 +56,7 @@ public class BufferStreamTest {
 		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(3, 2);
 		
-		Option<List<Integer>> r;
+		FOption<List<Integer>> r;
 		
 		r = stream.next();	// 1, 2, 4
 		Assert.assertThat(r.get(), hasSize(3));
@@ -78,7 +79,7 @@ public class BufferStreamTest {
 		Assert.assertThat(r.get(), contains(6));
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -86,7 +87,7 @@ public class BufferStreamTest {
 		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(1, 5);
 		
-		Option<List<Integer>> r;
+		FOption<List<Integer>> r;
 		
 		r = stream.next();	// 1
 		Assert.assertThat(r.get(), hasSize(1));
@@ -97,7 +98,7 @@ public class BufferStreamTest {
 		Assert.assertThat(r.get(), contains(5));
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 
 	@Test(expected=IllegalArgumentException.class)
@@ -105,7 +106,7 @@ public class BufferStreamTest {
 		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(0, 3);
 		
-		Option<List<Integer>> r;
+		FOption<List<Integer>> r;
 		
 		r = stream.next();	// 
 		Assert.assertThat(r.get(), is(empty()));
@@ -117,7 +118,7 @@ public class BufferStreamTest {
 		Assert.assertThat(r.get(), is(empty()));
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isEmpty());
+		Assert.assertEquals(true, r.isAbsent());
 	}
 
 	@Test(expected=IllegalArgumentException.class)

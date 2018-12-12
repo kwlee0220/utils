@@ -8,7 +8,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -41,10 +41,10 @@ public class ParallelyMergedStreamTest {
 		FStream<FStream<String>> gen = FStream.range(0, 9).map(i -> createSource("" + i));
 		FStream<String> stream = FStream.mergeParallel(gen, 5);
 		
-		Option<String> r;
+		FOption<String> r;
 		
 		int i =0;
-		while ( (r = stream.next()).isDefined() ) {
+		while ( (r = stream.next()).isPresent() ) {
 			System.out.println(r.get());
 			++i;
 			if ( i == 10 ) {

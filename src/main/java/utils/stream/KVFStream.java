@@ -12,7 +12,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
+import utils.func.FOption;
 import utils.stream.KVFStreams.FStreamAdaptor;
 
 
@@ -92,8 +92,8 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Objects.requireNonNull(collector);
 		Objects.requireNonNull(collect);
 		
-		Option<KeyValue<K,V>> next;
-		while ( (next = next()).isDefined() ) {
+		FOption<KeyValue<K,V>> next;
+		while ( (next = next()).isPresent() ) {
 			collect.accept(collector, next.get().key(), next.get().value());
 		}
 		

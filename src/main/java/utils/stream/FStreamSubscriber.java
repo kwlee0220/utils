@@ -2,7 +2,7 @@ package utils.stream;
 
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -18,8 +18,8 @@ class FStreamSubscriber<T> implements ObservableOnSubscribe<T> {
 	@Override
 	public void subscribe(ObservableEmitter<T> emitter) throws Exception {
 		try {
-			Option<T> data;
-			while ( (data = m_fstrm.next()).isDefined() ) {
+			FOption<T> data;
+			while ( (data = m_fstrm.next()).isPresent() ) {
 				if ( emitter.isDisposed() ) {
 					return;
 				}

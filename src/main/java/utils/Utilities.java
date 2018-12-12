@@ -11,7 +11,6 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -31,7 +30,6 @@ import com.google.common.collect.Sets;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
-import utils.func.MultipleSupplier;
 
 /**
  *
@@ -442,65 +440,5 @@ public class Utilities {
 	
 	public static <T> Iterable<T> toIterable(Iterator<T> iter) {
 		return () -> iter;
-	}
-	
-	public static <T> MultipleSupplier<T> toSupplier(Iterator<? extends T> iter) {
-		return new IteratorSupplier<>(iter);
-	}
-	private static class IteratorSupplier<T> implements MultipleSupplier<T> {
-		private final Iterator<? extends T> m_iter;
-		
-		private IteratorSupplier(Iterator<? extends T> iter) {
-			m_iter = iter;
-		}
-
-		@Override
-		public Option<T> get() {
-			return m_iter.hasNext() ? Option.some(m_iter.next()) : Option.none();
-		}
-	}
-	
-	public static <T> Iterator<T> toIterator(MultipleSupplier<? extends T> supplier) {
-		return new SupplyingIterator<>(supplier);
-	}
-	private static class SupplyingIterator<T> implements Iterator<T> {
-		private final MultipleSupplier<? extends T> m_supplier;
-		private T m_next = null;
-		private boolean m_eos = false;
-		
-		private SupplyingIterator(MultipleSupplier<? extends T> supplier) {
-			m_supplier = supplier;
-		}
-
-		@Override
-		public boolean hasNext() {
-			if ( m_eos ) {
-				return false;
-			}
-			if ( m_next == null ) {
-				m_next = m_supplier.get().getOrNull();
-				if ( m_next == null ) {
-					m_eos = true;
-					return false;
-				}
-			}
-			
-			return true;
-		}
-
-		@Override
-		public T next() {
-			T next = m_next;
-			if ( next == null ) {
-				throw new NoSuchElementException();
-			}
-			
-			m_next = m_supplier.get().getOrNull();
-			if ( m_next == null ) {
-				m_eos = true;
-			}
-			
-			return next;
-		}
 	}
 }

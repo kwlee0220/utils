@@ -4,8 +4,8 @@ import java.util.Objects;
 
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
-import io.vavr.control.Option;
 import io.vavr.control.Try;
+import utils.func.FOption;
 
 
 /**
@@ -33,12 +33,12 @@ class ZippedFStream<T,U> implements FStream<Tuple2<T,U>> {
 	}
 
 	@Override
-	public Option<Tuple2<T,U>> next() {
-		Option<? extends T> next1 = m_src1.next();
-		Option<? extends U> next2 = m_src2.next();
+	public FOption<Tuple2<T,U>> next() {
+		FOption<? extends T> next1 = m_src1.next();
+		FOption<? extends U> next2 = m_src2.next();
 		
-		return ( next1.isDefined() && next2.isDefined() )
-				? Option.some(Tuple.of((T)next1.get(), (U)next2.get()))
-				: Option.none();
+		return ( next1.isPresent() && next2.isPresent() )
+				? FOption.of(Tuple.of((T)next1.get(), (U)next2.get()))
+				: FOption.empty();
 	}
 }

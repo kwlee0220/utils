@@ -3,7 +3,7 @@ package utils.jdbc;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 import utils.stream.FStream;
 import utils.stream.FStreamException;
 
@@ -24,9 +24,9 @@ class ResultSetFStream implements FStream<ResultSet> {
 	}
 
 	@Override
-	public Option<ResultSet> next() {
+	public FOption<ResultSet> next() {
 		try {
-			return m_rs.next() ? Option.some(m_rs) : Option.none();
+			return m_rs.next() ? FOption.of(m_rs) : FOption.empty();
 		}
 		catch ( SQLException e ) {
 			throw new FStreamException(e);
