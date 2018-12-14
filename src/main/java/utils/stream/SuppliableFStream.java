@@ -135,7 +135,7 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 				
 				return FOption.of(value);
 			}
-			else if ( m_eos ) {
+			if ( m_eos ) {
 				if ( m_error == null ) {
 					return FOption.empty();
 				}
@@ -143,8 +143,9 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 					throw Throwables.toRuntimeException(m_error);
 				}
 			}
-			
-			return FOption.empty();
+			else {
+				return FOption.empty();
+			}
 		}
 		finally {
 			m_lock.unlock();
@@ -152,14 +153,19 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 	}
 
 	@Override
-	public boolean supply(T value) {
+	public boolean isEndOfSupply() {
+		return m_eos;
+	}
+
+	@Override
+	public boolean supply(T value) throws ThreadInterruptedException {
 		m_lock.lock();
 		try {
 			while ( true ) {
 				if ( m_closed || m_eos ) {
 					return false;
 				}
-				else if ( m_buffer.size() < m_length ) {
+				if ( m_buffer.size() < m_length ) {
 					m_buffer.add(value);
 					m_cond.signalAll();
 					
@@ -180,21 +186,21 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 	}
 
 	@Override
-	public boolean supply(T value, long timeout, TimeUnit tu) throws IllegalStateException {
+	public boolean supply(T value, long timeout, TimeUnit tu) throws ThreadInterruptedException {
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		
 		m_lock.lock();
 		try {
 			while ( true ) {
-				if ( m_closed ) {
-					throw new IllegalStateException("closed already");
+				if ( m_closed || m_eos ) {
+					return false;
 				}
-				else if ( m_eos ) {
-					throw new IllegalStateException("end-of-stream");
-				}
-				else if ( m_buffer.size() < m_length ) {
+				
+				if ( m_buffer.size() < m_length ) {
 					m_buffer.add(value);
 					m_cond.signalAll();
+					
+					return true;
 				}
 				
 				try {

@@ -46,7 +46,7 @@ class ConcatedStream<T> implements FStream<T> {
 				return FOption.empty();
 			}
 			
-			m_current = (FStream<T>)nextStream.get();
+			m_current = FStream.narrow(nextStream.get());
 		}
 	}
 }

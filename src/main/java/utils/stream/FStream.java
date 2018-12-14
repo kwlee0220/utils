@@ -513,57 +513,47 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default void forEachIE(CheckedConsumer<? super T> effect) {
 		Preconditions.checkArgument(effect != null, "effect is null");
-
-		FOption<T> next;
-		while ( (next = next()).isPresent() ) {
-			try {
-				effect.accept(next.get());
-			}
-			catch ( Throwable ignored ) { }
-		}
-	}
-	
-	public default <K> KVFStream<K,T> reduceByKey(Function<? super T,? extends K> keyer,
-												BiFunction<? super T,? super T,? extends T> reducer) {
-		Map<K,T> accums = Maps.newHashMap();
-
-		FOption<T> ovalue;
-		while ( (ovalue = next()).isPresent() ) {
-			final T value = ovalue.get();
-			
-			K key = keyer.apply(value);
-			accums.compute(key, (k,old) -> (old != null) ? reducer.apply(old, value) : value);
-		}
 		
-		return KVFStream.of(accums);
+		forEach(v -> Try.run(() -> effect.accept(v)));
 	}
 	
-	public default <K,S> KVFStream<K,S> foldLeftByKey(Function<? super T,? extends K> keyer,
+	/**
+	 * 주어진 키에 해당하는 데이터별로 reduce작업을 수행한다.
+	 * <p>
+	 * 수행된 결과는 key별로 {@link Map}에 저장되어 반환된다.
+	 * 
+	 * @param keyer	입력 데이터에서 키를 뽑아내는 함수.
+	 * @param reducer	reduce 함수.
+	 * @return	키 별로 reduce된 결과를 담은 Map 객체.
+	 */
+	public default <K> Map<K,T> reduceByKey(Function<? super T,? extends K> keyer,
+											BiFunction<? super T,? super T,? extends T> reducer) {
+		Objects.requireNonNull(keyer, "keyer");
+		Objects.requireNonNull(reducer, "reducer");
+		
+		return collectLeft(Maps.newHashMap(), (accums,v) ->
+			accums.compute(keyer.apply(v), (k,old) -> (old != null) ? reducer.apply(old, v) : v));
+	}
+	
+	public default <K,S> Map<K,S> foldLeftByKey(Function<? super T,? extends K> keyer,
 													Function<? super K,? extends S> accumInitializer,
 													BiFunction<? super S,? super T,? extends S> folder) {
-		Map<K,S> accums = Maps.newHashMap();
-
-		FOption<T> ovalue;
-		while ( (ovalue = next()).isPresent() ) {
-			final T value = ovalue.get();
-			
-			K key = keyer.apply(value);		
-			accums.compute(key, (k,accum) -> {
-				if ( accum == null ) {
-					accum = accumInitializer.apply(k);
-				}
-				return folder.apply(accum, value);
-			});
-		}
-		
-		return KVFStream.of(accums);
+		return collectLeft(Maps.newHashMap(),
+						(accums,v) -> accums.compute(keyer.apply(v),
+													(k,accum) -> {
+														if ( accum != null ) {
+															accum = accumInitializer.apply(k);
+														}
+														return folder.apply(accum, v);
+													})
+		);
 	}
 	
-	public default <K> KeyedGroups<K,T> groupBy(Function<? super T,? extends K> keyer) {
+	public default <K> KeyedGroups<K,T> groupByKey(Function<? super T,? extends K> keyer) {
 		return collectLeft(KeyedGroups.create(), (g,t) -> g.add(keyer.apply(t), t));
 	}
 	
-	public default <K,V> KeyedGroups<K,V> groupBy(Function<? super T,? extends K> keySelector,
+	public default <K,V> KeyedGroups<K,V> groupByKey(Function<? super T,? extends K> keySelector,
 											Function<? super T,? extends V> valueSelector) {
 		return collectLeft(KeyedGroups.create(),
 							(g,t) -> g.add(keySelector.apply(t), valueSelector.apply(t)));
@@ -571,9 +561,9 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default <K,V> KeyedGroups<K,V> groupByKeyValue(Function<? super T,KeyValue<K,V>> selector) {
 		return collectLeft(KeyedGroups.create(),
-							(g,t) -> {
+							(groups,t) -> {
 								KeyValue<K,V> kv = selector.apply(t);
-								g.add(kv.key(), kv.value());
+								groups.add(kv.key(), kv.value());
 							});
 	}
 	
@@ -605,143 +595,31 @@ public interface FStream<T> extends AutoCloseable {
     public default FStream<T> takeTopK(int k) {
         return new TopKPickedFStream<>(this, k, (t1,t2) -> ((Comparable)t1).compareTo(t2));
     }
-
-	
-	@SuppressWarnings("unchecked")
-	public default List<T> max() {
-		Comparable<T> max = null;
-		List<T> maxList = Lists.newArrayList();
-		
-		FOption<T> onext;
-		while ( (onext = next()).isPresent() ) {
-			T next = onext.get();
-			
-			if ( max != null ) {	
-				int cmp = max.compareTo(next);
-				if ( cmp < 0 ) {
-					max = (Comparable<T>)next;
-					maxList.clear();
-					maxList.add(next);
-				}
-				else if ( cmp == 0 ) {
-					maxList.add(next);
-				}
-			}
-			else {
-				if ( !(next instanceof Comparable) ) {
-					throw new IllegalStateException("FStream elements are not Comparable");
-				}
-				
-				max = (Comparable<T>)next;
-				maxList.add(next);
-			}
-		}
-
-		return maxList;
-	}
-
-	@SuppressWarnings("unchecked")
-	public default List<T> min() {
-		Comparable<T> min = null;
-		List<T> minList = Lists.newArrayList();
-		
-		FOption<T> onext;
-		while ( (onext = next()).isPresent() ) {
-			T next = onext.get();
-			
-			if ( min != null ) {
-				int cmp = min.compareTo(next);
-				if ( cmp > 0 ) {
-					min = (Comparable<T>)next;
-					minList.clear();
-					minList.add(next);
-				}
-				else if ( cmp == 0 ) {
-					minList.add(next);
-				}
-			}
-			else {
-				if ( !(next instanceof Comparable) ) {
-					throw new IllegalStateException("FStream elements are not Comparable");
-				}
-				
-				min = (Comparable<T>)next;
-				minList.add(next);
-			}
-		}
-		
-		return minList;
-	}
-	
-	public default <K extends Comparable<K>> List<T> max(Function<? super T,? extends K> keySelector) {
-		T max = null;
-		K maxKey = null;
-		List<T> maxList = Lists.newArrayList();
-		
-		FOption<T> onext;
-		while ( (onext = next()).isPresent() ) {
-			T value = onext.get();
-			K key = keySelector.apply(value);
-
-			if ( max != null ) {
-				int cmp = maxKey.compareTo(key);
-				if ( cmp < 0 ) {
-					max = value;
-					maxList.clear();
-					maxList.add(value);
-					maxKey = key;
-				}
-				else if ( cmp == 0 ) {
-					maxList.add(value);
-				}
-			}
-			else {
-				max = value;
-				maxList.clear();
-				maxList.add(value);
-				maxKey = key;
-			}
-		}
-		
-		return maxList;
-	}
-	
-	public default <K extends Comparable<K>> List<T> min(Function<? super T,? extends K> keySelector) {
-		T min = null;
-		K minKey = null;
-		List<T> minList = Lists.newArrayList();
-		
-		FOption<T> onext;
-		while ( (onext = next()).isPresent() ) {
-			T value = onext.get();
-			K key = keySelector.apply(value);
-
-			if ( min != null ) {
-				int cmp = minKey.compareTo(key);
-				if ( cmp > 0 ) {
-					min = value;
-					minList.clear();
-					minList.add(value);
-					minKey = key;
-				}
-				else if ( cmp == 0 ) {
-					minList.add(value);
-				}
-			}
-			else {
-				min = value;
-				minList.clear();
-				minList.add(value);
-				minKey = key;
-			}
-		}
-		
-		return minList;
-	}
 	
 	public default FOption<T> max(Comparator<? super T> cmp) {
 		return foldLeft(FOption.<T>empty(),
-						(max,v) -> (max.isAbsent() || cmp.compare(v, max.get()) > 0) ? FOption.of(v) : max);
+						(max,v) -> (max.isAbsent() || cmp.compare(v, max.get()) > 0)
+									? FOption.of(v) : max);
+	}
+	
+	public default FOption<T> min(Comparator<? super T> cmp) {
+		return foldLeft(FOption.<T>empty(),
+						(max,v) -> (max.isAbsent() || cmp.compare(v, max.get()) < 0)
+									? FOption.of(v) : max);
+	}
+
+	@SuppressWarnings("unchecked")
+	public default FOption<T> max() {
+		return (FOption<T>)foldLeft(FOption.<Comparable<T>>empty(),
+						(max,v) -> (max.isAbsent() || max.get().compareTo(v) < 0)
+									? FOption.of((Comparable<T>)v) : max);
+	}
+
+	@SuppressWarnings("unchecked")
+	public default FOption<T> min() {
+		return (FOption<T>)foldLeft(FOption.<Comparable<T>>empty(),
+						(min,v) -> (min.isAbsent() || min.get().compareTo(v) > 0)
+									? FOption.of((Comparable<T>)v) : min);
 	}
 	
 	public default String join(String delim, String begin, String end) {

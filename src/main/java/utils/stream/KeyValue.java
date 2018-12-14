@@ -51,10 +51,6 @@ public class KeyValue<K,V> {
 		return new KeyValue<>(m_key, mapper.apply(m_key, m_value));
 	}
 	
-//	public <T> FStream<T> flatMap(BiFunction<K,V,FStream<T>> mapper) {
-//		return mapper.apply(m_key, m_value);
-//	}
-	
 	@Override
 	public String toString() {
 		return "" + m_key + "=" + m_value;

@@ -26,4 +26,46 @@ public class MinMaxTest {
 		
 		Assert.assertEquals(true, stream.max(CMPTOR).isAbsent());
 	}
+	
+	@Test
+	public void test2() throws Exception {
+		FStream<Integer> stream = FStream.of(1, 5, 4, 1);
+		
+		Assert.assertEquals(5, (int)stream.max().get());
+	}
+	
+	@Test
+	public void test3() throws Exception {
+		FStream<Integer> stream = FStream.of();
+		
+		Assert.assertEquals(true, stream.max().isAbsent());
+	}
+	
+	@Test
+	public void test10() throws Exception {
+		FStream<Integer> stream = FStream.of(1, 2, 4, 1);
+		
+		Assert.assertEquals(1, (int)stream.min(CMPTOR).get());
+	}
+	
+	@Test
+	public void test11() throws Exception {
+		FStream<Integer> stream = FStream.of();
+		
+		Assert.assertEquals(true, stream.min(CMPTOR).isAbsent());
+	}
+	
+	@Test
+	public void test12() throws Exception {
+		FStream<Integer> stream = FStream.of(1, 5, -2, 1);
+		
+		Assert.assertEquals(-2, (int)stream.min().get());
+	}
+	
+	@Test
+	public void test13() throws Exception {
+		FStream<Integer> stream = FStream.of();
+		
+		Assert.assertEquals(true, stream.min().isAbsent());
+	}
 }
