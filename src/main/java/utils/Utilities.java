@@ -19,7 +19,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -28,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
-import io.vavr.control.Option;
 import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
 
@@ -404,15 +402,6 @@ public class Utilities {
 		Constructor<?> ctor = cls.getDeclaredConstructor(new Class[0]);
 		ctor.setAccessible(true);
 		return (T)ctor.newInstance(new Object[0]);
-	}
-	
-	public static <T> Option<T> toOption(T value, T nullValue) {
-		if ( value == null ) {
-			return Option.none();
-		}
-		else {
-			return (!value.equals(nullValue)) ? Option.some(value) : Option.none(); 
-		}
 	}
 	
 	public static <T extends AutoCloseable> T attachCloser(T object, Consumer<T> closer) {

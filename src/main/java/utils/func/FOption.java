@@ -26,14 +26,16 @@ public final class FOption<T> {
 		return (FOption<T>)EMPTY;
 	}
 	
-	@SuppressWarnings("unchecked")
 	public static <T> FOption<T> ofNullable(T value) {
-		return value != null ? of(value) : (FOption<T>)EMPTY;
+		return value != null ? of(value) : empty();
 	}
 	
-	@SuppressWarnings("unchecked")
 	public static <T> FOption<T> from(Optional<T> opt) {
-		return opt.isPresent() ? of(opt.get()) : (FOption<T>)EMPTY;
+		return opt.isPresent() ? of(opt.get()) : empty();
+	}
+	
+	public static <T> FOption<T> when(boolean flag, T value) {
+		return flag ? of(value) : empty();
 	}
 	
 	@SuppressWarnings("unchecked")
