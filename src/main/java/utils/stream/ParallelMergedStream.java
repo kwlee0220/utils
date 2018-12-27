@@ -85,7 +85,7 @@ public class ParallelMergedStream<T> implements FStream<T> {
 			FOption<? extends FStream<? extends T>> src = m_gen.next();
 			if ( src.isPresent() ) {
 				Harvester harvester = new Harvester(src.get());
-				harvester.whenDone(() -> startNextHarvester(harvester));
+				harvester.whenDone(exec -> startNextHarvester(harvester));
 				
 				m_activeHarvesters.add(harvester);
 				harvester.start();

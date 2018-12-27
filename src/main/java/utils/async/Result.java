@@ -213,4 +213,33 @@ public class Result<T> {
 				throw new AssertionError();
 		}
     }
+	
+	@Override
+	public boolean equals(Object obj) {
+		if ( obj == this ) {
+			return true;
+		}
+		else if ( obj == null || obj.getClass() != Result.class ) {
+			return false;
+		}
+		
+		@SuppressWarnings("unchecked")
+		Result<T> other = (Result<T>)obj;
+		if ( !m_state.equals(other.m_state) ) {
+			return false;
+		}
+		if ( isCompleted() ) {
+			return m_value.equals(other.m_value);
+		}
+		else if ( isFailed() ) {
+			return m_cause.equals(other.m_cause);
+		}
+		
+		return true;
+	}
+	
+	@Override
+	public int hashCode() {
+		return Objects.hash(m_state, m_value, m_cause);
+	}
 }

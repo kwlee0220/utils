@@ -334,10 +334,10 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     	m_aopLock.lock();
     	try {
     		if ( isDoneInGuard() ) {
-				CompletableFuture.runAsync(listener::run);
+				CompletableFuture.runAsync(() -> listener.run());
     		}
     		else {
-				m_finishListeners.add(listener);
+				m_finishListeners.add(() -> listener.run());
     		}
     	}
     	finally {

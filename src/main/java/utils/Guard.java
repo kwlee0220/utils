@@ -112,6 +112,21 @@ public class Guard {
 		}
 	}
 	
+	public <T> T get(Supplier<T> suppl, boolean signal) {
+		m_lock.lock();
+		try {
+			T result = suppl.get();
+			if ( signal ) {
+				m_cond.signalAll();
+			}
+			
+			return result;
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
 	public <T> Try<T> tryToGet(CheckedSupplier<T> suppl) {
 		m_lock.lock();
 		try {

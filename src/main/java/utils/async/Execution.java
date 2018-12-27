@@ -213,7 +213,6 @@ public interface Execution<T> {
 		whenDone(() -> resultConsumer.accept(pollResult().get()));
 	}
 	
-	
 	public default void whenCompleted(Consumer<T> handler) {
 		Objects.requireNonNull(handler, "handler is null");
 		

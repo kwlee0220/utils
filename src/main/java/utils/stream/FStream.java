@@ -406,6 +406,13 @@ public interface FStream<T> extends AutoCloseable {
 		return concat(FStream.of(head, tail));
 	}
 	
+	public static <T> FStream<T> concat(FStream<? extends T> head, T tail) {
+		Objects.requireNonNull(head, "head");
+		Objects.requireNonNull(tail, "tail");
+		
+		return concat(head, FStream.of(tail));
+	}
+	
 	public static <T> FStream<T> concat(FStream<? extends FStream<? extends T>> fact) {
 		Objects.requireNonNull(fact, "source FStream factory");
 		
