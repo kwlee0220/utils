@@ -14,7 +14,7 @@ import com.google.common.base.Preconditions;
 import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
-import utils.async.AbstractExecution;
+import utils.async.AbstractAsyncExecution;
 import utils.async.AsyncExecution;
 import utils.async.CancellableWork;
 
@@ -53,8 +53,8 @@ import utils.async.CancellableWork;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class TimedAsyncExecution<T> extends AbstractExecution<T>
-									implements AsyncExecution<T>, CancellableWork {
+public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
+									implements CancellableWork {
 	static final Logger s_logger = LoggerFactory.getLogger("AOP.TIMED");
 
 	private static final int STATE_IDLE = 0;			// 비동기 수행이 수행중인 상태.
@@ -113,14 +113,14 @@ public class TimedAsyncExecution<T> extends AbstractExecution<T>
 
 	@Override
 	public void start() {
-		if ( !m_handle.notifyStarting() ) {
+		if ( !notifyStarting() ) {
 			return;
 		}
 		
 		m_target.whenStarted(this::onTargetStarted);
-		m_target.whenCompleted(m_handle::notifyCompleted);
-		m_target.whenFailed(m_handle::notifyFailed);
-		m_target.whenCancelled(this::onTargetCancelled);
+		m_target.whenDone(r -> r.ifCompleted(this::notifyCompleted)
+								.ifFailed(this::notifyFailed)
+								.ifCancelled(this::onTargetCancelled));
 		m_guard.run(() -> m_istate = STATE_IDLE, false);
 		
 		m_target.start();
@@ -144,7 +144,7 @@ public class TimedAsyncExecution<T> extends AbstractExecution<T>
 
 			// 이후 timeout이 발생되어도 cancel이 trigger되지 않도록 future를 cancel시킨다.
 			m_future.cancel(false);
-			return m_target.cancel();
+			return m_target.cancel(true);
 		}
 		else {
 			return true;
@@ -154,7 +154,7 @@ public class TimedAsyncExecution<T> extends AbstractExecution<T>
 	private void onTargetStarted() {
 		m_future = m_scheduler.schedule(this::onTimeout, m_timeout, m_unit);
 		m_guard.run(() -> m_istate = STATE_RUNNING, true);
-		m_handle.notifyStarted();
+		notifyStarted();
 	}
 	
 	private void onTargetCancelled() {
@@ -167,7 +167,7 @@ public class TimedAsyncExecution<T> extends AbstractExecution<T>
 		
 		// 이후 timeout이 발생되어도 cancel이 trigger되지 않도록 future를 cancel시킨다.
 		m_future.cancel(false);
-		m_handle.notifyCancelled();
+		notifyCancelled();
 	}
 
 	private void onTimeout() {
@@ -183,7 +183,7 @@ public class TimedAsyncExecution<T> extends AbstractExecution<T>
 			return m_istate;
 		});
 		if ( istate == STATE_TIMEOUT_CANCEL ) {
-			m_target.cancel();
+			m_target.cancel(true);
 		}
 	}
 }

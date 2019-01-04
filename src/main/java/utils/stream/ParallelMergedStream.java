@@ -3,13 +3,14 @@ package utils.stream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
-
+import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
+import utils.Guard;
 import utils.async.CancellableWork;
-import utils.async.ExecutableExecution;
-import utils.async.ThreadInterruptedException;
+import utils.async.AbstractThreadedExecution;
+import utils.async.Result;
 import utils.func.FOption;
 
 /**
@@ -17,93 +18,83 @@ import utils.func.FOption;
  * @author Kang-Woo Lee (ETRI)
  */
 public class ParallelMergedStream<T> implements FStream<T> {
-	private final FStream<? extends FStream<? extends T>> m_gen;
 	private final SuppliableFStream<T> m_merged;
-
-	@GuardedBy("m_lock") private boolean m_closed = false;
-	@GuardedBy("m_lock") private List<Harvester> m_activeHarvesters;
+	
+	private final Guard m_guard = Guard.create();
+	@GuardedBy("m_guard") private final FStream<? extends FStream<? extends T>> m_gen;
+	@GuardedBy("m_guard") private boolean m_closed = false;
+	@GuardedBy("m_guard") private boolean m_endOfSource = false;
+	@GuardedBy("m_guard") private List<Harvester> m_runningHarvesters;
 	
 	ParallelMergedStream(FStream<? extends FStream<? extends T>> gen, int threadCount) {
 		m_gen = gen;
 		m_merged = FStream.pipe(threadCount);
-		m_activeHarvesters = new ArrayList<>(threadCount);
-		
-		for ( int i =0; i < threadCount && startNextHarvester(null); ++i ) { }
+		m_runningHarvesters = new ArrayList<>(threadCount);
+
+		m_guard.run(() -> {
+			for ( int i =0; i < threadCount; ++i ) {
+				if ( !startNextHarvesterInGuard() ) {
+					break;
+				}
+			}
+		}, false);
 	}
 
 	@Override
 	public void close() throws Exception {
-		m_merged.getLock().lock();
-		try {
+		List<Harvester> harvesters = m_guard.get(() -> {
 			m_closed = true;
-			m_merged.close();
+			m_merged.closeQuietly();
 			m_gen.closeQuietly();
 			
-			for ( Harvester harvester: m_activeHarvesters ) {
-				harvester.cancel();
+			return new ArrayList<>(m_runningHarvesters);
+		});
+			
+		for ( Harvester harvester: harvesters ) {
+			harvester.cancel(true);
+		}
+		Try.run(() -> {
+			for ( Harvester harvester: harvesters ) {
+				harvester.waitForDone(100, TimeUnit.MILLISECONDS);
 			}
-		}
-		finally {
-			m_merged.getLock().unlock();
-		}
+		});
+		m_guard.run(m_runningHarvesters::clear);
 	}
 
 	@Override
 	public FOption<T> next() {
-		m_merged.getLock().lock();
-		try {
-			while ( true ) {
-				FOption<T> next = m_merged.poll();
-				if ( next.isPresent() ) {
-					return next;
-				}
-				
-				if ( m_activeHarvesters.size() == 0 || m_closed ) {
-					return FOption.empty();
-				}
-				
-				try {
-					m_merged.getCondition().await();
-				}
-				catch ( InterruptedException e ) {
-					throw new ThreadInterruptedException("" + e);
-				}
-			}
-		}
-		finally {
-			m_merged.getLock().unlock();
-		}
+		return m_merged.next();
 	}
 	
-	private boolean startNextHarvester(@Nullable Harvester invoker) {
-		m_merged.getLock().lock();
-		try {
-			if ( invoker != null ) {
-				m_activeHarvesters.remove(invoker);
-			}
+	private boolean startNextHarvesterInGuard() {
+		FOption<Harvester> oh = m_gen.next().map(Harvester::new);
+		if ( oh.isPresent() ) {
+			Harvester harvester = oh.get();
 			
-			FOption<? extends FStream<? extends T>> src = m_gen.next();
-			if ( src.isPresent() ) {
-				Harvester harvester = new Harvester(src.get());
-				harvester.whenDone(exec -> startNextHarvester(harvester));
-				
-				m_activeHarvesters.add(harvester);
-				harvester.start();
-				
-				return true;
-			}
-			else {
-				m_merged.getCondition().signalAll();
-				return false;
-			}
+			m_runningHarvesters.add(harvester);
+			harvester.whenDone(r -> m_guard.run(() -> onHarvesterFinishedInGuard(harvester, r)));
+			harvester.start();
+			
+			return true;
 		}
-		finally {
-			m_merged.getLock().unlock();
+		else {
+			m_endOfSource = true;
+			return false;
 		}
 	}
 	
-	private class Harvester extends ExecutableExecution<Void>
-										implements CancellableWork {
+	private void onHarvesterFinishedInGuard(Harvester harvester, Result<Void> result) {
+		m_runningHarvesters.remove(harvester);
+		if ( (result.isCompleted() || result.isFailed()) && !m_closed ) {
+			if ( !startNextHarvesterInGuard() ) {
+				if ( m_runningHarvesters.isEmpty() ) {
+					m_merged.endOfSupply();
+				}
+			}
+		}
+	}
+	
+	private class Harvester extends AbstractThreadedExecution<Void> implements CancellableWork {
 		private final FStream<? extends T> m_src;
 		
 		Harvester(FStream<? extends T> src) {
@@ -111,21 +102,19 @@ public class ParallelMergedStream<T> implements FStream<T> {
 		}
 
 		@Override
-		protected Void executeWork() throws InterruptedException, CancellationException, Exception {
+		protected Void executeWork() throws InterruptedException, CancellationException,
+											Exception {
 			FOption<? extends T> next;
-			try {
-				while ( (next = m_src.next()).isPresent() ) {
-					if ( !isRunning() ) {
-						return null;
-					}
-					
-					m_merged.supply(next.get());
+			while ( (next = m_src.next()).isPresent() ) {
+				if ( !isRunning() ) {
+					return null;
+				}
+				
+				if ( !m_merged.supply(next.get()) ) {
+					throw new CancellationException();
 				}
 			}
-			catch ( Exception e ) {
-				m_merged.endOfSupply(e);
-			}
-			
+
 			return null;
 		}
 

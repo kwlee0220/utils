@@ -76,7 +76,7 @@ public class TimedAsyncTest {
 		
 		exec.start();
 		Thread.sleep(100);
-		exec.cancel();
+		exec.cancel(true);
 		
 		Assert.assertEquals(true, exec.isCancelled());
 		Assert.assertEquals(true, target.isCancelled());
@@ -89,7 +89,8 @@ public class TimedAsyncTest {
 		
 		exec.start();
 		Thread.sleep(100);
-		target.cancel();
+		target.cancel(true);
+		Thread.sleep(100);
 		
 		Assert.assertEquals(true, exec.isCancelled());
 		Assert.assertEquals(true, target.isCancelled());

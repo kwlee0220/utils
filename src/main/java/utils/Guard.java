@@ -75,6 +75,10 @@ public class Guard {
 		return m_cond;
 	}
 	
+	public void run(Runnable work) {
+		run(work, false);
+	}
+	
 	public void run(Runnable work, boolean signal) {
 		m_lock.lock();
 		try {

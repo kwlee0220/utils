@@ -8,7 +8,7 @@ import utils.Throwables;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class FutureBasedAsyncExecution<T> extends AbstractExecution<T>
+public abstract class FutureBasedAsyncExecution<T> extends AbstractAsyncExecution<T>
 												implements CancellableWork, AsyncExecution<T>{
 	private volatile Future<? extends T> m_future;
 	
@@ -16,12 +16,12 @@ public abstract class FutureBasedAsyncExecution<T> extends AbstractExecution<T>
 
 	@Override
 	public void start() {
-		if ( m_handle.notifyStarted() ) {
+		if ( notifyStarted() ) {
 			try {
 				m_future = getFuture();
 			}
 			catch ( Throwable e ) {
-				m_handle.notifyFailed(Throwables.unwrapThrowable(e));
+				notifyFailed(Throwables.unwrapThrowable(e));
 			}
 		}
 	}

@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +51,53 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public boolean cancel() {
+	public boolean cancel(boolean mayInterruptIfRunning) {
+		m_aopLock.lock();
+		try {
+			try {
+				if ( !awaitWhileInGuard(() -> m_aopState == State.CANCELLING, m_timeoutMillis) ) {
+					throw new RuntimeException(new TimeoutException("timeout millis=" + m_timeoutMillis));
+				}
+			}
+			catch ( InterruptedException e ) {
+				throw new ThreadInterruptedException();
+			}
+
+			if ( m_aopState == State.NOT_STARTED ) {
+				notifyCancelled();
+				return true;
+			}
+			else if ( m_aopState == State.CANCELLED ) {
+				return true;
+			}
+		}
+		finally {
+			m_aopLock.unlock();
+		}
+			
+		if ( !mayInterruptIfRunning ) {
+			return false;
+		}
+			
+		//
+		// 여기서부터는 수행 중인 execution을 명시적으로 cancel 시켜야 함.
+		//
+		if ( !notifyCancelling() ) {
+			return false;
+		}
+		
+		if ( this instanceof CancellableWork ) {
+			try {
+				((CancellableWork)this).cancelWork();
+			}
+			catch ( Exception e ) {
+				getLogger().warn("fails to cancel work: {}, cause={}", this, e.toString());
+				notifyFailed(e);
+				
+				return false;
+			}
+		}
+		
 		return notifyCancelled();
 	}
 
@@ -345,6 +392,24 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     	}
 	}
 	
+	public void dependsOn(Execution<?> exec, T result) {
+		exec.whenStarted(this::notifyStarted);
+		exec.whenCompleted(r -> this.notifyCompleted(result));
+		exec.whenFailed(this::notifyFailed);
+		exec.whenCancelled(this::notifyCancelled);
+	}
+	
+	public final void checkCancelled() {
+		State state = getState();
+		if ( state == State.CANCELLING || state == State.CANCELLED ) {
+			throw new CancellationException();
+		}
+	}
+	
+	public final boolean isCancelRequested() {
+		return getState() == State.CANCELLING;
+	}
+	
 	@Override
 	public String toString() {
 		return String.format("%s[%s]", getClass().getSimpleName(), m_aopState);
@@ -369,5 +434,17 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	
 	private boolean isDoneInGuard() {
 		return isDone(m_aopState);
+	}
+	
+	private boolean awaitWhileInGuard(Supplier<Boolean> predicate, long timeoutMillis)
+		throws InterruptedException {
+		Date due = new Date(System.currentTimeMillis() + timeoutMillis);
+		while ( predicate.get() ) {
+			if ( !m_aopCond.awaitUntil(due) ) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 }

@@ -82,7 +82,7 @@ public class SequentialAsyncTest {
 		
 		exec.start();
 		boolean ok = exec.waitForDone(200, TimeUnit.MILLISECONDS);
-		exec.cancel();
+		exec.cancel(true);
 		
 		Assert.assertEquals(false, ok);
 		verify(m_listener, times(3)).onForward(anyInt(), any(), any());
@@ -101,6 +101,7 @@ public class SequentialAsyncTest {
 		
 		Assert.assertEquals(true, exec.isFailed());
 		Assert.assertEquals(m_error, exec.pollResult().get().getCause());
+		Thread.sleep(100);
 		verify(m_listener, times(7)).onForward(anyInt(), any(), any());
 		verify(m_doneListener, times(1)).accept(Result.failed(m_error));
 		Assert.assertEquals(5, exec.getCurrentExecutionIndex());

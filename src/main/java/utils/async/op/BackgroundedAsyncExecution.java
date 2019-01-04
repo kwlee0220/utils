@@ -1,6 +1,7 @@
 package utils.async.op;
 
 import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -32,6 +33,7 @@ public class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	
 	private final AsyncExecution<T> m_fgAsync;
 	private final AsyncExecution<?> m_bgAsync;
+	private Executor m_executor = null;
 	
 	/**
 	 * 전후방 수행 비동기 수행 객체를 생성한다.
@@ -44,7 +46,7 @@ public class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 		Objects.requireNonNull(bgAsync, "background AsyncExecution");
 
 		m_fgAsync = fgAsync;
-		m_fgAsync.whenStarted(() -> m_handle.notifyStarted());
+		m_fgAsync.whenStarted(() -> notifyStarted());
 		m_fgAsync.whenDone(new ForegroundListener());
 		m_bgAsync = bgAsync;
 		
@@ -61,7 +63,7 @@ public class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 
 	@Override
 	public void start() {
-		m_handle.notifyStarting();
+		notifyStarting();
 		
 		try {
 			m_bgAsync.start();
@@ -69,34 +71,44 @@ public class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 		catch ( Exception ignored ) {
 			s_logger.warn("failed to start background exec=" + m_bgAsync);
 		}
-		
+
 		m_fgAsync.start();
 	}
 
 	@Override
 	public boolean cancelWork() {
-		m_bgAsync.cancel();
-		return m_fgAsync.cancel();
+		m_bgAsync.cancel(true);
+		return m_fgAsync.cancel(true);
 	}
 	
 	class ForegroundListener implements Consumer<Result<T>> {
 		@Override
 		public void accept(Result<T> result) {
 			// foreground가 종료되면 무조건 background aop를 종료시킨다.
-			m_bgAsync.cancel();
+			m_bgAsync.cancel(true);
 			
 			if ( result.isCompleted() ) {
-				m_handle.notifyCompleted(result.getOrNull());
+				notifyCompleted(result.getOrNull());
 			}
 			else if ( result.isFailed() ) {
-				m_handle.notifyFailed(result.getCause());
+				notifyFailed(result.getCause());
 			}
 			else if ( result.isCancelled() ) {
-				m_handle.notifyCancelled();
+				notifyCancelled();
 			}
 			else {
 				throw new AssertionError();
 			}
 		}
+	}
+
+	@Override
+	public Executor getExecutor() {
+		return m_executor;
+	}
+
+	@Override
+	public void setExecutor(Executor executor) {
+		m_executor = executor;
 	}
 }

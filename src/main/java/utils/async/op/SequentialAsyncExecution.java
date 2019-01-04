@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
-import utils.async.AbstractExecution;
+import utils.async.AbstractAsyncExecution;
 import utils.async.AsyncExecution;
 import utils.async.CancellableWork;
 import utils.async.Result;
@@ -27,8 +27,8 @@ import utils.stream.FStream;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class SequentialAsyncExecution<T> extends AbstractExecution<T>
-										implements AsyncExecution<T>, CancellableWork {
+public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
+										implements CancellableWork {
 	private final FStream<AsyncExecution<?>> m_sequence;
 	private final Guard m_guard = Guard.create();
 	@Nullable @GuardedBy("m_guard") private AsyncExecution<?> m_cursor = null;
@@ -70,7 +70,7 @@ public class SequentialAsyncExecution<T> extends AbstractExecution<T>
 
 	@Override
 	public void start() {
-		if ( !m_handle.notifyStarting() ) {
+		if ( !notifyStarting() ) {
 			return;
 		}
 		
@@ -82,7 +82,7 @@ public class SequentialAsyncExecution<T> extends AbstractExecution<T>
 	public boolean cancelWork() {
 		return m_guard.get(() -> {
 			if ( m_cursor != null ) {
-				m_cursor.cancel();
+				m_cursor.cancel(true);
 			}
 			return true;
 		});
@@ -104,7 +104,7 @@ public class SequentialAsyncExecution<T> extends AbstractExecution<T>
 			// m_sequence가 empty인 경우 notifyStarting() 만 호출된 상태이기 때문에
 			// 먼저강제로 notifyStarted()를 호출해준다.
 			if ( m_index == -1 ) {
-				m_handle.notifyStarted();
+				notifyStarted();
 			}
 
 			AsyncExecution<?> last = m_cursor;
@@ -115,15 +115,16 @@ public class SequentialAsyncExecution<T> extends AbstractExecution<T>
 					m_cursor = elm;
 					m_cursor.whenDone(r -> onFinished(r));
 				}, false);
+				
 				elm.start();
 			}
 			else {
 				m_guard.run(() -> m_cursor = null, false);
-				if ( !m_handle.notifyCompleted((T)result.getOrNull()) ) {
+				if ( !notifyCompleted((T)result.getOrNull()) ) {
 					// 취소 요청을 했던 소속 비동기 수행이 완료될 수도 있기 때문에
 					// 완료 통보가 도착해도 취소 중인지를 확인하여야 한다.
 					//
-					m_handle.notifyCancelled();
+					notifyCancelled();
 				}
 				
 			}
@@ -134,7 +135,7 @@ public class SequentialAsyncExecution<T> extends AbstractExecution<T>
 			}
 		}
 		else if ( result.isCancelled() ) {
-			m_handle.notifyCancelled();
+			notifyCancelled();
 			
 			SequenceListener listener = m_guard.get(() -> m_listener);
 			if ( listener != null ) {
@@ -142,7 +143,7 @@ public class SequentialAsyncExecution<T> extends AbstractExecution<T>
 			}
 		}
 		else if ( result.isFailed() ) {
-			m_handle.notifyFailed(result.getCause());
+			notifyFailed(result.getCause());
 			
 			SequenceListener listener = m_guard.get(() -> m_listener);
 			if ( listener != null ) {

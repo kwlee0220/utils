@@ -34,14 +34,6 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 		m_buffer = new ArrayList<>(length);
 		m_length = length;
 	}
-	
-	ReentrantLock getLock() {
-		return m_lock;
-	}
-	
-	Condition getCondition() {
-		return m_cond;
-	}
 
 	@Override
 	public void close() throws Exception {
@@ -62,6 +54,10 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 	public FOption<T> next() {
 		m_lock.lock();
 		try {
+			if ( m_closed ) {
+				return FOption.empty();
+			}
+			
 			while ( true ) {
 				if ( m_buffer.size() > 0 ) {
 					T value = m_buffer.remove(0);

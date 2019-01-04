@@ -65,7 +65,7 @@ public class BackgroundedAsyncTest {
 		
 		exec.start();
 		exec.waitForStarted();
-		boolean ok = exec.cancel();
+		boolean ok = exec.cancel(true);
 		Assert.assertEquals(true, ok);
 		
 		Thread.sleep(30);

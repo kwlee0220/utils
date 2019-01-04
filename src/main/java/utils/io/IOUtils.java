@@ -32,7 +32,7 @@ import com.google.common.io.CharStreams;
 
 import io.vavr.control.Option;
 import utils.async.CancellableWork;
-import utils.async.ExecutableExecution;
+import utils.async.AbstractThreadedExecution;
 
 /**
  * 
@@ -329,7 +329,7 @@ public class IOUtils {
 		return new CopyStream(from, closeFrom, to, closeTo);
 	}
 	
-	public static final class CopyStream extends ExecutableExecution<Integer>
+	public static final class CopyStream extends AbstractThreadedExecution<Integer>
 											implements CancellableWork {
 		private final InputStream m_from;
 		private final OutputStream m_to;

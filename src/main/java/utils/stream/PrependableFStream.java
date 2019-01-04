@@ -30,6 +30,10 @@ public class PrependableFStream<T> implements FStream<T> {
 	}
 
 	public FOption<T> peekNext() {
+		if ( m_closed ) {
+			return FOption.empty();
+		}
+		
 		if ( m_prefix.isEmpty()) {
 			return m_src.next()
 						.ifPresent(v -> m_prefix.add(0, FOption.of(v)));

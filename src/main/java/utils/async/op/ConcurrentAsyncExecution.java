@@ -10,7 +10,7 @@ import com.google.common.base.Preconditions;
 import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
-import utils.async.AbstractExecution;
+import utils.async.AbstractAsyncExecution;
 import utils.async.AsyncExecution;
 import utils.async.CancellableWork;
 import utils.async.Result;
@@ -25,8 +25,8 @@ import utils.async.Result;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class ConcurrentAsyncExecution extends AbstractExecution<Void>
-												implements AsyncExecution<Void>, CancellableWork {
+public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
+												implements CancellableWork {
 	private static final Logger s_logger = LoggerFactory.getLogger(ConcurrentAsyncExecution.class);
 	
 	private final AsyncExecution<?>[] m_elements;
@@ -71,7 +71,7 @@ public class ConcurrentAsyncExecution extends AbstractExecution<Void>
 
 	@Override
 	public void start() {
-		if ( !m_handle.notifyStarting() ) {
+		if ( !notifyStarting() ) {
 			return;
 		}
 		
@@ -80,7 +80,7 @@ public class ConcurrentAsyncExecution extends AbstractExecution<Void>
 			m_elements[i].start();
 		}
 		
-		m_handle.notifyStarted();
+		notifyStarted();
 	}
 
 	@Override
@@ -88,7 +88,7 @@ public class ConcurrentAsyncExecution extends AbstractExecution<Void>
 		// 멤버 aop들의 수행을 중단시킨다.
 		for ( int i =0; i < m_elements.length; ++i ) {
 			try {
-				m_elements[i].cancel();
+				m_elements[i].cancel(true);
 			}
 			catch ( Exception ignored ) { }
 		}
@@ -106,12 +106,12 @@ public class ConcurrentAsyncExecution extends AbstractExecution<Void>
 			result.ifCompleted(r -> ++m_noOfCompletions);
 			
 			if ( isCancelRequested() ) {
-				m_handle.notifyCancelled();
+				notifyCancelled();
 			}
 			
 			if ( m_noOfFinishes >= m_elements.length
 				|| m_noOfCompletions >= m_noOfElmCompletionToCompletion ) {
-				m_handle.notifyCompleted(null);
+				notifyCompleted(null);
 			}
 		}, false);
 		
@@ -119,7 +119,7 @@ public class ConcurrentAsyncExecution extends AbstractExecution<Void>
 			// 아직 수행이 종료되지 않은 멤버 aop들의 수행을 중단시킨다.
 			for ( int i =0; i < m_elements.length; ++i ) {
 				try {
-					m_elements[i].cancel();
+					m_elements[i].cancel(true);
 				}
 				catch ( Exception ignored ) { }
 			}

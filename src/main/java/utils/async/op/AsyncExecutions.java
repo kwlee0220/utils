@@ -29,10 +29,10 @@ public class AsyncExecutions {
 			@Override
 			protected Future<? extends T> getFuture() {
 				return scheduler.schedule(() -> {
-					if ( m_handle.notifyCompleted(result) ) {
+					if ( notifyCompleted(result) ) {
 						return result;
 					}
-					if ( m_handle.notifyCancelled() ) {
+					if ( notifyCancelled() ) {
 						return null;
 					}
 					return null;
@@ -50,13 +50,13 @@ public class AsyncExecutions {
 		return new AbstractAsyncExecution<T>() {
 			@Override
 			public void start() {
-				if ( !m_handle.notifyStarted() ) {
+				if ( !notifyStarted() ) {
 					return;
 				}
-				if ( m_handle.notifyCompleted(result) ) {
+				if ( notifyCompleted(result) ) {
 					return;
 				}
-				if ( m_handle.notifyCancelled() ) {
+				if ( notifyCancelled() ) {
 					return;
 				}
 			}
@@ -71,10 +71,10 @@ public class AsyncExecutions {
 		return new AbstractAsyncExecution<T>() {
 			@Override
 			public void start() {
-				if ( !m_handle.notifyStarted() ) {
+				if ( !notifyStarted() ) {
 					return;
 				}
-				m_handle.notifyFailed(cause);
+				notifyFailed(cause);
 			}
 		};
 	}

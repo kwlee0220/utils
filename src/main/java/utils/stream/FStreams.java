@@ -32,17 +32,20 @@ public class FStreams {
 	
 	static class IteratorStream<T> implements FStream<T> {
 		private final Iterator<? extends T> m_iter;
+		private boolean m_closed = false;
 		
 		IteratorStream(Iterator<? extends T> iter) {
 			m_iter = iter;
 		}
 
 		@Override
-		public void close() throws Exception { }
+		public void close() throws Exception {
+			m_closed = true;
+		}
 
 		@Override
 		public FOption<T> next() {
-			return m_iter.hasNext() ? FOption.of(m_iter.next()) : FOption.empty();
+			return m_iter.hasNext() && !m_closed ? FOption.of(m_iter.next()) : FOption.empty();
 		}
 	}
 	
@@ -174,10 +177,10 @@ public class FStreams {
 	}
 	
 	static class PeekedStream<T> implements FStream<T> {
-		private final FStream<T> m_base;
+		private final FStream<? extends T> m_base;
 		private final Consumer<? super T> m_effect;
 		
-		PeekedStream(FStream<T> base, Consumer<? super T> effect) {
+		PeekedStream(FStream<? extends T> base, Consumer<? super T> effect) {
 			m_base = base;
 			m_effect = effect;
 		}
@@ -189,7 +192,7 @@ public class FStreams {
 
 		@Override
 		public FOption<T> next() {
-			return m_base.next().ifPresent(m_effect);
+			return FOption.narrow(m_base.next().ifPresent(m_effect));
 		}
 		
 		@Override
@@ -268,6 +271,7 @@ public class FStreams {
 		@Override
 		public void close() throws Exception {
 			m_src.close();
+			m_eos = true;
 		}
 
 		@Override
@@ -385,6 +389,7 @@ public class FStreams {
 	static class UnfoldStream<T,S> implements FStream<T> {
 		private final Function<S,Tuple2<T,S>> m_gen;
 		private S m_seed;
+		private boolean m_closed = false;
 		
 		UnfoldStream(S init, Function<S,Tuple2<T,S>> gen) {
 			m_seed = init;
@@ -393,6 +398,7 @@ public class FStreams {
 
 		@Override
 		public void close() throws Exception {
+			m_closed = true;
 			if ( m_seed instanceof AutoCloseable ) {
 				((AutoCloseable)m_seed).close();
 			}
@@ -400,6 +406,10 @@ public class FStreams {
 
 		@Override
 		public FOption<T> next() {
+			if ( m_closed ) {
+				return FOption.empty();
+			}
+			
 			Tuple2<? extends T,? extends S> unfolded = m_gen.apply(m_seed);
 			if ( unfolded != null ) {
 				m_seed = unfolded._2;

@@ -48,9 +48,9 @@ public interface FStream<T> extends AutoCloseable {
 	/**
 	 * 스트림에 포함된 다음 데이터를 반환한다.
 	 * <p>
-	 * 더 이상의 데이터가 없는 경우는 {@code null}을 반환함.
+	 * 더 이상의 데이터가 없는 경우, 또는 이미 close된 경우에는 {@link FOption#empty()}을 반환함.
 	 * 
-	 * @return	다음 데이터. 없는 경우는 {@code null}.
+	 * @return	다음 데이터. 없는 경우는 {@link FOption#empty()}.
 	 */
 	public FOption<T> next();
 	
@@ -510,6 +510,16 @@ public interface FStream<T> extends AutoCloseable {
 	}
 	
 	public default void forEach(Consumer<? super T> effect) {
+		Preconditions.checkArgument(effect != null, "effect is null");
+		
+		FOption<T> next;
+		while ( (next = next()).isPresent() ) {
+			effect.accept(next.get());
+		}
+	}
+	
+	public default void forEachAE(CheckedConsumer<? super T> effect)
+		throws Throwable {
 		Preconditions.checkArgument(effect != null, "effect is null");
 		
 		FOption<T> next;

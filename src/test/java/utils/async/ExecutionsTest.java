@@ -62,7 +62,7 @@ public class ExecutionsTest {
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
 		
-		boolean done = exec.cancel();
+		boolean done = exec.cancel(true);
 		Assert.assertEquals(true, done);
 		Assert.assertEquals(true, exec.isCancelled());
 	}

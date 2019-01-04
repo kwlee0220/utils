@@ -161,4 +161,9 @@ public final class FOption<T> {
 	public FOption<T> orElse(Supplier<FOption<T>> orElseSupplier) {
 		return (m_present) ? this : orElseSupplier.get();
 	}
+	
+	@Override
+	public String toString() {
+		return String.format("FOption(%s)", m_present ? m_value : "none");
+	}
 }

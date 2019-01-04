@@ -47,7 +47,7 @@ public class AsyncsTest {
 		task.waitForStarted();
 		Assert.assertTrue(task.isStarted());
 		
-		Assert.assertEquals(true, task.cancel());
+		Assert.assertEquals(true, task.cancel(true));
 
 		Result<Void> result = task.waitForResult();
 		Assert.assertEquals(true, result.isCancelled());
@@ -104,7 +104,7 @@ public class AsyncsTest {
 		task.waitForStarted();
 		Assert.assertTrue(task.isStarted());
 		
-		Assert.assertEquals(true, task.cancel());
+		Assert.assertEquals(true, task.cancel(true));
 
 		Result<Void> result = task.waitForResult();
 		Assert.assertEquals(true, result.isCancelled());
@@ -134,7 +134,7 @@ public class AsyncsTest {
 		Assert.assertEquals(true, m_done);
 	}
 
-	private static class ActiveTask extends ExecutableExecution<Void> {
+	private static class ActiveTask extends AbstractThreadedExecution<Void> {
 		private RuntimeException m_error;
 		
 		ActiveTask(RuntimeException error) {
@@ -152,7 +152,7 @@ public class AsyncsTest {
 		}
 	}
 	
-	private static class PassiveTask extends ExecutableExecution<Void> {
+	private static class PassiveTask extends AbstractThreadedExecution<Void> {
 		private RuntimeException m_error;
 		
 		PassiveTask(RuntimeException error) {
