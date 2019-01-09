@@ -65,7 +65,7 @@ public class FoldAsyncTest {
 	@Test
 	public void test02() throws Exception {
 		AsyncExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
-		exec.whenDone(m_doneListener);
+		exec.whenFinished(m_doneListener);
 		
 		exec.start();
 		exec.waitForDone();
@@ -75,7 +75,7 @@ public class FoldAsyncTest {
 	@Test
 	public void test03() throws Exception {
 		AsyncExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
-		exec.whenDone(m_doneListener);
+		exec.whenFinished(m_doneListener);
 		
 		exec.start();
 		boolean ok = exec.waitForDone(230, MILLISECONDS);
@@ -89,7 +89,7 @@ public class FoldAsyncTest {
 	@Test
 	public void test04() throws Exception {
 		AsyncExecution<Integer> exec = AsyncExecutions.fold(m_gen2, 0, (a,n) -> a+n);
-		exec.whenDone(m_doneListener);
+		exec.whenFinished(m_doneListener);
 		
 		exec.start();
 		exec.waitForDone();
@@ -103,7 +103,7 @@ public class FoldAsyncTest {
 	@Test
 	public void test05() throws Exception {
 		AsyncExecution<Integer> exec = AsyncExecutions.fold(m_gen3, 0, (a,n) -> a+n);
-		exec.whenDone(m_doneListener);
+		exec.whenFinished(m_doneListener);
 		
 		exec.start();
 		exec.waitForDone();

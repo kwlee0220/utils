@@ -72,7 +72,7 @@ public class ParallelMergedStream<T> implements FStream<T> {
 			Harvester harvester = oh.get();
 			
 			m_runningHarvesters.add(harvester);
-			harvester.whenDone(r -> m_guard.run(() -> onHarvesterFinishedInGuard(harvester, r)));
+			harvester.whenFinished(r -> m_guard.run(() -> onHarvesterFinishedInGuard(harvester, r)));
 			harvester.start();
 			
 			return true;

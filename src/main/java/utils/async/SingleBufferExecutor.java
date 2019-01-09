@@ -110,7 +110,7 @@ class SingleBufferExecutor implements LoggerSettable {
 	}
 	
 	private void startInGuard(AsyncExecution<?> exec) {
-		exec.whenDone(this::onDone);
+		exec.whenFinished(this::onDone);
 		exec.start();
 		m_running = exec;
 	}

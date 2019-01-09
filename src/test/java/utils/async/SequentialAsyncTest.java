@@ -64,7 +64,7 @@ public class SequentialAsyncTest {
 	@Test
 	public void test02() throws Exception {
 		SequentialAsyncExecution<Integer> exec = SequentialAsyncExecution.of(m_gen);
-		exec.whenDone(m_doneListener);
+		exec.whenFinished(m_doneListener);
 		
 		exec.start();
 		exec.waitForDone();
@@ -74,7 +74,7 @@ public class SequentialAsyncTest {
 	@Test
 	public void test03() throws Exception {
 		SequentialAsyncExecution<Integer> exec = SequentialAsyncExecution.of(m_gen);
-		exec.whenDone(m_doneListener);
+		exec.whenFinished(m_doneListener);
 		
 		exec.start();
 		boolean ok = exec.waitForDone(200, MILLISECONDS);
@@ -89,7 +89,7 @@ public class SequentialAsyncTest {
 	@Test
 	public void test04() throws Exception {
 		SequentialAsyncExecution<Integer> exec = SequentialAsyncExecution.of(m_gen2);
-		exec.whenDone(m_doneListener);
+		exec.whenFinished(m_doneListener);
 		
 		exec.start();
 		exec.waitForDone();
@@ -104,7 +104,7 @@ public class SequentialAsyncTest {
 	@Test
 	public void test05() throws Exception {
 		SequentialAsyncExecution<Integer> exec = SequentialAsyncExecution.of(m_gen3);
-		exec.whenDone(m_doneListener);
+		exec.whenFinished(m_doneListener);
 		
 		exec.start();
 		exec.waitForDone();

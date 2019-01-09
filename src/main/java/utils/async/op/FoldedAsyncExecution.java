@@ -111,7 +111,7 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<S>
 						}
 						else {
 							m_cursor = next;
-							next.whenDone(this::onFinishedInGuard);
+							next.whenFinished(this::onFinishedInGuard);
 							next.start();
 						}
 					})

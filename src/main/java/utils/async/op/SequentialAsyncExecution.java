@@ -107,7 +107,7 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 						else {
 							m_cursor = next;
 							++m_index;
-							next.whenDone(this::onFinishedInGuard);
+							next.whenFinished(this::onFinishedInGuard);
 							next.start();
 						}
 					})

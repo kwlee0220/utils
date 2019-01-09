@@ -118,7 +118,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 		}
 		
 		m_target.whenStarted(this::onTargetStarted);
-		m_target.whenDone(r -> r.ifCompleted(this::notifyCompleted)
+		m_target.whenFinished(r -> r.ifCompleted(this::notifyCompleted)
 								.ifFailed(this::notifyFailed)
 								.ifCancelled(this::onTargetCancelled));
 		m_guard.run(() -> m_istate = STATE_IDLE, false);

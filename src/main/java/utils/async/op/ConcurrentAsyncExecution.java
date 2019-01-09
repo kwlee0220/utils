@@ -76,7 +76,7 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 		}
 		
 		for ( int i =0; i < m_elements.length; ++i ) {
-			m_elements[i].whenDone(this::onElementFinished);
+			m_elements[i].whenFinished(this::onElementFinished);
 			m_elements[i].start();
 		}
 		

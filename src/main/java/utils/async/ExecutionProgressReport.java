@@ -2,6 +2,7 @@ package utils.async;
 
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import utils.async.Execution.FinishListener;
 
 /**
  * 
@@ -27,7 +28,7 @@ class ExecutionProgressReport<T> implements ObservableOnSubscribe<ExecutionProgr
 				emitter.onNext(new ExecutionProgress.Started<>());
 			}
 		});
-		m_exec.whenDone(r -> {
+		m_exec.whenFinished(r -> {
 			if ( !emitter.isDisposed() ) {
 				if ( r.isCompleted() ) {
 					emitter.onNext(new ExecutionProgress.Completed<T>(r.getOrNull()));

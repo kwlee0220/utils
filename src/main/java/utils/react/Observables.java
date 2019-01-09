@@ -38,7 +38,7 @@ public class Observables {
 	
 	public static Completable fromVoidExecution(Execution<Void> exec) {
 		return Completable.create(emitter -> {
-			exec.whenDone(r -> {
+			exec.whenFinished(r -> {
 				if ( !emitter.isDisposed() ) {
 					if ( r.isCompleted() ) {
 						emitter.onComplete();

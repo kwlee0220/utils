@@ -2,11 +2,11 @@ package utils.async.op;
 
 import java.util.Objects;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.vavr.control.Try;
 import utils.async.AbstractAsyncExecution;
 import utils.async.AsyncExecution;
 import utils.async.CancellableWork;
@@ -27,8 +27,8 @@ import utils.async.Result;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
-											implements AsyncExecution<T>, CancellableWork {
+class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
+									implements AsyncExecution<T>, CancellableWork {
 	private static final Logger s_logger = LoggerFactory.getLogger(BackgroundedAsyncExecution.class);
 	
 	private final AsyncExecution<T> m_fgAsync;
@@ -36,18 +36,18 @@ public class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	private Executor m_executor = null;
 	
 	/**
-	 * 전후방 수행 비동기 수행 객체를 생성한다.
+	 * 배경 수행 비동기 수행 객체를 생성한다.
 	 * 
 	 * @param fgAsync		수행시킬 전방 비동기 수행
 	 * @param bgAsync		수행시킬 후방 비동기 수행
 	 */
-	public BackgroundedAsyncExecution(AsyncExecution<T> fgAsync, AsyncExecution<?> bgAsync) {
+	BackgroundedAsyncExecution(AsyncExecution<T> fgAsync, AsyncExecution<?> bgAsync) {
 		Objects.requireNonNull(fgAsync, "foreground AsyncExecution");
 		Objects.requireNonNull(bgAsync, "background AsyncExecution");
 
 		m_fgAsync = fgAsync;
-		m_fgAsync.whenStarted(() -> notifyStarted());
-		m_fgAsync.whenDone(new ForegroundListener());
+		m_fgAsync.whenStarted(this::notifyStarted);
+		m_fgAsync.whenFinished(this::onForegroundFinished);
 		m_bgAsync = bgAsync;
 		
 		setLogger(s_logger);
@@ -65,13 +65,9 @@ public class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	public void start() {
 		notifyStarting();
 		
-		try {
-			m_bgAsync.start();
-		}
-		catch ( Exception ignored ) {
-			s_logger.warn("failed to start background exec=" + m_bgAsync);
-		}
-
+		Try.run(m_bgAsync::start)
+			.onFailure(e -> s_logger.warn("failed to start background exec=" + m_bgAsync
+										+ ", cause=" + e));
 		m_fgAsync.start();
 	}
 
@@ -79,27 +75,6 @@ public class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	public boolean cancelWork() {
 		m_bgAsync.cancel(true);
 		return m_fgAsync.cancel(true);
-	}
-	
-	class ForegroundListener implements Consumer<Result<T>> {
-		@Override
-		public void accept(Result<T> result) {
-			// foreground가 종료되면 무조건 background aop를 종료시킨다.
-			m_bgAsync.cancel(true);
-			
-			if ( result.isCompleted() ) {
-				notifyCompleted(result.getOrNull());
-			}
-			else if ( result.isFailed() ) {
-				notifyFailed(result.getCause());
-			}
-			else if ( result.isCancelled() ) {
-				notifyCancelled();
-			}
-			else {
-				throw new AssertionError();
-			}
-		}
 	}
 
 	@Override
@@ -110,5 +85,14 @@ public class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	@Override
 	public void setExecutor(Executor executor) {
 		m_executor = executor;
+	}
+	
+	private void onForegroundFinished(Result<T> result) {
+		// foreground가 종료되면 무조건 background aop를 종료시킨다.
+		m_bgAsync.cancel(true);
+		
+		result.ifCompleted(this::notifyCompleted)
+				.ifFailed(this::notifyFailed)
+				.ifCancelled(this::notifyCancelled);
 	}
 }

@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -33,7 +34,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@GuardedBy("m_aopLock") private State m_aopState = State.NOT_STARTED;
 	@GuardedBy("m_aopLock") private Result<T> m_result;		// may null
 	@GuardedBy("m_aopLock") private final List<Runnable> m_startListeners = Lists.newCopyOnWriteArrayList();
-	@GuardedBy("m_aopLock") private final List<Runnable> m_finishListeners = Lists.newCopyOnWriteArrayList();
+	@GuardedBy("m_aopLock") private final List<Consumer<Result<T>>> m_finishListeners
+													= Lists.newCopyOnWriteArrayList();
 	
 	private Logger m_logger = LoggerFactory.getLogger(EventDrivenExecution.class);
 
@@ -225,7 +227,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					m_aopCond.signalAll();
 					getLogger().debug("completed: {}, result={}", this, result);
 					
-			    	notifyFinishListeners();
+					notifyFinishListenersInGuard();
 			    	return true;
 				case CANCELLED:
 				case FAILED:
@@ -257,7 +259,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			    	m_aopCond.signalAll();
 					getLogger().info("failed: {}, cause={}", this, cause.toString());
 					
-			    	notifyFinishListeners();
+					notifyFinishListenersInGuard();
 			    	return true;
 				case FAILED:
 				case COMPLETED:
@@ -340,7 +342,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					m_aopCond.signalAll();
 					getLogger().info("cancelled: {}", this);
 					
-			    	notifyFinishListeners();
+					notifyFinishListenersInGuard();
 				case CANCELLED:
 			    	return true;
 				case COMPLETED:
@@ -377,14 +379,14 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public void whenDone(Runnable listener) {
+	public void whenFinished(Consumer<Result<T>> listener) {
     	m_aopLock.lock();
     	try {
     		if ( isDoneInGuard() ) {
-				CompletableFuture.runAsync(() -> listener.run());
+    			CompletableFuture.runAsync(() -> listener.accept(m_result));
     		}
     		else {
-				m_finishListeners.add(() -> listener.run());
+				m_finishListeners.add(listener);
     		}
     	}
     	finally {
@@ -427,8 +429,9 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		CompletableFuture.runAsync(() -> m_startListeners.forEach(Runnable::run));
 	}
 	
-	private void notifyFinishListeners() {
-		CompletableFuture.runAsync(() -> m_finishListeners.forEach(Runnable::run));
+	private void notifyFinishListenersInGuard() {
+		List<Consumer<Result<T>>> listeners = Lists.newArrayList(m_finishListeners);
+		CompletableFuture.runAsync(() -> listeners.forEach(c -> c.accept(m_result)));
 	}
 	
 	private static boolean isDone(State state) {

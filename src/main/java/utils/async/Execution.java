@@ -35,6 +35,12 @@ public interface Execution<T> extends Future<T> {
 		CANCELLED
 	};
 	
+	public interface FinishListener<T> {
+		public void onCompleted(T result);
+		public void onFailed(Throwable cause);
+		public void onCancelled();
+	}
+	
 	/**
 	 * 연산 수행을 중단시킨다.
 	 * <p>
@@ -211,27 +217,44 @@ public interface Execution<T> extends Future<T> {
 	public boolean waitForDone(long timeout, TimeUnit unit) throws InterruptedException;
 
 	public void whenStarted(Runnable listener);
-	public void whenDone(Runnable listener);
-	public default void whenDone(Consumer<Result<T>> resultConsumer) {
-		whenDone(() -> resultConsumer.accept(pollResult().get()));
+	public void whenFinished(Consumer<Result<T>> listener);
+	public default void whenFinished(FinishListener<T> listener) {
+		whenFinished(r -> r.ifCompleted(listener::onCompleted)
+							.ifCancelled(listener::onCancelled)
+							.ifFailed(listener::onFailed));
 	}
 	
 	public default void whenCompleted(Consumer<T> handler) {
 		Objects.requireNonNull(handler, "handler is null");
 		
-		whenDone(r -> r.ifCompleted(handler));
+		whenFinished(new SimpleFinishListener<T>() {
+			@Override
+			public void onCompleted(T result) {
+				handler.accept(result);
+			}
+		});
 	}
 	
 	public default void whenFailed(Consumer<Throwable> handler) {
 		Objects.requireNonNull(handler, "handler is null");
 		
-		whenDone(r -> r.ifFailed(handler));
+		whenFinished(new SimpleFinishListener<T>() {
+			@Override
+			public void onFailed(Throwable cause) {
+				handler.accept(cause);
+			}
+		});
 	}
 	
 	public default void whenCancelled(Runnable handler) {
 		Objects.requireNonNull(handler, "handler is null");
 		
-		whenDone(r -> r.ifCancelled(handler));
+		whenFinished(new SimpleFinishListener<T>() {
+			@Override
+			public void onCancelled() {
+				handler.run();
+			}
+		});
 	}
 	
 	public default Observable<ExecutionProgress<T>> observe(boolean cancelOnDispose) {
