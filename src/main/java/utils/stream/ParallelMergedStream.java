@@ -94,7 +94,8 @@ public class ParallelMergedStream<T> implements FStream<T> {
 		}
 	}
 	
-	private class Harvester extends AbstractThreadedExecution<Void> implements CancellableWork {
+	private class Harvester extends AbstractThreadedExecution<Void>
+							implements CancellableWork {
 		private final FStream<? extends T> m_src;
 		
 		Harvester(FStream<? extends T> src) {

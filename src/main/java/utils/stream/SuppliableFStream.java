@@ -34,6 +34,19 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 		m_buffer = new ArrayList<>(length);
 		m_length = length;
 	}
+	
+	SuppliableFStream() {
+		m_buffer = new ArrayList<>();
+		m_length = Integer.MAX_VALUE;
+	}
+	
+	public int capacity() {
+		return m_length;
+	}
+	
+	public int size() {
+		return m_buffer.size();
+	}
 
 	@Override
 	public void close() throws Exception {
@@ -241,5 +254,10 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 		finally {
 			m_lock.unlock();
 		}
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("SuppliableFStream[nbuffer=%d]", m_buffer.size());
 	}
 }

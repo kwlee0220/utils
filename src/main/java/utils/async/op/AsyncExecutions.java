@@ -1,8 +1,12 @@
 package utils.async.op;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,16 +78,34 @@ public class AsyncExecutions {
 				if ( !notifyStarted() ) {
 					return;
 				}
-				notifyFailed(cause);
+				CompletableFuture.runAsync(() -> notifyFailed(cause));
+			}
+		};
+	}
+	
+	public static <T> AsyncExecution<T> cancelled() {
+		return new AbstractAsyncExecution<T>() {
+			@Override
+			public void start() {
+				notifyStarted();
+				CompletableFuture.runAsync(this::notifyCancelled);
 			}
 		};
 	}
 
-	public static <T> SequentialAsyncExecution<T> sequential(FStream<AsyncExecution<?>> sequence) {
+	public static <T> SequentialAsyncExecution<T> sequential(
+												FStream<AsyncExecution<?>> sequence) {
 		return new SequentialAsyncExecution<>(sequence);
 	}
 
-	public static <T> SequentialAsyncExecution<T> sequential(AsyncExecution<?>... sequence) {
+	public static <T> SequentialAsyncExecution<T> sequential(
+											List<AsyncExecution<T>> elms) {
+		return new SequentialAsyncExecution<>(FStream.of(elms));
+	}
+
+	@SafeVarargs
+	public static <T> SequentialAsyncExecution<T> sequential(
+											AsyncExecution<? extends T>... sequence) {
 		return new SequentialAsyncExecution<>(FStream.of(sequence));
 	}
 
@@ -99,5 +121,16 @@ public class AsyncExecutions {
 	public static <T> TimedAsyncExecution<T> timed(AsyncExecution<T> target, long timeout,
 												TimeUnit unit, ScheduledExecutorService scheduler) {
 		return new TimedAsyncExecution<>(target, timeout, unit, scheduler);
+	}
+
+	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<AsyncExecution<T>> seq,
+														Supplier<S> initSupplier,
+														BiFunction<S,T,S> folder) {
+		return new FoldedAsyncExecution<>(seq, initSupplier, folder);
+	}
+
+	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<AsyncExecution<T>> seq,
+														S init, BiFunction<S,T,S> folder) {
+		return new FoldedAsyncExecution<>(seq, () -> init, folder);
 	}
 }

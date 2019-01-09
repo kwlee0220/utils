@@ -1,14 +1,12 @@
 package utils.async;
 
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import static java.util.concurrent.TimeUnit.*;
 import java.util.function.Consumer;
 
 import org.junit.Assert;
@@ -19,7 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import utils.async.Execution.State;
-import utils.async.op.AsyncExecutions;
+import static utils.async.op.AsyncExecutions.*;
 import utils.async.op.SequentialAsyncExecution;
 import utils.stream.FStream;
 
@@ -32,17 +30,18 @@ import utils.stream.FStream;
 public class SequentialAsyncTest {
 	private FStream<AsyncExecution<?>> m_gen;
 	private FStream<AsyncExecution<?>> m_gen2;
+	private FStream<AsyncExecution<?>> m_gen3;
 	private final Exception m_error = new Exception();
 	
-	@Mock SequentialAsyncExecution.SequenceListener m_listener;
 	@Mock Consumer<Result<Integer>> m_doneListener;
 	
 	@Before
 	public void setup() {
 		ScheduledExecutorService executors = Executors.newScheduledThreadPool(4);
 		m_gen = FStream.range(0, 5)
-						.map(idx -> AsyncExecutions.idle(idx, 100, TimeUnit.MILLISECONDS, executors));
-		m_gen2 = FStream.concat(m_gen, AsyncExecutions.failure(m_error));
+						.map(idx -> idle(idx, 100, MILLISECONDS, executors));
+		m_gen2 = FStream.concat(m_gen, failure(m_error));
+		m_gen3 = FStream.concat(m_gen, cancelled());
 	}
 	
 	@Test
@@ -65,27 +64,24 @@ public class SequentialAsyncTest {
 	@Test
 	public void test02() throws Exception {
 		SequentialAsyncExecution<Integer> exec = SequentialAsyncExecution.of(m_gen);
-		exec.setListener(m_listener);
 		exec.whenDone(m_doneListener);
 		
 		exec.start();
 		exec.waitForDone();
-		verify(m_listener, times(6)).onForward(anyInt(), any(), any());
 		verify(m_doneListener, times(1)).accept(Result.completed(Integer.valueOf(4)));
 	}
 	
 	@Test
 	public void test03() throws Exception {
 		SequentialAsyncExecution<Integer> exec = SequentialAsyncExecution.of(m_gen);
-		exec.setListener(m_listener);
 		exec.whenDone(m_doneListener);
 		
 		exec.start();
-		boolean ok = exec.waitForDone(200, TimeUnit.MILLISECONDS);
+		boolean ok = exec.waitForDone(200, MILLISECONDS);
 		exec.cancel(true);
+		MILLISECONDS.sleep(50);
 		
 		Assert.assertEquals(false, ok);
-		verify(m_listener, times(3)).onForward(anyInt(), any(), any());
 		verify(m_doneListener, times(1)).accept(Result.cancelled());
 		Assert.assertEquals(2, exec.getCurrentExecutionIndex());
 	}
@@ -93,7 +89,6 @@ public class SequentialAsyncTest {
 	@Test
 	public void test04() throws Exception {
 		SequentialAsyncExecution<Integer> exec = SequentialAsyncExecution.of(m_gen2);
-		exec.setListener(m_listener);
 		exec.whenDone(m_doneListener);
 		
 		exec.start();
@@ -102,8 +97,21 @@ public class SequentialAsyncTest {
 		Assert.assertEquals(true, exec.isFailed());
 		Assert.assertEquals(m_error, exec.pollResult().get().getCause());
 		Thread.sleep(100);
-		verify(m_listener, times(7)).onForward(anyInt(), any(), any());
 		verify(m_doneListener, times(1)).accept(Result.failed(m_error));
+		Assert.assertEquals(5, exec.getCurrentExecutionIndex());
+	}
+	
+	@Test
+	public void test05() throws Exception {
+		SequentialAsyncExecution<Integer> exec = SequentialAsyncExecution.of(m_gen3);
+		exec.whenDone(m_doneListener);
+		
+		exec.start();
+		exec.waitForDone();
+		
+		Assert.assertEquals(true, exec.isCancelled());
+		Thread.sleep(50);
+		verify(m_doneListener, times(1)).accept(Result.cancelled());
 		Assert.assertEquals(5, exec.getCurrentExecutionIndex());
 	}
 }

@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -98,6 +99,10 @@ public interface FStream<T> extends AutoCloseable {
 		
 		return opt.map(t -> FStream.of((T)t))
 					.getOrElse(FStream.empty());
+	}
+	
+	public static <T> FStream<T> from(Observable<? extends T> ob) {
+		return new ObservableStream<>(ob);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -471,14 +476,8 @@ public interface FStream<T> extends AutoCloseable {
 		return toMap(Maps.newHashMap(), toKey, toValue);
 	}
 	
-	public default int[] toIntArray() {
-		List<T> list = toList();
-		int[] array = new int[list.size()];
-		for ( int i =0; i < array.length; ++i ) {
-			array[i] = (Integer)list.get(i);
-		}
-		
-		return array;
+	public default IntFStream toIntFStream() {
+		return new IntFStream.FStreamAdaptor(this.cast(Integer.class));
 	}
 	
 	public default <S> S[] toArray(Class<S> componentType) {
@@ -503,10 +502,6 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default Stream<T> stream() {
 		return Utilities.stream(iterator());
-	}
-	
-	public default Observable<T> observe() {
-		return Observable.create(new FStreamSubscriber<>(this));
 	}
 	
 	public default void forEach(Consumer<? super T> effect) {
@@ -613,30 +608,78 @@ public interface FStream<T> extends AutoCloseable {
         return new TopKPickedFStream<>(this, k, (t1,t2) -> ((Comparable)t1).compareTo(t2));
     }
 	
-	public default FOption<T> max(Comparator<? super T> cmp) {
-		return foldLeft(FOption.<T>empty(),
-						(max,v) -> (max.isAbsent() || cmp.compare(v, max.get()) > 0)
-									? FOption.of(v) : max);
+	public default List<T> max(Comparator<? super T> cmp) {
+		return foldLeft(new ArrayList<T>(),
+						(max,v) -> {
+							if ( max.isEmpty() ) {
+								return Lists.newArrayList(v);
+							}
+							
+							int ret = cmp.compare(v, max.get(0));
+							if ( ret > 0 ) {
+								max = Lists.newArrayList(v);
+							}
+							else if ( ret == 0 ) {
+								max.add(v);
+							}
+							return max;
+						});
 	}
 	
-	public default FOption<T> min(Comparator<? super T> cmp) {
-		return foldLeft(FOption.<T>empty(),
-						(max,v) -> (max.isAbsent() || cmp.compare(v, max.get()) < 0)
-									? FOption.of(v) : max);
+	public default List<T> min(Comparator<? super T> cmp) {
+		return foldLeft(new ArrayList<T>(),
+				(min,v) -> {
+					if ( min.isEmpty() ) {
+						return Lists.newArrayList(v);
+					}
+					
+					int ret = cmp.compare(v, min.get(0));
+					if ( ret < 0 ) {
+						min = Lists.newArrayList(v);
+					}
+					else if ( ret == 0 ) {
+						min.add(v);
+					}
+					return min;
+				});
 	}
 
 	@SuppressWarnings("unchecked")
-	public default FOption<T> max() {
-		return (FOption<T>)foldLeft(FOption.<Comparable<T>>empty(),
-						(max,v) -> (max.isAbsent() || max.get().compareTo(v) < 0)
-									? FOption.of((Comparable<T>)v) : max);
+	public default List<T> max() {
+		return foldLeft(new ArrayList<T>(),
+				(max,v) -> {
+					if ( max.isEmpty() ) {
+						return Lists.newArrayList(v);
+					}
+					
+					int ret = ((Comparable<T>)v).compareTo(max.get(0));
+					if ( ret > 0 ) {
+						max = Lists.newArrayList(v);
+					}
+					else if ( ret == 0 ) {
+						max.add(v);
+					}
+					return max;
+				});
 	}
 
 	@SuppressWarnings("unchecked")
-	public default FOption<T> min() {
-		return (FOption<T>)foldLeft(FOption.<Comparable<T>>empty(),
-						(min,v) -> (min.isAbsent() || min.get().compareTo(v) > 0)
-									? FOption.of((Comparable<T>)v) : min);
+	public default List<T> min() {
+		return foldLeft(new ArrayList<T>(),
+				(min,v) -> {
+					if ( min.isEmpty() ) {
+						return Lists.newArrayList(v);
+					}
+					
+					int ret = ((Comparable<T>)v).compareTo(min.get(0));
+					if ( ret < 0 ) {
+						min = Lists.newArrayList(v);
+					}
+					else if ( ret == 0 ) {
+						min.add(v);
+					}
+					return min;
+				});
 	}
 	
 	public default String join(String delim, String begin, String end) {
@@ -675,5 +718,17 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default FStream<T> distinct() {
 		return FStream.of(toCollection(Sets.newHashSet()));
+	}
+	
+	public default <K> FStream<KeyedFStream<K,T>> groupBy(Function<? super T,? extends K> grouper) {
+		return new GroupByStream<>(this, grouper);
+	}
+	
+	public default PrefetchStream<T> prefetched(int count) {
+		return new PrefetchStream<>(this, count);
+	}
+	
+	public default FStream<T> delay(long delay, TimeUnit tu) {
+		return new FStreams.DelayedStream<>(this, delay, tu);
 	}
 }

@@ -8,7 +8,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
-import io.vavr.control.Option;
+import io.reactivex.Observable;
+import utils.func.FOption;
 
 
 /**
@@ -143,7 +144,7 @@ public interface Execution<T> extends Future<T> {
     public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
     												TimeoutException, CancellationException;
     
-	public Option<Result<T>> pollResult();
+	public FOption<Result<T>> pollResult();
 
 	/**
 	 * 비동기 작업이 종료될 때까지 기다려 그 결과를 반환한다.
@@ -231,5 +232,9 @@ public interface Execution<T> extends Future<T> {
 		Objects.requireNonNull(handler, "handler is null");
 		
 		whenDone(r -> r.ifCancelled(handler));
+	}
+	
+	public default Observable<ExecutionProgress<T>> observe(boolean cancelOnDispose) {
+		return Observable.create(new ExecutionProgressReport<T>(this, cancelOnDispose));
 	}
 }

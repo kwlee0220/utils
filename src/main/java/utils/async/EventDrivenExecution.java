@@ -16,10 +16,10 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
 import utils.LoggerSettable;
+import utils.func.FOption;
 
 /**
  * 
@@ -133,8 +133,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public Option<Result<T>> pollResult() {
-		return m_aopGuard.get(() -> isDoneInGuard() ? Option.some(m_result) : Option.none());
+	public FOption<Result<T>> pollResult() {
+		return m_aopGuard.get(() -> isDoneInGuard() ? FOption.of(m_result) : FOption.empty());
 	}
 
 	@Override
@@ -413,6 +413,14 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@Override
 	public String toString() {
 		return String.format("%s[%s]", getClass().getSimpleName(), m_aopState);
+	}
+	
+	public void runInAsyncExecutionGuard(Runnable work) {
+		m_aopGuard.run(work);
+	}
+	
+	public <R> R getInAsyncExecutionGuard(Supplier<R> supplier) {
+		return m_aopGuard.get(supplier);
 	}
 	
 	private void notifyStartListeners() {

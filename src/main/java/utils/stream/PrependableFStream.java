@@ -2,6 +2,8 @@ package utils.stream;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -61,5 +63,16 @@ public class PrependableFStream<T> implements FStream<T> {
 		Preconditions.checkState(!m_closed);
 		
 		m_prefix.add(0, FOption.of(value));
+	}
+	
+	public void forEachWhile(Predicate<? super T> predicate,
+								Consumer<? super T> effect) {
+		FOption<T> onext;
+		while ( (onext = next()).isPresent() ) {
+			if ( onext.filter(predicate).ifPresent(effect).isAbsent() ) {
+				prepend(onext.get());
+				break;
+			}
+		}
 	}
 }

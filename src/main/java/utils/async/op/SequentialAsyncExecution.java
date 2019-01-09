@@ -7,7 +7,6 @@ import javax.annotation.Nullable;
 import org.slf4j.LoggerFactory;
 
 import net.jcip.annotations.GuardedBy;
-import utils.Guard;
 import utils.async.AbstractAsyncExecution;
 import utils.async.AsyncExecution;
 import utils.async.CancellableWork;
@@ -30,14 +29,9 @@ import utils.stream.FStream;
 public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 										implements CancellableWork {
 	private final FStream<AsyncExecution<?>> m_sequence;
-	private final Guard m_guard = Guard.create();
-	@Nullable @GuardedBy("m_guard") private AsyncExecution<?> m_cursor = null;
-	@GuardedBy("m_guard") private int m_index = -1;
-	@GuardedBy("m_guard") private SequenceListener m_listener;
 	
-	public interface SequenceListener {
-		public void onForward(int index, AsyncExecution<?> finished, AsyncExecution<?> started);
-	}
+	@Nullable @GuardedBy("m_aopGuard") private AsyncExecution<?> m_cursor = null;
+	@GuardedBy("m_aopGuard") private int m_index = -1;
 	
 	public static <T> SequentialAsyncExecution<T> of(FStream<AsyncExecution<?>> sequence) {
 		return new SequentialAsyncExecution<>(sequence);
@@ -61,11 +55,11 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 	}
 	
 	public AsyncExecution<?> getCurrentExecution() {
-		return m_guard.get(() -> m_cursor);
+		return getInAsyncExecutionGuard(() -> m_cursor);
 	}
 	
 	public int getCurrentExecutionIndex() {
-		return m_guard.get(() -> m_index);
+		return getInAsyncExecutionGuard(() -> m_index);
 	}
 
 	@Override
@@ -75,12 +69,12 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 		}
 		
 		// 첫번째 element를 시작시키기 위해 가상의 이전 element AsyncExecution이 종료된 효과를 발생시킨다.
-		onFinished(Result.completed(null));
+		onFinishedInGuard(Result.completed(null));
 	}
 
 	@Override
 	public boolean cancelWork() {
-		return m_guard.get(() -> {
+		return getInAsyncExecutionGuard(() -> {
 			if ( m_cursor != null ) {
 				m_cursor.cancel(true);
 			}
@@ -88,67 +82,51 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 		});
 	}
 	
-	public void setListener(SequenceListener listener) {
-		m_guard.run(() -> m_listener = listener, false);
-	}
-	
 	@Override
 	public String toString() {
-		return m_guard.get(() -> String.format("Sequential[index=%dth, current=%s]",
-												m_index, m_cursor));
+		return getInAsyncExecutionGuard(() ->
+					String.format("Sequential[index=%dth, current=%s]", m_index, m_cursor));
 	}
 	
 	@SuppressWarnings("unchecked")
-	private void onFinished(Result<?> result) {
+	private void onFinishedInGuard(Result<?> result) {
 		if ( result.isCompleted() ) {
 			// m_sequence가 empty인 경우 notifyStarting() 만 호출된 상태이기 때문에
 			// 먼저강제로 notifyStarted()를 호출해준다.
 			if ( m_index == -1 ) {
 				notifyStarted();
 			}
-
-			AsyncExecution<?> last = m_cursor;
-			AsyncExecution<?> elm = m_sequence.next().getOrNull();
-			if ( elm != null ) {
-				m_guard.run(() -> {
-					++m_index;
-					m_cursor = elm;
-					m_cursor.whenDone(r -> onFinished(r));
-				}, false);
-				
-				elm.start();
-			}
-			else {
-				m_guard.run(() -> m_cursor = null, false);
-				if ( !notifyCompleted((T)result.getOrNull()) ) {
-					// 취소 요청을 했던 소속 비동기 수행이 완료될 수도 있기 때문에
-					// 완료 통보가 도착해도 취소 중인지를 확인하여야 한다.
-					//
-					notifyCancelled();
-				}
-				
-			}
 			
-			SequenceListener listener = m_guard.get(() -> m_listener);
-			if ( listener != null ) {
-				listener.onForward(m_index, last, elm);
-			}
+			m_sequence.next()
+					.ifPresent(next -> {
+						// Element Execution이 종료되는 순간 cancel()이 호출되는
+						// 경우도 있기 때문에, cancel이 요청되었는가 확인할 필요가 있음.
+						if ( isCancelRequested() ) {
+							notifyCancelled();
+						}
+						else {
+							m_cursor = next;
+							++m_index;
+							next.whenDone(this::onFinishedInGuard);
+							next.start();
+						}
+					})
+					.ifAbsent(() -> {
+						m_cursor = null;
+						
+						if ( !notifyCompleted((T)result.getOrNull()) ) {
+							// 취소 요청을 했던 소속 비동기 수행이 완료될 수도 있기 때문에
+							// 완료 통보가 도착해도 취소 중인지를 확인하여야 한다.
+							//
+							notifyCancelled();
+						}
+					});
 		}
 		else if ( result.isCancelled() ) {
 			notifyCancelled();
-			
-			SequenceListener listener = m_guard.get(() -> m_listener);
-			if ( listener != null ) {
-				listener.onForward(m_index+1, m_cursor, null);
-			}
 		}
 		else if ( result.isFailed() ) {
 			notifyFailed(result.getCause());
-			
-			SequenceListener listener = m_guard.get(() -> m_listener);
-			if ( listener != null ) {
-				listener.onForward(m_index+1, m_cursor, null);
-			}
 		}
 		else {
 			throw new AssertionError();

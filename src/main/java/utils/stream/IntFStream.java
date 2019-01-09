@@ -54,26 +54,32 @@ public interface IntFStream extends FStream<Integer> {
 	static class RangedStream implements IntFStream {
 		private int m_next;
 		private final int m_end;
-		private boolean m_closed;
+		private final boolean m_endInclusive;
+		private volatile boolean m_closed = false;
 		
-		RangedStream(int start, int end, boolean closed) {
+		RangedStream(int start, int end, boolean endInclusive) {
 			Preconditions.checkArgument(start <= end,
 										String.format("invalid range: start=%d end=%d", start, end));	
 			
 			m_next = start;
 			m_end = end;
-			m_closed = closed;
+			m_endInclusive = endInclusive;
 		}
 
 		@Override
-		public void close() throws Exception { }
+		public void close() throws Exception {
+			m_closed = true;
+		}
 
 		@Override
 		public FOption<Integer> next() {
+			if ( m_closed ) {
+				return FOption.empty();
+			}
 			if ( m_next < m_end ) {
 				return FOption.of(m_next++);
 			}
-			else if ( m_next == m_end && m_closed ) {
+			else if ( m_next == m_end && m_endInclusive ) {
 				return FOption.of(m_next++);
 			}
 			

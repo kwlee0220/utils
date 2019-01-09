@@ -16,7 +16,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import utils.async.Execution.State;
 import utils.async.op.AsyncExecutions;
-import utils.async.op.SequentialAsyncExecution;
 import utils.async.op.TimedAsyncExecution;
 
 
@@ -29,7 +28,6 @@ public class TimedAsyncTest {
 	private final ScheduledExecutorService m_scheduler = Executors.newScheduledThreadPool(4);
 	private final Exception m_error = new Exception();
 	
-	@Mock SequentialAsyncExecution.SequenceListener m_listener;
 	@Mock Consumer<Result<Integer>> m_doneListener;
 	
 	@Before

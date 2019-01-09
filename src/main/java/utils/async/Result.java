@@ -213,6 +213,10 @@ public class Result<T> {
 				throw new AssertionError();
 		}
     }
+    
+    public <S extends T> Result<S> narrowTo(Class<S> cls) {
+    	return (Result<S>)this;
+    }
 	
 	@Override
 	public boolean equals(Object obj) {

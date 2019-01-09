@@ -2,12 +2,14 @@ package utils.stream;
 
 import java.util.Iterator;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import io.vavr.Tuple2;
+import utils.async.ThreadInterruptedException;
 import utils.func.FOption;
 
 /**
@@ -444,6 +446,40 @@ public class FStreams {
 				if ( next.isAbsent() || m_randGen.nextDouble() < m_ratio ) {
 					return next;
 				}
+			}
+		}
+	}
+
+	static class DelayedStream<T> implements FStream<T> {
+		private final FStream<T> m_src;
+		private final long m_delay;
+		private final TimeUnit m_tu;
+		
+		DelayedStream(FStream<T> src, long delay, TimeUnit tu) {
+			m_src = src;
+			m_delay = delay;
+			m_tu = tu;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
+		}
+
+		@Override
+		public FOption<T> next() {
+			while ( true ) {
+				FOption<T> next = m_src.next();
+				if ( next.isPresent() ) {
+					try {
+						m_tu.sleep(m_delay);
+					}
+					catch ( InterruptedException e ) {
+						throw new ThreadInterruptedException();
+					}
+				}
+				
+				return next;
 			}
 		}
 	}
