@@ -14,8 +14,7 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.vavr.control.Option;
-import utils.Throwables;
+import utils.func.FOption;
 import utils.stream.FStream;
 
 
@@ -36,6 +35,9 @@ public class FileObjectStore<K,T> {
 	 * @param handler	저장될 파일 객체의 인터페이스.
 	 */
     public FileObjectStore(File rootDir, FileObjectHandler<K,T> handler) {
+    	Objects.requireNonNull(rootDir, "Root directory of this FileObjectStore");
+    	Objects.requireNonNull(handler, "FileObjectHandler");
+    	
     	m_rootDir = rootDir;
     	if ( !m_rootDir.exists() ) {
     		try {
@@ -63,9 +65,8 @@ public class FileObjectStore<K,T> {
      * 
      * @param key	대상 파일 객체의 식별자.
      * @return	존재 여부.
-     * @throws IllegalArgumentException	<code>id</code>가 <code>null</code>인 경우.
      */
-    public boolean exists(K key) {
+    public synchronized boolean exists(K key) {
     	Objects.requireNonNull(key, "FileObject key");
 
 		return m_handler.toFile(key).exists();
@@ -76,41 +77,29 @@ public class FileObjectStore<K,T> {
      * 
      * @param key		검색 대상 식별자.
      * @return 파일 객체
-     * @throws IllegalArgumentException	<code>id</code>가 <code>null</code>인 경우.
-     * @throws FileObjectStoreException	파일 객체 획득에 실패한 경우. 자세한 원인은
-     * 								{@link FileObjectStoreException#getCause()}를 통해
-     * 								원인 예외 객체를 획득할 수 있다.
-     * @throws FileObjectNotFoundException 식별자에 해당하는 파일 객체가 없는 경우.
+     * @throws IOException	파일 객체 획득에 실패한 경우.
      */
-    public Option<T> get(K key) throws FileObjectStoreException  {
+    public synchronized FOption<T> get(K key) throws IOException  {
     	Objects.requireNonNull(key, "FileObject key");
 
 		File file = m_handler.toFile(key);
-		if ( !file.exists() ) {
-			return Option.none();
+		if ( file.exists() ) {
+			return FOption.of(m_handler.readFileObject(file));
 		}
-		
-		try {
-			return Option.some(m_handler.readFileObject(file));
-		}
-		catch ( Exception e ) {
-			throw new FileObjectStoreException(Throwables.unwrapThrowable(e));
+		else {
+			return FOption.empty();
 		}
     }
     
-    public T getOrNull(K key) throws FileObjectStoreException {
+    public T getOrNull(K key) throws IOException {
     	return get(key).getOrNull();
     }
     
-    public Option<File> getFile(K key) {
+    public synchronized FOption<File> getFile(K key) {
     	Objects.requireNonNull(key, "FileObject key");
     	
 		File file = m_handler.toFile(key);
-		if ( !file.exists() ) {
-			return Option.none();
-		}
-		
-		return Option.some(file);
+		return file.exists() ? FOption.of(file) : FOption.empty();
     }
     
     public File insert(K key, T fObj) throws IOException, FileObjectExistsException {
@@ -120,7 +109,7 @@ public class FileObjectStore<K,T> {
         return insert(key, fObj, false);
     }
     
-    public File insert(K key, T fObj, boolean updateIfExists)
+    public synchronized File insert(K key, T fObj, boolean updateIfExists)
     	throws IOException, FileObjectExistsException {
     	Objects.requireNonNull(key, "FileObject key");
     	Objects.requireNonNull(fObj, "FileObject");
@@ -137,7 +126,7 @@ public class FileObjectStore<K,T> {
     	return file;
     }
     
-    public void remove(K key) {
+    public synchronized void remove(K key) {
     	Objects.requireNonNull(key, "FileObject key");
 		
 		File file = m_handler.toFile(key);
@@ -145,13 +134,12 @@ public class FileObjectStore<K,T> {
 			return;
 		}
 		
-		boolean done = file.delete();
-		if ( !done ) {
+		if ( !file.delete() ) {
 			s_logger.warn("fails to delete file " + file);
 		}
     }
     
-    public void removeAll() throws IOException {
+    public synchronized void removeAll() throws IOException {
 		for ( File file: m_rootDir.listFiles() ) {
 			FileUtils.deleteDirectory(file);
 		}

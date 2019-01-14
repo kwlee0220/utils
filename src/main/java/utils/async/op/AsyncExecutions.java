@@ -1,6 +1,7 @@
 package utils.async.op;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import utils.async.AbstractAsyncExecution;
+import utils.async.AbstractThreadedExecution;
 import utils.async.AsyncExecution;
 import utils.async.FutureBasedAsyncExecution;
 import utils.stream.FStream;
@@ -25,6 +27,15 @@ public class AsyncExecutions {
 	
 	private AsyncExecutions() {
 		throw new AssertionError("Should not be called: class=" + AsyncExecutions.class);
+	}
+	
+	public static <T> AsyncExecution<T> from(Callable<T> work) {
+		return new AbstractThreadedExecution<T>() {
+			@Override
+			protected T executeWork() throws Exception {
+				return work.call();
+			}
+		};
 	}
 	
 	public static <T> AsyncExecution<T> idle(T result, long delay, TimeUnit unit,

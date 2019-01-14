@@ -11,6 +11,7 @@ import java.util.function.Predicate;
 import io.vavr.Tuple2;
 import utils.async.ThreadInterruptedException;
 import utils.func.FOption;
+import utils.func.MultipleSupplier;
 
 /**
  * 
@@ -481,6 +482,26 @@ public class FStreams {
 				
 				return next;
 			}
+		}
+	}
+
+	static class SupplierStream<T> implements FStream<T> {
+		private final MultipleSupplier<? extends T> m_supplier;
+		
+		SupplierStream(MultipleSupplier<? extends T> supplier) {
+			m_supplier = supplier;
+		}
+
+		@Override
+		public void close() throws Exception {
+			if ( m_supplier instanceof AutoCloseable ) {
+				((AutoCloseable)m_supplier).close();
+			}
+		}
+
+		@Override
+		public FOption<T> next() {
+			return FOption.narrow(m_supplier.get());
 		}
 	}
 }

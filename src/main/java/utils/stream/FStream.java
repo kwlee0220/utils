@@ -33,6 +33,7 @@ import utils.CSV;
 import utils.Utilities;
 import utils.func.FLists;
 import utils.func.FOption;
+import utils.func.MultipleSupplier;
 import utils.stream.FStreams.EmptyStream;
 import utils.stream.FStreams.FilteredStream;
 import utils.stream.FStreams.MapToDoubleStream;
@@ -40,6 +41,7 @@ import utils.stream.FStreams.MapToIntStream;
 import utils.stream.FStreams.MapToLongStream;
 import utils.stream.FStreams.MappedStream;
 import utils.stream.FStreams.PeekedStream;
+import utils.stream.FStreams.SupplierStream;
 
 /**
  * 
@@ -99,6 +101,10 @@ public interface FStream<T> extends AutoCloseable {
 		
 		return opt.map(t -> FStream.of((T)t))
 					.getOrElse(FStream.empty());
+	}
+	
+	public static <T> FStream<T> from(MultipleSupplier<? extends T> supplier) {
+		return new SupplierStream<>(supplier);
 	}
 	
 	public static <T> FStream<T> from(Observable<? extends T> ob) {

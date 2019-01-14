@@ -1,10 +1,16 @@
 package utils.func;
 
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+
+import io.vavr.CheckedConsumer;
+import utils.Unchecked.CheckedFunction;
+import utils.Unchecked.CheckedSupplier;
 
 /**
  * 
@@ -92,6 +98,15 @@ public final class FOption<T> {
 		}
 	}
 	
+	public T getOrElseTE(CheckedSupplier<? extends T> elseSupplier) throws Throwable {
+		if ( m_present ) {
+			return m_value;
+		}
+		else {
+			return elseSupplier.get();
+		}
+	}
+	
 	public <X extends Throwable> T getOrElseThrow(Supplier<X> thrower) throws X {
 		if ( m_present ) {
 			return m_value;
@@ -102,6 +117,14 @@ public final class FOption<T> {
 	}
 	
 	public FOption<T> ifPresent(Consumer<? super T> effect) {
+		if ( m_present ) {
+			effect.accept(m_value);
+		}
+		
+		return this;
+	}
+	
+	public FOption<T> ifPresentTE(CheckedConsumer<? super T> effect) throws Throwable {
 		if ( m_present ) {
 			effect.accept(m_value);
 		}
@@ -142,6 +165,18 @@ public final class FOption<T> {
 	public <S> FOption<S> map(Function<? super T,? extends S> mapper) {
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true)
 							: (FOption<S>)EMPTY;
+	}
+	@SuppressWarnings("unchecked")
+	public <S> FOption<S> mapTE(CheckedFunction<? super T,? extends S> mapper)
+		throws Throwable {
+		return (m_present) ? new FOption<>(mapper.apply(m_value), true)
+							: (FOption<S>)EMPTY;
+	}
+	
+	public <S> S map(S src, BiFunction<S,T,S> mapper) {
+		Objects.requireNonNull(mapper, "mapper BiFunction");
+		
+		return (m_present) ? mapper.apply(src, m_value) : src;
 	}
 	
 	@SuppressWarnings("unchecked")

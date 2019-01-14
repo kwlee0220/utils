@@ -9,6 +9,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import io.reactivex.Observable;
+import utils.Throwables;
 import utils.func.FOption;
 
 
@@ -149,6 +150,15 @@ public interface Execution<T> extends Future<T> {
     public T get() throws InterruptedException, ExecutionException, CancellationException;
     public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
     												TimeoutException, CancellationException;
+    
+    public default T getUnchecked() {
+    	try {
+    		return get();
+    	}
+    	catch ( Throwable e ) {
+    		throw Throwables.toRuntimeException(Throwables.unwrapThrowable(e));
+    	}
+    }
     
 	public FOption<Result<T>> pollResult();
 

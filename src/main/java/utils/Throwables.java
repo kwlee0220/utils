@@ -58,4 +58,13 @@ public class Throwables {
 			throw thrCls.cast(e);
 		}
 	}
+	
+	public static Exception asException(Throwable e) throws Exception {
+		if ( e instanceof Exception ) {
+			return (Exception)e;
+		}
+		else {
+			return new RuntimeException(e);
+		}
+	}
 }

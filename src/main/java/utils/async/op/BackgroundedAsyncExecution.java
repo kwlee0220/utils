@@ -1,7 +1,6 @@
 package utils.async.op;
 
 import java.util.Objects;
-import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +9,6 @@ import io.vavr.control.Try;
 import utils.async.AbstractAsyncExecution;
 import utils.async.AsyncExecution;
 import utils.async.CancellableWork;
-import utils.async.Result;
 
 
 
@@ -33,7 +31,6 @@ class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	
 	private final AsyncExecution<T> m_fgAsync;
 	private final AsyncExecution<?> m_bgAsync;
-	private Executor m_executor = null;
 	
 	/**
 	 * 배경 수행 비동기 수행 객체를 생성한다.
@@ -47,7 +44,7 @@ class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 
 		m_fgAsync = fgAsync;
 		m_fgAsync.whenStarted(this::notifyStarted);
-		m_fgAsync.whenFinished(this::onForegroundFinished);
+		m_fgAsync.whenFinished(m_fgListener);
 		m_bgAsync = bgAsync;
 		
 		setLogger(s_logger);
@@ -76,23 +73,24 @@ class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 		m_bgAsync.cancel(true);
 		return m_fgAsync.cancel(true);
 	}
-
-	@Override
-	public Executor getExecutor() {
-		return m_executor;
-	}
-
-	@Override
-	public void setExecutor(Executor executor) {
-		m_executor = executor;
-	}
 	
-	private void onForegroundFinished(Result<T> result) {
-		// foreground가 종료되면 무조건 background aop를 종료시킨다.
-		m_bgAsync.cancel(true);
-		
-		result.ifCompleted(this::notifyCompleted)
-				.ifFailed(this::notifyFailed)
-				.ifCancelled(this::notifyCancelled);
-	}
+	private final FinishListener<T> m_fgListener = new FinishListener<T>() {
+		@Override
+		public void onCompleted(T result) {
+			Try.run(() -> m_bgAsync.cancel(true));
+			notifyCompleted(result);
+		}
+
+		@Override
+		public void onFailed(Throwable cause) {
+			Try.run(() -> m_bgAsync.cancel(true));
+			notifyFailed(cause);
+		}
+
+		@Override
+		public void onCancelled() {
+			Try.run(() -> m_bgAsync.cancel(true));
+			notifyCancelled();
+		}
+	};
 }
