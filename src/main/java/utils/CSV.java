@@ -1,13 +1,6 @@
 package utils;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import com.google.common.collect.Lists;
-
+import utils.func.FOption;
 import utils.stream.FStream;
 
 /**
@@ -26,17 +19,6 @@ public class CSV {
 	
 	public static CSV getTsv() {
 		return new CSV().withDelimiter('\t');
-	}
-	
-	public static CSV getDefaultForRead() {
-		return new CSV().withDelimiter(',')
-						.withEscape('\\')
-						.withQuote('"');
-	}
-	
-	public static CSV getDefaultForWrite() {
-		return new CSV().withDelimiter(',')
-						.withEscape('\\');
 	}
 	
 	private CSV() {
@@ -74,97 +56,38 @@ public class CSV {
 		return this;
 	}
 	
-	public static List<String> parseCSV(String str) {
-		return parse(str, ',', '\\');
+	public FStream<String> parse(String line) {
+		return new Parser(line);
 	}
 	
-	public static String[] parseCSVAsArray(String str) {
-		return parseAsArray(str, ',', '\\');
+	public static FStream<String> parseCsv(String str) {
+		return get().parse(str);
+	}
+	public static String[] parseCsvAsArray(String str) {
+		return parseCsv(str).toArray(String.class);
 	}
 	
-	public static List<String> parse(String str, char delim, char esc) {
+	public static FStream<String> parseCsv(String str, char delim) {
+		return get().withDelimiter(delim).parse(str);
+	}
+	
+	public static FStream<String> parseCsv(String str, char delim, char esc) {
 		return get().withDelimiter(delim).withEscape(esc).parse(str);
 	}
-	
-	public static String[] parseAsArray(String str, char delim, char esc) {
-		return get().withDelimiter(delim).withEscape(esc).parseAsArray(str);
-	}
-
-	public List<String> parse(String line) {
-		if ( line == null ) {
-			throw new IllegalArgumentException("CSV string was null");
-		}
-		if ( line.trim().length() == 0 ) {
-			return Collections.<String>emptyList();
-		}
-
-        List<String> vList = Lists.newArrayList();
-        StringBuffer appender = new StringBuffer();
-        char[] buf = line.toCharArray();
-        for ( int start = 0; start < buf.length;  ) {
-            int i;
-
-            for ( i =start; i < buf.length; ++i ) {
-                char c = buf[i];
-
-                if ( m_quote == null || m_inQuote ) {
-	                if ( c == m_delim ) {
-	    	            vList.add(appender.toString());
-	    	            appender = new StringBuffer();
-	                    break;
-	                }
-	                else if ( m_escape != null && c == m_escape ) {
-	                    if ( ++i >= buf.length ) {
-	                        throw new IllegalArgumentException("Corrupted CSV string");
-	                    }
-	                	appender.append(buf[i]);
-	                }
-	                else if ( m_quote != null && c == m_quote ) {
-	                	m_inQuote = !m_inQuote;
-	                }
-	                else {
-	                	appender.append(c);
-	                }
-                }
-                else if ( c == m_quote ) {
-                	m_inQuote = !m_inQuote;
-                }
-                else if ( c == m_delim ) {
-    	            vList.add(appender.toString());
-    	            appender = new StringBuffer();
-                	break;
-                }
-            }
-
-            start = i + 1;
-        }
-
-        vList.add(appender.toString());
-        return vList;
-	}
-	
-	public String[] parseAsArray(String line) {
-		return parse(line).toArray(new String[0]);
-	}
-	
-	public String toString(Collection<String> values) {
-		return values.stream().map(this::encode).collect(Collectors.joining(""+m_delim));
+	public static String[] parseCsvAsArray(String str, char delim, char esc) {
+		return parseCsv(str, delim, esc).toArray(String.class);
 	}
 	
 	public String toString(FStream<String> values) {
 		return values.map(this::encode).join("" + m_delim);
 	}
 	
+	public String toString(Iterable<String> values) {
+		return toString(FStream.of(values));
+	}
+	
 	public String toString(String... values) {
-		return toString(Arrays.asList(values));
-	}
-	
-	public static String toString(String[] csv, char delim, char esc) {
-		return toString(Arrays.asList(csv), delim, esc);
-	}
-	
-	public static String toString(Collection<String> csv, char delim, char esc) {
-		return get().withDelimiter(delim).withEscape(esc).toString(csv);
+		return toString(FStream.of(values));
 	}
 	
 	private String encode(String value) {
@@ -176,5 +99,76 @@ public class CSV {
 		}
 		
 		return value;
+	}
+	
+	private class Parser implements FStream<String> {
+		private final char[] m_buf;
+		private int m_start = 0;
+		private final char[] m_accum;
+		private int m_accumIdx = 0;
+		
+		Parser(String str) {
+			m_buf = str.toCharArray();
+			m_accum = new char[m_buf.length];
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_start = m_buf.length;
+		}
+
+		@Override
+		public FOption<String> next() {
+			if ( m_start > m_buf.length ) {
+				return FOption.empty();
+			}
+
+			m_accumIdx = 0;
+	        for (; m_start < m_buf.length; ++m_start ) {
+	            char c = m_buf[m_start];
+
+	            if ( m_inQuote ) {
+	            	if ( c == m_quote ) {
+	                	m_inQuote = !m_inQuote;
+	            	}
+	            	else {
+	                    m_accum[m_accumIdx++] = c;
+	            	}
+	            }
+	            else if ( c == m_delim ) {
+                	++m_start;
+	            	return FOption.of(new String(m_accum, 0, m_accumIdx));
+	            }
+                else if ( m_escape != null && c == m_escape ) {
+                    if ( ++m_start >= m_buf.length ) {
+                        throw new IllegalArgumentException("Corrupted CSV string");
+                    }
+                    
+                    m_accum[m_accumIdx++] = m_buf[m_start];
+                }
+	            else if ( m_quote != null && c == m_quote ) {
+	            	m_inQuote = !m_inQuote;
+	            }
+	            else {
+                    m_accum[m_accumIdx++] = m_buf[m_start];
+	            }
+	        }
+	        
+	        if ( m_inQuote ) {
+	        	throw new IllegalArgumentException("quote('" + m_quote
+	        										+ "') does not match");
+	        }
+	        
+	        ++m_start;
+	    	return FOption.of(new String(m_accum, 0, m_accumIdx));
+		}
+		
+		@Override
+		public String toString() {
+			String prefix = new String(m_buf, 0, m_start);
+			String suffix = new String(m_buf, m_start, m_buf.length-m_start);
+			
+			return String.format("'%s^%s'", prefix, suffix);
+		}
 	}
 }

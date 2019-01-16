@@ -700,6 +700,9 @@ public interface FStream<T> extends AutoCloseable {
 	public default String join(String delim) {
 		return join(delim, "", "");
 	}
+	public default String join(char delim) {
+		return join(""+delim, "", "");
+	}
 	
 	public default String join(CSV csv) {
 		return csv.toString(map(Object::toString));
