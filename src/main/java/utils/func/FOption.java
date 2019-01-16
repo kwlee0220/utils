@@ -201,4 +201,29 @@ public final class FOption<T> {
 	public String toString() {
 		return String.format("FOption(%s)", m_present ? m_value : "none");
 	}
+	
+	@Override
+	public boolean equals(Object o) {
+		if ( this == o ) {
+			return true;
+		}
+		else if ( o == null || !FOption.class.equals(o.getClass()) ) {
+			return false;
+		}
+		
+		@SuppressWarnings("unchecked")
+		FOption<T> other = (FOption<T>)o;
+		if ( m_present != other.m_present ) {
+			return false;
+		}
+		if ( !m_present ) {
+			return true;
+		}
+		if ( m_value == null ) {
+			return other.m_value == null;
+		}
+		else {
+			return m_value.equals(other.m_value);
+		}
+	}
 }
