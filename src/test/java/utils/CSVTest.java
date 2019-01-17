@@ -36,8 +36,7 @@ public class CSVTest {
 	@Test
 	public void test2() throws Exception {
 		FStream<String> strm = m_csv.parse("");
-
-		Assert.assertEquals(FOption.of(""), strm.next());
+		
 		Assert.assertEquals(FOption.empty(), strm.next());
 	}
 	

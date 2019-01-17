@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -64,6 +65,12 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return downcast(map(kv -> KeyValue.of(mapper.apply(kv.key(), kv.value()), kv.value())));
 	}
 	
+	public default <S> KVFStream<S,V> mapKey(Function<? super K,? extends S> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+
+		return downcast(map(kv -> KeyValue.of(mapper.apply(kv.key()), kv.value())));
+	}
+	
 	public default <U> KVFStream<K,U> mapValue(BiFunction<? super K,? super V,? extends U> mapper) {
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 
@@ -86,6 +93,12 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkArgument(cls != null, "target class is null");
 		
 		return mapValue(cls::cast);
+	}
+	
+	public default void forEach(BiConsumer<? super K,? super V> effect) {
+		Preconditions.checkArgument(effect != null, "effect is null");
+		
+		forEach(kv -> effect.accept(kv.key(), kv.value()));
 	}
 	
 	public default <C> C collectLeft(C collector, TriConsumer<? super C,? super K,? super V> collect) {

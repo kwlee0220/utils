@@ -437,9 +437,12 @@ public interface FStream<T> extends AutoCloseable {
 		
 		return new ParallelMergedStream<>(gen, parallelLevel);
 	}
-	
+
+	public default FStream<Tuple2<T,Integer>> zipWithIndex(int start) {
+		return zipWith(range(start, Integer.MAX_VALUE));
+	}
 	public default FStream<Tuple2<T,Integer>> zipWithIndex() {
-		return zipWith(range(0,Integer.MAX_VALUE));
+		return zipWithIndex(0);
 	}
 	
 	public default <U> FStream<Tuple2<T,U>> zipWith(FStream<? extends U> other) {

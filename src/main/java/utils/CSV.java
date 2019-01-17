@@ -119,7 +119,7 @@ public class CSV {
 
 		@Override
 		public FOption<String> next() {
-			if ( m_start > m_buf.length ) {
+			if ( m_start > m_buf.length || m_buf.length == 0 ) {
 				return FOption.empty();
 			}
 
