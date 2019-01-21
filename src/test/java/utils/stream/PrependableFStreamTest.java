@@ -67,8 +67,11 @@ public class PrependableFStreamTest {
 		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(1, (int)r.get());
 		
+		// 2
 		m_stream.prepend(1);
+		// 1, 2
 		m_stream.prepend(3);
+		// 3, 1, 2
 
 		r = m_stream.next();
 		Assert.assertEquals(true, r.isPresent());

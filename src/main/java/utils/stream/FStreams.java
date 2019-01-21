@@ -12,6 +12,7 @@ import io.vavr.Tuple2;
 import utils.async.ThreadInterruptedException;
 import utils.func.FOption;
 import utils.func.MultipleSupplier;
+import utils.io.IOUtils;
 
 /**
  * 
@@ -44,6 +45,9 @@ public class FStreams {
 		@Override
 		public void close() throws Exception {
 			m_closed = true;
+			if ( m_iter instanceof AutoCloseable ) {
+				IOUtils.closeQuietly((AutoCloseable)m_iter);
+			}
 		}
 
 		@Override

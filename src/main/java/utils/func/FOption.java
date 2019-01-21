@@ -197,6 +197,16 @@ public final class FOption<T> {
 		return (m_present) ? this : orElseSupplier.get();
 	}
 	
+	public <X extends Throwable> FOption<T> orElseThrow(Supplier<X> errorSupplier)
+		throws X {
+		if ( m_present ) {
+			return this;
+		}
+		else {
+			throw errorSupplier.get();
+		}
+	}
+	
 	@Override
 	public String toString() {
 		return String.format("FOption(%s)", m_present ? m_value : "none");

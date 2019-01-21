@@ -16,7 +16,7 @@ import utils.func.FOption;
  */
 public class PrependableFStream<T> implements FStream<T> {
 	private final FStream<T> m_src;
-	private final List<FOption<T>> m_prefix = Lists.newArrayList();
+	private final List<T> m_prefix = Lists.newArrayList();
 	private boolean m_closed = false;
 	
 	PrependableFStream(FStream<T> src) {
@@ -28,6 +28,7 @@ public class PrependableFStream<T> implements FStream<T> {
 	@Override
 	public void close() throws Exception {
 		m_closed = true;
+		m_prefix.clear();
 		m_src.close();
 	}
 
@@ -37,16 +38,21 @@ public class PrependableFStream<T> implements FStream<T> {
 		}
 		
 		if ( m_prefix.isEmpty()) {
-			return m_src.next()
-						.ifPresent(v -> m_prefix.add(0, FOption.of(v)));
+			return m_src.next().ifPresent(m_prefix::add);
 		}
 		else {
-			return m_prefix.get(0);
+			return FOption.of(m_prefix.get(m_prefix.size()-1));
 		}
 	}
 	
 	public boolean hasNext() {
-		return peekNext().isPresent();
+		if ( m_prefix.size() > 0 ) {
+			return true;
+		}
+		
+		return m_src.next()
+					.ifPresent(m_prefix::add)
+					.isPresent();
 	}
 
 	@Override
@@ -55,18 +61,17 @@ public class PrependableFStream<T> implements FStream<T> {
 			return m_src.next();
 		}
 		else {
-			return m_prefix.remove(0);
+			return FOption.of(m_prefix.remove(m_prefix.size()-1));
 		}
 	}
 
 	public void prepend(T value) {
 		Preconditions.checkState(!m_closed);
 		
-		m_prefix.add(0, FOption.of(value));
+		m_prefix.add(value);
 	}
 	
-	public void forEachWhile(Predicate<? super T> predicate,
-								Consumer<? super T> effect) {
+	public void forEachWhile(Predicate<? super T> predicate, Consumer<? super T> effect) {
 		FOption<T> onext;
 		while ( (onext = next()).isPresent() ) {
 			if ( onext.filter(predicate).ifPresent(effect).isAbsent() ) {
