@@ -2,20 +2,19 @@ package utils.stream;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
+import utils.Utilities;
 import utils.func.FOption;
+import utils.stream.FStreams.SingleSourceStream;
 
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-class BufferedStream<T> implements FStream<List<T>> {
-	private final FStream<T> m_src;
+class BufferedStream<T> extends SingleSourceStream<T,List<T>> {
 	private final int m_count;
 	private final int m_skip;
 	private final List<T> m_buffer;
@@ -23,18 +22,12 @@ class BufferedStream<T> implements FStream<List<T>> {
 	private boolean m_endOfSource = false;
 	
 	BufferedStream(FStream<T> src, int count, int skip) {
-		Objects.requireNonNull(src);
-		Preconditions.checkArgument(count > 0);
+		super(src);
+		Utilities.checkArgument(count > 0, "count > 0, but: " + count);
 		
-		m_src = src;
 		m_count = count;
 		m_skip = skip;
 		m_buffer = Lists.newArrayListWithExpectedSize(count);
-	}
-
-	@Override
-	public void close() throws Exception {
-		m_src.close();
 	}
 	
 	public int getCount() {

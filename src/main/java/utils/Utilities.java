@@ -19,6 +19,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -29,6 +30,7 @@ import com.google.common.collect.Sets;
 
 import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
+import utils.stream.FStream;
 
 /**
  *
@@ -39,6 +41,11 @@ public class Utilities {
 	
 	private Utilities() {
 		throw new AssertionError("Should not be invoked!!: class=" + Utilities.class.getName());
+	}
+
+	public static <T> int hashCode(FStream<T> strm) {
+		return strm.map(v -> v.hashCode())
+					.foldLeft(1, (accum,code) -> 31 * accum + code);
 	}
 	
 	public static String getLineSeparator() {
@@ -55,6 +62,66 @@ public class Utilities {
 		}
 		else {
 			new Thread(task).start();
+		}
+	}
+	
+	public static void checkArgument(boolean pred, String msg) {
+		if ( !pred ) {
+			throw new IllegalArgumentException(msg);
+		}
+	}
+	
+	public static void checkArgument(boolean pred, Supplier<String> msg) {
+		if ( !pred ) {
+			throw new IllegalArgumentException(msg.get());
+		}
+	}
+	
+	public static void checkNotNullArgument(Object obj, String msg) {
+		if ( obj == null ) {
+			throw new IllegalArgumentException("null argument: " + msg);
+		}
+	}
+	
+	public static void checkNotNullArgument(Object obj, Supplier<String> msg) {
+		if ( obj == null ) {
+			throw new IllegalArgumentException(msg.get());
+		}
+	}
+	
+	public static <T> void checkNotNullArguments(Iterable<T> objs, String msg) {
+		if ( objs == null ) {
+			throw new IllegalArgumentException(msg);
+		}
+		for ( Object obj: objs ) {
+			checkNotNullArgument(obj, msg);
+		}
+	}
+	
+	public static <T> void checkNotNullArguments(Iterable<T> objs, Supplier<String> msg) {
+		if ( objs == null ) {
+			throw new IllegalArgumentException(msg.get());
+		}
+		for ( Object obj: objs ) {
+			checkNotNullArgument(obj, msg);
+		}
+	}
+	
+	public static <T> void checkNotNullArguments(T[] objs, String msg) {
+		if ( objs == null ) {
+			throw new IllegalArgumentException(msg);
+		}
+		for ( Object obj: objs ) {
+			checkNotNullArgument(obj, msg);
+		}
+	}
+	
+	public static <T> void checkNotNullArguments(T[] objs, Supplier<String> msg) {
+		if ( objs == null ) {
+			throw new IllegalArgumentException(msg.get());
+		}
+		for ( Object obj: objs ) {
+			checkNotNullArgument(obj, msg);
 		}
 	}
 
@@ -125,157 +192,6 @@ public class Utilities {
 	}
 
 /*
-	public static <T> boolean consumeIfNotNull(T value, Consumer<T> consumer) {
-		if ( value != null ) {
-			consumer.accept(value);
-			return true;
-		}
-		else {
-			return false;
-		}
-	}
-	
-	public static String[] toStringArray(Collection<String> coll) {
-		return coll.toArray(new String[coll.size()]);
-	}
-	
-	public static <T> T[] toArray(Collection<T> coll, Class<T> cls) {
-		Object arr = Array.newInstance(cls, coll.size());
-		return coll.toArray((T[])arr);
-	}
-	
-	public static Collection<String> toStringCollection(Iterator<String> iter) {
-		List<String> list = new ArrayList<String>();
-		while ( iter.hasNext() ) {
-			list.add(iter.next());
-		}
-		
-		return list;
-	}
-	
-	public static <T> T first(Collection<T> coll) {
-		if ( coll.size() > 0 ) {
-			return coll.iterator().next();
-		}
-		else {
-			return null;
-		}
-	}
-	
-	public static <T> T first(Collection<T> coll, T defaultValue) {
-		if ( coll.size() > 0 ) {
-			return coll.iterator().next();
-		}
-		else {
-			return defaultValue;
-		}
-	}
-	
-	public static <T> List<T> toList(Iterator<T> iter) {
-		List<T> list = new ArrayList<T>();
-		while ( iter.hasNext() ) {
-			list.add(iter.next());
-		}
-		
-		return list;
-	}
-	
-	public static String getLastComponent(String str, char delim) {
-		if ( str == null ) {
-			return null;
-		}
-		
-		int idx = str.lastIndexOf(delim);
-		return (idx >= 0) ? str.substring(idx+1) : str;
-	}
-
-	public static Throwable unwrapThrowable(Throwable e) {
-		while ( true ) {
-			if ( e instanceof InvocationTargetException ) {
-				e = ((InvocationTargetException)e).getTargetException();
-			}
-			else if ( e instanceof UndeclaredThrowableException ) {
-				e = ((UndeclaredThrowableException)e).getUndeclaredThrowable();
-			}
-			else if ( e instanceof ExecutionException ) {
-				e = ((ExecutionException)e).getCause();
-			}
-			else {
-				return e;
-			}
-		}
-	}
-	
-	public static Exception asException(Throwable e) {
-		if ( e instanceof Exception ) {
-			return (Exception)e;
-		}
-		else if ( e instanceof RuntimeException ) {
-			throw (RuntimeException)e;
-		}
-		else {
-			throw new RuntimeException(e);
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T> T[] appendArray(T[] array, Object... elms) {
-		int len = Array.getLength(array);
-
-		Object expanded = Array.newInstance(array.getClass().getComponentType(), len+elms.length);
-		System.arraycopy(array, 0, expanded, 0, len);
-		for ( int i =0; i < elms.length; ++i ) {
-			Array.set(expanded, len+i, elms[i]);
-		}
-
-		return (T[])expanded;
-	}
-	
-	public static <T> int indexOf(T[] array, T key) {
-		for ( int i =0; i < array.length; ++i ) {
-			if ( key.equals(array[i]) ) {
-				return i;
-			}
-		}
-		
-		return -1;
-	}
-	
-	public static int indexOf(int[] array, int key) {
-		for ( int i =0; i < array.length; ++i ) {
-			if ( key == array[i] ) {
-				return i;
-			}
-		}
-		
-		return -1;
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T> T[] removeElement(T[] array, int index) {
-		if ( array == null ) {
-			throw new IllegalArgumentException("array was null");
-		}
-		if ( index < 0 || index >= array.length ) {
-			throw new IllegalArgumentException("invalid index=" + index);
-		}
-
-		int newLength = array.length-1;
-		if ( newLength == 0 ) {
-			return (T[])Array.newInstance(array.getClass().getComponentType(), 0);
-		}
-
-		Object shrinked = Array.newInstance(array.getClass().getComponentType(), newLength);
-		if ( index != 0 ) {
-			System.arraycopy(array, 0, shrinked, 0, index);
-		}
-		if ( index < newLength ) {
-			System.arraycopy(array, index+1, shrinked, index, newLength-index);
-		}
-
-		return (T[])shrinked;
-	}
-
 	public static Class<?>[] extendInterfaces(Class<?> base, Class<?>... addons) {
 		Set<Class<?>> intfcSet = getInterfaceAllRecusively(base);
 		intfcSet.addAll(Arrays.asList(addons));
@@ -332,36 +248,6 @@ public class Utilities {
 
 		return concatenated;
 	}
-
-	public static <T> boolean appendIfNotContains(List<T> list, T data) {
-		if ( !list.contains(data) ) {
-			list.add(data);
-
-			return true;
-		}
-		else {
-			return false;
-		}
-	}
-
-	public static <T> T[] appendIfNotContains(T[] array, T data) {
-		for ( int i =0; i < array.length; ++i ) {
-			if ( data.equals(array[i]) ) {
-				return array;
-			}
-		}
-		
-		return appendArray(array, data);
-	}
-	
-	public static String[] parseCsv(String csvStr) {
-    	List<String> parts = CSV.get().parse(csvStr);
-    	return parts.toArray(new String[parts.size()]);
-    }
-    
-    public static String buildCsv(String[] strs) {
-    	return CSV.get().toString(Arrays.asList(strs));
-    }
 */
 	
 	public static Logger getAndAppendLoggerName(Object obj, String suffix) {

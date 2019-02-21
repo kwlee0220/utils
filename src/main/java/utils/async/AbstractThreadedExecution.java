@@ -10,7 +10,7 @@ import utils.Throwables;
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecution<T>
-												implements AsyncExecution<T> {
+												implements StartableExecution<T> {
 	protected abstract T executeWork() throws InterruptedException, CancellationException,
 												Exception;
 	

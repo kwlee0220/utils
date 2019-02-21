@@ -23,7 +23,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
-import utils.async.AsyncExecution;
+import utils.async.StartableExecution;
 import utils.async.ExecutionProgress;
 import utils.async.op.AsyncExecutions;
 
@@ -50,7 +50,7 @@ public class ObservablesTest {
 		m_scheduler = Executors.newScheduledThreadPool(4);
 	}
 	
-	private void setListeners(AsyncExecution<String> exec) {
+	private void setListeners(StartableExecution<String> exec) {
 		exec.whenStarted(m_startListener);
 		exec.whenCompleted(m_completeListener);
 		exec.whenCancelled(m_cancelListener);
@@ -59,7 +59,7 @@ public class ObservablesTest {
 	
 	@Test
 	public void test01() throws Exception {
-		AsyncExecution<String> exec = AsyncExecutions.idle("RESULT", 300,
+		StartableExecution<String> exec = AsyncExecutions.idle("RESULT", 300,
 													TimeUnit.MILLISECONDS, m_scheduler);
 		setListeners(exec);
 		
@@ -87,10 +87,10 @@ public class ObservablesTest {
 	
 	@Test
 	public void test02() throws Exception {
-		AsyncExecution<String> exec1 = AsyncExecutions.idle("RESULT", 300,
+		StartableExecution<String> exec1 = AsyncExecutions.idle("RESULT", 300,
 													TimeUnit.MILLISECONDS, m_scheduler);
-		AsyncExecution<String> exec2 = AsyncExecutions.cancelled();
-		AsyncExecution<String> exec = AsyncExecutions.sequential(exec1, exec2);
+		StartableExecution<String> exec2 = AsyncExecutions.cancelled();
+		StartableExecution<String> exec = AsyncExecutions.sequential(exec1, exec2);
 		setListeners(exec);
 
 		Observable<ExecutionProgress<String>> ob = exec.observe(false);
@@ -113,10 +113,10 @@ public class ObservablesTest {
 
 	@Test
 	public void test03() throws Exception {
-		AsyncExecution<String> exec1 = AsyncExecutions.idle("RESULT", 300,
+		StartableExecution<String> exec1 = AsyncExecutions.idle("RESULT", 300,
 													TimeUnit.MILLISECONDS, m_scheduler);
-		AsyncExecution<String> exec2 = AsyncExecutions.failure(m_cause);
-		AsyncExecution<String> exec = AsyncExecutions.sequential(exec1, exec2);
+		StartableExecution<String> exec2 = AsyncExecutions.failure(m_cause);
+		StartableExecution<String> exec = AsyncExecutions.sequential(exec1, exec2);
 		setListeners(exec);
 
 		Observable<ExecutionProgress<String>> ob = exec.observe(false);
@@ -139,7 +139,7 @@ public class ObservablesTest {
 
 	@Test
 	public void test04() throws Exception {
-		AsyncExecution<String> exec = AsyncExecutions.idle("RESULT", 300,
+		StartableExecution<String> exec = AsyncExecutions.idle("RESULT", 300,
 													TimeUnit.MILLISECONDS, m_scheduler);
 		setListeners(exec);
 

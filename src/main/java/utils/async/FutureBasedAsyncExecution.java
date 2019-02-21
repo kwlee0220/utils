@@ -9,7 +9,7 @@ import utils.Throwables;
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class FutureBasedAsyncExecution<T> extends AbstractAsyncExecution<T>
-												implements CancellableWork, AsyncExecution<T>{
+												implements CancellableWork, StartableExecution<T>{
 	private volatile Future<? extends T> m_future;
 	
 	protected abstract Future<? extends T> getFuture();

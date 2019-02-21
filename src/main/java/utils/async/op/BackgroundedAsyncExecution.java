@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import io.vavr.control.Try;
 import utils.async.AbstractAsyncExecution;
-import utils.async.AsyncExecution;
+import utils.async.StartableExecution;
 import utils.async.CancellableWork;
 
 
@@ -26,11 +26,11 @@ import utils.async.CancellableWork;
  * @author Kang-Woo Lee (ETRI)
  */
 class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
-									implements AsyncExecution<T>, CancellableWork {
+									implements StartableExecution<T>, CancellableWork {
 	private static final Logger s_logger = LoggerFactory.getLogger(BackgroundedAsyncExecution.class);
 	
-	private final AsyncExecution<T> m_fgAsync;
-	private final AsyncExecution<?> m_bgAsync;
+	private final StartableExecution<T> m_fgAsync;
+	private final StartableExecution<?> m_bgAsync;
 	
 	/**
 	 * 배경 수행 비동기 수행 객체를 생성한다.
@@ -38,7 +38,7 @@ class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	 * @param fgAsync		수행시킬 전방 비동기 수행
 	 * @param bgAsync		수행시킬 후방 비동기 수행
 	 */
-	BackgroundedAsyncExecution(AsyncExecution<T> fgAsync, AsyncExecution<?> bgAsync) {
+	BackgroundedAsyncExecution(StartableExecution<T> fgAsync, StartableExecution<?> bgAsync) {
 		Objects.requireNonNull(fgAsync, "foreground AsyncExecution");
 		Objects.requireNonNull(bgAsync, "background AsyncExecution");
 
@@ -50,11 +50,11 @@ class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
 		setLogger(s_logger);
 	}
 	
-	public final AsyncExecution<T> getForegroundAsyncExecution() {
+	public final StartableExecution<T> getForegroundAsyncExecution() {
 		return m_fgAsync;
 	}
 	
-	public final AsyncExecution<?> getBackgroundAsyncExecution() {
+	public final StartableExecution<?> getBackgroundAsyncExecution() {
 		return m_bgAsync;
 	}
 

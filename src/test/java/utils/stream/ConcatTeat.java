@@ -35,8 +35,8 @@ public class ConcatTeat {
 	
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream1 = FStream.of(Lists.newArrayList(1, 2, 4));
-		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
+		FStream<Integer> stream1 = FStream.from(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream2 = FStream.from(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 		
 		FOption<Integer> r;
@@ -71,8 +71,8 @@ public class ConcatTeat {
 	
 	@Test
 	public void test1() throws Exception {
-		FStream<Integer> stream1 = FStream.of(Lists.newArrayList(1, 2, 4));
-		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
+		FStream<Integer> stream1 = FStream.from(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream2 = FStream.from(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 
 		FOption<Integer> r;
@@ -96,7 +96,7 @@ public class ConcatTeat {
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> stream1 = FStream.empty();
-		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
+		FStream<Integer> stream2 = FStream.from(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 
 		FOption<Integer> r;
@@ -120,7 +120,7 @@ public class ConcatTeat {
 	@Test
 	public void test3() throws Exception {
 		FStream<Integer> stream1 = FStream.empty();
-		FStream<Integer> stream2 = FStream.of(Lists.newArrayList());
+		FStream<Integer> stream2 = FStream.from(Lists.newArrayList());
 		FStream<Integer> stream = FStream.concat(stream1, stream2);
 
 		FOption<Integer> r;
@@ -129,17 +129,17 @@ public class ConcatTeat {
 		Assert.assertEquals(true, r.isAbsent());
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test4() throws Exception {
-		FStream<Integer> stream1 = FStream.of(Lists.newArrayList(1, 2, 4));
-		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
+		FStream<Integer> stream1 = FStream.from(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream2 = FStream.from(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(null, stream2);
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test5() throws Exception {
-		FStream<Integer> stream1 = FStream.of(Lists.newArrayList(1, 2, 4));
-		FStream<Integer> stream2 = FStream.of(Lists.newArrayList(5, 3, 2));
+		FStream<Integer> stream1 = FStream.from(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream2 = FStream.from(Lists.newArrayList(5, 3, 2));
 		FStream<Integer> stream = FStream.concat(stream1, null);
 	}
 	
@@ -190,7 +190,7 @@ public class ConcatTeat {
 	
 	@Test
 	public void test7() throws Exception {
-		FStream<FStream<Integer>> gen = FStream.unfold(0, v -> Tuple.of(FStream.of(v), v+1));
+		FStream<FStream<Integer>> gen = FStream.unfold(0, v -> Tuple.of(v+1, FStream.of(v)));
 		FStream<Integer> stream = FStream.concat(gen);
 		
 		for ( int i =0; i < 10; ++i ) {

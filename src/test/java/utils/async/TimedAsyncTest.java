@@ -36,7 +36,7 @@ public class TimedAsyncTest {
 	
 	@Test
 	public void test01() throws Exception {
-		AsyncExecution<String> target = AsyncExecutions.idle("done", 300, MILLISECONDS, m_scheduler);
+		StartableExecution<String> target = AsyncExecutions.idle("done", 300, MILLISECONDS, m_scheduler);
 		TimedAsyncExecution<String> exec = AsyncExecutions.timed(target, 500, MILLISECONDS, m_scheduler);
 		
 		Assert.assertEquals(State.NOT_STARTED, exec.getState());
@@ -55,7 +55,7 @@ public class TimedAsyncTest {
 	
 	@Test
 	public void test02() throws Exception {
-		AsyncExecution<String> target = AsyncExecutions.idle("done", 500, MILLISECONDS, m_scheduler);
+		StartableExecution<String> target = AsyncExecutions.idle("done", 500, MILLISECONDS, m_scheduler);
 		TimedAsyncExecution<String> exec = AsyncExecutions.timed(target, 300, MILLISECONDS, m_scheduler);
 		
 		exec.start();
@@ -69,8 +69,8 @@ public class TimedAsyncTest {
 	
 	@Test
 	public void test03() throws Exception {
-		AsyncExecution<String> target = AsyncExecutions.idle("done", 500, MILLISECONDS, m_scheduler);
-		AsyncExecution<String> exec = AsyncExecutions.timed(target, 300, MILLISECONDS, m_scheduler);
+		StartableExecution<String> target = AsyncExecutions.idle("done", 500, MILLISECONDS, m_scheduler);
+		StartableExecution<String> exec = AsyncExecutions.timed(target, 300, MILLISECONDS, m_scheduler);
 		
 		exec.start();
 		Thread.sleep(100);
@@ -82,8 +82,8 @@ public class TimedAsyncTest {
 	
 	@Test
 	public void test04() throws Exception {
-		AsyncExecution<String> target = AsyncExecutions.idle("done", 500, MILLISECONDS, m_scheduler);
-		AsyncExecution<String> exec = AsyncExecutions.timed(target, 300, MILLISECONDS, m_scheduler);
+		StartableExecution<String> target = AsyncExecutions.idle("done", 500, MILLISECONDS, m_scheduler);
+		StartableExecution<String> exec = AsyncExecutions.timed(target, 300, MILLISECONDS, m_scheduler);
 		
 		exec.start();
 		Thread.sleep(100);
@@ -96,7 +96,7 @@ public class TimedAsyncTest {
 	
 	@Test
 	public void test05() throws Exception {
-		AsyncExecution<String> target = AsyncExecutions.idle("done", 300, MILLISECONDS, m_scheduler);
+		StartableExecution<String> target = AsyncExecutions.idle("done", 300, MILLISECONDS, m_scheduler);
 		target = AsyncExecutions.sequential(target, AsyncExecutions.failure(m_error));
 		TimedAsyncExecution<String> exec = AsyncExecutions.timed(target, 500, MILLISECONDS, m_scheduler);
 		

@@ -15,7 +15,7 @@ import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
 import utils.async.AbstractAsyncExecution;
-import utils.async.AsyncExecution;
+import utils.async.StartableExecution;
 import utils.async.CancellableWork;
 
 
@@ -63,7 +63,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	private static final int STATE_PARENT_CANCEL = 3;	// TimedAsyncExecution 수준에서 cancel되는 상태.
 	private static final int STATE_TARGET_CANCEL = 4;	// Target AsyncExecution 수준에서 cancel되는 상태.
 
-	private final AsyncExecution<T> m_target;
+	private final StartableExecution<T> m_target;
 	private final long m_timeout;
 	private final TimeUnit m_unit;
 	private final ScheduledExecutorService m_scheduler;
@@ -80,7 +80,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	 * @throws IllegalArgumentException	{@literal aop}, <code>executor</code>가 <code>null</code>인 경우거나
 	 * 								{@literal timeout}이 음수이거나 0인 경우.
 	 */
-	TimedAsyncExecution(AsyncExecution<T> aexec, long timeout, TimeUnit unit,
+	TimedAsyncExecution(StartableExecution<T> aexec, long timeout, TimeUnit unit,
 						ScheduledExecutorService scheduler) {
 		Objects.requireNonNull(aexec, "AsyncExecution");
 		Objects.requireNonNull(unit, "TimeUnit");
@@ -94,7 +94,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 		m_scheduler = scheduler;
 	}
 	
-	public final AsyncExecution<T> getTargetOperation() {
+	public final StartableExecution<T> getTargetOperation() {
 		return m_target;
 	}
 

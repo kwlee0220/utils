@@ -21,7 +21,7 @@ public class ReloadableLazy<T> {
 		m_supplier = supplier;
 	}
 	
-	public synchronized boolean isEvaluated() {
+	public synchronized boolean isLoaded() {
 		return m_loaded.isDefined();
 	}
 	
@@ -37,7 +37,7 @@ public class ReloadableLazy<T> {
 		m_loaded = Option.some(value);
 	}
 	
-	public synchronized void setDirty() {
+	public synchronized void invalidate() {
 		m_loaded = Option.none();
 	}
 }

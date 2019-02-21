@@ -18,7 +18,7 @@ public class PrependableFStreamTest {
 
 	@Before
 	public void setup() {
-		m_stream = FStream.of(Lists.newArrayList(1, 2)).toPrependable();
+		m_stream = FStream.from(Lists.newArrayList(1, 2)).toPrependable();
 	}
 	
 	@Test

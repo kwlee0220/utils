@@ -29,9 +29,9 @@ import utils.stream.FStream;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class FoldAsyncTest {
-	private FStream<AsyncExecution<Integer>> m_gen;
-	private FStream<AsyncExecution<Integer>> m_gen2;
-	private FStream<AsyncExecution<Integer>> m_gen3;
+	private FStream<StartableExecution<Integer>> m_gen;
+	private FStream<StartableExecution<Integer>> m_gen2;
+	private FStream<StartableExecution<Integer>> m_gen3;
 	private final Exception m_error = new Exception();
 	
 	@Mock Consumer<Result<Integer>> m_doneListener;
@@ -48,7 +48,7 @@ public class FoldAsyncTest {
 	
 	@Test
 	public void test01() throws Exception {
-		AsyncExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
+		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
 		
 		Assert.assertEquals(State.NOT_STARTED, exec.getState());
 		
@@ -64,7 +64,7 @@ public class FoldAsyncTest {
 	
 	@Test
 	public void test02() throws Exception {
-		AsyncExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
+		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
@@ -74,7 +74,7 @@ public class FoldAsyncTest {
 
 	@Test
 	public void test03() throws Exception {
-		AsyncExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
+		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
@@ -88,7 +88,7 @@ public class FoldAsyncTest {
 
 	@Test
 	public void test04() throws Exception {
-		AsyncExecution<Integer> exec = AsyncExecutions.fold(m_gen2, 0, (a,n) -> a+n);
+		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen2, 0, (a,n) -> a+n);
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
@@ -102,7 +102,7 @@ public class FoldAsyncTest {
 	
 	@Test
 	public void test05() throws Exception {
-		AsyncExecution<Integer> exec = AsyncExecutions.fold(m_gen3, 0, (a,n) -> a+n);
+		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen3, 0, (a,n) -> a+n);
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();

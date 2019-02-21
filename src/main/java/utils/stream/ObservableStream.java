@@ -1,11 +1,8 @@
 package utils.stream;
 
-import java.util.Objects;
-
-import com.google.common.base.Preconditions;
-
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import utils.Utilities;
 import utils.func.FOption;
 
 
@@ -21,8 +18,7 @@ class ObservableStream<T> implements FStream<T> {
 	private final SuppliableFStream<T> m_output;
 	
 	ObservableStream(Observable<? extends T> ob, int queueLength) {
-		Objects.requireNonNull(ob, "Observable");
-		Preconditions.checkArgument(queueLength > 0);
+		Utilities.checkArgument(queueLength > 0, "queueLength > 0, but: " + queueLength);
 		
 		m_ob = ob;
 		m_output = new SuppliableFStream<>(queueLength);

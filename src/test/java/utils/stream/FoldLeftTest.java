@@ -13,7 +13,7 @@ import com.google.common.collect.Lists;
 public class FoldLeftTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		
 		int sum = stream.foldLeft(0, (s,t) -> s+t);
 		Assert.assertEquals(8, sum);
@@ -21,7 +21,7 @@ public class FoldLeftTest {
 	
 	@Test
 	public void test1() throws Exception {
-		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
+		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		
 		String c = stream.foldLeft("", (s,t) -> s+t);
 		Assert.assertEquals("this", c);
@@ -42,16 +42,16 @@ public class FoldLeftTest {
 //		String c = stream.foldLeft(null, (s,t) -> s+t);
 //	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test4() throws Exception {
-		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
+		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 
 		String c = stream.foldLeft("", null);
 	}
 
 	@Test(expected=RuntimeException.class)
 	public void test5() throws Exception {
-		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
+		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		
 		RuntimeException error = new RuntimeException();
 		String c = stream.foldLeft("", (s,t) -> {throw error;});

@@ -17,7 +17,7 @@ public class ToListTest {
 	@Test
 	public void test0() throws Exception {
 		List<Integer> list = Lists.newArrayList(1, 2, 4, 5, 3);
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 5, 3));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 5, 3));
 		
 		List<Integer> list2 = stream.toList();
 		Assert.assertEquals(list, list2);

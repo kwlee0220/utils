@@ -21,7 +21,7 @@ import utils.func.FOption;
 public class BufferStreamTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
+		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(2, 1);
 		
 		FOption<List<Integer>> r;
@@ -53,7 +53,7 @@ public class BufferStreamTest {
 	
 	@Test
 	public void test1() throws Exception {
-		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
+		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(3, 2);
 		
 		FOption<List<Integer>> r;
@@ -84,7 +84,7 @@ public class BufferStreamTest {
 	
 	@Test
 	public void test2() throws Exception {
-		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
+		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(1, 5);
 		
 		FOption<List<Integer>> r;
@@ -103,7 +103,7 @@ public class BufferStreamTest {
 
 	@Test(expected=IllegalArgumentException.class)
 	public void test3() throws Exception {
-		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
+		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(0, 3);
 		
 		FOption<List<Integer>> r;
@@ -123,13 +123,13 @@ public class BufferStreamTest {
 
 	@Test(expected=IllegalArgumentException.class)
 	public void test4() throws Exception {
-		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
+		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(-1, 3);
 	}
 
 	@Test(expected=IllegalArgumentException.class)
 	public void test5() throws Exception {
-		FStream<Integer> base = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
+		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
 		FStream<List<Integer>> stream = base.buffer(3, -1);
 	}
 }

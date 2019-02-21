@@ -15,7 +15,7 @@ import utils.func.FOption;
 public class DropWhileTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> i <= 3);
 		
 		FOption<Integer> r;
@@ -37,7 +37,7 @@ public class DropWhileTest {
 	
 	@Test
 	public void test1() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> i <= 0);
 		
 		FOption<Integer> r;
@@ -64,7 +64,7 @@ public class DropWhileTest {
 	
 	@Test
 	public void test2() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> i <= 5);
 		
 		FOption<Integer> r;
@@ -86,7 +86,7 @@ public class DropWhileTest {
 	
 	@Test(expected=RuntimeException.class)
 	public void test4() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> { throw new RuntimeException(); });
 		
 		FOption<Integer> r;
@@ -94,9 +94,9 @@ public class DropWhileTest {
 		r = stream.next();
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test5() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(null);
 	}
 }

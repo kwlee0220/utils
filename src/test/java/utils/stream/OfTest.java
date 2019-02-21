@@ -20,7 +20,7 @@ public class OfTest {
 	
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4));
 		
 		FOption<Integer> r;
 		
@@ -45,7 +45,7 @@ public class OfTest {
 	
 	@Test
 	public void test1() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList());
+		FStream<Integer> stream = FStream.from(Lists.newArrayList());
 		
 		FOption<Integer> r;
 		
@@ -67,5 +67,18 @@ public class OfTest {
 		
 		r = stream.next();
 		Assert.assertEquals(true, r.isAbsent());
+	}
+	
+	@Test
+	public void test3() throws Exception {
+		FStream<String> strm;
+		
+		strm = FStream.of(FOption.empty());
+		Assert.assertEquals(true, strm.next().isAbsent());
+		
+		strm = FStream.of(FOption.of("a"));
+		FOption<String> next = strm.next();
+		Assert.assertEquals(true, next.isPresent());
+		Assert.assertEquals("a", next.get());
 	}
 }

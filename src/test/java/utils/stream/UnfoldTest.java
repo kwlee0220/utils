@@ -1,14 +1,12 @@
 package utils.stream;
 
 
-import java.util.function.Function;
-
 import org.junit.Assert;
 import org.junit.Test;
 
 import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import utils.func.FOption;
+
 
 /**
  * 
@@ -17,7 +15,7 @@ import utils.func.FOption;
 public class UnfoldTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<String> stream = FStream.unfold(0, i -> Tuple.of(""+i, i+1))
+		FStream<String> stream = FStream.unfold(0, i -> Tuple.of(i+1, ""+i))
 										.take(3);
 		
 		FOption<String> r;
@@ -40,15 +38,14 @@ public class UnfoldTest {
 	
 	@Test(expected=RuntimeException.class)
 	public void test1() throws Exception {
-		Function<Integer,Tuple2<String,Integer>> gen = (Integer i) -> {
+		FStream<String> stream = FStream.unfold((Integer)0, (Integer i) -> {
 			if ( i < 2 ) {
-				return Tuple.of(""+i, i+1);
+				return Tuple.of(i+1, ""+i);
 			}
 			else {
 				throw new RuntimeException();
 			}
-		};
-		FStream<String> stream = FStream.unfold((Integer)0, gen);
+		});
 		
 		FOption<String> r;
 		
@@ -63,13 +60,13 @@ public class UnfoldTest {
 		r = stream.next();
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test2() throws Exception {
 		FStream<Integer> stream = FStream.unfold(0, null);
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test3() throws Exception {
-		FStream<String> stream = FStream.unfold((Integer)null, i -> Tuple.of(""+i, i+1));
+		FStream<String> stream = FStream.unfold((Integer)null, i -> Tuple.of(i+1, ""+i));
 	}
 }

@@ -15,7 +15,7 @@ import utils.func.FOption;
 public class FilterTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1, 3, 5));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5));
 		stream = stream.filter(i -> i < 3);
 		
 		FOption<Integer> r;
@@ -41,7 +41,7 @@ public class FilterTest {
 	
 	@Test
 	public void test1() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.filter(i -> i > 5);
 		
 		FOption<Integer> r;
@@ -63,16 +63,16 @@ public class FilterTest {
 	
 	@Test(expected=RuntimeException.class)
 	public void test4() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> { throw new RuntimeException(); });
 		stream = stream.filter(i -> { throw new RuntimeException(); });
 		
 		stream.next();
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test5() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.filter(null);
 	}
 }

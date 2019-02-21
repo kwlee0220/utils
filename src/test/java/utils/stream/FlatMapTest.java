@@ -19,10 +19,10 @@ public class FlatMapTest {
 	public void test0() throws Exception {
 		List<FStream<Integer>> strmList = Lists.newArrayList();
 		
-		strmList.add(FStream.of(Lists.newArrayList(0, 1, 2)));
-		strmList.add(FStream.of(Lists.newArrayList(3, 4)));
-		strmList.add(FStream.of(Lists.newArrayList(5)));
-		strmList.add(FStream.of(Lists.newArrayList(6, 7)));
+		strmList.add(FStream.from(Lists.newArrayList(0, 1, 2)));
+		strmList.add(FStream.from(Lists.newArrayList(3, 4)));
+		strmList.add(FStream.from(Lists.newArrayList(5)));
+		strmList.add(FStream.from(Lists.newArrayList(6, 7)));
 		strmList.add(FStream.empty());
 		
 		FStream<Integer> strm = FStream.of(0, 1, 2, 3);
@@ -58,7 +58,7 @@ public class FlatMapTest {
 	public void test2() throws Exception {
 		List<FStream<Integer>> strmList = Lists.newArrayList();
 		
-		strmList.add(FStream.of(Lists.newArrayList(0, 1, 2)));
+		strmList.add(FStream.from(Lists.newArrayList(0, 1, 2)));
 		
 		FStream<Integer> strm = FStream.of(0);
 		FStream<Integer> stream = strm.flatMap(i -> strmList.get(i));
@@ -74,11 +74,11 @@ public class FlatMapTest {
 		Assert.assertEquals(true, r.isAbsent());
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test3() throws Exception {
 		List<FStream<Integer>> strmList = Lists.newArrayList();
 		
-		strmList.add(FStream.of(Lists.newArrayList(0, 1, 2)));
+		strmList.add(FStream.from(Lists.newArrayList(0, 1, 2)));
 		
 		FStream<Integer> strm = FStream.of(0);
 		FStream<Integer> stream = strm.flatMap(null);

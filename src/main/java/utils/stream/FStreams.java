@@ -9,6 +9,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import io.vavr.Tuple2;
+import io.vavr.control.Try;
+import utils.Utilities;
 import utils.async.ThreadInterruptedException;
 import utils.func.FOption;
 import utils.func.MultipleSupplier;
@@ -19,7 +21,10 @@ import utils.io.IOUtils;
  * @author Kang-Woo Lee (ETRI)
  */
 public class FStreams {
-	static class EmptyStream<T> implements FStream<T> {
+	@SuppressWarnings("rawtypes")
+	static final EmptyStream EMPTY = new EmptyStream<>();
+	
+	private static class EmptyStream<T> implements FStream<T> {
 		@Override
 		public void close() throws Exception { }
 
@@ -44,9 +49,11 @@ public class FStreams {
 
 		@Override
 		public void close() throws Exception {
-			m_closed = true;
-			if ( m_iter instanceof AutoCloseable ) {
-				IOUtils.closeQuietly((AutoCloseable)m_iter);
+			if ( !m_closed ) {
+				m_closed = true;
+				if ( m_iter instanceof AutoCloseable ) {
+					IOUtils.closeQuietly((AutoCloseable)m_iter);
+				}
 			}
 		}
 
@@ -56,25 +63,43 @@ public class FStreams {
 		}
 	}
 	
-	static class FilteredStream<T> implements FStream<T> {
-		private final FStream<T> m_base;
+	static abstract class SingleSourceStream<S,T> implements FStream<T> {
+		protected final FStream<S> m_src;
+		private boolean m_closed = false;
+		
+		protected SingleSourceStream(FStream<S> src) {
+			Utilities.checkNotNullArgument(src, "source FStream");
+			
+			m_src = src;
+		}
+		
+		@Override
+		public void close() throws Exception {
+			if ( !m_closed ) {
+				m_closed = true;
+				Try.run(m_src::close);
+			}
+		}
+	}
+	
+	static class FilteredStream<T> extends SingleSourceStream<T,T> {
 		private final Predicate<? super T> m_pred;
 		
 		FilteredStream(FStream<T> base, Predicate<? super T> pred) {
-			m_base = base;
+			super(base);
+			
 			m_pred = pred;
 		}
 
 		@Override
-		public void close() throws Exception {
-			m_base.close();
-		}
-
-		@Override
 		public FOption<T> next() {
-			FOption<T> next;
-			while ( (next = m_base.next()).isPresent() && !m_pred.test(next.get()) );
-			return next;
+			for ( FOption<T> next = m_src.next(); next.isPresent(); next = m_src.next() ) {
+				if ( m_pred.test(next.getUnchecked()) ) {
+					return next;
+				}
+			}
+			
+			return FOption.empty();
 		}
 		
 		@Override
@@ -83,23 +108,18 @@ public class FStreams {
 		}
 	}
 	
-	static class MappedStream<T,S> implements FStream<S> {
-		private final FStream<T> m_base;
-		private final Function<? super T,? extends S> m_mapper;
+	static class MappedStream<S,T> extends SingleSourceStream<S,T> {
+		private final Function<? super S,? extends T> m_mapper;
 		
-		MappedStream(FStream<T> base, Function<? super T,? extends S> mapper) {
-			m_base = base;
+		MappedStream(FStream<S> base, Function<? super S,? extends T> mapper) {
+			super(base);
+			
 			m_mapper = mapper;
 		}
 
 		@Override
-		public void close() throws Exception {
-			m_base.close();
-		}
-
-		@Override
-		public FOption<S> next() {
-			return m_base.next().map(m_mapper);
+		public FOption<T> next() {
+			return m_src.next().map(m_mapper);
 		}
 		
 		@Override
@@ -108,23 +128,9 @@ public class FStreams {
 		}
 	}
 	
-	static class MapToIntStream<T> implements IntFStream {
-		private final FStream<T> m_base;
-		private final Function<? super T,Integer> m_mapper;
-		
+	static class MapToIntStream<T> extends MappedStream<T,Integer> implements IntFStream {
 		MapToIntStream(FStream<T> base, Function<? super T,Integer> mapper) {
-			m_base = base;
-			m_mapper = mapper;
-		}
-
-		@Override
-		public void close() throws Exception {
-			m_base.close();
-		}
-
-		@Override
-		public FOption<Integer> next() {
-			return m_base.next().map(m_mapper);
+			super(base, mapper);
 		}
 		
 		@Override
@@ -133,23 +139,9 @@ public class FStreams {
 		}
 	}
 	
-	static class MapToLongStream<T> implements LongFStream {
-		private final FStream<T> m_base;
-		private final Function<? super T,Long> m_mapper;
-		
+	static class MapToLongStream<T> extends MappedStream<T,Long> implements LongFStream {
 		MapToLongStream(FStream<T> base, Function<? super T,Long> mapper) {
-			m_base = base;
-			m_mapper = mapper;
-		}
-
-		@Override
-		public void close() throws Exception {
-			m_base.close();
-		}
-
-		@Override
-		public FOption<Long> next() {
-			return m_base.next().map(m_mapper);
+			super(base, mapper);
 		}
 		
 		@Override
@@ -158,23 +150,9 @@ public class FStreams {
 		}
 	}
 	
-	static class MapToDoubleStream<T> implements DoubleFStream {
-		private final FStream<T> m_base;
-		private final Function<? super T,Double> m_mapper;
-		
+	static class MapToDoubleStream<T> extends MappedStream<T,Double> implements DoubleFStream {
 		MapToDoubleStream(FStream<T> base, Function<? super T,Double> mapper) {
-			m_base = base;
-			m_mapper = mapper;
-		}
-
-		@Override
-		public void close() throws Exception {
-			m_base.close();
-		}
-
-		@Override
-		public FOption<Double> next() {
-			return m_base.next().map(m_mapper);
+			super(base, mapper);
 		}
 		
 		@Override
@@ -183,23 +161,18 @@ public class FStreams {
 		}
 	}
 	
-	static class PeekedStream<T> implements FStream<T> {
-		private final FStream<? extends T> m_base;
+	static class PeekedStream<T> extends SingleSourceStream<T,T> {
 		private final Consumer<? super T> m_effect;
 		
-		PeekedStream(FStream<? extends T> base, Consumer<? super T> effect) {
-			m_base = base;
+		PeekedStream(FStream<T> base, Consumer<? super T> effect) {
+			super(base);
+
 			m_effect = effect;
 		}
 
 		@Override
-		public void close() throws Exception {
-			m_base.close();
-		}
-
-		@Override
 		public FOption<T> next() {
-			return FOption.narrow(m_base.next().ifPresent(m_effect));
+			return m_src.next().ifPresent(m_effect);
 		}
 		
 		@Override
@@ -208,18 +181,13 @@ public class FStreams {
 		}
 	}
 	
-	static class TakenStream<T> implements FStream<T> {
-		private final FStream<T> m_src;
+	static class TakenStream<T> extends SingleSourceStream<T,T> {
 		private long m_remains;
 		
 		TakenStream(FStream<T> src, long count) {
-			m_src = src;
-			m_remains = count;
-		}
+			super(src);
 
-		@Override
-		public void close() throws Exception {
-			m_src.close();
+			m_remains = count;
 		}
 
 		@Override
@@ -234,19 +202,14 @@ public class FStreams {
 		}
 	}
 
-	static class DroppedStream<T> implements FStream<T> {
-		private final FStream<T> m_src;
+	static class DroppedStream<T> extends SingleSourceStream<T,T> {
 		private final long m_count;
 		private boolean m_dropped = false;
 		
 		DroppedStream(FStream<T> src, long count) {
-			m_src = src;
-			m_count = count;
-		}
+			super(src);
 
-		@Override
-		public void close() throws Exception {
-			m_src.close();
+			m_count = count;
 		}
 	
 		@Override
@@ -264,21 +227,20 @@ public class FStreams {
 		}
 	}
 	
-	static class TakeWhileStream<T,S> implements FStream<T> {
-		private final FStream<T> m_src;
+	static class TakeWhileStream<T,S> extends SingleSourceStream<T,T> {
 		private Predicate<? super T> m_pred;
 		private boolean m_eos = false;
 		
 		TakeWhileStream(FStream<T> src, Predicate<? super T> pred) {
+			super(src);
 			
-			m_src = src;
 			m_pred = pred;
 		}
 
 		@Override
 		public void close() throws Exception {
-			m_src.close();
 			m_eos = true;
+			super.close();
 		}
 
 		@Override
@@ -286,45 +248,31 @@ public class FStreams {
 			if ( m_eos ) {
 				return FOption.empty();
 			}
-			
-			FOption<T> next = m_src.next();
-			if ( next.isAbsent() ) {
-				m_eos = true;
-				return FOption.empty();
-			}
-			
-			if ( m_pred.test(next.get()) ) {
-				return next;
-			}
 			else {
-				m_eos = true;
-				return FOption.empty();
+				return m_src.next()
+							.filter(m_pred)
+							.ifAbsent(() -> m_eos = true);
 			}
 		}
 	}
 
-	static class DropWhileStream<T,S> implements FStream<T> {
-		private final FStream<T> m_src;
+	static class DropWhileStream<T,S> extends SingleSourceStream<T,T> {
 		private final Predicate<? super T> m_pred;
 		private boolean m_started = false;
 		
 		DropWhileStream(FStream<T> src, Predicate<? super T> pred) {
-			m_src = src;
+			super(src);
+			
 			m_pred = pred;
-		}
-
-		@Override
-		public void close() throws Exception {
-			m_src.close();
 		}
 
 		@Override
 		public FOption<T> next() {
 			if ( !m_started ) {
-				FOption<T> next;
-				while ( (next = m_src.next()).isPresent() && m_pred.test(next.get()) );
 				m_started = true;
-				
+	
+				FOption<T> next;
+				while ( (next = m_src.next()).test(m_pred) );
 				return next;
 			}
 			else {
@@ -333,19 +281,13 @@ public class FStreams {
 		}
 	}
 	
-	static class ScannedStream<T> implements FStream<T> {
-		private final FStream<T> m_src;
+	static class ScannedStream<T> extends SingleSourceStream<T,T> {
 		private final BinaryOperator<T> m_combine;
 		private FOption<T> m_current = null;
 		
 		ScannedStream(FStream<T> src, BinaryOperator<T> combine) {
-			m_src = src;
+			super(src);
 			m_combine = combine;
-		}
-
-		@Override
-		public void close() throws Exception {
-			m_src.close();
 		}
 
 		@Override
@@ -354,13 +296,9 @@ public class FStreams {
 				return m_current = m_src.next();
 			}
 			else {
-				FOption<T> next = m_src.next();
-				if ( next.isPresent() ) {
-					return m_current = FOption.of(m_combine.apply(m_current.get(), next.get()));
-				}
-				else {
-					return FOption.empty();
-				}
+				m_current = m_src.next()
+								.map(v -> m_combine.apply(m_current.getUnchecked(), v));
+				return m_current;
 			}
 		}
 	}
@@ -393,12 +331,12 @@ public class FStreams {
 		}
 	}
 	
-	static class UnfoldStream<T,S> implements FStream<T> {
-		private final Function<S,Tuple2<T,S>> m_gen;
+	static class UnfoldStream<S,T> implements FStream<T> {
+		private final Function<? super S,Tuple2<? extends S,T>> m_gen;
 		private S m_seed;
 		private boolean m_closed = false;
 		
-		UnfoldStream(S init, Function<S,Tuple2<T,S>> gen) {
+		UnfoldStream(S init, Function<? super S,Tuple2<? extends S,T>> gen) {
 			m_seed = init;
 			m_gen = gen;
 		}
@@ -406,9 +344,8 @@ public class FStreams {
 		@Override
 		public void close() throws Exception {
 			m_closed = true;
-			if ( m_seed instanceof AutoCloseable ) {
-				((AutoCloseable)m_seed).close();
-			}
+			
+			IOUtils.closeQuietly(m_seed);
 		}
 
 		@Override
@@ -417,11 +354,11 @@ public class FStreams {
 				return FOption.empty();
 			}
 			
-			Tuple2<? extends T,? extends S> unfolded = m_gen.apply(m_seed);
+			Tuple2<? extends S,? extends T> unfolded = m_gen.apply(m_seed);
 			if ( unfolded != null ) {
-				m_seed = unfolded._2;
+				m_seed = unfolded._1;
 				
-				return FOption.of(unfolded._1);
+				return FOption.of(unfolded._2);
 			}
 			else {
 				return FOption.empty();
@@ -491,6 +428,7 @@ public class FStreams {
 
 	static class SupplierStream<T> implements FStream<T> {
 		private final MultipleSupplier<? extends T> m_supplier;
+		private boolean m_closed = false;
 		
 		SupplierStream(MultipleSupplier<? extends T> supplier) {
 			m_supplier = supplier;
@@ -498,14 +436,15 @@ public class FStreams {
 
 		@Override
 		public void close() throws Exception {
-			if ( m_supplier instanceof AutoCloseable ) {
-				((AutoCloseable)m_supplier).close();
+			if ( !m_closed ) {
+				m_closed = true;
+				IOUtils.close(m_supplier);
 			}
 		}
 
 		@Override
 		public FOption<T> next() {
-			return FOption.narrow(m_supplier.get());
+			return (m_closed) ? FOption.empty(): FOption.narrow(m_supplier.get());
 		}
 	}
 }

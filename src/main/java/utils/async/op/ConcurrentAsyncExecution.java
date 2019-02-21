@@ -11,13 +11,13 @@ import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
 import utils.async.AbstractAsyncExecution;
-import utils.async.AsyncExecution;
+import utils.async.StartableExecution;
 import utils.async.CancellableWork;
 import utils.async.Result;
 
 
 /**
- * <code>ConcurrentAsyncExecution</code>은 주어진 복수개의 {@link AsyncExecution}을 동시에
+ * <code>ConcurrentAsyncExecution</code>은 주어진 복수개의 {@link StartableExecution}을 동시에
  * 수행시키는 비동기 수행 클래스를 정의한다.
  * <p>
  * 소속 비동기 수행 수행 중 오류 또는 취소가 발생되는 것은 모두 무시되고 종료된 것으로 간주된다.
@@ -29,7 +29,7 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 												implements CancellableWork {
 	private static final Logger s_logger = LoggerFactory.getLogger(ConcurrentAsyncExecution.class);
 	
-	private final AsyncExecution<?>[] m_elements;
+	private final StartableExecution<?>[] m_elements;
 	private int m_noOfElmCompletionToCompletion;
 	private final Guard m_guard = Guard.create();
 	@GuardedBy("m_guard") private int m_noOfFinishes = 0;
@@ -48,7 +48,7 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 	 * @throws InvalidArgumentException	<code>elements</code>가 <code>null</code>이거나
 	 * 									길이가 0인 경우.
 	 */
-	public ConcurrentAsyncExecution(AsyncExecution<?>... elements) {
+	public ConcurrentAsyncExecution(StartableExecution<?>... elements) {
 		Objects.requireNonNull(elements, "element AsyncExecutions");
 		
 		m_elements = elements;

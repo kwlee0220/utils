@@ -31,8 +31,8 @@ import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 
 import io.vavr.control.Option;
-import utils.async.CancellableWork;
 import utils.async.AbstractThreadedExecution;
+import utils.async.CancellableWork;
 
 /**
  * 
@@ -43,10 +43,16 @@ public class IOUtils {
 		throw new AssertionError("Should not be called: class=" + IOUtils.class.getName());
 	}
 	
-	public static boolean closeQuietly(AutoCloseable closeable) {
-		if ( closeable != null ) {
+	public static void close(Object closeable) throws Exception {
+		if ( closeable != null && closeable instanceof AutoCloseable ) {
+			((AutoCloseable)closeable).close();
+		}
+	}
+	
+	public static boolean closeQuietly(Object closeable) {
+		if ( closeable != null && closeable instanceof AutoCloseable ) {
 			try {
-				closeable.close();
+				((AutoCloseable)closeable).close();
 				return true;
 			}
 			catch ( Exception ignored ) {}
@@ -61,7 +67,7 @@ public class IOUtils {
 				.forEach(IOUtils::closeQuietly);
 	}
 	
-	public static void closeQuietly(Collection<AutoCloseable> closeables) {
+	public static void closeQuietly(Collection<? extends AutoCloseable> closeables) {
 		closeables.stream()
 				.filter(c -> c != null)
 				.forEach(IOUtils::closeQuietly);

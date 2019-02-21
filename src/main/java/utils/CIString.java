@@ -36,7 +36,7 @@ public final class CIString implements Comparable<CIString>, Serializable {
 	}
 	
 	public static List<CIString> fromNameList(List<String> colNames) {
-		return FStream.of(colNames).map(CIString::of).toList();
+		return FStream.from(colNames).map(CIString::of).toList();
 	}
 
 	@Override

@@ -30,14 +30,14 @@ public class ReduceByKeyTest {
 		Assert.assertEquals(0, accums.size());
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test2() throws Exception {
 		FStream<Integer> stream = FStream.of();
 		
 		stream.reduceByKey(null, (a,v) -> a+v);
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test3() throws Exception {
 		FStream<Integer> stream = FStream.of();
 		

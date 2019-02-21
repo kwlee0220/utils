@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import utils.async.AbstractAsyncExecution;
 import utils.async.AbstractThreadedExecution;
-import utils.async.AsyncExecution;
+import utils.async.StartableExecution;
 import utils.async.FutureBasedAsyncExecution;
 import utils.stream.FStream;
 
@@ -29,7 +29,7 @@ public class AsyncExecutions {
 		throw new AssertionError("Should not be called: class=" + AsyncExecutions.class);
 	}
 	
-	public static <T> AsyncExecution<T> from(Callable<T> work) {
+	public static <T> StartableExecution<T> from(Callable<T> work) {
 		return new AbstractThreadedExecution<T>() {
 			@Override
 			protected T executeWork() throws Exception {
@@ -38,7 +38,7 @@ public class AsyncExecutions {
 		};
 	}
 	
-	public static <T> AsyncExecution<T> idle(T result, long delay, TimeUnit unit,
+	public static <T> StartableExecution<T> idle(T result, long delay, TimeUnit unit,
 											ScheduledExecutorService scheduler) {
 		return new FutureBasedAsyncExecution<T>() {
 			@Override
@@ -56,12 +56,12 @@ public class AsyncExecutions {
 		};
 	}
 	
-	public static AsyncExecution<Void> idle(long delay, TimeUnit unit,
+	public static StartableExecution<Void> idle(long delay, TimeUnit unit,
 											ScheduledExecutorService scheduler) {
 		return AsyncExecutions.<Void>idle(null, delay, unit, scheduler);
 	}
 	
-	public static <T> AsyncExecution<T> nop(T result) {
+	public static <T> StartableExecution<T> nop(T result) {
 		return new AbstractAsyncExecution<T>() {
 			@Override
 			public void start() {
@@ -78,11 +78,11 @@ public class AsyncExecutions {
 		};
 	}
 	
-	public static AsyncExecution<Void> nop() {
+	public static StartableExecution<Void> nop() {
 		return nop(null);
 	}
 	
-	public static <T> AsyncExecution<T> failure(Throwable cause) {
+	public static <T> StartableExecution<T> failure(Throwable cause) {
 		return new AbstractAsyncExecution<T>() {
 			@Override
 			public void start() {
@@ -94,7 +94,7 @@ public class AsyncExecutions {
 		};
 	}
 	
-	public static <T> AsyncExecution<T> cancelled() {
+	public static <T> StartableExecution<T> cancelled() {
 		return new AbstractAsyncExecution<T>() {
 			@Override
 			public void start() {
@@ -105,42 +105,42 @@ public class AsyncExecutions {
 	}
 
 	public static <T> SequentialAsyncExecution<T> sequential(
-												FStream<AsyncExecution<?>> sequence) {
+												FStream<StartableExecution<?>> sequence) {
 		return new SequentialAsyncExecution<>(sequence);
 	}
 
 	public static <T> SequentialAsyncExecution<T> sequential(
-											List<AsyncExecution<T>> elms) {
-		return new SequentialAsyncExecution<>(FStream.of(elms));
+											List<StartableExecution<T>> elms) {
+		return new SequentialAsyncExecution<>(FStream.from(elms));
 	}
 
 	@SafeVarargs
 	public static <T> SequentialAsyncExecution<T> sequential(
-											AsyncExecution<? extends T>... sequence) {
+											StartableExecution<? extends T>... sequence) {
 		return new SequentialAsyncExecution<>(FStream.of(sequence));
 	}
 
-	public static <T> ConcurrentAsyncExecution concurrent(AsyncExecution<?>... elements) {
+	public static <T> ConcurrentAsyncExecution concurrent(StartableExecution<?>... elements) {
 		return new ConcurrentAsyncExecution(elements);
 	}
 
-	public static <T> BackgroundedAsyncExecution<T> backgrounded(AsyncExecution<T> fg,
-																AsyncExecution<?> bg) {
+	public static <T> BackgroundedAsyncExecution<T> backgrounded(StartableExecution<T> fg,
+																StartableExecution<?> bg) {
 		return new BackgroundedAsyncExecution<>(fg, bg);
 	}
 
-	public static <T> TimedAsyncExecution<T> timed(AsyncExecution<T> target, long timeout,
+	public static <T> TimedAsyncExecution<T> timed(StartableExecution<T> target, long timeout,
 												TimeUnit unit, ScheduledExecutorService scheduler) {
 		return new TimedAsyncExecution<>(target, timeout, unit, scheduler);
 	}
 
-	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<AsyncExecution<T>> seq,
+	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<StartableExecution<T>> seq,
 														Supplier<S> initSupplier,
 														BiFunction<S,T,S> folder) {
 		return new FoldedAsyncExecution<>(seq, initSupplier, folder);
 	}
 
-	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<AsyncExecution<T>> seq,
+	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<StartableExecution<T>> seq,
 														S init, BiFunction<S,T,S> folder) {
 		return new FoldedAsyncExecution<>(seq, () -> init, folder);
 	}

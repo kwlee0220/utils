@@ -26,7 +26,7 @@ public class FileUtils {
 	public static FStream<Path> walk(Path start, String glob) throws IOException {
 		PathMatcher matcher = FileSystems.getDefault()
 										.getPathMatcher("glob:" + glob);
-		return FStream.of(Files.walk(start)
+		return FStream.from(Files.walk(start)
 								.filter(matcher::matches));
 	}
 	
@@ -35,6 +35,6 @@ public class FileUtils {
 	}
 	
 	public static FStream<Path> walk(Path start) throws IOException {
-		return FStream.of(Files.walk(start));
+		return FStream.from(Files.walk(start));
 	}
 }

@@ -28,9 +28,9 @@ import utils.stream.FStream;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class SequentialAsyncTest {
-	private FStream<AsyncExecution<?>> m_gen;
-	private FStream<AsyncExecution<?>> m_gen2;
-	private FStream<AsyncExecution<?>> m_gen3;
+	private FStream<StartableExecution<?>> m_gen;
+	private FStream<StartableExecution<?>> m_gen2;
+	private FStream<StartableExecution<?>> m_gen3;
 	private final Exception m_error = new Exception();
 	
 	@Mock Consumer<Result<Integer>> m_doneListener;
@@ -54,7 +54,7 @@ public class SequentialAsyncTest {
 		Assert.assertEquals(true, exec.isStarted());
 		Assert.assertEquals(0, exec.getCurrentExecutionIndex());
 		
-		AsyncExecution<?> elm = exec.getCurrentExecution();
+		StartableExecution<?> elm = exec.getCurrentExecution();
 		Assert.assertEquals(true, elm.isStarted());
 		
 		exec.waitForDone();

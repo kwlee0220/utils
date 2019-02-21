@@ -1,4 +1,4 @@
-package utils.stream;
+package utils;
 
 import java.util.Objects;
 import java.util.function.BiFunction;
@@ -10,19 +10,21 @@ import io.vavr.Tuple2;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class KeyValue<K,V> {
+public final class KeyValue<K,V> {
 	private final K m_key;
 	private final V m_value;
 	
-	public static <K,V> KeyValue<K,V> from(Tuple2<K,V> t) {
-		return new KeyValue<>(t._1, t._2);
+	public static <K,V> KeyValue<K,V> from(Tuple2<? extends K,? extends V> tupl) {
+		return new KeyValue<>(tupl._1, tupl._2);
 	}
 	
 	public static <K,V> KeyValue<K,V> of(K key, V value) {
 		return new KeyValue<>(key, value);
 	}
 	
-	public KeyValue(K key, V value) {
+	private KeyValue(K key, V value) {
+		Utilities.checkNotNullArgument(key, "key is null");
+		
 		m_key = key;
 		m_value = value;
 	}

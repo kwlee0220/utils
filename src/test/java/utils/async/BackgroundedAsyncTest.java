@@ -34,9 +34,9 @@ public class BackgroundedAsyncTest {
 	
 	@Test
 	public void test01() throws Exception {
-		AsyncExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS, m_scheduler);
-		AsyncExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
-		AsyncExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
+		StartableExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS, m_scheduler);
+		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
+		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
 		Assert.assertEquals(State.NOT_STARTED, exec.getState());
 		
@@ -55,9 +55,9 @@ public class BackgroundedAsyncTest {
 	
 	@Test
 	public void test02() throws Exception {
-		AsyncExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS, m_scheduler);
-		AsyncExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
-		AsyncExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
+		StartableExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS, m_scheduler);
+		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
+		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
 		Assert.assertEquals(State.NOT_STARTED, exec.getState());
 		
@@ -74,10 +74,10 @@ public class BackgroundedAsyncTest {
 	
 	@Test
 	public void test03() throws Exception {
-		AsyncExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS, m_scheduler);
+		StartableExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS, m_scheduler);
 		fg = AsyncExecutions.sequential(fg, AsyncExecutions.failure(m_error));
-		AsyncExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
-		AsyncExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
+		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
+		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
 		Assert.assertEquals(State.NOT_STARTED, exec.getState());
 		
@@ -91,9 +91,9 @@ public class BackgroundedAsyncTest {
 	
 	@Test
 	public void test04() throws Exception {
-		AsyncExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS, m_scheduler);
-		AsyncExecution<?> bg = AsyncExecutions.failure(m_error);
-		AsyncExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
+		StartableExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS, m_scheduler);
+		StartableExecution<?> bg = AsyncExecutions.failure(m_error);
+		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
 		Assert.assertEquals(State.NOT_STARTED, exec.getState());
 		

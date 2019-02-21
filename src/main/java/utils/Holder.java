@@ -15,11 +15,7 @@ public class Holder<T> implements Serializable {
 		return new Holder<>(value);
 	}
 	
-	public Holder() {
-		m_value = null;
-	}
-	
-	public Holder(T value) {
+	private Holder(T value) {
 		m_value = value;
 	}
 	

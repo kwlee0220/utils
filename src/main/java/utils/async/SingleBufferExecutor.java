@@ -36,15 +36,15 @@ class SingleBufferExecutor implements LoggerSettable {
 	private volatile Logger m_logger = s_logger;
 	
 	private final Lock m_lock = new ReentrantLock();
-	@GuardedBy("m_lock") private AsyncExecution<?> m_pendingJob = null;
-	@GuardedBy("m_lock") private AsyncExecution<?> m_running = null;
+	@GuardedBy("m_lock") private StartableExecution<?> m_pendingJob = null;
+	@GuardedBy("m_lock") private StartableExecution<?> m_running = null;
 	@GuardedBy("m_lock") private boolean m_stopped = false;
 	
 	SingleBufferExecutor() {
 		setLogger(s_logger);
 	}
 
-	public void submit(AsyncExecution<?> exec) {
+	public void submit(StartableExecution<?> exec) {
 		Preconditions.checkState(!m_stopped, "stopped");
 		Objects.requireNonNull(exec, "AsyncExecution is null");
 		
@@ -109,7 +109,7 @@ class SingleBufferExecutor implements LoggerSettable {
 		}
 	}
 	
-	private void startInGuard(AsyncExecution<?> exec) {
+	private void startInGuard(StartableExecution<?> exec) {
 		exec.whenFinished(this::onDone);
 		exec.start();
 		m_running = exec;

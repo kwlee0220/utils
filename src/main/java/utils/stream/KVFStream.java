@@ -3,16 +3,16 @@ package utils.stream;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import io.vavr.Tuple2;
+import utils.KeyValue;
+import utils.Utilities;
 import utils.func.FOption;
 import utils.stream.KVFStreams.FStreamAdaptor;
 
@@ -23,87 +23,87 @@ import utils.stream.KVFStreams.FStreamAdaptor;
  */
 public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	public static <K,V> KVFStream<K,V> downcast(FStream<KeyValue<K,V>> stream) {
-		Objects.requireNonNull(stream);
+		Utilities.checkNotNullArgument(stream, "stream is null");
 		
 		return new FStreamAdaptor<>(stream);
 	}
 	
 	public static <K,V> KVFStream<K,V> fromTupleFStream(FStream<Tuple2<K,V>> stream) {
-		Objects.requireNonNull(stream);
+		Utilities.checkNotNullArgument(stream, "stream is null");
 		
 		return downcast(stream.map(t -> KeyValue.of(t._1, t._2)));
 	}
 	
 	public static <K,V> KVFStream<K,V> of(Map<? extends K, ? extends V> map) {
-		Objects.requireNonNull(map);
+		Utilities.checkNotNullArgument(map, "map is null");
 		
-		return downcast(FStream.of(map.entrySet().iterator())
+		return downcast(FStream.from(map.entrySet().iterator())
 							.map(e -> KeyValue.of(e.getKey(), e.getValue())));
 	}
 	
 	public default KVFStream<K,V> filterKey(Predicate<? super K> pred) {
-		Objects.requireNonNull(pred);
+		Utilities.checkNotNullArgument(pred, "predicate is null");
 		
 		return downcast(filter(kv -> pred.test(kv.key())));
 	}
 	
 	public default KVFStream<K,V> filterValue(Predicate<? super V> pred) {
-		Objects.requireNonNull(pred);
+		Utilities.checkNotNullArgument(pred, "predicate is null");
 		
 		return downcast(filter(kv -> pred.test(kv.value())));
 	}
 	
 	public default <S> FStream<S> map(BiFunction<? super K,? super V,? extends S> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
 		return map(kv -> mapper.apply(kv.key(), kv.value()));
 	}
 	
 	public default <S> KVFStream<S,V> mapKey(BiFunction<? super K,? super V,? extends S> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
 
 		return downcast(map(kv -> KeyValue.of(mapper.apply(kv.key(), kv.value()), kv.value())));
 	}
 	
 	public default <S> KVFStream<S,V> mapKey(Function<? super K,? extends S> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
 
 		return downcast(map(kv -> KeyValue.of(mapper.apply(kv.key()), kv.value())));
 	}
 	
 	public default <U> KVFStream<K,U> mapValue(BiFunction<? super K,? super V,? extends U> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
 
 		return downcast(map(kv -> KeyValue.of(kv.key(), mapper.apply(kv.key(), kv.value()))));
 	}
 	
 	public default <U> KVFStream<K,U> mapValue(Function<? super V,? extends U> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
 
 		return downcast(map(kv -> KeyValue.of(kv.key(), mapper.apply(kv.value()))));
 	}
 	
 	public default <T> FStream<T> flatMap(BiFunction<? super K,? super V,FStream<T>> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
 		return flatMap(kv -> mapper.apply(kv.key(), kv.value()));
 	}
 	
 	public default <U> KVFStream<K,U> castValue(Class<? extends U> cls) {
-		Preconditions.checkArgument(cls != null, "target class is null");
+		Utilities.checkNotNullArgument(cls, "target class is null");
 		
 		return mapValue(cls::cast);
 	}
 	
 	public default void forEach(BiConsumer<? super K,? super V> effect) {
-		Preconditions.checkArgument(effect != null, "effect is null");
+		Utilities.checkNotNullArgument(effect, "effect is null");
 		
 		forEach(kv -> effect.accept(kv.key(), kv.value()));
 	}
 	
 	public default <C> C collectLeft(C collector, TriConsumer<? super C,? super K,? super V> collect) {
-		Objects.requireNonNull(collector);
-		Objects.requireNonNull(collect);
+		Utilities.checkNotNullArgument(collector, "collector is null");
+		Utilities.checkNotNullArgument(collect, "collect is null");
 		
 		FOption<KeyValue<K,V>> next;
 		while ( (next = next()).isPresent() ) {

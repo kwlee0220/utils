@@ -8,6 +8,7 @@ import com.google.common.primitives.Longs;
 
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
+import utils.Utilities;
 import utils.func.FOption;
 
 /**
@@ -16,7 +17,7 @@ import utils.func.FOption;
  */
 public interface LongFStream extends FStream<Long> {
 	public static LongFStream of(long... values) {
-		return new FStreamAdaptor(FStream.of(Arrays.stream(values).iterator()));
+		return new FStreamAdaptor(FStream.from(Arrays.stream(values).iterator()));
 	}
 	
 	public default <T> FStream<T> mapToObj(Function<Long,? extends T> mapper) {
@@ -38,6 +39,8 @@ public interface LongFStream extends FStream<Long> {
 
 	@Override
 	public default LongFStream take(long count) {
+		Utilities.checkArgument(count >= 0, "count >= 0: but: " + count);
+		
 		return new FStreamAdaptor(new FStreams.TakenStream<>(this, count));
 	}
 	

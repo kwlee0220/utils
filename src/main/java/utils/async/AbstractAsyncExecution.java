@@ -7,7 +7,7 @@ import java.util.concurrent.Executor;
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class AbstractAsyncExecution<T> extends EventDrivenExecution<T>
-												implements AsyncExecution<T> {
+												implements StartableExecution<T> {
 	private Executor m_exector;
 
 	@Override

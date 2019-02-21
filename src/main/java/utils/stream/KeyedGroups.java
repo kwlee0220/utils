@@ -14,6 +14,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import io.vavr.control.Option;
+import utils.KeyValue;
 
 /**
  * 
@@ -147,7 +148,7 @@ public class KeyedGroups<K,V> {
 		return fstream().foldLeft(create(), (groups,kv) -> {
 			K key = kv.key();
 			Function<? super V,? extends V2> curried = v -> mapper.apply(key, v);
-			return groups.put(key, FStream.of(kv.value())
+			return groups.put(key, FStream.from(kv.value())
 											.map(v -> (V2)curried.apply(v))
 											.toList());
 		});
@@ -175,6 +176,6 @@ public class KeyedGroups<K,V> {
 	}
 	
 	private FStream<KeyValue<K,V>> ungroup(KeyValue<K,List<V>> group) {
-		return FStream.of(group.value()).map(v -> KeyValue.of(group.key(), v));
+		return FStream.from(group.value()).map(v -> KeyValue.of(group.key(), v));
 	}
 }

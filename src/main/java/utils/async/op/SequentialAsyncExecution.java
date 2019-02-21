@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import net.jcip.annotations.GuardedBy;
 import utils.async.AbstractAsyncExecution;
-import utils.async.AsyncExecution;
+import utils.async.StartableExecution;
 import utils.async.CancellableWork;
 import utils.async.Result;
 import utils.stream.FStream;
@@ -28,12 +28,12 @@ import utils.stream.FStream;
  */
 public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 										implements CancellableWork {
-	private final FStream<AsyncExecution<?>> m_sequence;
+	private final FStream<StartableExecution<?>> m_sequence;
 	
-	@Nullable @GuardedBy("m_aopGuard") private AsyncExecution<?> m_cursor = null;
+	@Nullable @GuardedBy("m_aopGuard") private StartableExecution<?> m_cursor = null;
 	@GuardedBy("m_aopGuard") private int m_index = -1;
 	
-	public static <T> SequentialAsyncExecution<T> of(FStream<AsyncExecution<?>> sequence) {
+	public static <T> SequentialAsyncExecution<T> of(FStream<StartableExecution<?>> sequence) {
 		return new SequentialAsyncExecution<>(sequence);
 	}
 	
@@ -46,7 +46,7 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 	 * @throws IllegalArgumentException	<code>elements</code>가 <code>null</code>이거나
 	 * 									길이가 0인 경우.
 	 */
-	SequentialAsyncExecution(FStream<AsyncExecution<?>> execSeq) {
+	SequentialAsyncExecution(FStream<StartableExecution<?>> execSeq) {
 		Objects.requireNonNull(execSeq, "AsyncExecution sequnece");
 		
 		m_sequence = execSeq;
@@ -54,7 +54,7 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 		setLogger(LoggerFactory.getLogger(SequentialAsyncExecution.class));
 	}
 	
-	public AsyncExecution<?> getCurrentExecution() {
+	public StartableExecution<?> getCurrentExecution() {
 		return getInAsyncExecutionGuard(() -> m_cursor);
 	}
 	

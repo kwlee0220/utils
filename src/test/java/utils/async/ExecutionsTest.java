@@ -27,7 +27,7 @@ public class ExecutionsTest {
 	
 	@Test
 	public void testNop() throws Exception {
-		AsyncExecution<String> exec = AsyncExecutions.nop("abc");
+		StartableExecution<String> exec = AsyncExecutions.nop("abc");
 		
 		Assert.assertEquals(State.NOT_STARTED, exec.getState());
 		
@@ -40,7 +40,7 @@ public class ExecutionsTest {
 	@Test
 	public void testIdle01() throws Exception {
 		ScheduledExecutorService executors = Executors.newScheduledThreadPool(4);
-		AsyncExecution<Void> exec = AsyncExecutions.idle(300, TimeUnit.MILLISECONDS, executors);
+		StartableExecution<Void> exec = AsyncExecutions.idle(300, TimeUnit.MILLISECONDS, executors);
 		
 		Assert.assertEquals(State.NOT_STARTED, exec.getState());
 		
@@ -57,7 +57,7 @@ public class ExecutionsTest {
 	@Test
 	public void testIdle02() throws Exception {
 		ScheduledExecutorService executors = Executors.newScheduledThreadPool(4);
-		AsyncExecution<Void> exec = AsyncExecutions.idle(300, TimeUnit.MILLISECONDS, executors);
+		StartableExecution<Void> exec = AsyncExecutions.idle(300, TimeUnit.MILLISECONDS, executors);
 		
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());

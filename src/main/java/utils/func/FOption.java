@@ -17,8 +17,8 @@ import utils.Unchecked.CheckedSupplier;
  * @author Kang-Woo Lee (ETRI)
  */
 public final class FOption<T> {
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private static final FOption EMPTY = new FOption(null, false);
+	@SuppressWarnings("rawtypes")
+	private static final FOption EMPTY = new FOption<>(null, false);
 	
 	private final T m_value;
 	private final boolean m_present;
@@ -69,6 +69,10 @@ public final class FOption<T> {
 		else {
 			throw new NoSuchValueException();
 		}
+	}
+	
+	public T getUnchecked() {
+		return m_value;
 	}
 	
 	public T getOrNull() {
@@ -160,6 +164,10 @@ public final class FOption<T> {
 			return this;
 		}
 	}
+
+	public boolean test(Predicate<? super T> pred) {
+		return m_present && pred.test(m_value);
+	}
 	
 	@SuppressWarnings("unchecked")
 	public <S> FOption<S> map(Function<? super T,? extends S> mapper) {
@@ -179,13 +187,12 @@ public final class FOption<T> {
 		return (m_present) ? mapper.apply(src, m_value) : src;
 	}
 	
-	@SuppressWarnings("unchecked")
-	public <S> FOption<S> flatMap(Function<? super T,FOption<? extends S>> mapper) {
+	public <S> FOption<S> flatMap(Function<? super T,FOption<S>> mapper) {
 		if ( m_present ) {
-			return (FOption<S>)mapper.apply(m_value);
+			return mapper.apply(m_value);
 		}
 		else {
-			return (FOption<S>)EMPTY;
+			return empty();
 		}
 	}
 	

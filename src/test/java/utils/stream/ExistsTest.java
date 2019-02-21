@@ -15,16 +15,16 @@ public class ExistsTest {
 	public void test0() throws Exception {
 		FStream<Integer> stream;
 		
-		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		Assert.assertEquals(true, stream.exists(i -> i > 3));
 		
-		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		Assert.assertEquals(false, stream.exists(i -> i > 4));
 		
-		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		Assert.assertEquals(true, stream.forAll(i -> i >= 1));
 		
-		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		Assert.assertEquals(false, stream.forAll(i -> i >= 2));
 	}
 
@@ -39,19 +39,19 @@ public class ExistsTest {
 		Assert.assertEquals(true, stream.forAll(i -> i > 3));
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test3() throws Exception {
 		FStream<Integer> stream;
 		
-		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream.exists(null);
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test4() throws Exception {
 		FStream<Integer> stream;
 		
-		stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream.forAll(null);
 	}
 
@@ -61,10 +61,10 @@ public class ExistsTest {
 		
 		RuntimeException error = new RuntimeException();
 		
-		stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
+		stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		Assert.assertEquals(false, stream.exists(s -> {throw error;}));
 		
-		stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
+		stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		Assert.assertEquals(false, stream.forAll(s -> {throw error;}));
 	}
 }

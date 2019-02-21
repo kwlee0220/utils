@@ -15,7 +15,7 @@ import utils.func.FOption;
 public class DropTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(2);
 		
 		FOption<Integer> r;
@@ -37,7 +37,7 @@ public class DropTest {
 	
 	@Test
 	public void test1() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(0);
 
 		FOption<Integer> r;
@@ -67,7 +67,7 @@ public class DropTest {
 	
 	@Test
 	public void test2() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(4);
 
 		FOption<Integer> r;
@@ -81,7 +81,7 @@ public class DropTest {
 	
 	@Test
 	public void test3() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(10);
 
 		FOption<Integer> r;
@@ -109,7 +109,7 @@ public class DropTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test5() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.drop(-1);
 	}
 }

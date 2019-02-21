@@ -83,7 +83,7 @@ public class CSV {
 	}
 	
 	public String toString(Iterable<String> values) {
-		return toString(FStream.of(values));
+		return toString(FStream.from(values));
 	}
 	
 	public String toString(String... values) {

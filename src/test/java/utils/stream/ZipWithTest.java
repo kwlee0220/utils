@@ -16,7 +16,7 @@ import utils.func.FOption;
 public class ZipWithTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<String> stream1 = FStream.of(Lists.newArrayList("a","b", "c", "d"));
+		FStream<String> stream1 = FStream.from(Lists.newArrayList("a","b", "c", "d"));
 		FStream<Integer> stream2 = FStream.range(0, 100);
 		FStream<Tuple2<Integer,String>> stream = stream2.zipWith(stream1);
 		

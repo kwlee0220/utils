@@ -38,7 +38,7 @@ class ConcatedStream<T> implements FStream<T> {
 			if ( (next = m_current.next()).isPresent() ) {
 				return next;
 			}
-			m_current.closeQuietly();
+			Try.run(m_current::close);
 			
 			FOption<? extends FStream<? extends T>> nextStream = m_fact.next();
 			if ( nextStream.isAbsent() ) {

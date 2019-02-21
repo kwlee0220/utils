@@ -8,6 +8,7 @@ import com.google.common.primitives.Doubles;
 
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
+import utils.Utilities;
 import utils.func.FOption;
 
 /**
@@ -16,7 +17,7 @@ import utils.func.FOption;
  */
 public interface DoubleFStream extends FStream<Double> {
 	public static DoubleFStream of(double... values) {
-		return new ToDoubleDowncaster(FStream.of(Arrays.stream(values).iterator()));
+		return new ToDoubleDowncaster(FStream.from(Arrays.stream(values).iterator()));
 	}
 	public static DoubleFStream downcast(FStream<Double> strm) {
 		return new ToDoubleDowncaster(strm);
@@ -30,6 +31,8 @@ public interface DoubleFStream extends FStream<Double> {
 
 	@Override
 	public default DoubleFStream take(long count) {
+		Utilities.checkArgument(count >= 0, "count >= 0: but: " + count);
+		
 		return new ToDoubleDowncaster(new FStreams.TakenStream<>(this, count));
 	}
 	

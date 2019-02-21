@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import net.jcip.annotations.GuardedBy;
 import utils.async.AbstractAsyncExecution;
-import utils.async.AsyncExecution;
+import utils.async.StartableExecution;
 import utils.async.CancellableWork;
 import utils.async.Result;
 import utils.stream.FStream;
@@ -30,14 +30,14 @@ import utils.stream.FStream;
  */
 public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<S>
 										implements CancellableWork {
-	private final FStream<AsyncExecution<T>> m_sequence;
+	private final FStream<StartableExecution<T>> m_sequence;
 	private final Supplier<S> m_initSupplier;
 	private final BiFunction<S,T,S> m_folder;
 	private S m_accum;
 	
-	@Nullable @GuardedBy("m_aopGuard") private AsyncExecution<T> m_cursor = null;
+	@Nullable @GuardedBy("m_aopGuard") private StartableExecution<T> m_cursor = null;
 	
-	public static <T,S> FoldedAsyncExecution<T,S> of(FStream<AsyncExecution<T>> sequence,
+	public static <T,S> FoldedAsyncExecution<T,S> of(FStream<StartableExecution<T>> sequence,
 								Supplier<S> initSupplier, BiFunction<S,T,S> folder) {
 		return new FoldedAsyncExecution<>(sequence, initSupplier, folder);
 	}
@@ -51,7 +51,7 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<S>
 	 * @throws IllegalArgumentException	<code>elements</code>가 <code>null</code>이거나
 	 * 									길이가 0인 경우.
 	 */
-	FoldedAsyncExecution(FStream<AsyncExecution<T>> execSeq, Supplier<S> initSupplier,
+	FoldedAsyncExecution(FStream<StartableExecution<T>> execSeq, Supplier<S> initSupplier,
 			 			BiFunction<S,T,S> folder) {
 		Objects.requireNonNull(execSeq, "AsyncExecution sequnece");
 		Objects.requireNonNull(initSupplier, "Initial Supplier");

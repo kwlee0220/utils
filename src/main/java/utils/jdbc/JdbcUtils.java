@@ -55,7 +55,7 @@ public class JdbcUtils {
 
 	public static <T> FStream<T> fstream(ResultSet rs, Function<ResultSet,T> trans)
 		throws SQLException {
-		return FStream.of(new JdbcObjectIterator<T>(rs, trans));
+		return FStream.from(new JdbcObjectIterator<T>(rs, trans));
 	}
 
 	public static <T> Stream<T> stream(ResultSet rs, Function<ResultSet,T> trans)

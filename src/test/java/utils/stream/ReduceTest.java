@@ -13,7 +13,7 @@ import com.google.common.collect.Lists;
 public class ReduceTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream = FStream.of(Lists.newArrayList(1, 2, 4, 1));
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		
 		int sum = stream.reduce((s,t) -> s+t);
 		Assert.assertEquals(8, sum);
@@ -21,7 +21,7 @@ public class ReduceTest {
 	
 	@Test
 	public void test1() throws Exception {
-		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
+		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		
 		String c = stream.reduce((s,t) -> s+t);
 		Assert.assertEquals("this", c);
@@ -34,16 +34,16 @@ public class ReduceTest {
 		int sum = stream.reduce((s,t) -> s+t);
 	}
 	
-	@Test(expected=NullPointerException.class)
+	@Test(expected=IllegalArgumentException.class)
 	public void test4() throws Exception {
-		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
+		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 
 		stream.reduce(null);
 	}
 
 	@Test(expected=RuntimeException.class)
 	public void test5() throws Exception {
-		FStream<String> stream = FStream.of(Lists.newArrayList("t", "h", "i", "s"));
+		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		
 		RuntimeException error = new RuntimeException();
 		String c = stream.reduce((s,t) -> {throw error;});
@@ -51,7 +51,7 @@ public class ReduceTest {
 	
 	@Test
 	public void test6() throws Exception {
-		FStream<String> stream = FStream.of(Lists.newArrayList("t"));
+		FStream<String> stream = FStream.from(Lists.newArrayList("t"));
 		
 		String c = stream.reduce((s,t) -> s+t);
 		Assert.assertEquals("t", c);
