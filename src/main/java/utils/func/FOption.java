@@ -181,7 +181,7 @@ public final class FOption<T> {
 							: (FOption<S>)EMPTY;
 	}
 	
-	public <S> S map(S src, BiFunction<S,T,S> mapper) {
+	public <S> S transform(S src, BiFunction<S,T,? extends S> mapper) {
 		Objects.requireNonNull(mapper, "mapper BiFunction");
 		
 		return (m_present) ? mapper.apply(src, m_value) : src;

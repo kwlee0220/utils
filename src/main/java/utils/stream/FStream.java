@@ -85,6 +85,12 @@ public interface FStream<T> extends AutoCloseable {
 		return FOption.<T>narrow(opt).map(FStream::of).getOrElse(FStream::empty);
 	}
 	
+	public static <T> FStream<T> of(Try<? extends T> tried) {
+		Utilities.checkNotNullArgument(tried, "Try is null");
+		
+		return Try.<T>narrow(tried).map(FStream::of).getOrElse(FStream::empty);
+	}
+	
 	public static <T> FStream<T> from(Iterable<? extends T> values) {
 		Utilities.checkNotNullArgument(values, "Iterable is null");
 		
@@ -287,6 +293,12 @@ public interface FStream<T> extends AutoCloseable {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
 		return flatMap(t -> FStream.from(mapper.apply(t)));
+	}
+	
+	public default <V> FStream<V> flatMapTry(Function<? super T,Try<V>> mapper) {
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
+
+		return flatMap(t -> FStream.of(mapper.apply(t)));
 	}
 	
 	public default boolean exists() {
