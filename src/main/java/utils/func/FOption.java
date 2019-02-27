@@ -8,6 +8,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import io.vavr.CheckedConsumer;
+import io.vavr.control.Try;
 import utils.Unchecked.CheckedFunction;
 import utils.Unchecked.CheckedSupplier;
 import utils.Utilities;
@@ -34,6 +35,12 @@ public final class FOption<T> {
 	
 	public static <T> FOption<T> ofNullable(T value) {
 		return value != null ? of(value) : empty();
+	}
+	
+	public static <T> FOption<T> from(Try<? extends T> tried) {
+		Utilities.checkNotNullArgument(tried, "Try is null");
+		
+		return Try.<T>narrow(tried).map(FOption::of).getOrElse(FOption::empty);
 	}
 	
 	public static <T> FOption<T> from(Optional<T> opt) {
@@ -197,6 +204,12 @@ public final class FOption<T> {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? mapper.apply(m_value) : empty();
+	}
+	
+	public <S> FOption<S> flatMapTry(Function<? super T,Try<S>> mapper) {
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		
+		return (m_present) ? FOption.from(mapper.apply(m_value)) : empty();
 	}
 	
 	public FOption<T> orElse(FOption<T> orElse) {
