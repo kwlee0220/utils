@@ -1,6 +1,5 @@
 package utils.func;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -11,6 +10,7 @@ import java.util.function.Supplier;
 import io.vavr.CheckedConsumer;
 import utils.Unchecked.CheckedFunction;
 import utils.Unchecked.CheckedSupplier;
+import utils.Utilities;
 
 /**
  * 
@@ -37,6 +37,8 @@ public final class FOption<T> {
 	}
 	
 	public static <T> FOption<T> from(Optional<T> opt) {
+		Utilities.checkNotNullArgument(opt, "Optional is null");
+		
 		return opt.isPresent() ? of(opt.get()) : empty();
 	}
 	
@@ -76,21 +78,11 @@ public final class FOption<T> {
 	}
 	
 	public T getOrNull() {
-		if ( m_present ) {
-			return m_value;
-		}
-		else {
-			return null;
-		}
+		return (m_present) ? m_value : null;
 	}
 	
 	public T getOrElse(T elseValue) {
-		if ( m_present ) {
-			return m_value;
-		}
-		else {
-			return elseValue;
-		}
+		return (m_present) ? m_value : elseValue;
 	}
 	
 	public T getOrElse(Supplier<? extends T> elseSupplier) {
@@ -98,6 +90,7 @@ public final class FOption<T> {
 			return m_value;
 		}
 		else {
+			Utilities.checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -107,6 +100,7 @@ public final class FOption<T> {
 			return m_value;
 		}
 		else {
+			Utilities.checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -116,11 +110,14 @@ public final class FOption<T> {
 			return m_value;
 		}
 		else {
+			Utilities.checkNotNullArgument(thrower, "throwerSupplier is null");
 			throw thrower.get();
 		}
 	}
 	
 	public FOption<T> ifPresent(Consumer<? super T> effect) {
+		Utilities.checkNotNullArgument(effect, "present consumer is null");
+		
 		if ( m_present ) {
 			effect.accept(m_value);
 		}
@@ -129,6 +126,8 @@ public final class FOption<T> {
 	}
 	
 	public FOption<T> ifPresentTE(CheckedConsumer<? super T> effect) throws Throwable {
+		Utilities.checkNotNullArgument(effect, "present consumer is null");
+		
 		if ( m_present ) {
 			effect.accept(m_value);
 		}
@@ -138,6 +137,8 @@ public final class FOption<T> {
 	
 	public FOption<T> ifAbsent(Runnable orElse) {
 		if ( !m_present ) {
+			Utilities.checkNotNullArgument(orElse, "orElse is null");
+			
 			orElse.run();
 		}
 		
@@ -149,16 +150,19 @@ public final class FOption<T> {
 			present.accept(m_value);
 		}
 		else {
+			Utilities.checkNotNullArgument(orElse, "orElse is null");
+			
 			orElse.run();
 		}
 		
 		return this;
 	}
 	
-	@SuppressWarnings("unchecked")
 	public FOption<T> filter(Predicate<? super T> pred) {
+		Utilities.checkNotNullArgument(pred, "Predicate is null");
+		
 		if ( m_present ) {
-			return (pred.test(m_value)) ? this : (FOption<T>)EMPTY;
+			return (pred.test(m_value)) ? this : empty();
 		}
 		else {
 			return this;
@@ -166,42 +170,53 @@ public final class FOption<T> {
 	}
 
 	public boolean test(Predicate<? super T> pred) {
+		Utilities.checkNotNullArgument(pred, "Predicate is null");
+		
 		return m_present && pred.test(m_value);
 	}
 	
-	@SuppressWarnings("unchecked")
 	public <S> FOption<S> map(Function<? super T,? extends S> mapper) {
-		return (m_present) ? new FOption<>(mapper.apply(m_value), true)
-							: (FOption<S>)EMPTY;
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		
+		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
-	@SuppressWarnings("unchecked")
 	public <S> FOption<S> mapTE(CheckedFunction<? super T,? extends S> mapper)
 		throws Throwable {
-		return (m_present) ? new FOption<>(mapper.apply(m_value), true)
-							: (FOption<S>)EMPTY;
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		
+		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
 	
 	public <S> S transform(S src, BiFunction<S,T,? extends S> mapper) {
-		Objects.requireNonNull(mapper, "mapper BiFunction");
+		Utilities.checkNotNullArgument(mapper, "mapper BiFunction");
 		
 		return (m_present) ? mapper.apply(src, m_value) : src;
 	}
 	
 	public <S> FOption<S> flatMap(Function<? super T,FOption<S>> mapper) {
-		if ( m_present ) {
-			return mapper.apply(m_value);
-		}
-		else {
-			return empty();
-		}
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		
+		return (m_present) ? mapper.apply(m_value) : empty();
 	}
 	
 	public FOption<T> orElse(FOption<T> orElse) {
-		return (m_present) ? this : orElse;
+		if ( m_present ) {
+			return this;
+		}
+		else {
+			Utilities.checkNotNullArgument(orElse, "orElse is null");
+			return orElse;
+		}
 	}
 	
 	public FOption<T> orElse(Supplier<FOption<T>> orElseSupplier) {
-		return (m_present) ? this : orElseSupplier.get();
+		if ( m_present ) {
+			return this;
+		}
+		else {
+			Utilities.checkNotNullArgument(orElseSupplier, "orElseSupplier is null");
+			return orElseSupplier.get();
+		}
 	}
 	
 	public <X extends Throwable> FOption<T> orElseThrow(Supplier<X> errorSupplier)
@@ -210,6 +225,7 @@ public final class FOption<T> {
 			return this;
 		}
 		else {
+			Utilities.checkNotNullArgument(errorSupplier, "errorSupplier is null");
 			throw errorSupplier.get();
 		}
 	}
