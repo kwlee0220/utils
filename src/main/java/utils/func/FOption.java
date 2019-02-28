@@ -12,12 +12,14 @@ import io.vavr.control.Try;
 import utils.Unchecked.CheckedFunction;
 import utils.Unchecked.CheckedSupplier;
 import utils.Utilities;
+import utils.stream.FStream;
+import utils.stream.FStreamable;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class FOption<T> {
+public final class FOption<T> implements FStreamable<T> {
 	@SuppressWarnings("rawtypes")
 	private static final FOption EMPTY = new FOption<>(null, false);
 	
@@ -51,6 +53,10 @@ public final class FOption<T> {
 	
 	public static <T> FOption<T> when(boolean flag, T value) {
 		return flag ? of(value) : empty();
+	}
+	
+	public static <T> FOption<T> when(boolean flag, Supplier<T> value) {
+		return flag ? of(value.get()) : empty();
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -240,6 +246,22 @@ public final class FOption<T> {
 		else {
 			Utilities.checkNotNullArgument(errorSupplier, "errorSupplier is null");
 			throw errorSupplier.get();
+		}
+	}
+
+	@Override
+	public FStream<T> stream() {
+		return new FStreamImpl();
+	}
+	
+	private class FStreamImpl implements FStream<T> {
+		private boolean m_first = true;
+		
+		@Override public void close() throws Exception { }
+
+		@Override
+		public FOption<T> next() {
+			return m_first ? FOption.this : empty();
 		}
 	}
 	
