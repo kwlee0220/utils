@@ -68,17 +68,4 @@ public class OfTest {
 		r = stream.next();
 		Assert.assertEquals(true, r.isAbsent());
 	}
-	
-	@Test
-	public void test3() throws Exception {
-		FStream<String> strm;
-		
-		strm = FStream.of(FOption.empty());
-		Assert.assertEquals(true, strm.next().isAbsent());
-		
-		strm = FStream.of(FOption.of("a"));
-		FOption<String> next = strm.next();
-		Assert.assertEquals(true, next.isPresent());
-		Assert.assertEquals("a", next.get());
-	}
 }
