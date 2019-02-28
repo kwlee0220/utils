@@ -32,14 +32,12 @@ import utils.KeyValue;
 import utils.Utilities;
 import utils.func.FLists;
 import utils.func.FOption;
-import utils.func.MultipleSupplier;
 import utils.stream.FStreams.FilteredStream;
 import utils.stream.FStreams.MapToDoubleStream;
 import utils.stream.FStreams.MapToIntStream;
 import utils.stream.FStreams.MapToLongStream;
 import utils.stream.FStreams.MappedStream;
 import utils.stream.FStreams.PeekedStream;
-import utils.stream.FStreams.SupplierStream;
 
 /**
  * 
@@ -79,12 +77,6 @@ public interface FStream<T> extends AutoCloseable {
 		return from(Arrays.asList(values));
 	}
 	
-	public static <T> FStream<T> of(FOption<? extends T> opt) {
-		Utilities.checkNotNullArgument(opt, "FOption is null");
-		
-		return FOption.<T>narrow(opt).map(FStream::of).getOrElse(FStream::empty);
-	}
-	
 	public static <T> FStream<T> of(Try<? extends T> tried) {
 		Utilities.checkNotNullArgument(tried, "Try is null");
 		
@@ -107,12 +99,6 @@ public interface FStream<T> extends AutoCloseable {
 		Utilities.checkNotNullArgument(stream, "Stream is null");
 		
 		return from(stream.iterator());
-	}
-	
-	public static <T> FStream<T> from(MultipleSupplier<? extends T> supplier) {
-		Utilities.checkNotNullArgument(supplier, "supplier is null");
-		
-		return new SupplierStream<>(supplier);
 	}
 	
 	public static <T> FStream<T> from(Observable<? extends T> ob) {
@@ -274,7 +260,7 @@ public interface FStream<T> extends AutoCloseable {
 	public default <V> FStream<V> flatMapOption(Function<? super T,FOption<V>> mapper) {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 
-		return flatMap(t -> FStream.of(mapper.apply(t)));
+		return flatMap(t -> mapper.apply(t).stream());
 	}
 	
 	public default <V> FStream<V> flatMapIterable(Function<? super T,? extends Iterable<V>> mapper) {

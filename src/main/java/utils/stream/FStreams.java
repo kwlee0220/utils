@@ -13,7 +13,6 @@ import io.vavr.control.Try;
 import utils.Utilities;
 import utils.async.ThreadInterruptedException;
 import utils.func.FOption;
-import utils.func.MultipleSupplier;
 import utils.io.IOUtils;
 
 /**
@@ -423,28 +422,6 @@ public class FStreams {
 				
 				return next;
 			}
-		}
-	}
-
-	static class SupplierStream<T> implements FStream<T> {
-		private final MultipleSupplier<? extends T> m_supplier;
-		private boolean m_closed = false;
-		
-		SupplierStream(MultipleSupplier<? extends T> supplier) {
-			m_supplier = supplier;
-		}
-
-		@Override
-		public void close() throws Exception {
-			if ( !m_closed ) {
-				m_closed = true;
-				IOUtils.close(m_supplier);
-			}
-		}
-
-		@Override
-		public FOption<T> next() {
-			return (m_closed) ? FOption.empty(): FOption.narrow(m_supplier.get());
 		}
 	}
 }
