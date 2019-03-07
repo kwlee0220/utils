@@ -49,6 +49,10 @@ public class KeyedGroups<K,V> {
 		return m_groups;
 	}
 	
+	public boolean containsKey(K key) {
+		return m_groups.containsKey(key);
+	}
+	
 	public List<V> get(final K key) {
 		return m_groups.getOrDefault(key, Collections.emptyList());
 	}
@@ -131,21 +135,21 @@ public class KeyedGroups<K,V> {
 		return Option.of(m_groups.remove(key));
 	}
 	
-	public KVFStream<K,List<V>> fstream() {
+	public KVFStream<K,List<V>> stream() {
 		return KVFStream.of(m_groups);
 	}
 	
 	public KVFStream<K,V> ungroup() {
-		return KVFStream.downcast(fstream().flatMap(this::ungroup));
+		return KVFStream.downcast(stream().flatMap(this::ungroup));
 	}
 	
 	public <K2> KeyedGroups<K2,V> mapKey(BiFunction<? super K,List<V>,? extends K2> mapper) {
-		return fstream().mapKey(mapper)
+		return stream().mapKey(mapper)
 						.foldLeft(create(), (groups,kv) -> groups.addAll(kv.key(), kv.value()));
 	}
 	
 	public <V2> KeyedGroups<K,V2> mapValue(BiFunction<? super K,? super V,? extends V2> mapper) {
-		return fstream().foldLeft(create(), (groups,kv) -> {
+		return stream().foldLeft(create(), (groups,kv) -> {
 			K key = kv.key();
 			Function<? super V,? extends V2> curried = v -> mapper.apply(key, v);
 			return groups.put(key, FStream.from(kv.value())
@@ -155,7 +159,7 @@ public class KeyedGroups<K,V> {
 	}
 	
 	public <V2> KeyedGroups<K,V2> mapValueList(BiFunction<? super K,? super List<V>,? extends List<V2>> mapper) {
-		return fstream().foldLeft(create(), (groups,kv) -> {
+		return stream().foldLeft(create(), (groups,kv) -> {
 			K key = kv.key();
 			Function<List<V>,List<V2>> curried = v -> mapper.apply(key, v);
 			return groups.put(key, curried.apply(kv.value()));

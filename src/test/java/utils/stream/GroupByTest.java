@@ -1,8 +1,13 @@
 package utils.stream;
 
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import utils.KeyValue;
 
 /**
  * 
@@ -44,5 +49,55 @@ public class GroupByTest {
 		Assert.assertEquals(Integer.valueOf(3), group0.next().getOrNull());
 		Assert.assertEquals(Integer.valueOf(6), group0.next().getOrNull());
 		Assert.assertEquals(Integer.valueOf(9), group0.next().getOrNull());
+	}
+	
+	@Test
+	public void test1() throws Exception {
+		IntFStream base = FStream.range(0, 10);
+		
+		KeyedGroups<Integer,Integer> groups = base.groupByKey(v2 -> v2 % 3);
+		
+		Assert.assertEquals(true, groups.containsKey(0));
+		Assert.assertEquals(true, groups.containsKey(1));
+		Assert.assertEquals(true, groups.containsKey(2));
+		Assert.assertEquals(false, groups.containsKey(3));
+	}
+	
+	@Test
+	public void test2() throws Exception {
+		IntFStream base = FStream.range(0, 10);
+		
+		KeyedGroups<Integer,Integer> groups = base.groupByKey(v2 -> v2 % 3);
+		
+		Assert.assertEquals(Arrays.asList(0, 3, 6, 9), groups.get(0));
+		Assert.assertEquals(Arrays.asList(1, 4, 7), groups.get(1));
+		Assert.assertEquals(Arrays.asList(2, 5, 8), groups.get(2));
+		Assert.assertEquals(Arrays.asList(), groups.get(3));
+	}
+	
+	@Test
+	public void test3() throws Exception {
+		IntFStream base = FStream.range(0, 10);
+		
+		KeyedGroups<Integer,Integer> groups = base.groupByKey(k -> k % 3,
+															v -> v + (v%3));
+		
+		Assert.assertEquals(Arrays.asList(0, 3, 6, 9), groups.get(0));
+		Assert.assertEquals(Arrays.asList(2, 5, 8), groups.get(1));
+		Assert.assertEquals(Arrays.asList(4, 7, 10), groups.get(2));
+		Assert.assertEquals(Arrays.asList(), groups.get(3));
+	}
+	
+	@Test
+	public void test4() throws Exception {
+		IntFStream base = FStream.range(0, 5);
+		KeyedGroups<Integer,Integer> groups = base.groupByKey(v2 -> v2 % 3);
+		
+		List<KeyValue<Integer,Integer>> list = groups.ungroup().toList();
+		List<KeyValue<Integer,Integer>> expected
+								= Arrays.asList(KeyValue.of(0, 0), KeyValue.of(0, 3),
+												KeyValue.of(1, 1), KeyValue.of(1, 4),
+												KeyValue.of(2, 2));
+		Assert.assertEquals(expected, list);
 	}
 }
