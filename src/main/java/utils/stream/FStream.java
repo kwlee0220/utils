@@ -384,6 +384,15 @@ public interface FStream<T> extends AutoCloseable {
 		
 		return count;
 	}
+	
+	public default FOption<T> findFirst() {
+		try {
+			return next();
+		}
+		finally {
+			closeQuietly();
+		}
+	}
 
 	public default FOption<T> findNext(Predicate<? super T> pred) {
 		Utilities.checkNotNullArgument(pred, "predicate is null");
