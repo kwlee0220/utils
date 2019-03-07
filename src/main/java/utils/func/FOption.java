@@ -261,7 +261,13 @@ public final class FOption<T> implements FStreamable<T> {
 
 		@Override
 		public FOption<T> next() {
-			return m_first ? FOption.this : empty();
+			if ( m_first ) {
+				m_first = false;
+				return FOption.this;
+			}
+			else {
+				return empty();
+			}
 		}
 	}
 	

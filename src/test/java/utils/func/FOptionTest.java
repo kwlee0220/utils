@@ -24,8 +24,12 @@ public class FOptionTest {
 		Assert.assertEquals(true, strm.next().isAbsent());
 		
 		strm = FOption.of("a").stream();
+		
 		FOption<String> next = strm.next();
 		Assert.assertEquals(true, next.isPresent());
 		Assert.assertEquals("a", next.get());
+		
+		next = strm.next();
+		Assert.assertTrue(next.isAbsent());
 	}
 }
