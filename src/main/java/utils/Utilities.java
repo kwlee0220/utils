@@ -8,9 +8,12 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -316,5 +319,44 @@ public class Utilities {
 	
 	public static <T> Iterable<T> toIterable(Iterator<T> iter) {
 		return () -> iter;
+	}
+	
+	public static <T> List<T> selectRandomly(List<T> list, int count) {
+		Random rand = new Random(System.currentTimeMillis());
+		
+		List<T> selecteds = new ArrayList<>();
+		for ( int i =0; i < count; ++i ) {
+			while ( true ) {
+				if ( list.isEmpty() ) {
+					return selecteds;
+				}
+				
+				T selected = selectOne(list, rand);
+				if ( selected != null ) {
+					selecteds.add(selected);
+					break;
+				}
+				
+				list = FStream.from(list)
+								.filter(v -> v != null)
+								.toList();
+			}
+		}
+		
+		return selecteds;
+	}
+	
+	private static <T> T selectOne(List<T> list, Random rand) {
+		for ( int i =0; i < 5; ++i ) {
+			int idx = rand.nextInt(list.size());
+			T selected = list.get(idx);
+			if ( selected != null ) {
+				list.set(idx, null);
+				
+				return selected;
+			}
+		}
+		
+		return null;
 	}
 }
