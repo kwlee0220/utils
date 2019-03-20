@@ -181,6 +181,13 @@ public interface FStream<T> extends AutoCloseable {
 		return new FStreams.SampledStream<>(this, ratio);
 	}
 	
+	public default FStream<T> sample(long total, double ratio) {
+		Utilities.checkArgument(total >= 0, "total >= 0");
+		Utilities.checkArgument(ratio >= 0, "ratio >= 0");
+		
+		return new AdaptableSamplingStream<>(this, total, ratio);
+	}
+	
 	public default FStream<T> filter(Predicate<? super T> pred) {
 		Utilities.checkNotNullArgument(pred, "predicate is null");
 		
