@@ -16,6 +16,7 @@ import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import com.google.common.collect.Lists;
@@ -254,7 +255,7 @@ public interface FStream<T> extends AutoCloseable {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		Utilities.checkArgument(parallelLevel > 0, "parallelLevel > 0, but: " + parallelLevel);
 		
-		return mergeParallel(map(mapper), parallelLevel);
+		return mergeParallel(map(t -> FStream.lazy(() -> mapper.apply(t))), parallelLevel);
 	}
 	
 	public default <V> FStream<V> flatMapOption(Function<? super T,FOption<V>> mapper) {
@@ -321,12 +322,17 @@ public interface FStream<T> extends AutoCloseable {
 	public default <S> S foldLeft(S accum, BiFunction<? super S,? super T,? extends S> folder) {
 		Utilities.checkNotNullArgument(folder, "folder is null");
 		
-		FOption<T> next;
-		while ( (next = next()).isPresent() ) {
-			accum = folder.apply(accum, next.get());
+		try {
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				accum = folder.apply(accum, next.get());
+			}
+			
+			return accum;
 		}
-		
-		return accum;
+		finally {
+			closeQuietly();
+		}
 	}
 	
 	public default <S> S foldLeft(S accum, S stopper,
@@ -334,19 +340,24 @@ public interface FStream<T> extends AutoCloseable {
 		Utilities.checkNotNullArgument(accum, "accum is null");
 		Utilities.checkNotNullArgument(folder, "folder is null");
 		
-		if ( accum.equals(stopper) ) {
-			return accum;
-		}
-		
-		FOption<T> next;
-		while ( (next = next()).isPresent() ) {
-			accum = folder.apply(accum, next.get());
+		try {
 			if ( accum.equals(stopper) ) {
 				return accum;
 			}
+			
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				accum = folder.apply(accum, next.get());
+				if ( accum.equals(stopper) ) {
+					return accum;
+				}
+			}
+			
+			return accum;
 		}
-		
-		return accum;
+		finally {
+			closeQuietly();
+		}
 	}
 	
 	public default T reduce(BiFunction<? super T,? super T,? extends T> reducer) {
@@ -364,12 +375,17 @@ public interface FStream<T> extends AutoCloseable {
 		Utilities.checkNotNullArgument(accum, "accum is null");
 		Utilities.checkNotNullArgument(collect, "collect is null");
 		
-		FOption<T> next;
-		while ( (next = next()).isPresent() ) {
-			collect.accept(accum, next.get());
+		try {
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				collect.accept(accum, next.get());
+			}
+			
+			return accum;
 		}
-		
-		return accum;
+		finally {
+			closeQuietly();
+		}
 	}
 	
 	public default <S> S foldRight(S accum, BiFunction<? super T,? super S,? extends S> folder) {
@@ -747,6 +763,10 @@ public interface FStream<T> extends AutoCloseable {
 		return FStream.from(toCollection(Sets.newHashSet()));
 	}
 	
+	public default <K> FStream<T> distinct(Function<T,K> keyer) {
+		return new FStreams.DistinctStream<>(this, keyer);
+	}
+	
 	public default <K> FStream<KeyedFStream<K,T>> groupBy(Function<? super T,? extends K> grouper) {
 		return new GroupByStream<>(this, grouper);
 	}
@@ -757,5 +777,9 @@ public interface FStream<T> extends AutoCloseable {
 	
 	public default FStream<T> delay(long delay, TimeUnit tu) {
 		return new FStreams.DelayedStream<>(this, delay, tu);
+	}
+	
+	public static <T> FStream<T> lazy(Supplier<FStream<T>> suppl) {
+		return new FStreams.LazyStream<>(suppl);
 	}
 }

@@ -2,11 +2,15 @@ package utils.stream;
 
 import java.util.Iterator;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
+
+import com.google.common.collect.Sets;
 
 import io.vavr.Tuple2;
 import io.vavr.control.Try;
@@ -423,5 +427,70 @@ public class FStreams {
 				return next;
 			}
 		}
+	}
+	
+	static class LazyStream<T> implements FStream<T> {
+		private final Supplier<FStream<T>> m_supplier;
+		private FStream<T> m_strm = null;
+		private boolean m_closed = false;
+		
+		LazyStream(Supplier<FStream<T>> suppl) {
+			m_supplier = suppl;
+		}
+
+		@Override
+		public void close() throws Exception {
+			if ( !m_closed ) {
+				m_closed = true;
+				if ( m_strm != null ) {
+					m_strm.close();
+				}
+			}
+		}
+
+		@Override
+		public FOption<T> next() {
+			if ( m_closed ) {
+				throw new IllegalStateException("already closed");
+			}
+			
+			if ( m_strm == null ) {
+				m_strm = m_supplier.get();
+			}
+			
+			return m_strm.next();
+		}
+		
+	}
+	
+	static class DistinctStream<T,K> implements FStream<T> {
+		private final FStream<T> m_src;
+		private final Function<T,K> m_keyer;
+		private final Set<K> m_keys = Sets.newHashSet();
+		
+		DistinctStream(FStream<T> src, Function<T,K> keyer) {
+			m_src = src;
+			m_keyer = keyer;
+		}
+
+		@Override
+		public void close() throws Exception {
+			m_src.close();
+		}
+
+		@Override
+		public FOption<T> next() {
+			FOption<T> onext;
+			while ( (onext = m_src.next()).isPresent() ) {
+				T value = onext.getUnchecked();
+				K key = m_keyer.apply(value);
+				if ( m_keys.add(key) ) {
+					return onext;
+				}
+			}
+			
+			return onext;
+		}
+		
 	}
 }
