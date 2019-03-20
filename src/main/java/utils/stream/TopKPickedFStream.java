@@ -1,10 +1,10 @@
 package utils.stream;
 
 import java.util.Comparator;
-import java.util.Objects;
 
 import com.google.common.collect.MinMaxPriorityQueue;
 
+import utils.Utilities;
 import utils.func.FOption;
 
 /**
@@ -17,12 +17,19 @@ public class TopKPickedFStream<T> implements FStream<T> {
 	private final MinMaxPriorityQueue<Node> m_queue;
 	
 	TopKPickedFStream(FStream<T> src, int k, Comparator<? super T> cmp) {
-		Objects.requireNonNull(src);
+		Utilities.checkNotNullArgument(src, "src is null");
+		Utilities.checkArgument(k >= 0, "k >= 0, but k=" + k);
 		
 		m_src = src;
 		m_cmptor = cmp;
-		m_queue = MinMaxPriorityQueue.maximumSize(k).create();
-		src.forEach(v -> m_queue.add(new Node(v)));
+		
+		if ( k > 0 ) {
+			m_queue =  MinMaxPriorityQueue.maximumSize(k).create();
+			src.forEach(v -> m_queue.add(new Node(v)));
+		}
+		else {
+			m_queue = null;
+		}
 	}
 	
 	private class Node implements Comparable<Node> {
@@ -49,9 +56,14 @@ public class TopKPickedFStream<T> implements FStream<T> {
 
 	@Override
 	public FOption<T> next() {
-		Node node = m_queue.poll();
-		if ( node != null ) {
-			return FOption.of(node.m_value);
+		if ( m_queue != null ) {
+			Node node = m_queue.poll();
+			if ( node != null ) {
+				return FOption.of(node.m_value);
+			}
+			else {
+				return FOption.empty();
+			}
 		}
 		else {
 			return FOption.empty();
