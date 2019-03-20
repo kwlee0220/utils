@@ -321,6 +321,10 @@ public class Utilities {
 		return () -> iter;
 	}
 	
+	public static <T> List<T> shuffle(List<T> list) {
+		return selectRandomly(list, list.size());
+	}
+	
 	public static <T> List<T> selectRandomly(List<T> list, int count) {
 		Random rand = new Random(System.currentTimeMillis());
 		
