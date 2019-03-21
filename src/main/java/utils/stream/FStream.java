@@ -268,7 +268,7 @@ public interface FStream<T> extends AutoCloseable {
 	public default <V> FStream<V> flatMapOption(Function<? super T,FOption<V>> mapper) {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 
-		return flatMap(t -> mapper.apply(t).stream());
+		return flatMap(t -> mapper.apply(t).fstream());
 	}
 	
 	public default <V> FStream<V> flatMapIterable(Function<? super T,? extends Iterable<V>> mapper) {
@@ -644,6 +644,14 @@ public interface FStream<T> extends AutoCloseable {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public default FStream<T> sort() {
 		return sort((t1,t2) -> ((Comparable)t1).compareTo(t2));
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public default FStream<T> quasiSort(int queueLength) {
+		return new QuasiSortedFStream<>(this, queueLength, (v1,v2) -> ((Comparable)v1).compareTo(v2));
+	}
+	public default FStream<T> quasiSort(int queueLength, Comparator<T> cmptor) {
+		return new QuasiSortedFStream<>(this, queueLength, cmptor);
 	}
 	
     public default FStream<T> takeTopK(int k, Comparator<? super T> cmp) {

@@ -20,10 +20,10 @@ public class FOptionTest {
 	public void test3() throws Exception {
 		FStream<String> strm;
 		
-		strm = FOption.<String>empty().stream();
+		strm = FOption.<String>empty().fstream();
 		Assert.assertEquals(true, strm.next().isAbsent());
 		
-		strm = FOption.of("a").stream();
+		strm = FOption.of("a").fstream();
 		
 		FOption<String> next = strm.next();
 		Assert.assertEquals(true, next.isPresent());

@@ -250,7 +250,7 @@ public final class FOption<T> implements FStreamable<T> {
 	}
 
 	@Override
-	public FStream<T> stream() {
+	public FStream<T> fstream() {
 		return new FStreamImpl();
 	}
 	
