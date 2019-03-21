@@ -188,6 +188,10 @@ public interface FStream<T> extends AutoCloseable {
 		return new AdaptableSamplingStream<>(this, total, ratio);
 	}
 	
+	public default FStream<T> shuffle() {
+		return new ShuffledFStream<>(this);
+	}
+	
 	public default FStream<T> filter(Predicate<? super T> pred) {
 		Utilities.checkNotNullArgument(pred, "predicate is null");
 		
