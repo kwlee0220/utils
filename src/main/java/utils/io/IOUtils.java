@@ -145,9 +145,10 @@ public class IOUtils {
     }
     
     public static void toFile(InputStream is, File file) throws IOException {
-    	try ( FileOutputStream fos = new FileOutputStream(file);
+    	try ( InputStream isc = is;
+    			FileOutputStream fos = new FileOutputStream(file);
     		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
-    		transfer(is, bos, 16<<10);
+    		transfer(isc, bos, 16<<10);
     	}
     }
 
