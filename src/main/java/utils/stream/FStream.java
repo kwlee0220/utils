@@ -185,7 +185,7 @@ public interface FStream<T> extends AutoCloseable {
 		Utilities.checkArgument(total >= 0, "total >= 0");
 		Utilities.checkArgument(ratio >= 0, "ratio >= 0");
 		
-		return new AdaptableSamplingStream<>(this, total, ratio);
+		return new AdaptiveSamplingStream<>(this, total, ratio);
 	}
 	
 	public default FStream<T> shuffle() {

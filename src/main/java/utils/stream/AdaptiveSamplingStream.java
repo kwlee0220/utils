@@ -10,7 +10,7 @@ import utils.func.FOption;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class AdaptableSamplingStream<T> implements FStream<T> {
+public class AdaptiveSamplingStream<T> implements FStream<T> {
 	private final FStream<T> m_input;
 	private long m_denominator;
 	private long m_numerator;
@@ -18,11 +18,11 @@ public class AdaptableSamplingStream<T> implements FStream<T> {
 	
 	private int m_idx = 0;
 	
-	public AdaptableSamplingStream(FStream<T> input, long total, double ratio) {
+	public AdaptiveSamplingStream(FStream<T> input, long total, double ratio) {
 		this(input, total, Math.max(1, Math.round(total * ratio)));
 	}
 	
-	public AdaptableSamplingStream(FStream<T> input, long total, long nsamples) {
+	public AdaptiveSamplingStream(FStream<T> input, long total, long nsamples) {
 		Utilities.checkNotNullArgument(input, "input RecordSet is null");
 		Utilities.checkArgument(total >= nsamples, "total >= nsamples");
 		Utilities.checkArgument(nsamples > 0, "nsamples > 0");
