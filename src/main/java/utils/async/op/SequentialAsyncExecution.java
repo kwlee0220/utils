@@ -8,9 +8,9 @@ import org.slf4j.LoggerFactory;
 
 import net.jcip.annotations.GuardedBy;
 import utils.async.AbstractAsyncExecution;
-import utils.async.StartableExecution;
 import utils.async.CancellableWork;
 import utils.async.Result;
+import utils.async.StartableExecution;
 import utils.stream.FStream;
 
 
@@ -85,7 +85,7 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 	@Override
 	public String toString() {
 		return getInAsyncExecutionGuard(() ->
-					String.format("Sequential[index=%dth, current=%s]", m_index, m_cursor));
+					String.format("Sequential[index=%d, current=%s]", m_index, m_cursor));
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -104,7 +104,7 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 						if ( isCancelRequested() ) {
 							notifyCancelled();
 						}
-						else {
+						else if ( isRunning() ) {
 							m_cursor = next;
 							++m_index;
 							next.whenFinished(this::onFinishedInGuard);
