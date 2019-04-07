@@ -198,16 +198,14 @@ public class UnitUtils {
 			return String.format("%02ds", seconds);
 		}
 		seconds = seconds % 60;
-		String secStr = (seconds > 0) ? String.format(":%02ds", seconds) : "";
 		
 		long hours = minutes / 60;
 		if ( hours == 0 ) {
-			return String.format("%02dm%s", minutes, secStr);
+			return String.format("%02dm:%02ds", minutes, seconds);
 		}
 		minutes = minutes % 60;
-		String minStr = (minutes > 0) ? String.format(":%02dm", minutes) : "";
 		
-		return String.format("%dh:%s%s", hours, minStr, seconds);
+		return String.format("%dh:%02dm:%02ds", hours, minutes, seconds);
 	}
 
 	public static String toDateString(long date, boolean toMilliSeconds) {
