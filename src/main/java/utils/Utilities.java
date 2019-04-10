@@ -127,6 +127,18 @@ public class Utilities {
 			checkNotNullArgument(obj, msg);
 		}
 	}
+	
+	public static void checkState(boolean pred, String msg) {
+		if ( !pred ) {
+			throw new IllegalStateException(msg);
+		}
+	}
+	
+	public static void checkState(boolean pred, Supplier<String> msg) {
+		if ( !pred ) {
+			throw new IllegalStateException(msg.get());
+		}
+	}
 
 //	public static CompletableFuture<Void> runAsync(Runnable task, Executor executor) {
 //		if ( executor != null ) {
