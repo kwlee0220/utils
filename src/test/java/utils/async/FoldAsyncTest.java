@@ -1,13 +1,13 @@
 package utils.async;
 
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static utils.async.op.AsyncExecutions.cancelled;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import static java.util.concurrent.TimeUnit.*;
 import java.util.function.Consumer;
 
 import org.junit.Assert;
@@ -19,7 +19,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import utils.async.Execution.State;
 import utils.async.op.AsyncExecutions;
-import utils.async.op.SequentialAsyncExecution;
 import utils.stream.FStream;
 
 

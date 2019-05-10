@@ -23,8 +23,8 @@ import org.mockito.junit.MockitoJUnitRunner;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
-import utils.async.StartableExecution;
 import utils.async.ExecutionProgress;
+import utils.async.StartableExecution;
 import utils.async.op.AsyncExecutions;
 
 /**

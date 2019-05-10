@@ -15,8 +15,8 @@ import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
 import utils.async.AbstractAsyncExecution;
-import utils.async.StartableExecution;
 import utils.async.CancellableWork;
+import utils.async.StartableExecution;
 
 
 /**

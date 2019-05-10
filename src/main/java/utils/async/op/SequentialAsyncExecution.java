@@ -16,7 +16,7 @@ import utils.stream.FStream;
 
 
 /**
- * <code>SequentialAsyncOperation</code>은 복수개의 {@link AsyncOperation}을 지정된
+ * <code>SequentialAsyncExecution</code>은 복수개의 {@link StartableExecution}을 지정된
  * 순서대로 수행시키는 비동기 수행 클래스를 정의한다.
  * <p>
  * 순차 비동기 수행은 소속 비동기 수행을 등록된 순서대로 차례대로 수행시킨다. 전체 순차 비동기 수행의

@@ -34,7 +34,7 @@ public interface Suppliable<T> {
 	 * 데이터 제공이 종료된 경우는 데이터 제공이 실패하여 {@code false}가 반환된다.
 	 * <p>
 	 * 메소드 호출은 제공 받는 객체의 상황에 따라 호출 쓰레드가 일시 대기할 수 있음.
-	 * 쓰레드 대기가 주어진 대기시간보다 길어지는 경우는 {@link false}를 반환한다.
+	 * 쓰레드 대기가 주어진 대기시간보다 길어지는 경우는 {@code false}를 반환한다.
 	 * 만일 쓰레드 대기 중에 강제로 종료된 경우는 {@link ThreadInterruptedException} 예외가
 	 * 발생된다.
 	 * 

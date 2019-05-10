@@ -1,19 +1,16 @@
 package utils.async.op;
 
-import java.util.Objects;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Preconditions;
 
 import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
+import utils.Utilities;
 import utils.async.AbstractAsyncExecution;
-import utils.async.StartableExecution;
 import utils.async.CancellableWork;
 import utils.async.Result;
+import utils.async.StartableExecution;
 
 
 /**
@@ -45,11 +42,11 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 	 * 원소 비동기 수행의 중지 또는 실패는 동시 수행 비동기 수행에 영향을 주지 않는다.
 	 * 
 	 * @param elements	동시 수행될 비동기 수행 객체 배열.
-	 * @throws InvalidArgumentException	<code>elements</code>가 <code>null</code>이거나
+	 * @throws IllegalArgumentException	<code>elements</code>가 <code>null</code>이거나
 	 * 									길이가 0인 경우.
 	 */
 	public ConcurrentAsyncExecution(StartableExecution<?>... elements) {
-		Objects.requireNonNull(elements, "element AsyncExecutions");
+		Utilities.checkNotNullArgument(elements, "elements is null");
 		
 		m_elements = elements;
 		m_noOfElmCompletionToCompletion = elements.length;
@@ -58,7 +55,8 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 	}
 	
 	public void setElementCompletionCountToComplate(int count) {
-		Preconditions.checkArgument(count > 0 && count < m_elements.length);
+		Utilities.checkArgument(count > 0 && count < m_elements.length,
+								() -> String.format("count > 0 && count < %d", m_elements.length));
 		
 		m_guard.run(() -> m_noOfElmCompletionToCompletion = count, false);
 	}

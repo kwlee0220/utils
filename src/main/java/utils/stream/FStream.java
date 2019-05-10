@@ -585,6 +585,7 @@ public interface FStream<T> extends AutoCloseable {
 	 * <p>
 	 * 수행된 결과는 key별로 {@link Map}에 저장되어 반환된다.
 	 * 
+	 * @param <K>	{@code keyer}를 통해 생성되는 키 타입 클래스.
 	 * @param keyer	입력 데이터에서 키를 뽑아내는 함수.
 	 * @param reducer	reduce 함수.
 	 * @return	키 별로 reduce된 결과를 담은 Map 객체.

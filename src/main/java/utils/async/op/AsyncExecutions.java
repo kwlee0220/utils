@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import utils.async.AbstractAsyncExecution;
 import utils.async.AbstractThreadedExecution;
-import utils.async.StartableExecution;
 import utils.async.FutureBasedAsyncExecution;
+import utils.async.StartableExecution;
 import utils.stream.FStream;
 
 /**

@@ -2,7 +2,6 @@ package utils.async;
 
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
-import utils.async.Execution.FinishListener;
 
 /**
  * 
