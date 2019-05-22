@@ -151,7 +151,7 @@ public class Unchecked {
 // ******************************************************************************
 // ******************************************************************************
 	
-	public static <T1,R> Function<T1,R> liftFRTE(CheckedFunction<T1,R> func) {
+	public static <T1,R,X extends Throwable> Function<T1,R> liftFRTE(CheckedFunction<T1,R,X> func) {
 		Preconditions.checkArgument(func != null, "Function is null");
 		
 		return (t) -> {
@@ -190,7 +190,12 @@ public class Unchecked {
 	}
 	
 	@FunctionalInterface
-	public static interface CheckedFunction<T,R> {
-		public R apply(T input) throws Throwable;
+	public static interface CheckedSupplierX<T,X extends Throwable> {
+		public T get() throws X;
+	}
+	
+	@FunctionalInterface
+	public static interface CheckedFunction<T,R,X extends Throwable> {
+		public R apply(T input) throws X;
 	}
 }

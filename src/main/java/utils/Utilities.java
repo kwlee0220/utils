@@ -206,6 +206,12 @@ public class Utilities {
 		}
 	}
 
+	public static <T> void ifNotNull(T value, Consumer<? super T> consumer) {
+		if ( value != null ) {
+			consumer.accept(value);
+		}
+	}
+
 /*
 	public static Class<?>[] extendInterfaces(Class<?> base, Class<?>... addons) {
 		Set<Class<?>> intfcSet = getInterfaceAllRecusively(base);

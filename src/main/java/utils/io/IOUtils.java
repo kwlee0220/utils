@@ -1,6 +1,5 @@
 package utils.io;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -11,12 +10,14 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.io.Serializable;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
@@ -121,12 +122,11 @@ public class IOUtils {
     }
     
     public static String toString(File file) throws IOException {
-		return new String(IOUtils.toBytes(file));
+    	return new String(Files.readAllBytes(file.toPath()));
     }
     
     public static String toString(InputStream is, Charset charset) throws IOException {
-		byte[] bytes = IOUtils.toBytes(new BufferedInputStream(is), true);
-		return new String(bytes, charset);
+    	return CharStreams.toString(new InputStreamReader(is, charset));
     }
     
     public static String toString(Reader reader) throws IOException {
@@ -134,7 +134,7 @@ public class IOUtils {
     }
     
     public static String toString(File file, Charset charset) throws IOException {
-		return new String(IOUtils.toBytes(file), charset);
+    	return new String(Files.readAllBytes(file.toPath()), charset);
     }
     
     public static void toFile(byte[] bytes, File file) throws IOException {

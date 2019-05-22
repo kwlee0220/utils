@@ -34,12 +34,12 @@ public class UnitUtils {
 	    	double cm = Double.parseDouble(lengthStr.substring(0, lengthStr.length()-2));
 	    	return cm / 100.0;
 	    }
-	    else if ( lengthStr.endsWith("m") ) {
-	    	return Double.parseDouble(lengthStr.substring(0, lengthStr.length()-1));
-	    }
 	    else if ( lengthStr.endsWith("km") ) {
 	    	double km = Double.parseDouble(lengthStr.substring(0, lengthStr.length()-2));
 	    	return km * 1000.0;
+	    }
+	    else if ( lengthStr.endsWith("m") ) {
+	    	return Double.parseDouble(lengthStr.substring(0, lengthStr.length()-1));
 	    }
 	    else {
 	    	throw new IllegalArgumentException("unit not specified: str=" + lengthStr);

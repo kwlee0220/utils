@@ -10,7 +10,7 @@ import java.util.function.Supplier;
 import io.vavr.CheckedConsumer;
 import io.vavr.control.Try;
 import utils.Unchecked.CheckedFunction;
-import utils.Unchecked.CheckedSupplier;
+import utils.Unchecked.CheckedSupplierX;
 import utils.Utilities;
 import utils.stream.FStream;
 import utils.stream.FStreamable;
@@ -108,7 +108,7 @@ public final class FOption<T> implements FStreamable<T> {
 		}
 	}
 	
-	public T getOrElseTE(CheckedSupplier<? extends T> elseSupplier) throws Throwable {
+	public <X extends Throwable> T getOrElseTE(CheckedSupplierX<? extends T,X> elseSupplier) throws X {
 		if ( m_present ) {
 			return m_value;
 		}
@@ -193,8 +193,8 @@ public final class FOption<T> implements FStreamable<T> {
 		
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
-	public <S> FOption<S> mapTE(CheckedFunction<? super T,? extends S> mapper)
-		throws Throwable {
+	public <S,X extends Throwable> FOption<S> mapTE(CheckedFunction<? super T,? extends S,X> mapper)
+		throws X {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();

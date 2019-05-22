@@ -74,6 +74,9 @@ public class CSV {
 	public static FStream<String> parseCsv(String str, char delim, char esc) {
 		return get().withDelimiter(delim).withEscape(esc).parse(str);
 	}
+	public static String[] parseCsvAsArray(String str, char delim) {
+		return parseCsv(str, delim).toArray(String.class);
+	}
 	public static String[] parseCsvAsArray(String str, char delim, char esc) {
 		return parseCsv(str, delim, esc).toArray(String.class);
 	}
