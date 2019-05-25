@@ -254,6 +254,12 @@ public final class FOption<T> implements FStreamable<T> {
 		return new FStreamImpl();
 	}
 	
+	public <V> FOption<V> cast(Class<? extends V> cls) {
+		Utilities.checkNotNullArgument(cls, "target class is null");
+		
+		return filter(cls::isInstance).map(cls::cast);
+	}
+	
 	private class FStreamImpl implements FStream<T> {
 		private boolean m_first = true;
 		

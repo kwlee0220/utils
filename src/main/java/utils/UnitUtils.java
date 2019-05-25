@@ -42,7 +42,7 @@ public class UnitUtils {
 	    	return Double.parseDouble(lengthStr.substring(0, lengthStr.length()-1));
 	    }
 	    else {
-	    	throw new IllegalArgumentException("unit not specified: str=" + lengthStr);
+	    	return Double.parseDouble(lengthStr);
 	    }
 	}
 	
