@@ -32,8 +32,8 @@ public interface DoubleFStream extends FStream<Double> {
 	@Override
 	public default DoubleFStream take(long count) {
 		Utilities.checkArgument(count >= 0, "count >= 0: but: " + count);
-		
-		return new ToDoubleDowncaster(new FStreams.TakenStream<>(this, count));
+
+		return new ToDoubleDowncaster(take(count));
 	}
 	
 	public default double sum() {

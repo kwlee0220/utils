@@ -75,4 +75,24 @@ public class FilterTest {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.filter(null);
 	}
+	
+	@Test
+	public void test6() throws Exception {
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5));
+		stream = stream.filter(i -> i < 3);
+		
+		FOption<Integer> r;
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
+		
+		stream.close();
+		
+		try {
+			r = stream.next();
+			Assert.assertEquals(true, r.isAbsent());
+		}
+		catch ( IllegalArgumentException expected ) { }
+	}
 }

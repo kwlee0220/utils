@@ -3,16 +3,16 @@ package utils;
 
 import java.io.IOException;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.vavr.CheckedConsumer;
-import io.vavr.CheckedRunnable;
 import io.vavr.control.Try;
-import utils.Unchecked.CheckedSupplier;
+import utils.unchecked.CheckedConsumer;
+import utils.unchecked.CheckedRunnable;
+import utils.unchecked.CheckedSupplier;
+import utils.unchecked.Unchecked;
 
 /**
  * 
@@ -92,11 +92,11 @@ public class UncheckedTest {
 		};
 
 		m_result = INIT;
-		Assert.assertEquals(true, Try.run(cr0).isSuccess());
+		Assert.assertEquals(true, Unchecked.lift(cr0).get().isSuccess());
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
-		Assert.assertEquals(true, Try.run(cr1).isFailure());
+		Assert.assertEquals(true, Unchecked.lift(cr1).get().isFailure());
 		Assert.assertEquals(FAILED, m_result);
 	}
 	
@@ -109,12 +109,12 @@ public class UncheckedTest {
 		};
 
 		m_result = INIT;
-		Unchecked.runRTE(cr0);
+		Unchecked.liftRTE(cr0).run();;
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
 		try {
-			Unchecked.runRTE(cr1);
+			Unchecked.liftRTE(cr1).run();;
 			Assert.fail();
 		}
 		catch ( RuntimeException e ) {
@@ -132,13 +132,13 @@ public class UncheckedTest {
 		};
 
 		m_result = INIT;
-		Try<Void> ret0 = Try.run(cr0);
+		Try<Void> ret0 = Unchecked.lift(cr0).get();
 		Assert.assertEquals(true, ret0.isSuccess());
 		Assert.assertNull(ret0.get());
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
-		Try<Void> ret1 = Try.run(cr1);
+		Try<Void> ret1 = Unchecked.lift(cr1).get();
 		Assert.assertEquals(true, ret1.isFailure());
 		Assert.assertEquals(IOException.class, ret1.getCause().getClass());
 		Assert.assertEquals(FAILED, m_result);
@@ -204,13 +204,13 @@ public class UncheckedTest {
 		};
 		
 		m_result = INIT;
-		Try<String> ret0 = Unchecked.tryToSupply(cr0);
+		Try<String> ret0 = Unchecked.lift(cr0).get();
 		Assert.assertEquals(true, ret0.isSuccess());
 		Assert.assertEquals(COMPLETED, ret0.get());
 		Assert.assertEquals(COMPLETED, m_result);
 		
 		m_result = INIT;
-		Try<String> ret1 = Unchecked.tryToSupply(cr1);
+		Try<String> ret1 = Unchecked.lift(cr1).get();
 		Assert.assertEquals(true, ret1.isFailure());
 		Assert.assertEquals(IOException.class, ret1.getCause().getClass());
 		Assert.assertEquals(FAILED, m_result);
@@ -268,33 +268,5 @@ public class UncheckedTest {
 			Assert.assertEquals(IOException.class, e.getCause().getClass());
 			Assert.assertEquals(COMPLETED, m_result);
 		}
-	}
-	
-	@Test
-	public void test22() throws Exception {
-		CheckedConsumer<String> cr0 = (t) -> {
-			m_result = t;
-		};
-		m_result = INIT;
-		Function<String, Try<Void>> func0 = Unchecked.lift(cr0);
-		Assert.assertEquals(INIT, m_result);
-		
-		Try<Void> ret0 = func0.apply(COMPLETED);
-		Assert.assertEquals(true, ret0.isSuccess());
-		Assert.assertEquals(null, ret0.get());
-		Assert.assertEquals(COMPLETED, m_result);
-		
-		CheckedConsumer<String> cr1 = (t) -> {
-			m_result = t;
-			throw new IOException("xxx");
-		};
-		m_result = INIT;
-		Function<String, Try<Void>> func1 = Unchecked.lift(cr1);
-		Assert.assertEquals(INIT, m_result);
-
-		Try<Void> ret1 = func1.apply(COMPLETED);
-		Assert.assertEquals(true, ret1.isFailure());
-		Assert.assertEquals(IOException.class, ret1.getCause().getClass());
-		Assert.assertEquals(COMPLETED, m_result);
 	}
 }

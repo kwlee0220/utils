@@ -128,4 +128,25 @@ public class TakeTest {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.take(-1);
 	}
+	
+	@Test
+	public void test6() throws Exception {
+		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
+		stream = stream.take(10);
+		
+		FOption<Integer> r;
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
+		
+		stream.close();
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isAbsent());
+	}
 }

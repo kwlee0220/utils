@@ -9,6 +9,7 @@ import io.reactivex.Completable;
 import io.reactivex.Observable;
 import utils.async.Execution;
 import utils.stream.FStream;
+import utils.unchecked.Unchecked;
 
 /**
  * 
@@ -25,7 +26,7 @@ public class Observables {
 		return Observable.create(emitter -> {
 			try {
 				stream.takeWhile(v -> !emitter.isDisposed())
-						.forEachAE(emitter::onNext);
+						.forEach(Unchecked.liftIE(emitter::onNext));
 				if ( !emitter.isDisposed() ) {
 					emitter.onComplete();
 				}

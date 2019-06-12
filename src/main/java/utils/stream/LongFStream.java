@@ -40,8 +40,8 @@ public interface LongFStream extends FStream<Long> {
 	@Override
 	public default LongFStream take(long count) {
 		Utilities.checkArgument(count >= 0, "count >= 0: but: " + count);
-		
-		return new FStreamAdaptor(new FStreams.TakenStream<>(this, count));
+
+		return new FStreamAdaptor(take(count));
 	}
 	
 	public default long[] toArray() {

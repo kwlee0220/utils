@@ -87,7 +87,7 @@ public class CIStringMap<T> implements Map<String,T> {
 
 	@Override
 	public Set<String> keySet() {
-		return FStream.from(m_map.keySet()).map(CIString::get).toHashSet();
+		return FStream.from(m_map.keySet()).map(CIString::get).toSet();
 	}
 
 	@Override

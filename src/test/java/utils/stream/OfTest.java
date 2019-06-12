@@ -68,4 +68,52 @@ public class OfTest {
 		r = stream.next();
 		Assert.assertEquals(true, r.isAbsent());
 	}
+	
+	@Test
+	public void test3() throws Exception {
+		FStream<Integer> stream = FStream.of(1, 2, 4);
+		
+		FOption<Integer> r;
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(4), r.get());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isAbsent());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isAbsent());
+		
+		stream.close();
+	}
+	
+	@Test
+	public void test4() throws Exception {
+		FStream<Integer> stream = FStream.of(1, 2, 4);
+		
+		FOption<Integer> r;
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
+		
+		stream.close();
+		
+		try {
+			r = stream.next();
+			if ( r.isPresent() ) { 
+				Assert.fail("should have thrown an IllegalStateException");
+			}
+		}
+		catch ( IllegalStateException expected ) { }
+	}
 }

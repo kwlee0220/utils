@@ -31,13 +31,8 @@ public interface IntFStream extends FStream<Integer> {
 	public default IntFStream take(long count) {
 		Utilities.checkArgument(count >= 0, "count >= 0: but: " + count);
 		
-		return new FStreamAdaptor(new FStreams.TakenStream<>(this, count));
+		return new FStreamAdaptor(take(count));
 	}
-	
-//	@Override
-//	public default FOption<Integer> first() {
-//		return next();
-//	}
 	
 	public default long sum() {
 		return foldLeft(0L, (s,v) -> s+v);
