@@ -1,6 +1,8 @@
 package utils.stream;
 
 
+import java.util.stream.Stream;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -115,5 +117,32 @@ public class OfTest {
 			}
 		}
 		catch ( IllegalStateException expected ) { }
+	}
+	
+	@Test
+	public void test5() throws Exception {
+		FStream<Integer> stream = FStream.from(Stream.of(1, 2, 4));
+		
+		FOption<Integer> r;
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(1), r.get());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(2), r.get());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Integer.valueOf(4), r.get());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isAbsent());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isAbsent());
+		
+		stream.close();
 	}
 }

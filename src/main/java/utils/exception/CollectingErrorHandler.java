@@ -1,4 +1,4 @@
-package utils.unchecked;
+package utils.exception;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -6,7 +6,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import io.vavr.control.Try;
-import utils.unchecked.CheckedSupplier;
+import utils.exception.CheckedSupplier;
 
 /**
  * 

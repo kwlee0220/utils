@@ -9,10 +9,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import io.vavr.control.Try;
-import utils.unchecked.CheckedConsumer;
-import utils.unchecked.CheckedRunnable;
-import utils.unchecked.CheckedSupplier;
-import utils.unchecked.Unchecked;
+import utils.exception.CheckedConsumer;
+import utils.exception.CheckedRunnable;
+import utils.exception.CheckedSupplier;
+import utils.exception.Unchecked;
 
 /**
  * 

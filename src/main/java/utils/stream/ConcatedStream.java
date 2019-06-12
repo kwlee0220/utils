@@ -3,6 +3,7 @@ package utils.stream;
 import javax.annotation.Nullable;
 
 import io.vavr.control.Try;
+import utils.Utilities;
 import utils.func.FOption;
 
 /**
@@ -14,6 +15,8 @@ class ConcatedStream<T> implements FStream<T> {
 	@Nullable private FStream<T> m_current = FStream.empty();	// null이면 end-of-stream됨을 의미함.
 	
 	ConcatedStream(FStream<? extends FStream<? extends T>> fact) {
+		Utilities.checkNotNullArgument(fact, "fact is null");
+		
 		m_fact = fact;
 	}
 

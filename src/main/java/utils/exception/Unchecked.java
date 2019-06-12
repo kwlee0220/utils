@@ -1,4 +1,4 @@
-package utils.unchecked;
+package utils.exception;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -6,8 +6,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import io.vavr.control.Try;
-import utils.Throwables;
 import utils.Utilities;
+
 
 /**
  * 

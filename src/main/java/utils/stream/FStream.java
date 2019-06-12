@@ -469,7 +469,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default boolean exists(Predicate<? super T> pred) {
-		return findNext(pred).isPresent();
+		return findAny(pred).isPresent();
 	}
 	
 	public default boolean forAll(Predicate<? super T> pred) {
@@ -531,7 +531,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		
 		FOption<T> initial = next();
 		if ( initial.isAbsent() ) {
-			throw new IllegalStateException("Stream is empty");
+			throw new IllegalStateException("FStream is empty");
 		}
 		
 		return foldLeft(initial.get(), (a,t) -> reducer.apply(a, t));
@@ -567,6 +567,14 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return count;
 	}
 	
+	/**
+	 * 스트림에 포함된 첫번째 원소 데이터를 반환한다.
+	 * 
+	 * 만일 스트림이 빈 경우에는 {@link FOption#empty()}를 반환한다.
+	 * 본 메소드가 호출된 후에는 본 스트림 객체는 폐쇄된다. 
+	 * 
+	 * @return	첫번째 원소 데이터
+	 */
 	public default FOption<T> findFirst() {
 		try {
 			return next();
@@ -575,21 +583,47 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			closeQuietly();
 		}
 	}
-
+	
+	/**
+	 * 스트림에 포함된 원소들 중에선 주어진 조건을 만족하는 첫번째 데이터를 반환한다.
+	 * 
+	 * 만일 스트림이 빈 경우에는 {@link FOption#empty()}를 반환한다.
+	 * 
+	 * @return	첫번째 원소 데이터
+	 */
 	public default FOption<T> findNext(Predicate<? super T> pred) {
+		Utilities.checkNotNullArgument(pred, "predicate is null");
+
+		return dropWhile(pred.negate()).next();
+	}
+	
+	/**
+	 * 스트림에 포함된 원소들 중에선 주어진 조건을 만족하는 첫번째 데이터를 반환한다.
+	 * 
+	 * 만일 스트림이 빈 경우에는 {@link FOption#empty()}를 반환한다.
+	 * 본 메소드가 호출된 후에는 본 스트림 객체는 폐쇄된다. 
+	 * 
+	 * @return	첫번째 원소 데이터
+	 */
+	public default FOption<T> findAny(Predicate<? super T> pred) {
 		Utilities.checkNotNullArgument(pred, "predicate is null");
 		
 		try {
-			FOption<T> next;
-			while ( (next = next()).isPresent() && !pred.test(next.get()) );
-			return next;
+			return findNext(pred);
 		}
 		finally {
 			closeQuietly();
 		}
 	}
 	
-	public default FOption<T> last() {
+	/**
+	 * 스트림에 포함된 원소들 중에선 마지막 데이터를 반환한다.
+	 * 
+	 * 만일 스트림이 빈 경우에는 {@link FOption#empty()}를 반환한다.
+	 * 
+	 * @return	마지막 원소 데이터
+	 */
+	public default FOption<T> findLast() {
 		try {
 			FOption<T> last = FOption.empty();
 			
@@ -605,25 +639,44 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		}
 	}
 	
+	/**
+	 * 스트림에 포함된 모든 스트림 원소에 대해 하나의 스트림으로 묶어 하나의 스트림 객체를 생성한다.
+	 * 
+	 * @param fact	스트림의 스트림 객체.
+	 * @return	{@code FStream} 객체.
+	 */
 	public static <T> FStream<T> concat(FStream<? extends FStream<? extends T>> fact) {
 		Utilities.checkNotNullArgument(fact, "source FStream factory");
 		
 		return new ConcatedStream<>(fact);
 	}
 	
+	/**
+	 * 현 스트림에 주어진 스트림을 연결하여 하나의 스트림 객체를 생성한다.
+	 * 
+	 * @param tail	본 스트림에 뒤에 붙일 스트림 객체.
+	 * @return	{@code FStream} 객체.
+	 */
 	public default FStream<T> concatWith(FStream<? extends T> tail) {
 		Utilities.checkNotNullArgument(tail, "tail is null");
 		
 		return concat(FStream.of(this, tail));
 	}
 	
+	/**
+	 * 현 스트림에 주어진 원소를 추가하여 하나의 스트림 객체를 생성한다.
+	 * 
+	 * @param tail	본 스트림에 뒤에 붙일 원소 객체.
+	 * @return	{@code FStream} 객체.
+	 */
 	public default FStream<T> concatWith(T tail) {
 		Utilities.checkNotNullArgument(tail, "tail is null");
 		
 		return concatWith(FStream.of(tail));
 	}
 	
-	public static <T> FStream<T> concat(FStream<? extends T> head, FStream<? extends T> tail) {
+	public static <T> FStream<T> concat(FStream<? extends T> head,
+										FStream<? extends T> tail) {
 		Utilities.checkNotNullArgument(head, "head is null");
 		Utilities.checkNotNullArgument(tail, "tail is null");
 		

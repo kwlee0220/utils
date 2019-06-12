@@ -13,7 +13,7 @@ import com.google.common.base.Preconditions;
 
 import io.vavr.CheckedRunnable;
 import io.vavr.control.Try;
-import utils.unchecked.CheckedSupplier;
+import utils.exception.CheckedSupplier;
 
 /**
  * 

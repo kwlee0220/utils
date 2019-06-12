@@ -1,7 +1,4 @@
-package utils.unchecked;
-
-import utils.Throwables;
-
+package utils.exception;
 
 /**
  * 

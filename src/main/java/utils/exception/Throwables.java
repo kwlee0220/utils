@@ -1,4 +1,4 @@
-package utils;
+package utils.exception;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;

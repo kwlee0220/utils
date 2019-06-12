@@ -10,9 +10,9 @@ import java.util.function.Supplier;
 import io.vavr.CheckedConsumer;
 import io.vavr.control.Try;
 import utils.Utilities;
+import utils.exception.CheckedFunctionX;
 import utils.stream.FStream;
 import utils.stream.FStreamable;
-import utils.unchecked.CheckedFunctionX;
 
 /**
  * 

@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Maps;
 
 import io.vavr.control.Try;
-import utils.Throwables;
+import utils.exception.Throwables;
 import utils.stream.FStream;
 
 

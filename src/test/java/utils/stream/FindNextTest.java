@@ -18,7 +18,7 @@ public class FindNextTest {
 		FStream<Integer> stream;
 		FOption<Integer> r;
 		
-		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1, 5));
+		stream = FStream.of(1, 2, 4, 1, 5);
 		r = stream.findNext(i -> i > 3);
 		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(4, (int)r.get());
