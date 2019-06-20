@@ -1,15 +1,15 @@
-package utils.exception;
+package utils.func;
 
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class ExceptionCase<T> {
+public final class FailureCase<T> {
 	private final T m_data;
 	private final Throwable m_cause;
 	
-	public ExceptionCase(T data, Throwable cause) {
+	public FailureCase(T data, Throwable cause) {
 		m_data = data;
 		m_cause = cause;
 	}

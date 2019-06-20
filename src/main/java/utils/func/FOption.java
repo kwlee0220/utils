@@ -8,9 +8,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import io.vavr.CheckedConsumer;
-import io.vavr.control.Try;
 import utils.Utilities;
-import utils.exception.CheckedFunctionX;
 import utils.stream.FStream;
 import utils.stream.FStreamable;
 
@@ -36,12 +34,6 @@ public final class FOption<T> implements FStreamable<T> {
 	
 	public static <T> FOption<T> ofNullable(T value) {
 		return value != null ? of(value) : empty();
-	}
-	
-	public static <T> FOption<T> from(Try<? extends T> tried) {
-		Utilities.checkNotNullArgument(tried, "Try is null");
-		
-		return Try.<T>narrow(tried).map(FOption::of).getOrElse(FOption::empty);
 	}
 	
 	public static <T> FOption<T> from(Optional<T> opt) {
@@ -204,7 +196,7 @@ public final class FOption<T> implements FStreamable<T> {
 	public <S> FOption<S> flatMapTry(Function<? super T,Try<S>> mapper) {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
-		return (m_present) ? FOption.from(mapper.apply(m_value)) : empty();
+		return (m_present) ? mapper.apply(m_value).toFOption() : empty();
 	}
 	
 	public FOption<T> orElse(FOption<T> orElse) {

@@ -8,7 +8,7 @@ import java.util.function.Supplier;
 
 import io.vavr.Value;
 import io.vavr.collection.Iterator;
-import utils.exception.Throwables;
+import utils.Throwables;
 
 /**
  * 

@@ -8,11 +8,11 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
 import utils.CallHandler;
 import utils.ProxyUtils;
 import utils.Utilities;
+import utils.func.Try;
 import utils.io.IOUtils;
 import utils.stream.FStream;
 

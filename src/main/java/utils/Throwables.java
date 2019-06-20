@@ -1,4 +1,4 @@
-package utils.exception;
+package utils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -12,6 +12,11 @@ import java.util.concurrent.ExecutionException;
 public class Throwables {
 	private Throwables() {
 		throw new AssertionError("Should not be invoked!!: class=" + Throwables.class.getName());
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T,X extends Throwable> T sneakyThrow(Throwable e) throws X {
+	    throw (X)e;
 	}
 
 	public static Throwable unwrapThrowable(Throwable e) {
@@ -56,15 +61,6 @@ public class Throwables {
 															Class<T> thrCls) throws T {
 		if ( thrCls.isInstance(e) ) {
 			throw thrCls.cast(e);
-		}
-	}
-	
-	public static Exception asException(Throwable e) throws Exception {
-		if ( e instanceof Exception ) {
-			return (Exception)e;
-		}
-		else {
-			return new RuntimeException(e);
 		}
 	}
 }

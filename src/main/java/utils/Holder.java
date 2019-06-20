@@ -1,6 +1,7 @@
 package utils;
 
 import java.io.Serializable;
+import java.util.function.Function;
 
 /**
  * 
@@ -25,6 +26,11 @@ public class Holder<T> implements Serializable {
 	
 	public Holder<T> set(T value) {
 		m_value = value;
+		return this;
+	}
+	
+	public Holder<T> update(Function<? super T,? extends T> func) {
+		m_value = func.apply(m_value);
 		return this;
 	}
 	

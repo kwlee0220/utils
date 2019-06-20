@@ -3,7 +3,7 @@ package utils.stream;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BinaryOperator;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -11,10 +11,13 @@ import java.util.function.Supplier;
 import com.google.common.collect.Sets;
 
 import io.vavr.Tuple2;
-import io.vavr.control.Try;
 import utils.Utilities;
 import utils.async.ThreadInterruptedException;
+import utils.func.CheckedFunction;
 import utils.func.FOption;
+import utils.func.FailureCase;
+import utils.func.FailureHandler;
+import utils.func.Try;
 import utils.io.IOUtils;
 
 /**
@@ -64,6 +67,7 @@ public class FStreams {
 		
 		MappedStream(FStream<S> base, Function<? super S,? extends T> mapper) {
 			super(base);
+			Utilities.checkNotNullArgument(mapper, "mapper is null");
 			
 			m_mapper = mapper;
 		}
@@ -71,6 +75,38 @@ public class FStreams {
 		@Override
 		public FOption<T> next() {
 			return m_src.next().map(m_mapper);
+		}
+	}
+	
+	static class MapIEStream<T,R> extends SingleSourceStream<T,R> {
+		private final CheckedFunction<? super T,? extends R> m_mapper;
+		private final FailureHandler<? super T> m_handler;
+		
+		MapIEStream(FStream<T> base, CheckedFunction<? super T,? extends R> mapper,
+					FailureHandler<? super T> handler) {
+			super(base);
+			
+			Utilities.checkNotNullArgument(mapper, "mapper is null");
+			Utilities.checkNotNullArgument(handler, "FailureHandler is null");
+			
+			m_mapper = mapper;
+			m_handler = handler;
+		}
+
+		@Override
+		public FOption<R> next() {
+			FOption<T> onext;
+			while ( (onext = m_src.next()).isPresent() ) {
+				T next = onext.getUnchecked();
+				try {
+					return FOption.of(m_mapper.apply(next));
+				}
+				catch ( Throwable e ) {
+					m_handler.handle(new FailureCase<>(next, e));
+				}
+			}
+			
+			return FOption.empty();
 		}
 	}
 	
@@ -113,10 +149,10 @@ public class FStreams {
 	}
 	
 	static class ScannedStream<T> extends SingleSourceStream<T,T> {
-		private final BinaryOperator<T> m_combine;
+		private final BiFunction<? super T,? super T,? extends T> m_combine;
 		private FOption<T> m_current = null;
 		
-		ScannedStream(FStream<T> src, BinaryOperator<T> combine) {
+		ScannedStream(FStream<T> src, BiFunction<? super T,? super T,? extends T> combine) {
 			super(src);
 			m_combine = combine;
 		}
@@ -124,13 +160,13 @@ public class FStreams {
 		@Override
 		public FOption<T> next() {
 			if ( m_current == null ) {	// 첫번째 call인 경우.
-				return m_current = m_src.next();
+				m_current = m_src.next();
 			}
 			else {
 				m_current = m_src.next()
 								.map(v -> m_combine.apply(m_current.getUnchecked(), v));
-				return m_current;
 			}
+			return m_current;
 		}
 	}
 
@@ -279,7 +315,7 @@ public class FStreams {
 		@Override
 		public FOption<T> next() {
 			if ( m_closed ) {
-				throw new IllegalStateException("already closed");
+				return FOption.empty();
 			}
 			
 			if ( m_strm == null ) {

@@ -2,7 +2,7 @@ package utils.async;
 
 import java.util.concurrent.Future;
 
-import utils.exception.Throwables;
+import utils.Throwables;
 
 /**
  * 

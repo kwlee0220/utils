@@ -11,12 +11,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
-import io.vavr.control.Try;
 import net.jcip.annotations.GuardedBy;
 import utils.Guard;
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
 import utils.async.StartableExecution;
+import utils.func.Try;
 
 
 /**

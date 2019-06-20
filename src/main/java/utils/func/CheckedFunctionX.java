@@ -1,4 +1,4 @@
-package utils.exception;
+package utils.func;
 
 
 /**

@@ -1,13 +1,13 @@
 package utils.stream;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
+import utils.Utilities;
 import utils.func.FOption;
 
 /**
@@ -20,7 +20,7 @@ public class PrependableFStream<T> implements FStream<T> {
 	private boolean m_closed = false;
 	
 	PrependableFStream(FStream<T> src) {
-		Objects.requireNonNull(src);
+		Utilities.checkNotNullArgument(src, "FStream is null");
 		
 		m_src = src;
 	}

@@ -19,8 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
-import io.vavr.control.Try;
-import utils.exception.Throwables;
+import utils.Throwables;
 import utils.stream.FStream;
 
 
@@ -217,10 +216,9 @@ public class JdbcProcessor implements Serializable {
 	
 	public long rowCount(String tableName) throws SQLException {
 		return fstreamQuery("select count(*) from " + tableName)
-					.map(rs -> Try.of(() -> rs.getLong(1)))
-					.next()
-					.get()
-					.get();
+				.findFirst()
+				.mapTE(rs -> rs.getLong(1))
+				.get();
 	}
 	
 	public static final class ColumnInfo {

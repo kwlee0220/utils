@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.Spliterators;
 import java.util.function.Consumer;
 
-import io.vavr.control.Try;
+import utils.func.Try;
 import utils.io.IOUtils;
 
 /**

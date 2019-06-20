@@ -8,11 +8,10 @@ import java.util.function.Supplier;
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.vavr.control.Try;
-import utils.exception.CheckedConsumer;
-import utils.exception.CheckedRunnable;
-import utils.exception.CheckedSupplier;
-import utils.exception.Unchecked;
+import utils.func.CheckedConsumer;
+import utils.func.CheckedRunnable;
+import utils.func.CheckedSupplier;
+import utils.func.Unchecked;
 
 /**
  * 
@@ -39,68 +38,6 @@ public class UncheckedTest {
 	}
 	
 	@Test
-	public void test1() throws Exception {
-		CheckedRunnable cr = () -> {
-			m_result = FAILED;
-			throw new IOException("xxx");
-		};
-		
-		m_result = INIT;
-		Runnable r = Unchecked.liftRTE(cr);
-		Assert.assertEquals(INIT, m_result);
-		
-		try {
-			r.run();
-			Assert.fail();
-		}
-		catch ( RuntimeException e ) {
-			Assert.assertEquals(FAILED, m_result);
-			Assert.assertEquals(IOException.class, e.getCause().getClass());
-		}
-	}
-	
-	@Test
-	public void test2() throws Exception {
-		CheckedRunnable cr0 = () -> { m_result = COMPLETED; };
-		CheckedRunnable cr1 = () -> {
-			m_result = FAILED;
-			throw new IOException("xxx");
-		};
-
-		m_result = INIT;
-		Supplier<Try<Void>> ret0 = Unchecked.lift(cr0);
-		Assert.assertEquals(INIT, m_result);
-		
-		Assert.assertEquals(true, ret0.get().isSuccess());
-		Assert.assertEquals(null, ret0.get().get());
-		Assert.assertEquals(COMPLETED, m_result);
-
-		m_result = INIT;
-		Supplier<Try<Void>> ret1 = Unchecked.lift(cr1);
-		Assert.assertEquals(INIT, m_result);
-		Assert.assertEquals(true, ret1.get().isFailure());
-		Assert.assertEquals(IOException.class, ret1.get().getCause().getClass());
-		Assert.assertEquals(FAILED, m_result);
-	}
-	
-	@Test
-	public void test3() throws Exception {
-		CheckedRunnable cr0 = () -> { m_result = COMPLETED; };
-		CheckedRunnable cr1 = () -> {
-			m_result = FAILED;
-			throw new IOException("xxx");
-		};
-
-		m_result = INIT;
-		Assert.assertEquals(true, Unchecked.lift(cr0).get().isSuccess());
-		Assert.assertEquals(COMPLETED, m_result);
-
-		m_result = INIT;
-		Assert.assertEquals(true, Unchecked.lift(cr1).get().isFailure());
-		Assert.assertEquals(FAILED, m_result);
-	}
-	
-	@Test
 	public void test4() throws Exception {
 		CheckedRunnable cr0 = () -> { m_result = COMPLETED; };
 		CheckedRunnable cr1 = () -> {
@@ -109,39 +46,18 @@ public class UncheckedTest {
 		};
 
 		m_result = INIT;
-		Unchecked.liftRTE(cr0).run();;
+		Unchecked.liftSneakily(cr0).run();;
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
 		try {
-			Unchecked.liftRTE(cr1).run();;
+			Unchecked.liftSneakily(cr1).run();
 			Assert.fail();
 		}
-		catch ( RuntimeException e ) {
-			Assert.assertEquals(IOException.class, e.getCause().getClass());
+		catch ( Exception e ) {
+			Assert.assertEquals(IOException.class, e.getClass());
 			Assert.assertEquals(FAILED, m_result);
 		}
-	}
-	
-	@Test
-	public void test5() throws Exception {
-		CheckedRunnable cr0 = () -> { m_result = COMPLETED; };
-		CheckedRunnable cr1 = () -> {
-			m_result = FAILED;
-			throw new IOException("xxx");
-		};
-
-		m_result = INIT;
-		Try<Void> ret0 = Unchecked.lift(cr0).get();
-		Assert.assertEquals(true, ret0.isSuccess());
-		Assert.assertNull(ret0.get());
-		Assert.assertEquals(COMPLETED, m_result);
-
-		m_result = INIT;
-		Try<Void> ret1 = Unchecked.lift(cr1).get();
-		Assert.assertEquals(true, ret1.isFailure());
-		Assert.assertEquals(IOException.class, ret1.getCause().getClass());
-		Assert.assertEquals(FAILED, m_result);
 	}
 	
 	@Test
@@ -153,67 +69,21 @@ public class UncheckedTest {
 		};
 		
 		m_result = INIT;
-		Supplier<String> ret0 = Unchecked.liftRTE(cr0);
+		Supplier<String> ret0 = Unchecked.liftSneakily(cr0);
 		Assert.assertEquals(INIT, m_result);
 		Assert.assertEquals(COMPLETED, ret0.get());
 		
 		m_result = INIT;
-		Supplier<String> ret1 = Unchecked.liftRTE(cr1);
+		Supplier<String> ret1 = Unchecked.liftSneakily(cr1);
 		Assert.assertEquals(INIT, m_result);
 		try {
 			Assert.assertNull(ret1.get());
 			Assert.fail();
 		}
-		catch ( RuntimeException e ) {
-			Assert.assertEquals(IOException.class, e.getCause().getClass());
+		catch ( Exception e ) {
+			Assert.assertEquals(IOException.class, e.getClass());
 			Assert.assertEquals(FAILED, m_result);
 		}
-	}
-	
-	@Test
-	public void test11() throws Exception {
-		CheckedSupplier<String> cr0 = () -> { return m_result = COMPLETED; };
-		CheckedSupplier<String> cr1 = () -> {
-			m_result = FAILED;
-			throw new IOException("xxx");
-		};
-		
-		m_result = INIT;
-		Supplier<Try<String>> ret0 = Unchecked.lift(cr0);
-		Assert.assertEquals(INIT, m_result);
-		
-		Assert.assertEquals(true, ret0.get().isSuccess());
-		Assert.assertEquals(COMPLETED, ret0.get().get());
-		Assert.assertEquals(COMPLETED, m_result);
-		
-		m_result = INIT;
-		Supplier<Try<String>> ret1 = Unchecked.lift(cr1);
-		Assert.assertEquals(INIT, m_result);
-		
-		Assert.assertEquals(true, ret1.get().isFailure());
-		Assert.assertEquals(IOException.class, ret1.get().getCause().getClass());
-		Assert.assertEquals(FAILED, m_result);
-	}
-	
-	@Test
-	public void test12() throws Exception {
-		CheckedSupplier<String> cr0 = () -> { return m_result = COMPLETED; };
-		CheckedSupplier<String> cr1 = () -> {
-			m_result = FAILED;
-			throw new IOException("xxx");
-		};
-		
-		m_result = INIT;
-		Try<String> ret0 = Unchecked.lift(cr0).get();
-		Assert.assertEquals(true, ret0.isSuccess());
-		Assert.assertEquals(COMPLETED, ret0.get());
-		Assert.assertEquals(COMPLETED, m_result);
-		
-		m_result = INIT;
-		Try<String> ret1 = Unchecked.lift(cr1).get();
-		Assert.assertEquals(true, ret1.isFailure());
-		Assert.assertEquals(IOException.class, ret1.getCause().getClass());
-		Assert.assertEquals(FAILED, m_result);
 	}
 	
 	@Test
@@ -246,7 +116,7 @@ public class UncheckedTest {
 			m_result = t;
 		};
 		m_result = INIT;
-		Consumer<String> ret0 = Unchecked.liftRTE(cr0);
+		Consumer<String> ret0 = Unchecked.liftSneakily(cr0);
 		Assert.assertEquals(INIT, m_result);
 		
 		ret0.accept(COMPLETED);
@@ -257,15 +127,15 @@ public class UncheckedTest {
 			throw new IOException("xxx");
 		};
 		m_result = INIT;
-		Consumer<String> ret1 = Unchecked.liftRTE(cr1);
+		Consumer<String> ret1 = Unchecked.liftSneakily(cr1);
 		Assert.assertEquals(INIT, m_result);
 		
 		try {
 			ret1.accept(COMPLETED);
 			Assert.fail();
 		}
-		catch ( RuntimeException e ) {
-			Assert.assertEquals(IOException.class, e.getCause().getClass());
+		catch ( Exception e ) {
+			Assert.assertEquals(IOException.class, e.getClass());
 			Assert.assertEquals(COMPLETED, m_result);
 		}
 	}

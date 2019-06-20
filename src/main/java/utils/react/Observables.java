@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import utils.async.Execution;
-import utils.exception.Unchecked;
+import utils.func.Unchecked;
 import utils.stream.FStream;
 
 /**

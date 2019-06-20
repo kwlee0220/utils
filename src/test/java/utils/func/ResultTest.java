@@ -10,7 +10,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import utils.exception.Throwables;
+import utils.Throwables;
 
 /**
  * 

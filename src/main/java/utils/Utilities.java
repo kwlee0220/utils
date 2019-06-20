@@ -31,8 +31,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
-import io.vavr.control.Try;
 import net.sf.cglib.proxy.MethodProxy;
+import utils.func.Try;
 import utils.stream.FStream;
 
 /**
@@ -77,6 +77,12 @@ public class Utilities {
 	public static void checkArgument(boolean pred, Supplier<String> msg) {
 		if ( !pred ) {
 			throw new IllegalArgumentException(msg.get());
+		}
+	}
+	
+	public static void checkNotNullArgument(Object obj) {
+		if ( obj == null ) {
+			throw new IllegalArgumentException("null argument");
 		}
 	}
 	

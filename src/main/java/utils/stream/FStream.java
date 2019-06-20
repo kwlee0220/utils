@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -26,13 +25,18 @@ import com.google.common.collect.Sets;
 import io.reactivex.Observable;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
-import io.vavr.control.Try;
 import utils.CSV;
 import utils.KeyValue;
 import utils.Utilities;
+import utils.func.CheckedConsumer;
+import utils.func.CheckedFunction;
 import utils.func.FLists;
 import utils.func.FOption;
+import utils.func.FailureHandler;
+import utils.func.Try;
+import utils.func.Unchecked;
 import utils.io.IOUtils;
+import utils.stream.FStreams.MapIEStream;
 import utils.stream.FStreams.MapToDoubleStream;
 import utils.stream.FStreams.MapToIntStream;
 import utils.stream.FStreams.MapToLongStream;
@@ -247,9 +251,15 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return FStream 객체
 	 */
 	public default <S> FStream<S> map(Function<? super T,? extends S> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
-		
 		return new MappedStream<>(this, mapper);
+	}
+	
+	public default <S> FStream<S> mapIE(CheckedFunction<? super T,? extends S> mapper,
+										FailureHandler<? super T> handler) {
+		return new MapIEStream<>(this, mapper, handler);
+	}
+	public default <S> FStream<S> mapIE(CheckedFunction<? super T,? extends S> mapper) {
+		return new MapIEStream<>(this, mapper, Unchecked.ignore());
 	}
 	
 	public default FStream<T> mapIf(boolean flag,
@@ -282,6 +292,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		finally {
 			closeQuietly();
 		}
+	}
+	
+	public default void forEachIE(CheckedConsumer<? super T> effect,
+									FailureHandler<? super T> handler) {
+		Utilities.checkNotNullArgument(effect, "effect is null");
+		
+		forEach(Unchecked.lift(effect, handler));
+	}
+	public default void forEachIE(CheckedConsumer<? super T> effect) {
+		forEachIE(effect, Unchecked.ignore());
 	}
 	
 	/**
@@ -469,20 +489,27 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default boolean exists(Predicate<? super T> pred) {
-		return findAny(pred).isPresent();
+		return findFirst(pred).isPresent();
 	}
 	
 	public default boolean forAll(Predicate<? super T> pred) {
 		Utilities.checkNotNullArgument(pred, "predicate");
 		
 		return foldLeft(true, false,
-						(a,t) -> Try.ofSupplier(() -> pred.test(t)).getOrElse(false));
+						(a,t) -> Try.supply(() -> pred.test(t)).getOrElse(false));
 	}
 	
-	public default FStream<T> scan(BinaryOperator<T> combiner) {
+	public default FStream<T> scan(BiFunction<? super T,? super T,? extends T> combiner) {
 		Utilities.checkNotNullArgument(combiner, "combiner is null");
 		
 		return new FStreams.ScannedStream<>(this, combiner);
+	}
+	
+	public default FStream<List<T>> buffer(int count, int skip) {
+		Utilities.checkArgument(count >= 0, "count >= 0, but: " + count);
+		Utilities.checkArgument(skip > 0, "skip > 0, but: " + skip);
+		
+		return new BufferedStream<>(this, count, skip);
 	}
 	
 	public default <S> S foldLeft(S accum, BiFunction<? super S,? super T,? extends S> folder) {
@@ -491,7 +518,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		try {
 			FOption<T> next;
 			while ( (next = next()).isPresent() ) {
-				accum = folder.apply(accum, next.get());
+				accum = folder.apply(accum, next.getUnchecked());
 			}
 			
 			return accum;
@@ -588,28 +615,13 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 스트림에 포함된 원소들 중에선 주어진 조건을 만족하는 첫번째 데이터를 반환한다.
 	 * 
 	 * 만일 스트림이 빈 경우에는 {@link FOption#empty()}를 반환한다.
-	 * 
-	 * @return	첫번째 원소 데이터
-	 */
-	public default FOption<T> findNext(Predicate<? super T> pred) {
-		Utilities.checkNotNullArgument(pred, "predicate is null");
-
-		return dropWhile(pred.negate()).next();
-	}
-	
-	/**
-	 * 스트림에 포함된 원소들 중에선 주어진 조건을 만족하는 첫번째 데이터를 반환한다.
-	 * 
-	 * 만일 스트림이 빈 경우에는 {@link FOption#empty()}를 반환한다.
 	 * 본 메소드가 호출된 후에는 본 스트림 객체는 폐쇄된다. 
 	 * 
 	 * @return	첫번째 원소 데이터
 	 */
-	public default FOption<T> findAny(Predicate<? super T> pred) {
-		Utilities.checkNotNullArgument(pred, "predicate is null");
-		
+	public default FOption<T> findFirst(Predicate<? super T> pred) {
 		try {
-			return findNext(pred);
+			return filter(pred).next();
 		}
 		finally {
 			closeQuietly();
@@ -637,6 +649,19 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		finally {
 			closeQuietly();
 		}
+	}
+
+	public default FStream<Tuple2<T,Integer>> zipWithIndex(int start) {
+		return zipWith(range(start, Integer.MAX_VALUE));
+	}
+	public default FStream<Tuple2<T,Integer>> zipWithIndex() {
+		return zipWithIndex(0);
+	}
+	
+	public default <S> FStream<Tuple2<T,S>> zipWith(FStream<? extends S> other) {
+		Utilities.checkNotNullArgument(other, "zip FStream is null");
+		
+		return new ZippedFStream<>(this, other);
 	}
 	
 	/**
@@ -697,29 +722,13 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		
 		return new ParallelMergedStream<>(gen, parallelLevel);
 	}
-
-	public default FStream<Tuple2<T,Integer>> zipWithIndex(int start) {
-		return zipWith(range(start, Integer.MAX_VALUE));
-	}
-	public default FStream<Tuple2<T,Integer>> zipWithIndex() {
-		return zipWithIndex(0);
-	}
-	
-	public default <U> FStream<Tuple2<T,U>> zipWith(FStream<? extends U> other) {
-		Utilities.checkNotNullArgument(other, "zip FStream is null");
-		
-		return new ZippedFStream<>(this, other);
-	}
-	
-	public default FStream<List<T>> buffer(int count, int skip) {
-		Utilities.checkArgument(count >= 0, "count >= 0, but: " + count);
-		Utilities.checkArgument(skip > 0, "skip > 0, but: " + skip);
-		
-		return new BufferedStream<>(this, count, skip);
-	}
 	
 	public default Iterator<T> iterator() {
 		return new FStreamIterator<>(this);
+	}
+	
+	public default Stream<T> stream() {
+		return Utilities.stream(iterator());
 	}
 	
 	public default <C extends Collection<T>> C toCollection(C coll) {
@@ -749,9 +758,17 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new IntFStream.FStreamAdaptor(this.cast(Integer.class));
 	}
 	
+	/**
+	 * 본 스트림에 포함된 데이터를 구성된 배열을 반환한다.
+	 * 
+	 * @param componentType	 스트림에 포함된 데이터의 클래스.
+	 * @return	배열
+	 */
+	@SuppressWarnings("unchecked")
 	public default <S> S[] toArray(Class<S> componentType) {
+		Utilities.checkNotNullArgument(componentType, "component-type is null");
+		
 		List<T> list = toList();
-		@SuppressWarnings("unchecked")
 		S[] array = (S[])Array.newInstance(componentType, list.size());
 		return list.toArray(array);
 	}
@@ -767,10 +784,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default <K,V> KVFStream<K,V> toKVFStream(Function<? super T,? extends K> keyGen,
 													Function<? super T,? extends V> valueGen) {
 		return KVFStream.downcast(map(t -> KeyValue.of(keyGen.apply(t), valueGen.apply(t))));
-	}
-	
-	public default Stream<T> stream() {
-		return Utilities.stream(iterator());
 	}
 	
 	/**
@@ -793,8 +806,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default <K,S> Map<K,S> foldLeftByKey(Function<? super T,? extends K> keyer,
-													Function<? super K,? extends S> accumInitializer,
-													BiFunction<? super S,? super T,? extends S> folder) {
+												Function<? super K,? extends S> accumInitializer,
+												BiFunction<? super S,? super T,? extends S> folder) {
 		return collectLeft(Maps.newHashMap(),
 						(accums,v) -> accums.compute(keyer.apply(v),
 													(k,accum) -> {
@@ -806,12 +819,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		);
 	}
 	
+	public default <K> FStream<KeyedFStream<K,T>> groupBy(Function<? super T,? extends K> grouper) {
+		return new GroupByStream<>(this, grouper);
+	}
+	
 	public default <K> KeyedGroups<K,T> groupByKey(Function<? super T,? extends K> keyer) {
 		return collectLeft(KeyedGroups.create(), (g,t) -> g.add(keyer.apply(t), t));
 	}
 	
 	public default <K,V> KeyedGroups<K,V> groupByKey(Function<? super T,? extends K> keySelector,
-											Function<? super T,? extends V> valueSelector) {
+												Function<? super T,? extends V> valueSelector) {
 		return collectLeft(KeyedGroups.create(),
 							(g,t) -> g.add(keySelector.apply(t), valueSelector.apply(t)));
 	}
@@ -978,10 +995,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	
 	public default <K> FStream<T> distinct(Function<T,K> keyer) {
 		return new FStreams.DistinctStream<>(this, keyer);
-	}
-	
-	public default <K> FStream<KeyedFStream<K,T>> groupBy(Function<? super T,? extends K> grouper) {
-		return new GroupByStream<>(this, grouper);
 	}
 	
 	public default PrefetchStream<T> prefetched(int count) {

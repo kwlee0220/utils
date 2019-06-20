@@ -8,242 +8,275 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import utils.Utilities;
 import utils.async.Execution.State;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class Result<T> {
-	private T m_value;
-	private Throwable m_cause;
-	private State m_state;
-	
+public abstract class Result<T> {
 	public static <T> Result<T> completed(T value) {
-		Result<T> r = new Result<>();
-		r.m_value = value;
-		r.m_state = State.COMPLETED;
-		return r;
+		return new Completed<>(value);
 	}
 	
 	public static <T> Result<T> failed(Throwable cause) {
-		Result<T> r = new Result<>();
-		r.m_cause = cause;
-		r.m_state = State.FAILED;
-		return r;
+		return new Failed<>(cause);
 	}
 	
 	public static <T> Result<T> cancelled() {
-		Result<T> r = new Result<>();
-		r.m_state = State.CANCELLED;
-		return r;
+		return new Cancelled<>();
 	}
 	
-	private Result(T value) {
-		m_value = value;
-		m_cause = null;
-		m_state = State.COMPLETED;
-	}
-	
-	private Result(Throwable cause) {
-		m_value = null;
-		m_cause = cause;
-		m_state = State.FAILED;
-	}
-	
-	private Result() { }
+	public abstract State getState();
 	
 	public boolean isCompleted() {
-		return m_state == State.COMPLETED;
+		return getState() == State.COMPLETED;
 	}
 
 	public boolean isFailed() {
-		return m_state == State.FAILED;
+		return getState() == State.FAILED;
 	}
 	
 	public boolean isCancelled() {
-		return m_state == State.CANCELLED;
+		return getState() == State.CANCELLED;
 	}
 	
-	public T get() throws ExecutionException, CancellationException {
-		switch ( m_state ) {
-			case COMPLETED:
-				return m_value;
-			case FAILED:
-				throw new ExecutionException(m_cause);
-			case CANCELLED:
-				throw new CancellationException();
-			default:
-				throw new AssertionError();
-		}
-	}
+	public abstract T get() throws ExecutionException, CancellationException;
 	
 	public Throwable getCause() {
-		switch ( m_state ) {
-			case FAILED:
-				return m_cause;
-			default:
-				throw new IllegalStateException("not CANCELLED state: state=" + m_state);
-		}
+		throw new IllegalStateException("not CANCELLED state: state=" + getState());
 	}
 	
 	public T getOrNull() {
-		switch ( m_state ) {
-			case COMPLETED:
-				return m_value;
-			default:
-				return null;
-		}
+		return null;
 	}
 	
     public T getOrElse(T other) {
-		switch ( m_state ) {
-			case COMPLETED:
-				return m_value;
-			default:
-				return other;
-		}
+    	return other;
     }
 	
 	public T getOrElse(Supplier<? extends T> supplier) {
-        Objects.requireNonNull(supplier, "supplier is null");
-        
-		switch ( m_state ) {
-			case COMPLETED:
-				return m_value;
-			default:
-				return supplier.get();
-		}
+        Utilities.checkNotNullArgument(supplier, "supplier is null");
+
+		return supplier.get();
     }
 
-//	@Override
-//	public <X extends Throwable> T getOrElseThrow(Supplier<X> supplier) throws X {
-//        Objects.requireNonNull(supplier, "supplier is null");
-//
-//        if ( isSuccess() ) {
-//        	return get();
-//        }
-//        else {
-//            throw supplier.get();
-//        }
-//    }
-//
-//    @SuppressWarnings("unchecked")
-//    public Result<T> orElse(Result<? extends T> other) {
-//        Objects.requireNonNull(other, "other is null");
-//		return isSuccess() ? this : (Result<T>)other;
-//    }
 	
-    public <S> Result<S> map(Function<? super T, ? extends S> mapper) {
-        Objects.requireNonNull(mapper, "mapper is null");
-        
-		switch ( m_state ) {
-			case COMPLETED:
-				return completed(mapper.apply(m_value));
-			case FAILED:
-				return failed(m_cause);
-			case CANCELLED:
-				return cancelled();
-			default:
-				throw new AssertionError();
-		}
-    }
-	
-	public Result<T> filter(Predicate<? super T> predicate) {
-        Objects.requireNonNull(predicate, "predicate is null");
-        
-		switch ( m_state ) {
-			case COMPLETED:
-				return predicate.test(m_value) ? this : cancelled();
-			case FAILED:
-				return failed(m_cause);
-			case CANCELLED:
-				return cancelled();
-			default:
-				throw new AssertionError();
-		}
-	}
+	public abstract Result<T> filter(Predicate<? super T> predicate);
+    public abstract <S> Result<S> map(Function<? super T, ? extends S> mapper);
 	
     public Result<T> ifCompleted(Consumer<? super T> handler) {
-        Objects.requireNonNull(handler, "handler is null");
-        
-		switch ( m_state ) {
-			case COMPLETED:
-				handler.accept(m_value);
-			default:
-		}
-		
 		return this;
     }
 	
     public Result<T> ifFailed(Consumer<Throwable> handler) {
-        Objects.requireNonNull(handler, "handler is null");
-        
-		switch ( m_state ) {
-			case FAILED:
-				handler.accept(m_cause);
-			default:
-		}
-		
 		return this;
     }
 	
     public Result<T> ifCancelled(Runnable handler) {
-        Objects.requireNonNull(handler, "handler is null");
-        
-		switch ( m_state ) {
-			case CANCELLED:
-				handler.run();
-			default:
-		}
-		
 		return this;
     }
     
-    @Override
-    public String toString() {
-		switch ( m_state ) {
-			case COMPLETED:
-				return String.format("completed(%s)", m_value);
-			case FAILED:
-				return String.format("failed(%s)", m_cause);
-			case CANCELLED:
-				return String.format("cancelled", m_cause);
-			default:
-				throw new AssertionError();
-		}
-    }
-    
-    public <S extends T> Result<S> narrowTo(Class<S> cls) {
-    	return (Result<S>)this;
+    @SuppressWarnings("unchecked")
+	public static <T> Result<T> narrow(Result<? extends T> result) {
+    	return (Result<T>)result;
     }
 	
-	@Override
-	public boolean equals(Object obj) {
-		if ( obj == this ) {
-			return true;
+	public static class Completed<T> extends Result<T> {
+		private final T m_value;
+		
+		private Completed(T value) {
+			m_value = value;
 		}
-		else if ( obj == null || obj.getClass() != Result.class ) {
-			return false;
+
+		@Override
+		public State getState() {
+			return State.COMPLETED;
+		}
+
+		@Override
+		public T get() {
+			return m_value;
+		}
+
+		@Override
+		public T getOrNull() {
+			return m_value;
+		}
+
+		@Override
+	    public T getOrElse(T other) {
+			return m_value;
+	    }
+		
+		@Override
+		public T getOrElse(Supplier<? extends T> supplier) {
+			return m_value;
+	    }
+
+		@Override
+		public Result<T> filter(Predicate<? super T> predicate) {
+	        Utilities.checkNotNullArgument(predicate, "predicate is null");
+			return predicate.test(m_value) ? this : cancelled();
+		}
+
+		@Override
+	    public <S> Result<S> map(Function<? super T, ? extends S> mapper) {
+	        Utilities.checkNotNullArgument(mapper, "mapper is null");
+	        
+			return completed(mapper.apply(m_value));
+	    }
+
+		@Override
+	    public Result<T> ifCompleted(Consumer<? super T> handler) {
+	        Utilities.checkNotNullArgument(handler, "handler is null");
+
+			handler.accept(m_value);
+			return this;
+	    }
+	    
+	    @Override
+	    public String toString() {
+			return String.format("completed(%s)", m_value);
+	    }
+		
+		@Override
+		public int hashCode() {
+			return Objects.hash(getState(), m_value);
 		}
 		
-		@SuppressWarnings("unchecked")
-		Result<T> other = (Result<T>)obj;
-		if ( !m_state.equals(other.m_state) ) {
-			return false;
-		}
-		if ( isCompleted() ) {
+		@Override
+		public boolean equals(Object obj) {
+			if ( obj == this ) {
+				return true;
+			}
+			else if ( obj == null || obj.getClass() != Completed.class ) {
+				return false;
+			}
+			
+			@SuppressWarnings("unchecked")
+			Completed<T> other = (Completed<T>)obj;
 			return m_value.equals(other.m_value);
 		}
-		else if ( isFailed() ) {
-			return m_cause.equals(other.m_cause);
-		}
-		
-		return true;
 	}
 	
-	@Override
-	public int hashCode() {
-		return Objects.hash(m_state, m_value, m_cause);
+	public static class Failed<T> extends Result<T> {
+		private final Throwable m_cause;
+		
+		private Failed(Throwable cause) {
+			m_cause = cause;
+		}
+
+		@Override
+		public State getState() {
+			return State.FAILED;
+		}
+
+		@Override
+		public T get() throws ExecutionException {
+			throw new ExecutionException(m_cause);
+		}
+
+		@Override
+		public Throwable getCause() {
+			return m_cause;
+		}
+
+		@Override
+		public Result<T> filter(Predicate<? super T> predicate) {
+			return failed(m_cause);
+		}
+
+		@Override
+	    public <S> Result<S> map(Function<? super T, ? extends S> mapper) {
+			return failed(m_cause);
+	    }
+
+		@Override
+	    public Result<T> ifFailed(Consumer<Throwable> handler) {
+	        Utilities.checkNotNullArgument(handler, "handler is null");
+
+			handler.accept(m_cause);
+			return this;
+	    }
+	    
+	    @Override
+	    public String toString() {
+			return String.format("failed(%s)", m_cause);
+	    }
+		
+		@Override
+		public int hashCode() {
+			return Objects.hash(getState(), m_cause);
+		}
+		
+		@Override
+		public boolean equals(Object obj) {
+			if ( obj == this ) {
+				return true;
+			}
+			else if ( obj == null || obj.getClass() != Failed.class ) {
+				return false;
+			}
+			
+			@SuppressWarnings("unchecked")
+			Failed<T> other = (Failed<T>)obj;
+			return m_cause.equals(other.m_cause);
+		}
 	}
+	
+	public static class Cancelled<T> extends Result<T> {
+		private Cancelled() { }
+
+		@Override
+		public State getState() {
+			return State.CANCELLED;
+		}
+
+		@Override
+		public T get() throws CancellationException {
+			throw new CancellationException();
+		}
+
+		@Override
+		public Result<T> filter(Predicate<? super T> predicate) {
+			return cancelled();
+		}
+
+		@Override
+	    public <S> Result<S> map(Function<? super T, ? extends S> mapper) {
+			return cancelled();
+	    }
+
+		@Override
+	    public Result<T> ifCancelled(Runnable handler) {
+	        Utilities.checkNotNullArgument(handler, "handler is null");
+
+			handler.run();
+			return this;
+	    }
+	    
+	    @Override
+	    public String toString() {
+			return String.format("cancelled");
+	    }
+		
+		@Override
+		public int hashCode() {
+			return Objects.hash(getState());
+		}
+		
+		@Override
+		public boolean equals(Object obj) {
+			if ( obj == this ) {
+				return true;
+			}
+			else if ( obj == null || obj.getClass() != Cancelled.class ) {
+				return false;
+			}
+			
+			return true;
+		}
+    }
 }
