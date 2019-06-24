@@ -7,9 +7,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -28,13 +27,11 @@ import utils.func.FOption;
  */
 public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	private long m_timeoutMillis = TimeUnit.SECONDS.toMillis(3);	// 3 seconds
-	protected final ReentrantLock m_aopLock = new ReentrantLock();
-	protected final Condition m_aopCond = m_aopLock.newCondition();
-	protected final Guard m_aopGuard = Guard.by(m_aopLock, m_aopCond);
-	@GuardedBy("m_aopLock") private State m_aopState = State.NOT_STARTED;
-	@GuardedBy("m_aopLock") private Result<T> m_result;		// may null
-	@GuardedBy("m_aopLock") private final List<Runnable> m_startListeners = Lists.newCopyOnWriteArrayList();
-	@GuardedBy("m_aopLock") private final List<Consumer<Result<T>>> m_finishListeners
+	protected final Guard m_aopGuard = Guard.create();
+	@GuardedBy("m_aopGuard") private State m_aopState = State.NOT_STARTED;
+	@GuardedBy("m_aopGuard") private Result<T> m_result;		// may null
+	@GuardedBy("m_aopGuard") private final List<Runnable> m_startListeners = Lists.newCopyOnWriteArrayList();
+	@GuardedBy("m_aopGuard") private final List<Consumer<Result<T>>> m_finishListeners
 													= Lists.newCopyOnWriteArrayList();
 	
 	private Logger m_logger = LoggerFactory.getLogger(EventDrivenExecution.class);
@@ -54,7 +51,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 
 	@Override
 	public boolean cancel(boolean mayInterruptIfRunning) {
-		m_aopLock.lock();
+		m_aopGuard.lock();
 		try {
 			try {
 				if ( !awaitWhileInGuard(() -> m_aopState == State.CANCELLING, m_timeoutMillis) ) {
@@ -74,7 +71,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			}
 		}
 		finally {
-			m_aopLock.unlock();
+			m_aopGuard.unlock();
 		}
 			
 		if ( !mayInterruptIfRunning ) {
@@ -161,12 +158,12 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 	
 	public boolean notifyStarting() {
-		m_aopLock.lock();
+		m_aopGuard.lock();
 		try {
 			switch ( m_aopState ) {
 				case NOT_STARTED:
 					m_aopState = State.STARTING;
-					m_aopCond.signalAll();
+					m_aopGuard.signalAll();
 				case STARTING:
 			    	return true;
 				case RUNNING:
@@ -183,18 +180,18 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			
 		}
 		finally {
-			m_aopLock.unlock();
+			m_aopGuard.unlock();
 		}
 	}
 	
 	public boolean notifyStarted() {
-		m_aopLock.lock();
+		m_aopGuard.lock();
 		try {
 			switch ( m_aopState ) {
 				case NOT_STARTED:
 				case STARTING:
 					m_aopState = State.RUNNING;
-					m_aopCond.signalAll();
+					m_aopGuard.signalAll();
 					getLogger().debug("started: {}", this);
 					
 					notifyStartListeners();
@@ -212,19 +209,19 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			}
 		}
 		finally {
-			m_aopLock.unlock();
+			m_aopGuard.unlock();
 		}
 	}
 
 	public boolean notifyCompleted(T result) {
-		m_aopLock.lock();
+		m_aopGuard.lock();
 		try {
 			switch ( m_aopState ) {
 				case RUNNING:
 				case CANCELLING:
 					m_result = Result.completed(result);
 					m_aopState = State.COMPLETED;
-					m_aopCond.signalAll();
+					m_aopGuard.signalAll();
 					getLogger().debug("completed: {}, result={}", this, result);
 					
 					notifyFinishListenersInGuard();
@@ -243,12 +240,12 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			
 		}
 		finally {
-			m_aopLock.unlock();
+			m_aopGuard.unlock();
 		}
 	}
 	
 	public boolean notifyFailed(Throwable cause) {
-    	m_aopLock.lock();
+		m_aopGuard.lock();
     	try {
 			switch ( m_aopState ) {
 				case STARTING:		// start 과정에서 오류가 발생된 경우.
@@ -256,7 +253,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case CANCELLING:
 					m_result = Result.failed(cause);
 			    	m_aopState = State.FAILED;
-			    	m_aopCond.signalAll();
+			    	m_aopGuard.signalAll();
 					getLogger().info("failed: {}, cause={}", this, cause.toString());
 					
 					notifyFinishListenersInGuard();
@@ -273,19 +270,19 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			}
     	}
     	finally {
-    		m_aopLock.unlock();
+    		m_aopGuard.unlock();
     	}
     }
 	
 	public boolean notifyCancelling() {
-    	m_aopLock.lock();
+		m_aopGuard.lock();
     	try {
     		// 시작 중인 상태이면, cancel 작업이 inconsistent한 상태를 볼 수 있기 때문에,
     		// 일단 start작업이 완료될 때까지 대기한다.
     		Date due = new Date(System.currentTimeMillis() + m_timeoutMillis);
 			while ( m_aopState == State.STARTING ) {
 				try {
-					if ( !m_aopCond.awaitUntil(due) ) {
+					if ( !m_aopGuard.awaitUntil(due) ) {
 						return false;
 					}
 				}
@@ -298,7 +295,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case RUNNING:
 				case NOT_STARTED:
 					m_aopState = State.CANCELLING;
-					m_aopCond.signalAll();
+					m_aopGuard.signalAll();
 				case CANCELLING:
 				case CANCELLED:
 					return true;
@@ -312,19 +309,19 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			}
     	}
     	finally {
-    		m_aopLock.unlock();
+    		m_aopGuard.unlock();
     	}
     }
 	
 	public boolean notifyCancelled() {
-    	m_aopLock.lock();
+		m_aopGuard.lock();
     	try {
     		// 시작 중인 상태이면, cancel 작업이 inconsistent한 상태를 볼 수 있기 때문에,
     		// 일단 start작업이 완료될 때까지 대기한다.
     		Date due = new Date(System.currentTimeMillis() + m_timeoutMillis);
     		try {
 				while ( m_aopState == State.STARTING ) {
-					if ( !m_aopCond.awaitUntil(due) ) {
+					if ( !m_aopGuard.awaitUntil(due) ) {
 						return false;
 					}
 				}
@@ -339,7 +336,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case NOT_STARTED:
 					m_result = Result.cancelled();
 					m_aopState = State.CANCELLED;
-					m_aopCond.signalAll();
+					m_aopGuard.signalAll();
 					getLogger().info("cancelled: {}", this);
 					
 					notifyFinishListenersInGuard();
@@ -355,13 +352,13 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			}
     	}
     	finally {
-    		m_aopLock.unlock();
+    		m_aopGuard.unlock();
     	}
     }
 
 	@Override
-	public void whenStarted(Runnable listener) {
-    	m_aopLock.lock();
+	public Execution<T> whenStarted(Runnable listener) {
+		m_aopGuard.lock();
     	try {
 			switch ( m_aopState ) {
 				case NOT_STARTED:
@@ -372,15 +369,17 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					CompletableFuture.runAsync(listener::run);
 					break;
 			}
+			
+			return this;
     	}
     	finally {
-    		m_aopLock.unlock();
+    		m_aopGuard.unlock();
     	}
 	}
 
 	@Override
-	public void whenFinished(Consumer<Result<T>> listener) {
-    	m_aopLock.lock();
+	public Execution<T> whenFinished(Consumer<Result<T>> listener) {
+		m_aopGuard.lock();
     	try {
     		if ( isDoneInGuard() ) {
     			CompletableFuture.runAsync(() -> listener.accept(m_result));
@@ -388,9 +387,11 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     		else {
 				m_finishListeners.add(listener);
     		}
+			
+			return this;
     	}
     	finally {
-    		m_aopLock.unlock();
+    		m_aopGuard.unlock();
     	}
 	}
 	
@@ -425,6 +426,24 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		return m_aopGuard.get(supplier);
 	}
 	
+	public <S> EventDrivenExecution<S> map(Function<Result<? extends T>,? extends S> mapper) {
+		return new Executions.MapChainExecution<>(this, mapper);
+	}
+	
+	public <S> EventDrivenExecution<S> mapOnCompleted(Function<? super T,? extends S> mapper) {
+		return new Executions.MapCompleteChainExecution<>(this, mapper);
+	}
+	
+	public <S> EventDrivenExecution<S> flatMap(
+									Function<Result<? extends T>,Execution<? extends S>> mapper) {
+		return new Executions.FlatMapChainExecution<>(this, mapper);
+	}
+	
+	public <S> EventDrivenExecution<S> flatMapOnCompleted(
+									Function<? super T,Execution<? extends S>> mapper) {
+		return new Executions.FlatMapCompleteChainExecution<>(this, mapper);
+	}
+	
 	private void notifyStartListeners() {
 		CompletableFuture.runAsync(() -> m_startListeners.forEach(Runnable::run));
 	}
@@ -451,7 +470,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		throws InterruptedException {
 		Date due = new Date(System.currentTimeMillis() + timeoutMillis);
 		while ( predicate.get() ) {
-			if ( !m_aopCond.awaitUntil(due) ) {
+			if ( !m_aopGuard.awaitUntil(due) ) {
 				return false;
 			}
 		}

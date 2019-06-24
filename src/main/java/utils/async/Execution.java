@@ -85,7 +85,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산의 시작 여부.
 	 */
 	public default boolean isStarted() {
-		return getState().getCode() >= State.RUNNING.getCode();
+		return getState().getCode() >= State.STARTING.getCode();
 	}
 	
 	/**
@@ -236,8 +236,8 @@ public interface Execution<T> extends Future<T> {
 	 */
 	public boolean waitForDone(long timeout, TimeUnit unit) throws InterruptedException;
 
-	public void whenStarted(Runnable listener);
-	public void whenFinished(Consumer<Result<T>> listener);
+	public Execution<T> whenStarted(Runnable listener);
+	public Execution<T> whenFinished(Consumer<Result<T>> listener);
 	public default void whenFinished(FinishListener<T> listener) {
 		whenFinished(r -> r.ifCompleted(listener::onCompleted)
 							.ifCancelled(listener::onCancelled)
@@ -279,5 +279,10 @@ public interface Execution<T> extends Future<T> {
 	
 	public default Observable<ExecutionProgress<T>> observe(boolean cancelOnDispose) {
 		return Observable.create(new ExecutionProgressReport<T>(this, cancelOnDispose));
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T> Execution<T> narrow(Execution<? extends T> exec) {
+		return (Execution<T>)exec;
 	}
 }

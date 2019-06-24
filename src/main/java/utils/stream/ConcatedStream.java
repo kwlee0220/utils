@@ -23,7 +23,7 @@ class ConcatedStream<T> implements FStream<T> {
 	@Override
 	public void close() throws Exception {
 		if ( m_current != null ) {
-			Try.run(m_current::close);
+			m_current.closeQuietly();
 			m_current = null;
 		}
 		

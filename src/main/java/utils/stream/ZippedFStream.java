@@ -24,8 +24,8 @@ class ZippedFStream<T,S> implements FStream<Tuple2<T,S>> {
 	}
 	
 	public void close() throws Exception {
-		Try<Void> tried1 = Try.run(() -> m_src1.close());
-		Try<Void> tried2 = Try.run(() -> m_src2.close());
+		Try<Void> tried1 = m_src1.closeQuietly(); 
+		Try<Void> tried2 = m_src2.closeQuietly();
 		
 		tried1.get();
 		tried2.get();

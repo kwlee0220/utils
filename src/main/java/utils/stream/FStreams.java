@@ -57,7 +57,7 @@ public class FStreams {
 		public void close() throws Exception {
 			if ( !m_closed ) {
 				m_closed = true;
-				Try.run(m_src::close);
+				m_src.closeQuietly();
 			}
 		}
 	}

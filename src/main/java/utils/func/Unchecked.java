@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import io.reactivex.Observable;
@@ -44,13 +45,15 @@ public class Unchecked {
 // ****************************** Runnable **************************************
 // ******************************************************************************
 	
-	public static <T> Runnable liftIE(CheckedRunnable checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
-		
-		return new UncheckedRunnable<>(checked, ignore());
+	public static Runnable lift(CheckedRunnable checked, FailureHandler<Void> handler) {
+		return new UncheckedRunnable<>(checked, handler);
 	}
 	
-	public static <T> Runnable liftSneakily(CheckedRunnable checked) {
+	public static <T> Runnable liftIE(CheckedRunnable checked) {
+		return lift(checked, ignore());
+	}
+	
+	public static <T> Runnable erase(CheckedRunnable checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
 		
 		return () -> {
@@ -106,7 +109,7 @@ public class Unchecked {
 		return new UncheckedConsumer<>(checked, ignore());
 	}
 	
-	public static <T> Consumer<T> liftSneakily(CheckedConsumer<T> checked) {
+	public static <T> Consumer<T> erase(CheckedConsumer<T> checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedConsumer is null");
 		
 		return (data) -> {
@@ -149,7 +152,7 @@ public class Unchecked {
 // ****************************** Supplier **************************************
 // ******************************************************************************
 	
-	public static <T> Supplier<T> liftSneakily(CheckedSupplier<T> checked) {
+	public static <T> Supplier<T> erase(CheckedSupplier<T> checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
 		
 		return () -> {
@@ -167,6 +170,20 @@ public class Unchecked {
 // ******************************************************************************
 // ****************************** Function **************************************
 // ******************************************************************************
+	
+	public static <T,S> Function<T,S> erase(CheckedFunction<T,S> checked) {
+		Utilities.checkNotNullArgument(checked, "CheckedFunction is null");
+		
+		return (data) -> {
+			try {
+				return checked.apply(data);
+			}
+			catch ( Throwable e ) {
+				Throwables.sneakyThrow(e);
+				return null;
+			}
+		};
+	}
 	
 	
 // ******************************************************************************
@@ -193,11 +210,13 @@ public class Unchecked {
 		}
 		
 		public CollectingErrorHandler(List<FailureCase<T>> store) {
+			Utilities.checkNotNullArgument(store, "store is null");
 			m_fcases = store;
 		}
 
 		@Override
 		public void handle(FailureCase<T> fcase) {
+			Utilities.checkNotNullArgument(fcase, "FailureCase is null");
 			m_fcases.add(fcase);
 		}
 		
@@ -219,7 +238,8 @@ public class Unchecked {
 		}
 	}
 
-	public static class FailurePublisher<T> extends Observable<FailureCase<T>> implements Observer<FailureCase<T>> {
+	public static class FailurePublisher<T> extends Observable<FailureCase<T>>
+											implements Observer<FailureCase<T>> {
 		private final Subject<FailureCase<T>> m_subject = PublishSubject.create();
 
 		@Override
@@ -246,6 +266,5 @@ public class Unchecked {
 		public void onComplete() {
 			m_subject.onComplete();
 		}
-		
 	}
 }

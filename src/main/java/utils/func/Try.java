@@ -7,12 +7,13 @@ import java.util.function.Supplier;
 import utils.Throwables;
 import utils.Utilities;
 import utils.stream.FStream;
+import utils.stream.FStreamable;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public interface Try<T> {
+public interface Try<T> extends FStreamable<T> {
 	public static <T> Success<T> success(T value) {
 		return new Success<>(value);
 	}
@@ -46,6 +47,15 @@ public interface Try<T> {
 		};
 	}
 	
+	/**
+	 * 주어진 {@link CheckedRunnable}를 실행시킨다.
+	 * <p>
+	 * {@link CheckedRunnable} 수행이 성공적으로 완료되는 경우는  {@link Success}가
+	 * 반환되고, 예외가 발생된 경우는 {@link Failure}가 반환된다.
+	 * 
+	 * @param task	수행시킬 태스크.
+	 * @return	태스크 수행 성공 여부.
+	 */
 	public static Try<Void> run(CheckedRunnable task) {
 		try {
 			task.run();
@@ -85,28 +95,68 @@ public interface Try<T> {
 	public boolean isFailure();
 	public Throwable getCause();
 	
+	/**
+	 * 작업 수행 결과를 반환한다.
+	 * <p>
+	 * 예외 발생으로 수행이 실패한 경우, 발생된 예외가 발생된다.
+	 * 
+	 * @return	수행 결과
+	 * @throws	예외 발생으로 수행이 실패한 경우, 발생된 예외
+	 */
 	public T get();
-	public <X extends Throwable> T get(Class<X> thrCls) throws X;
-	public T getOrNull();
-	public T getOrRTE();
-	public T getOrElse(T candidate);
-	public T getOrElse(Supplier<? extends T> suppl);
 	
+	/**
+	 * 작업 수행 결과를 반환한다.
+	 * <p>
+	 * 예외 발생으로 수행이 실패한 경우, {@code null}이 반환된다.
+	 * 
+	 * @return	수행 결과. 수행이 실패된 경우에는 {@code null}
+	 */
+	public T getOrNull();
+	
+	/**
+	 * 작업 수행 결과를 반환한다.
+	 * <p>
+	 * 예외 발생으로 수행이 실패한 경우, 인자로 전달된 대체 객체가 반환됨.
+	 * 
+	 * @param elseValue	예외 발생으로 수행 결과가 없는 경우 반환될 객체.
+	 * @return	수행 결과. 수행이 실패된 경우에는 {@code null}
+	 */
+	public T getOrElse(T elseValue);
+	
+	/**
+	 * 작업 수행 결과를 반환한다.
+	 * <p>
+	 * 예외 발생으로 수행이 실패한 경우, 인자로 전달된 {@link Supplier#get()} 을 수행시킨
+	 * 결과가 반환된다. 
+	 * 
+	 * @param elseSupplier	예외 발생으로 수행 결과가 없는 경우 반환될 객체를 제공할 {@link Supplier} 객체.
+	 * @return	수행 결과. 수행이 실패된 경우에는 {@code null}
+	 */
+	public T getOrElse(Supplier<? extends T> elseSupplier);
+	
+	/**
+	 * 작업 수행 결과에 {@code mapper}를 적용시킨 값으로 구성된 {@link Try} 객체를 반환한다.
+	 * <p>
+	 * 예외 발생으로 수행 결과가 없는 경우는 {@link Failure} 객체가 반환된다.
+	 * 
+	 * @param mapper	수행 결과 값에 반영시킬 {@link Function}.
+	 * @return	{@link Function} 적용 결과가 반영된 {@link Try} 객체.
+	 */
 	public <S> Try<S> map(Function<? super T, ? extends S> mapper);
 	public <S> Try<S> tryMap(CheckedFunction<? super T, ? extends S> mapper);
 	public Try<T> mapFailure(Function<Throwable,Throwable> mapper);
 	
 	public <S> Try<S> flatMap(Function<? super T, Try<? extends S>> mapper);
 	
-	public void onSuccess(Consumer<? super T> action);
-	public void onFailure(Consumer<Throwable> handler);
+	public Try<T> onSuccess(Consumer<? super T> action);
+	public Try<T> onFailure(Consumer<Throwable> handler);
 	
 	public Try<T> recover(Function<Throwable,Try<? extends T>> recovery);
 	
-	public FStream<T> toFStream();
 	public FOption<T> toFOption();
 	
-	public static class Success<T> implements Try<T> {
+	public static final class Success<T> implements Try<T> {
 		private final T m_value;
 		
 		private Success(T value) {
@@ -129,17 +179,7 @@ public interface Try<T> {
 		}
 
 		@Override
-		public <X extends Throwable> T get(Class<X> thrCls) throws X {
-			return m_value;
-		}
-
-		@Override
 		public T getOrNull() {
-			return m_value;
-		}
-
-		@Override
-		public T getOrRTE() {
 			return m_value;
 		}
 
@@ -184,12 +224,15 @@ public interface Try<T> {
 		}
 
 		@Override
-		public void onSuccess(Consumer<? super T> action) {
+		public Try<T> onSuccess(Consumer<? super T> action) {
 			action.accept(m_value);
+			return this;
 		}
 
 		@Override
-		public void onFailure(Consumer<Throwable> handler) { }
+		public Try<T> onFailure(Consumer<Throwable> handler) {
+			return this;
+		}
 
 		@Override
 		public Try<T> recover(Function<Throwable, Try<? extends T>> recovery) {
@@ -197,7 +240,7 @@ public interface Try<T> {
 		}
 
 		@Override
-		public FStream<T> toFStream() {
+		public FStream<T> fstream() {
 			return FStream.of(m_value);
 		}
 
@@ -207,7 +250,7 @@ public interface Try<T> {
 		}
 	}
 	
-	public static class Failure<T> implements Try<T> {
+	public static final class Failure<T> implements Try<T> {
 		private final Throwable m_cause;
 		
 		private Failure(Throwable cause) {
@@ -230,19 +273,8 @@ public interface Try<T> {
 		}
 
 		@Override
-		public <X extends Throwable> T get(Class<X> thrCls) throws X {
-			Throwables.throwIfInstanceOf(m_cause, thrCls);
-			throw Throwables.toRuntimeException(m_cause);
-		}
-
-		@Override
 		public T getOrNull() {
 			return null;
-		}
-
-		@Override
-		public T getOrRTE() {
-			throw Throwables.toRuntimeException(m_cause);
 		}
 
 		@Override
@@ -281,11 +313,14 @@ public interface Try<T> {
 		}
 
 		@Override
-		public void onSuccess(Consumer<? super T> action) { }
+		public Try<T> onSuccess(Consumer<? super T> action) { 
+			return this;
+		}
 
 		@Override
-		public void onFailure(Consumer<Throwable> handler) {
+		public Try<T> onFailure(Consumer<Throwable> handler) {
 			handler.accept(m_cause);
+			return this;
 		}
 
 		@Override
@@ -294,7 +329,7 @@ public interface Try<T> {
 		}
 
 		@Override
-		public FStream<T> toFStream() {
+		public FStream<T> fstream() {
 			return FStream.empty();
 		}
 

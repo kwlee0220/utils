@@ -1,12 +1,9 @@
 package utils.async;
 
-import utils.thread.ExecutorAware;
-
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public interface StartableExecution<T> extends Execution<T>, ExecutorAware {
+public interface StartableExecution<T> extends Execution<T> {
 	public void start();
 }

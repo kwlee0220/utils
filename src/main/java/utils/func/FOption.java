@@ -175,7 +175,8 @@ public final class FOption<T> implements FStreamable<T> {
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
 	
-	public <S,X extends Throwable> FOption<S> mapTE(CheckedFunctionX<? super T,? extends S,X> mapper) throws X {
+	public <S,X extends Throwable>
+	FOption<S> mapTE(CheckedFunctionX<? super T,? extends S,X> mapper) throws X {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
