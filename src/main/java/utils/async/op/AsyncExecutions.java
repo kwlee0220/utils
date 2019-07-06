@@ -39,7 +39,7 @@ public class AsyncExecutions {
 	}
 	
 	public static <T> StartableExecution<T> idle(T result, long delay, TimeUnit unit,
-											ScheduledExecutorService scheduler) {
+												ScheduledExecutorService scheduler) {
 		return new FutureBasedAsyncExecution<T>() {
 			@Override
 			protected Future<? extends T> getFuture() {
@@ -134,14 +134,14 @@ public class AsyncExecutions {
 		return new TimedAsyncExecution<>(target, timeout, unit, scheduler);
 	}
 
-	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<StartableExecution<T>> seq,
-														Supplier<S> initSupplier,
-														BiFunction<S,T,S> folder) {
+	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<StartableExecution<S>> seq,
+														Supplier<? extends T> initSupplier,
+														BiFunction<T,S,T> folder) {
 		return new FoldedAsyncExecution<>(seq, initSupplier, folder);
 	}
 
-	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<StartableExecution<T>> seq,
-														S init, BiFunction<S,T,S> folder) {
+	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<StartableExecution<S>> seq,
+														T init, BiFunction<T,S,T> folder) {
 		return new FoldedAsyncExecution<>(seq, () -> init, folder);
 	}
 }

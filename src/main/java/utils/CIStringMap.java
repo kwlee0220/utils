@@ -62,7 +62,7 @@ public class CIStringMap<T> implements Map<String,T> {
     
 	@Override
 	public Set<Entry<String, T>> entrySet() {
-		 return KVFStream.of(m_map)
+		 return KVFStream.from(m_map)
 				 		.mapKey((k,v) -> k.get())
 				 		.toMap()
 				 		.entrySet();
@@ -75,7 +75,7 @@ public class CIStringMap<T> implements Map<String,T> {
 
 	@Override
 	public void putAll(Map<? extends String, ? extends T> m) {
-		KVFStream.of(m)
+		KVFStream.from(m)
 				.mapKey(CIString::of)
 				.forEach((k,v) -> m_map.put(k, v));
 	}

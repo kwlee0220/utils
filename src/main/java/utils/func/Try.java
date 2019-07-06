@@ -101,7 +101,6 @@ public interface Try<T> extends FStreamable<T> {
 	 * 예외 발생으로 수행이 실패한 경우, 발생된 예외가 발생된다.
 	 * 
 	 * @return	수행 결과
-	 * @throws	예외 발생으로 수행이 실패한 경우, 발생된 예외
 	 */
 	public T get();
 	
@@ -140,6 +139,7 @@ public interface Try<T> extends FStreamable<T> {
 	 * <p>
 	 * 예외 발생으로 수행 결과가 없는 경우는 {@link Failure} 객체가 반환된다.
 	 * 
+	 * @param <S>	출력 타입
 	 * @param mapper	수행 결과 값에 반영시킬 {@link Function}.
 	 * @return	{@link Function} 적용 결과가 반영된 {@link Try} 객체.
 	 */

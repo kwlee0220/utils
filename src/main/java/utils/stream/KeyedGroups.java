@@ -136,7 +136,7 @@ public class KeyedGroups<K,V> {
 	}
 	
 	public KVFStream<K,List<V>> stream() {
-		return KVFStream.of(m_groups);
+		return KVFStream.from(m_groups);
 	}
 	
 	public KVFStream<K,V> ungroup() {

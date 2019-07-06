@@ -17,6 +17,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
 import java.util.function.Consumer;
@@ -55,16 +56,16 @@ public class Utilities {
 		return LINE_SEPARATOR;
 	}
 
-	public static void executeAsynchronously(Runnable task) {
-		new Thread(task).start();
+	public static CompletableFuture<Void> runAsync(Runnable task) {
+		return CompletableFuture.runAsync(task);
 	}
 
-	public static void executeAsynchronously(Executor executor, Runnable task) {
+	public static CompletableFuture<Void> runAsync(Executor executor, Runnable task) {
 		if ( executor != null ) {
-			executor.execute(task);
+			return CompletableFuture.runAsync(task, executor);
 		}
 		else {
-			new Thread(task).start();
+			return CompletableFuture.runAsync(task);
 		}
 	}
 	

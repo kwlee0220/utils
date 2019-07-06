@@ -14,4 +14,12 @@ public class Funcs {
 			work.run();
 		}
 	}
+	
+	public static <T> T getIf(boolean flag, T trueCase, T falseCase) {
+		return (flag) ? trueCase : falseCase;
+	}
+	
+	public static <T> T getIfNotNull(Object obj, T trueCase, T falseCase) {
+		return (obj != null) ? trueCase : falseCase;
+	}
 }

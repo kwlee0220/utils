@@ -1,10 +1,12 @@
 package utils;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Set;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 
 import net.sf.cglib.proxy.Callback;
 import net.sf.cglib.proxy.CallbackFilter;
@@ -58,6 +60,31 @@ public final class ProxyUtils {
 		
 		Enhancer enhancer = new Enhancer();
 		enhancer.setInterfaces(obj.getClass().getInterfaces());
+		enhancer.setCallbackFilter(new CallFilter<>(handlers));
+		enhancer.setCallbacks(callbacks);
+		return (T)enhancer.create();
+	}
+
+	@SafeVarargs
+	@SuppressWarnings("unchecked")
+	public static <T> T replaceAction(T obj, Class<?>[] extraIntfcs,
+										CallHandler<T>... handlers) {
+		Objects.requireNonNull(obj, "target object is null");
+		Objects.requireNonNull(handlers, "CallHandler is null");
+		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
+		
+		Callback[] callbacks = new Callback[handlers.length+1];
+		for ( int i =0; i < handlers.length; ++i ) {
+			callbacks[i+1] = new Interceptor<>(obj, handlers[i]);
+		}
+		callbacks[0] = new NoOpHandler<>(obj);
+		
+		Set<Class<?>> intfcSet = Sets.newHashSet(obj.getClass().getInterfaces());
+		intfcSet.addAll(Arrays.asList(extraIntfcs));
+		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
+		
+		Enhancer enhancer = new Enhancer();
+		enhancer.setInterfaces(intfcs);
 		enhancer.setCallbackFilter(new CallFilter<>(handlers));
 		enhancer.setCallbacks(callbacks);
 		return (T)enhancer.create();

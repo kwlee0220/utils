@@ -55,7 +55,7 @@ class PrefetchStream<T> implements FStream<T>, ExecutorAware {
 	public FOption<T> next() {
 		int emptySlots = m_buffer.capacity()-m_buffer.size();
 		if ( emptySlots >= m_buffer.capacity()/2 && m_prefetching.compareAndSet(false, true) ) {
-			Utilities.executeAsynchronously(m_executor, new Prefetcher());
+			Utilities.runAsync(m_executor, new Prefetcher());
 		}
 		
 		return m_buffer.next();

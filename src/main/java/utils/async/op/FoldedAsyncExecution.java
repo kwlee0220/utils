@@ -28,17 +28,18 @@ import utils.stream.FStream;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<S>
+public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<T>
 										implements CancellableWork {
-	private final FStream<StartableExecution<T>> m_sequence;
-	private final Supplier<S> m_initSupplier;
-	private final BiFunction<S,T,S> m_folder;
-	private S m_accum;
+	private final FStream<StartableExecution<S>> m_sequence;
+	private final Supplier<? extends T> m_initSupplier;
+	private final BiFunction<? super T,? super S,? extends T> m_folder;
+	private T m_accum;
 	
-	@Nullable @GuardedBy("m_aopGuard") private StartableExecution<T> m_cursor = null;
+	@Nullable @GuardedBy("m_aopGuard") private StartableExecution<? extends S> m_cursor = null;
 	
-	public static <T,S> FoldedAsyncExecution<T,S> of(FStream<StartableExecution<T>> sequence,
-								Supplier<S> initSupplier, BiFunction<S,T,S> folder) {
+	public static <T,S> FoldedAsyncExecution<T,S> of(FStream<StartableExecution<S>> sequence,
+													Supplier<? extends T> initSupplier,
+													BiFunction<? super T,? super S,? extends T> folder) {
 		return new FoldedAsyncExecution<>(sequence, initSupplier, folder);
 	}
 	
@@ -51,8 +52,9 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<S>
 	 * @throws IllegalArgumentException	<code>elements</code>가 <code>null</code>이거나
 	 * 									길이가 0인 경우.
 	 */
-	FoldedAsyncExecution(FStream<StartableExecution<T>> execSeq, Supplier<S> initSupplier,
-			 			BiFunction<S,T,S> folder) {
+	FoldedAsyncExecution(FStream<StartableExecution<S>> execSeq,
+							Supplier<? extends T> initSupplier,
+							BiFunction<? super T,? super S,? extends T> folder) {
 		Objects.requireNonNull(execSeq, "AsyncExecution sequnece");
 		Objects.requireNonNull(initSupplier, "Initial Supplier");
 		Objects.requireNonNull(folder, "folder");
@@ -91,7 +93,7 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<S>
 		return String.format("FoldExecution[current=%s]", m_cursor);
 	}
 	
-	private void onFinishedInGuard(Result<T> result) {
+	private void onFinishedInGuard(Result<? extends S> result) {
 		if ( result.isCompleted() ) {
 			// m_sequence가 empty인 경우 notifyStarting() 만 호출된 상태이기 때문에
 			// 먼저강제로 notifyStarted()를 호출해준다.

@@ -30,7 +30,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	protected final Guard m_aopGuard = Guard.create();
 	@GuardedBy("m_aopGuard") private State m_aopState = State.NOT_STARTED;
 	@GuardedBy("m_aopGuard") private Result<T> m_result;		// may null
-	@GuardedBy("m_aopGuard") private final List<Runnable> m_startListeners = Lists.newCopyOnWriteArrayList();
+	@GuardedBy("m_aopGuard") private final List<Runnable> m_startListeners
+													= Lists.newCopyOnWriteArrayList();
 	@GuardedBy("m_aopGuard") private final List<Consumer<Result<T>>> m_finishListeners
 													= Lists.newCopyOnWriteArrayList();
 	

@@ -61,6 +61,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	/**
 	 * empty 스트림 객체를 반환한다.
 	 * 
+	 * @param <T> 스트림 객체 타입
 	 * @return	스트림 객체.
 	 */
 	@SuppressWarnings("unchecked")
@@ -76,6 +77,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 주어진 {@link Iterator}객체로부터 FStream 객체를 생성한다.
 	 * 
 	 * @param <T> Iterator에서 반환하는 데이터 타입
+	 * @param iter	입력 순환자 객체.
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(final Iterator<? extends T> iter) {
@@ -103,6 +105,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 주어진 {@link Iterable}객체로부터 FStream 객체를 생성한다.
 	 * 
 	 * @param <T> Iterable에서 반환하는 데이터 타입
+	 * @param values	입력 {@link Iterable} 객체.
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(Iterable<? extends T> values) {
@@ -115,6 +118,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 주어진 데이터 객체 배열 값을 갖는 FStream 객체를 생성한다.
 	 * 
 	 * @param <T> 배열 원소 데이터 타입
+	 * @param values	스트림에 포함될 원소 데이터 배열.
 	 * @return FStream 객체
 	 */
 	@SafeVarargs
@@ -130,6 +134,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 생성되고, 오류인 경우는 {@link #empty()} 스트림이 생성된다.
 	 * 
 	 * @param <T> Try기 갖고 있는 데이터 타입
+	 * @param trial	입력 {@link Try} 객체.
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(Try<? extends T> trial) {
@@ -142,6 +147,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 주어진 {@link Stream}객체로부터 FStream 객체를 생성한다.
 	 * 
 	 * @param <T> Stream에서 반환하는 데이터 타입
+	 * @param stream	입력 {@link Stream} 객체.
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(Stream<? extends T> stream) {
@@ -154,6 +160,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 주어진 {@link Observable}객체로부터 FStream 객체를 생성한다.
 	 * 
 	 * @param <T> Observable에서 반환하는 데이터 타입
+	 * @param ob	입력 {@link Observable} 객체.
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(Observable<? extends T> ob) {
@@ -221,7 +228,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	/**
 	 * 본 스트림에서 주어진 조건을 만족하는 데이터로만 구성된 스트림을 생성한다.
 	 * 
-	 * @param <T>	본 스트림이 갖는 데이터의 타입
 	 * @param pred	조건 객체
 	 * @return FStream 객체
 	 */
@@ -245,7 +251,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	/**
 	 * 본 스트림에 포함된 각 데이터에서 변화된 데이터로 구성된 스트림을 생성한다.
 	 * 
-	 * @param <T>	본 스트림이 갖는 데이터의 타입
 	 * @param <S>	매핑된 데이터의 타입
 	 * @param mapper	매핑 함수 객체.
 	 * @return FStream 객체
@@ -277,7 +282,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * <p>
 	 * 모든 데이터에 대한 호출이 완료되면 스트림의 {@link #closeQuietly()}를 호출한다.
 	 * 
-	 * @param <T>	본 스트림이 갖는 데이터의 타입
 	 * @param effect	Consumer 객체.
 	 */
 	public default void forEach(Consumer<? super T> effect) {
@@ -617,6 +621,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 만일 스트림이 빈 경우에는 {@link FOption#empty()}를 반환한다.
 	 * 본 메소드가 호출된 후에는 본 스트림 객체는 폐쇄된다. 
 	 * 
+	 * @param pred	검색에 사용할 {@link Predicate}.
 	 * @return	첫번째 원소 데이터
 	 */
 	public default FOption<T> findFirst(Predicate<? super T> pred) {
@@ -667,6 +672,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	/**
 	 * 스트림에 포함된 모든 스트림 원소에 대해 하나의 스트림으로 묶어 하나의 스트림 객체를 생성한다.
 	 * 
+	 * @param <T>	스트림의 원소 타입
 	 * @param fact	스트림의 스트림 객체.
 	 * @return	{@code FStream} 객체.
 	 */
@@ -754,6 +760,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return toMap(Maps.newHashMap(), toKey, toValue);
 	}
 	
+	public default <K> Map<K,T> toMap(Function<? super T,? extends K> toKey) {
+		return toMap(Maps.newHashMap(), toKey, v -> v);
+	}
+	
 	public default IntFStream toIntFStream() {
 		return new IntFStream.FStreamAdaptor(this.cast(Integer.class));
 	}
@@ -761,6 +771,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	/**
 	 * 본 스트림에 포함된 데이터를 구성된 배열을 반환한다.
 	 * 
+	 * @param <S>	컴포넌트 타입
 	 * @param componentType	 스트림에 포함된 데이터의 클래스.
 	 * @return	배열
 	 */
@@ -777,12 +788,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new PrependableFStream<>(this);
 	}
 	
-	public default <K> KVFStream<K,T> toKVFStream(Function<? super T,? extends K> keyGen) {
+	public default <K> KVFStream<K,T> tagKey(Function<? super T,? extends K> keyGen) {
 		return KVFStream.downcast(map(t -> KeyValue.of(keyGen.apply(t), t)));
 	}
 	
-	public default <K,V> KVFStream<K,V> toKVFStream(Function<? super T,? extends K> keyGen,
-													Function<? super T,? extends V> valueGen) {
+	public default <K,V> KVFStream<K,V> toKeyValueStream(Function<? super T,? extends K> keyGen,
+														Function<? super T,? extends V> valueGen) {
 		return KVFStream.downcast(map(t -> KeyValue.of(keyGen.apply(t), valueGen.apply(t))));
 	}
 	

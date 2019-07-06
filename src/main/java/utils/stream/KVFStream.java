@@ -34,11 +34,11 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return downcast(stream.map(t -> KeyValue.of(t._1, t._2)));
 	}
 	
-	public static <K,V> KVFStream<K,V> of(Map<? extends K, ? extends V> map) {
+	public static <K,V> KVFStream<K,V> from(Map<? extends K, ? extends V> map) {
 		Utilities.checkNotNullArgument(map, "map is null");
 		
 		return downcast(FStream.from(map.entrySet().iterator())
-							.map(e -> KeyValue.of(e.getKey(), e.getValue())));
+								.map(e -> KeyValue.of(e.getKey(), e.getValue())));
 	}
 	
 	public default KVFStream<K,V> filterKey(Predicate<? super K> pred) {
