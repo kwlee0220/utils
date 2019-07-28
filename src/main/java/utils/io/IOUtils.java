@@ -16,6 +16,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.io.Serializable;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.Base64;
@@ -73,6 +74,18 @@ public class IOUtils {
 				.filter(c -> c != null)
 				.forEach(IOUtils::closeQuietly);
 	}
+	
+    public static int transfer(Reader reader, Writer writer, int bufSize) throws IOException {
+    	char[] buf = new char[bufSize];
+
+        int count = 0;
+        for ( int nbytes = reader.read(buf); nbytes >= 0; nbytes = reader.read(buf) ) {
+            writer.write(buf, 0, nbytes);
+            count += nbytes;
+        }
+
+        return count;
+    }
 	
     public static int transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
         byte[] buf = new byte[bufSize];
