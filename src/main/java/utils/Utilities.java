@@ -24,12 +24,15 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import net.sf.cglib.proxy.MethodProxy;
@@ -387,5 +390,16 @@ public class Utilities {
 		}
 		
 		return null;
+	}
+
+//	private static final Pattern KV_PAT = Pattern.compile("(\\w+)=\"*((?<=\")[^\"]+(?=\")|([^\\s]+))\"*");
+	private static final Pattern KV_PAT = Pattern.compile("(\\S+)\\s*=\\s*\"*(((?<=\\\")([^\\\"]*)(?=\\\"))|([^;\\s][^;\\s]*))\"*;?");
+	public static List<KeyValue<String,String>> parseKeyValues(String expr) {
+		List<KeyValue<String,String>> keyValues = Lists.newArrayList();
+		for ( Matcher m = KV_PAT.matcher(expr); m.find(); ) {
+			keyValues.add(KeyValue.of(m.group(1), m.group(2)));
+		}
+		
+		return keyValues;
 	}
 }
