@@ -1,5 +1,7 @@
 package utils.func;
 
+import java.util.function.Consumer;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -12,6 +14,12 @@ public class Funcs {
 	public static <T> void when(boolean flag, Runnable work) {
 		if ( flag ) {
 			work.run();
+		}
+	}
+	
+	public static <T> void acceptIfNotNull(T obj, Consumer<T> consumer) {
+		if ( obj != null ) {
+			consumer.accept(obj);
 		}
 	}
 	

@@ -30,6 +30,7 @@ ext.commons_lang3_version = '3.7'
 ext.junit_version = '4.12'
 ext.mokito_version = '2.23.0'
 ext.hamcrest_version = '1.3'
+ext.lz4_java_version = '1.6.0' 
 
 dependencies {
 	compile "org.slf4j:slf4j-log4j12:${slf4j_log4j_version}"
@@ -40,9 +41,11 @@ dependencies {
 	compile "commons-cli:commons-cli:${commons_cli_version}"
 	compile "cglib:cglib:${cglib_version}"
 	compile "io.reactivex.rxjava2:rxjava:${rxjava2_version}"
+	compile "org.lz4:lz4-java:${lz4_java_version}"
 	
 	compile "com.google.code.gson:gson:${gson_version}"
 	compile "org.apache.commons:commons-lang3:${commons_lang3_version}"
+	
 	
 	testCompile "junit:junit:${junit_version}"
 	testCompile "org.mockito:mockito-core:${mokito_version}"
