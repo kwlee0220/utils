@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -174,7 +175,7 @@ public class IOUtils {
 		while ( length > 0 ) {
 			int nbytes = is.read(buf, offset, length);
 			if ( nbytes < 0 ) {
-				throw new IOException("reached EOF");
+				throw new EOFException();
 			}
 			
 			offset += nbytes;
@@ -191,8 +192,9 @@ public class IOUtils {
 		int remains = length;
 		while ( remains > 0 ) {
 			int nbytes = is.read(buf, offset, remains);
-			if ( nbytes < 0 ) {
-				return length - remains;
+			if ( nbytes == -1 ) {
+				int nread = length - remains;
+				return (nread > 0) ? nread : -1;
 			}
 			
 			offset += nbytes;
