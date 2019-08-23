@@ -3,18 +3,18 @@ package utils.io;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.vavr.Lazy;
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
+import net.jpountz.lz4.LZ4BlockInputStream;
+import net.jpountz.lz4.LZ4BlockOutputStream;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
-import net.jpountz.lz4.LZ4SafeDecompressor;
 import utils.UnitUtils;
 import utils.Utilities;
 
@@ -36,6 +36,14 @@ public class Lz4Compressions {
 	
 	public static int maxCompressedLength(int srcLength) {
 		return s_compressor.get().maxCompressedLength(srcLength);
+	}
+	
+	public static OutputStream toCompressedStream(OutputStream out, int blockSize) {
+		return new LZ4BlockOutputStream(out, blockSize);
+	}
+	
+	public static InputStream toDecompressedStream(InputStream in) {
+		return new LZ4BlockInputStream(in);
 	}
 	
 	public static Lz4CompressedInputStream compress(InputStream is) {
