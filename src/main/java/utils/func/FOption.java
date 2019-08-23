@@ -210,6 +210,16 @@ public final class FOption<T> implements FStreamable<T> {
 		}
 	}
 	
+	public FOption<T> orElse(T orElse) {
+		if ( m_present ) {
+			return this;
+		}
+		else {
+			Utilities.checkNotNullArgument(orElse, "orElse is null");
+			return FOption.of(orElse);
+		}
+	}
+	
 	public FOption<T> orElse(Supplier<FOption<T>> orElseSupplier) {
 		if ( m_present ) {
 			return this;
