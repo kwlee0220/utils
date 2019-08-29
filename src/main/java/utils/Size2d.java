@@ -49,7 +49,9 @@ public class Size2d {
 	
 	@Override
 	public String toString() {
-		return String.format("%fx%f", m_width, m_height);
+		String fmt1 = (m_width == Math.floor(m_width)) ? "%.0f" :  "%f";
+		String fmt2 = (m_height == Math.floor(m_height)) ? "%.0f" :  "%f";
+		return String.format(fmt1 + "x" + fmt2, m_width, m_height);
 	}
 	
 	public String toString(int ndecimal) {

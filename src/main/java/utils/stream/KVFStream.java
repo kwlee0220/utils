@@ -2,6 +2,7 @@ package utils.stream;
 
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -26,6 +27,12 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Utilities.checkNotNullArgument(stream, "stream is null");
 		
 		return new FStreamAdaptor<>(stream);
+	}
+	
+	public static <K,V> KVFStream<K,V> from(List<KeyValue<K,V>> kvList) {
+		Utilities.checkNotNullArgument(kvList, "KeyValue list is null");
+		
+		return new FStreamAdaptor<>(FStream.from(kvList));
 	}
 	
 	public static <K,V> KVFStream<K,V> fromTupleFStream(FStream<Tuple2<K,V>> stream) {

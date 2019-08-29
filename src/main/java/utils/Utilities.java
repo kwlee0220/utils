@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.Spliterator;
@@ -33,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import net.sf.cglib.proxy.MethodProxy;
@@ -401,5 +403,13 @@ public class Utilities {
 		}
 		
 		return keyValues;
+	}
+	public static Map<String,String> parseKeyValueMap(String expr) {
+		Map<String,String> kvMap = Maps.newHashMap();
+		for ( Matcher m = KV_PAT.matcher(expr); m.find(); ) {
+			kvMap.put(m.group(1), m.group(2));
+		}
+		
+		return kvMap;
 	}
 }

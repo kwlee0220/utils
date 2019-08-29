@@ -1,5 +1,7 @@
 package utils.func;
 
+import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -29,5 +31,12 @@ public class Funcs {
 	
 	public static <T> T getIfNotNull(Object obj, T trueCase, T falseCase) {
 		return (obj != null) ? trueCase : falseCase;
+	}
+	
+	public static <K,V> void acceptIfPresent(Map<K,V> map, K key, BiConsumer<K, V> consumer) {
+		V value = map.get(key);
+		if ( value != null ) {
+			consumer.accept(key, value);
+		}
 	}
 }
