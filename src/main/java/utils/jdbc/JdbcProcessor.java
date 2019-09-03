@@ -3,6 +3,7 @@ package utils.jdbc;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -35,6 +36,7 @@ public class JdbcProcessor implements Serializable {
 	private final String m_user;
 	private final String m_passwd;
 	private final String m_driverClsName;
+	private ClassLoader m_cloader;
 	
 	/**
 	 * 주어진 정보를 이용하한 JDBC 연결기 객체를 생성한다.
@@ -72,6 +74,15 @@ public class JdbcProcessor implements Serializable {
 		return m_driverClsName;
 	}
 	
+	public ClassLoader getClassLoader() {
+		return m_cloader;
+	}
+	
+	public JdbcProcessor setClassLoader(ClassLoader cloader) {
+		m_cloader = cloader;
+		return this;
+	}
+	
 	/**
 	 * 주어진 연결 정보를 이용하여 JDBC 연결 객체를 반환한다.
 	 * 
@@ -80,10 +91,18 @@ public class JdbcProcessor implements Serializable {
 	 */
 	public Connection connect() throws SQLException {
 		try {
-			Class.forName(m_driverClsName);
+			if ( m_cloader != null ) {
+				Driver driver = (Driver)Class.forName(m_driverClsName, true, m_cloader)
+											.newInstance();
+				DriverManager.registerDriver(new DriverDelegate(driver));
+			}
+			else {
+				Class.forName(m_driverClsName);
+			}
+			
 			return DriverManager.getConnection(m_jdbcUrl, m_user, m_passwd);
 		}
-		catch ( ClassNotFoundException e ) {
+		catch ( Exception e ) {
 			throw new JdbcException("fails to load JDBC driver class: name=" + m_driverClsName);
 		}
 	}
