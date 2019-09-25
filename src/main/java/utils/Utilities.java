@@ -140,6 +140,12 @@ public class Utilities {
 		}
 	}
 	
+	public static void checkState(boolean pred) {
+		if ( !pred ) {
+			throw new IllegalStateException();
+		}
+	}
+	
 	public static void checkState(boolean pred, String msg) {
 		if ( !pred ) {
 			throw new IllegalStateException(msg);

@@ -236,6 +236,7 @@ public class Lz4Compressions {
 		@Override
 	    public void close() throws IOException {
 			printCompressionRatio();
+			m_src.close();
 		}
 		
 		private int decompressNextBlock() throws IOException {

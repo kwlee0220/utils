@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 
+import org.apache.commons.io.FilenameUtils;
+
 import utils.stream.FStream;
 
 
@@ -17,6 +19,10 @@ import utils.stream.FStream;
 public class FileUtils {
 	private FileUtils() {
 		throw new AssertionError("Should not be called: class=" + FileUtils.class.getName());
+	}
+	
+	public static String getExtension(File file) {
+		return FilenameUtils.getExtension(file.getAbsolutePath());
 	}
 	
 	public static FStream<File> walk(File start, String glob) throws IOException {

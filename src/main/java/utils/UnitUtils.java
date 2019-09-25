@@ -169,22 +169,21 @@ public class UnitUtils {
 			return String.format("%dms", millis);
 		}
 		millis = millis % 1000;
+		String millisStr = (millis > 0) ? String.format(".%03d", millis) : "";
 		
 		long minutes = seconds / 60;
 		if ( minutes == 0 ) {
-			return String.format("%02d.%03ds", seconds, millis);
+			return String.format("%02d%s", seconds, millisStr);
 		}
 		seconds = seconds % 60;
 		
 		long hours = minutes / 60;
 		if ( hours == 0 ) {
-			return String.format("%02d:%02d.%03d", minutes, seconds, millis);
+			return String.format("%02d:%02d%s", minutes, seconds, millisStr);
 		}
 		minutes = minutes % 60;
 		
-		return (millis != 0 )
-				? String.format("%d:%02d:%02d.%03d", hours, minutes, seconds, millis)
-				: String.format("%d:%02d:%02d", hours, minutes, seconds);
+		return String.format("%d:%02d:%02d%s", hours, minutes, seconds, millisStr);
 	}
 
 	public static String toSecondString(long millis) {

@@ -67,6 +67,10 @@ public class Guard {
 		m_cond.signalAll();
 	}
 
+	public void await() throws InterruptedException {
+		m_cond.await();
+	}
+
 	public boolean awaitUntil(Date due) throws InterruptedException {
 		return m_cond.awaitUntil(due);
 	}
@@ -112,17 +116,11 @@ public class Guard {
 	
 	public class GuardedRunnable implements Runnable {
 		private final Runnable m_task;
-		private boolean m_signal = false;
 		
 		GuardedRunnable(Runnable task) {
 			Utilities.checkNotNullArgument(task, "task is null");
 			
 			m_task = task;
-		}
-		
-		public GuardedRunnable signalAll() {
-			m_signal = true;
-			return this;
 		}
 
 		@Override
@@ -130,9 +128,6 @@ public class Guard {
 			m_lock.lock();
 			try {
 				m_task.run();
-				if ( m_signal ) {
-					m_cond.signalAll();
-				}
 			}
 			finally {
 				m_lock.unlock();

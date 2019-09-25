@@ -88,7 +88,7 @@ public class IOUtils {
         return count;
     }
 	
-    public static int transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
+    public static long transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
         byte[] buf = new byte[bufSize];
 
         int count = 0;
@@ -100,7 +100,7 @@ public class IOUtils {
         return count;
     }
     
-    public static int transferAndClose(InputStream is, OutputStream os, int bufSize)
+    public static long transferAndClose(InputStream is, OutputStream os, int bufSize)
     	throws IOException {
 		try {
 			return transfer(is, os, bufSize);
@@ -158,11 +158,11 @@ public class IOUtils {
     	}
     }
     
-    public static void toFile(InputStream is, File file) throws IOException {
+    public static long toFile(InputStream is, File file) throws IOException {
     	try ( InputStream isc = is;
     			FileOutputStream fos = new FileOutputStream(file);
     		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
-    		transfer(isc, bos, 16<<10);
+    		return transfer(isc, bos, 16<<10);
     	}
     }
 
@@ -351,7 +351,7 @@ public class IOUtils {
 		return new CopyStream(from, closeFrom, to, closeTo);
 	}
 	
-	public static final class CopyStream extends AbstractThreadedExecution<Integer>
+	public static final class CopyStream extends AbstractThreadedExecution<Long>
 											implements CancellableWork {
 		private final InputStream m_from;
 		private final OutputStream m_to;
@@ -375,7 +375,7 @@ public class IOUtils {
 		}
 		
 		@Override
-		public Integer executeWork() throws Exception {
+		public Long executeWork() throws Exception {
 			try {
 				return IOUtils.transfer(m_from, m_to, m_bufSize);
 			}
