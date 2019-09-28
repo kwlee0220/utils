@@ -45,7 +45,7 @@ public abstract class Result<T> {
 	public abstract T get() throws ExecutionException, CancellationException;
 	
 	public Throwable getCause() {
-		throw new IllegalStateException("not CANCELLED state: state=" + getState());
+		throw new IllegalStateException("not FAILED state: state=" + getState());
 	}
 	
 	public T getOrNull() {
