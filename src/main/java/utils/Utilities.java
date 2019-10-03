@@ -25,7 +25,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -33,10 +32,10 @@ import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import io.vavr.Tuple;
+import io.vavr.Tuple2;
 import net.sf.cglib.proxy.MethodProxy;
 import utils.func.Try;
 import utils.stream.FStream;
@@ -399,23 +398,30 @@ public class Utilities {
 		
 		return null;
 	}
+	
+	public static Tuple2<String,String> split(String str, char delim) {
+		int idx = str.indexOf(delim);
+		if ( idx < 0 ) {
+			return Tuple.of(str, null);
+		}
+		else {
+			return Tuple.of(str.substring(0, idx), str.substring(idx+1));
+		}
+	}
 
 //	private static final Pattern KV_PAT = Pattern.compile("(\\w+)=\"*((?<=\")[^\"]+(?=\")|([^\\s]+))\"*");
 	private static final Pattern KV_PAT = Pattern.compile("(\\S+)\\s*=\\s*\"*(((?<=\\\")([^\\\"]*)(?=\\\"))|([^;\\s][^;\\s]*))\"*;?");
-	public static List<KeyValue<String,String>> parseKeyValues(String expr) {
-		List<KeyValue<String,String>> keyValues = Lists.newArrayList();
-		for ( Matcher m = KV_PAT.matcher(expr); m.find(); ) {
-			keyValues.add(KeyValue.of(m.group(1), m.group(2)));
-		}
-		
-		return keyValues;
+	public static List<KeyValue<String,String>> parseKeyValues(String expr, char delim) {
+		return CSV.parseCsv(expr, delim, '"')
+					.map(String::trim)
+					.map(KeyValue::parse)
+					.toList();
 	}
-	public static Map<String,String> parseKeyValueMap(String expr) {
-		Map<String,String> kvMap = Maps.newHashMap();
-		for ( Matcher m = KV_PAT.matcher(expr); m.find(); ) {
-			kvMap.put(m.group(1), m.group(2));
-		}
-		
-		return kvMap;
+	
+	public static Map<String,String> parseKeyValueMap(String expr, char delim) {
+		return CSV.parseCsv(expr, ';', '"')
+					.map(String::trim)
+					.map(KeyValue::parse)
+					.toMap(KeyValue::key, KeyValue::value);
 	}
 }

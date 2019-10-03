@@ -29,6 +29,10 @@ public class Funcs {
 		return (flag) ? trueCase : falseCase;
 	}
 	
+	public static <T> T getIfNotNull(T obj, T falseCase) {
+		return (obj != null) ? obj : falseCase;
+	}
+	
 	public static <T> T getIfNotNull(Object obj, T trueCase, T falseCase) {
 		return (obj != null) ? trueCase : falseCase;
 	}

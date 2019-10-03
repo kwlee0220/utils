@@ -1,5 +1,6 @@
 package utils;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -51,6 +52,28 @@ public final class KeyValue<K,V> {
 	
 	public <U> KeyValue<K,U> mapValue(BiFunction<? super K,? super V,? extends U> mapper) {
 		return new KeyValue<>(m_key, mapper.apply(m_key, m_value));
+	}
+	
+	public static KeyValue<String,String> parse(String expr, char quote) {
+		List<String> parts = CSV.parseCsv(expr, '=', quote)
+								.map(String::trim)
+								.toList();
+		if ( parts.size() != 2 ) {
+			throw new IllegalArgumentException("invalid key-value: " + expr);
+		}
+		
+		return KeyValue.of(parts.get(0), parts.get(1));
+	}
+	
+	public static KeyValue<String,String> parse(String expr) {
+		List<String> parts = CSV.parseCsv(expr, '=')
+								.map(String::trim)
+								.toList();
+		if ( parts.size() != 2 ) {
+			throw new IllegalArgumentException("invalid key-value: " + expr);
+		}
+		
+		return KeyValue.of(parts.get(0), parts.get(1));
 	}
 	
 	@Override
