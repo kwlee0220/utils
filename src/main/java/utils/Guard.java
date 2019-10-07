@@ -379,12 +379,16 @@ public class Guard {
 	
 	public boolean awaitUntil(Supplier<Boolean> predicate, long timeout, TimeUnit tu)
 		throws InterruptedException {
+		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
+		return awaitUntil(predicate, due);
+	}
+	
+	public boolean awaitUntil(Supplier<Boolean> predicate, Date due)
+		throws InterruptedException {
 		Utilities.checkNotNullArgument(predicate, "Until-condition is null");
-		Utilities.checkNotNullArgument(tu, "TimeUnit is null");
-		Utilities.checkArgument(timeout >= 0, "timeout should be larger than zero");
+		Utilities.checkNotNullArgument(due, "due is null");
 		Utilities.checkState(m_cond != null, "Condition is null");
 		
-		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		m_lock.lock();
 		try {
 			while ( !predicate.get() ) {
@@ -455,6 +459,27 @@ public class Guard {
 		Utilities.checkState(suppl != null, "Supplier is null");
 		
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
+		m_lock.lock();
+		try {
+			while ( !predicate.get() ) {
+				if ( !m_cond.awaitUntil(due) ) {
+					throw new TimeoutException();
+				}
+			}
+
+			return suppl.get();
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
+	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl, Date due)
+		throws InterruptedException, TimeoutException {
+		Utilities.checkNotNullArgument(predicate, "Until-condition is null");
+		Utilities.checkNotNullArgument(suppl, "value supplier is null");
+		Utilities.checkNotNullArgument(due, "due is null");
+		
 		m_lock.lock();
 		try {
 			while ( !predicate.get() ) {

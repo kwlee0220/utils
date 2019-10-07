@@ -107,9 +107,9 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
+	public T get(Date due) throws InterruptedException, ExecutionException,
 													TimeoutException, CancellationException {
-		return waitForResult(timeout, unit).get();
+		return waitForResult(due).get();
 	}
 	
 	@Override
@@ -118,8 +118,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 	
 	@Override
-	public boolean waitForStarted(long timeout, TimeUnit unit) throws InterruptedException {
-		return m_aopGuard.awaitUntil(() -> m_aopState.ordinal() >= State.RUNNING.ordinal(), timeout, unit);
+	public boolean waitForStarted(Date due) throws InterruptedException {
+		return m_aopGuard.awaitUntil(() -> m_aopState.ordinal() >= State.RUNNING.ordinal(), due);
 	}
 
 	@Override
@@ -128,8 +128,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public boolean waitForDone(long timeout, TimeUnit unit) throws InterruptedException {
-		return m_aopGuard.awaitUntil(this::isDoneInGuard, timeout, unit);
+	public boolean waitForDone(Date due) throws InterruptedException {
+		return m_aopGuard.awaitUntil(this::isDoneInGuard, due);
 	}
 
 	@Override
@@ -143,9 +143,9 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public Result<T> waitForResult(long timeout, TimeUnit unit) throws InterruptedException,
+	public Result<T> waitForResult(Date due) throws InterruptedException,
 																	TimeoutException {
-		return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_result, timeout, unit);
+		return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_result, due);
 	}
 
 	@Override

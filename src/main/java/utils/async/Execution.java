@@ -1,5 +1,6 @@
 package utils.async;
 
+import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -158,8 +159,13 @@ public interface Execution<T> extends Future<T> {
 	 * @throws ExecutionException	수행 도중 예외가 발생된 경우.
 	 */
     public T get() throws InterruptedException, ExecutionException, CancellationException;
-    public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException,
-    												TimeoutException, CancellationException;
+    public default T get(long timeout, TimeUnit unit)
+    	throws InterruptedException, ExecutionException, TimeoutException, CancellationException {
+    	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
+    	return get(due);
+    }
+    public T get(Date due) throws InterruptedException, ExecutionException,
+									TimeoutException, CancellationException;
     
     public default T getUnchecked() {
     	try {
@@ -197,8 +203,12 @@ public interface Execution<T> extends Future<T> {
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 * @throws TimeoutException	작업 종료 대기 중 시간제한이 걸린 경우.
 	 */
-    public Result<T> waitForResult(long timeout, TimeUnit unit)
-    	throws InterruptedException, TimeoutException;
+    public default Result<T> waitForResult(long timeout, TimeUnit unit)
+    	throws InterruptedException, TimeoutException {
+    	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
+    	return waitForResult(due);
+    }
+    public Result<T> waitForResult(Date due) throws InterruptedException, TimeoutException;
     
 	/**
 	 * 비동기 작업이 시작될 때까지 대기한다.
@@ -216,7 +226,12 @@ public interface Execution<T> extends Future<T> {
 	 * 			대기 중에 제한시간 경과로 반환되는 경우는 {@code false}.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-	public boolean waitForStarted(long timeout, TimeUnit unit) throws InterruptedException;
+	public default boolean waitForStarted(long timeout, TimeUnit unit)
+		throws InterruptedException {
+    	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
+    	return waitForStarted(due);
+	}
+    public  boolean waitForStarted(Date due) throws InterruptedException;
 
 	/**
 	 * 비동기 작업이 종료될 때까지 대기한다.
@@ -234,7 +249,11 @@ public interface Execution<T> extends Future<T> {
 	 * 			대기 중에 제한시간 경과로 반환되는 경우는 {@code false}.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-	public boolean waitForDone(long timeout, TimeUnit unit) throws InterruptedException;
+	public default boolean waitForDone(long timeout, TimeUnit unit) throws InterruptedException {
+    	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
+    	return waitForDone(due);
+	}
+	public boolean waitForDone(Date due) throws InterruptedException;
 
 	public Execution<T> whenStarted(Runnable listener);
 	public Execution<T> whenFinished(Consumer<Result<T>> listener);

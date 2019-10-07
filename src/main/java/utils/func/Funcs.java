@@ -3,6 +3,7 @@ package utils.func;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * 
@@ -22,6 +23,15 @@ public class Funcs {
 	public static <T> void acceptIfNotNull(T obj, Consumer<T> consumer) {
 		if ( obj != null ) {
 			consumer.accept(obj);
+		}
+	}
+	
+	public static <T,S> S applyIfNotNull(T obj, Function<T,S> func) {
+		if ( obj != null ) {
+			return func.apply(obj);
+		}
+		else {
+			return null;
 		}
 	}
 	

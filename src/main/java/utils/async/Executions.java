@@ -82,4 +82,136 @@ public class Executions {
 		);
 		}
 	}
+	
+/*
+	private static class SupplyingExecution<T> implements StartableExecution<T> {
+		private final Supplier<Execution<T>> m_fact;
+		
+		private final Guard m_guard = Guard.create();
+		@GuardedBy("m_guard") private Execution<T> m_exec;
+		@GuardedBy("m_guard") private boolean m_cancelled = false;
+		@GuardedBy("m_guard") private List<Runnable> m_pendingStartListeners = new ArrayList<>();
+		@GuardedBy("m_guard") private List<Consumer<Result<T>>> m_pendingFinishListeners = new ArrayList<>();
+		
+		private SupplyingExecution(Supplier<Execution<T>> fact) {
+			m_fact = fact;
+		}
+
+		@Override
+		public void start() {
+			m_guard.lock();
+			try {
+				if ( m_exec != null ) {
+					throw new IllegalStateException("already started: async=" + m_exec);
+				}
+				
+				m_exec = m_fact.get();
+			}
+			finally {
+				m_guard.unlock();
+			}
+		}
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			return _get(() -> m_cancelled = true,
+						exec -> {
+							boolean cancelled = exec.cancel(mayInterruptIfRunning);
+							return m_guard.get(() -> m_cancelled = cancelled);
+						});
+		}
+
+		@Override
+		public State getState() {
+			return _get(() -> (m_cancelled) ? State.CANCELLED : State.NOT_STARTED,
+						Execution::getState);
+		}
+
+		@Override
+		public T get() throws InterruptedException, ExecutionException, CancellationException {
+			Execution<T> exec = m_guard.awaitUntilAndGet(() -> m_exec == null, () -> m_exec);
+			return exec.get();
+		}
+
+		@Override
+		public T get(Date due) throws InterruptedException, ExecutionException,
+									TimeoutException, CancellationException {
+			return m_guard.awaitUntilAndGet(() -> m_exec == null, () -> m_exec, due).get();
+		}
+
+		@Override
+		public FOption<Result<T>> pollResult() {
+			return _get(FOption::empty, Execution::pollResult);
+		}
+
+		@Override
+		public Result<T> waitForResult() throws InterruptedException {
+			return null;
+		}
+
+		@Override
+		public Result<T> waitForResult(Date due) throws InterruptedException, TimeoutException {
+			return null;
+		}
+
+		@Override
+		public void waitForStarted() throws InterruptedException {
+			m_guard.awaitUntilAndGet(() -> m_exec == null, () -> m_exec).waitForStarted();
+		}
+
+		@Override
+		public boolean waitForStarted(Date due) throws InterruptedException {
+			try {
+				return m_guard.awaitUntilAndGet(() -> m_exec == null, () -> m_exec, due)
+								.waitForStarted(due);
+			}
+			catch ( TimeoutException e ) {
+				return false;
+			}
+		}
+
+		@Override
+		public void waitForDone() throws InterruptedException {
+			waitForStarted();
+			m_guard.get(() -> m_exec).waitForDone();
+		}
+
+		@Override
+		public boolean waitForDone(Date due) throws InterruptedException {
+			if ( !waitForStarted(due) ) {
+				return false;
+			}
+			return m_guard.get(() -> m_exec).waitForDone(due);
+		}
+
+		@Override
+		public Execution<T> whenStarted(Runnable listener) {
+			return null;
+		}
+
+		@Override
+		public Execution<T> whenFinished(Consumer<Result<T>> listener) {
+			return null;
+		}
+		
+		private <S> S _get(Supplier<S> notStartedSupplier,
+							Function<Execution<T>,S> startedSupplier) {
+			Execution<T> exec = null;
+			m_guard.lock();
+			try {
+				if ( m_exec != null ) {
+					exec = m_exec;
+				}
+				else {
+					return notStartedSupplier.get();
+				}
+			}
+			finally {
+				m_guard.unlock();
+			}
+			
+			return startedSupplier.apply(exec);
+		}
+	}
+*/
 }
