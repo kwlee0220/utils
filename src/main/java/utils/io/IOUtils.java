@@ -76,10 +76,10 @@ public class IOUtils {
 				.forEach(IOUtils::closeQuietly);
 	}
 	
-    public static int transfer(Reader reader, Writer writer, int bufSize) throws IOException {
+    public static long transfer(Reader reader, Writer writer, int bufSize) throws IOException {
     	char[] buf = new char[bufSize];
 
-        int count = 0;
+    	long count = 0;
         for ( int nbytes = reader.read(buf); nbytes >= 0; nbytes = reader.read(buf) ) {
             writer.write(buf, 0, nbytes);
             count += nbytes;
@@ -91,7 +91,7 @@ public class IOUtils {
     public static long transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
         byte[] buf = new byte[bufSize];
 
-        int count = 0;
+        long count = 0;
         for ( int nbytes = is.read(buf); nbytes >= 0; nbytes = is.read(buf) ) {
             os.write(buf, 0, nbytes);
             count += nbytes;
