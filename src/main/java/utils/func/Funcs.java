@@ -26,12 +26,12 @@ public class Funcs {
 		}
 	}
 	
-	public static <T,S> S applyIfNotNull(T obj, Function<T,S> func) {
+	public static <T,S> S applyIfNotNull(T obj, Function<T,S> func, S elsePart) {
 		if ( obj != null ) {
 			return func.apply(obj);
 		}
 		else {
-			return null;
+			return elsePart;
 		}
 	}
 	
