@@ -136,6 +136,10 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		
 	}
 	
+	public default FStream<KeyValue<K,V>> toKeyValueStream() {
+		return map(KeyValue::of);
+	}
+	
 	public default FStream<K> toKeyStream() {
 		return map(kv -> kv.key());
 	}
