@@ -354,6 +354,39 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			}
 		};
 	}
+	
+	public default FStream<T> dropLast(final int count) {
+		Utilities.checkArgument(count >= 0, "count >= 0: but: " + count);
+		
+		return new SingleSourceStream<T,T>(this) {
+			private List<T> m_tail = new ArrayList<T>(count+1);
+			private boolean m_filled = false;
+			
+			@Override
+			public FOption<T> next() {
+				if ( !m_filled ) {
+					for ( int i =0; i < count; ++i ) {
+						FOption<T> next = m_src.next();
+						if ( next.isAbsent() ) {
+							return FOption.empty();
+						}
+						
+						m_tail.add(next.getUnchecked());
+					}
+					
+					m_filled = true;
+				}
+
+				FOption<T> next = m_src.next();
+				if ( next.isAbsent() ) {
+					return FOption.empty();
+				}
+				
+				m_tail.add(next.getUnchecked());
+				return FOption.of(m_tail.remove(0));
+			}
+		};
+	}
 
 	public default FStream<T> takeWhile(final Predicate<? super T> pred) {
 		Utilities.checkNotNullArgument(pred, "predicate is null");
