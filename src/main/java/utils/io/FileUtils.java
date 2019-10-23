@@ -43,4 +43,15 @@ public class FileUtils {
 	public static FStream<Path> walk(Path start) throws IOException {
 		return FStream.from(Files.walk(start));
 	}
+	
+	public static String findExecutable(String execName) {
+		for ( String dir: System.getenv("PATH").split(File.pathSeparator) ) {
+			File file = new File(dir, execName);
+			if ( file.isFile() && file.canExecute() ) {
+				return file.getAbsolutePath();
+			}
+		}
+		
+		throw new IllegalArgumentException("cannot find the executable file: " + execName);
+	}
 }
