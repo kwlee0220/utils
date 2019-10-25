@@ -42,7 +42,7 @@ class BufferedStream<T> extends SingleSourceStream<T,List<T>> {
 		fill();
 		
 		if ( m_buffer.size() > 0 ) {
-			return FOption.of(Collections.unmodifiableList(m_buffer));
+			return FOption.of(Lists.newArrayList(m_buffer));
 		}
 		else {
 			return FOption.empty();
