@@ -79,7 +79,7 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		boolean ok = exec.waitForDone(200, MILLISECONDS);
+		boolean ok = exec.waitForDone(250, MILLISECONDS);
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
 		
