@@ -11,10 +11,10 @@ import java.util.function.Predicate;
 
 import com.google.common.collect.Maps;
 
-import io.vavr.Tuple2;
 import utils.KeyValue;
 import utils.Utilities;
 import utils.func.FOption;
+import utils.func.Tuple;
 import utils.stream.KVFStreams.FStreamAdaptor;
 
 
@@ -35,7 +35,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return new FStreamAdaptor<>(FStream.from(kvList));
 	}
 	
-	public static <K,V> KVFStream<K,V> fromTupleFStream(FStream<Tuple2<K,V>> stream) {
+	public static <K,V> KVFStream<K,V> fromTupleFStream(FStream<Tuple<K,V>> stream) {
 		Utilities.checkNotNullArgument(stream, "stream is null");
 		
 		return downcast(stream.map(t -> KeyValue.of(t._1, t._2)));

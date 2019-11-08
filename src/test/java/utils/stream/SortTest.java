@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.vavr.Tuple;
+import utils.func.Tuple;
 
 /**
  * 

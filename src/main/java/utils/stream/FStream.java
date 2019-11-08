@@ -23,8 +23,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import io.reactivex.Observable;
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import utils.CSV;
 import utils.KeyValue;
 import utils.Utilities;
@@ -34,6 +32,7 @@ import utils.func.FLists;
 import utils.func.FOption;
 import utils.func.FailureHandler;
 import utils.func.Try;
+import utils.func.Tuple;
 import utils.func.Unchecked;
 import utils.io.IOUtils;
 import utils.stream.FStreams.MapIEStream;
@@ -204,7 +203,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return FStream 객체
 	 */
 	public static <S,T> FStream<T> unfold(S init,
-										Function<? super S,Tuple2<? extends S,? extends T>> gen) {
+										Function<? super S,Tuple<? extends S,? extends T>> gen) {
 		Utilities.checkNotNullArgument(init, "initial value is null");
 		Utilities.checkNotNullArgument(gen, "next value generator is null");
 		
@@ -689,14 +688,14 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		}
 	}
 
-	public default FStream<Tuple2<T,Integer>> zipWithIndex(int start) {
+	public default FStream<Tuple<T,Integer>> zipWithIndex(int start) {
 		return zipWith(range(start, Integer.MAX_VALUE));
 	}
-	public default FStream<Tuple2<T,Integer>> zipWithIndex() {
+	public default FStream<Tuple<T,Integer>> zipWithIndex() {
 		return zipWithIndex(0);
 	}
 	
-	public default <S> FStream<Tuple2<T,S>> zipWith(FStream<? extends S> other) {
+	public default <S> FStream<Tuple<T,S>> zipWith(FStream<? extends S> other) {
 		Utilities.checkNotNullArgument(other, "zip FStream is null");
 		
 		return new ZippedFStream<>(this, other);

@@ -5,7 +5,7 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import io.vavr.Tuple2;
+import utils.func.Tuple;
 
 /**
  * 
@@ -15,7 +15,7 @@ public final class KeyValue<K,V> {
 	private final K m_key;
 	private final V m_value;
 	
-	public static <K,V> KeyValue<K,V> from(Tuple2<? extends K,? extends V> tupl) {
+	public static <K,V> KeyValue<K,V> from(Tuple<? extends K,? extends V> tupl) {
 		return new KeyValue<>(tupl._1, tupl._2);
 	}
 	

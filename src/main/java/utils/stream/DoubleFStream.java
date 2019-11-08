@@ -6,10 +6,9 @@ import java.util.function.Function;
 
 import com.google.common.primitives.Doubles;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import utils.Utilities;
 import utils.func.FOption;
+import utils.func.Tuple;
 
 /**
  * 
@@ -41,7 +40,7 @@ public interface DoubleFStream extends FStream<Double> {
 	}
 	
 	public default FOption<Double> average() {
-		Tuple2<Double,Long> state = foldLeft(Tuple.of(0d,0L),
+		Tuple<Double,Long> state = foldLeft(Tuple.of(0d,0L),
 											(a,v) -> Tuple.of(a._1 + v, a._2 + 1));
 		return (state._2 > 0) ? FOption.of(state._1 / state._2)
 								: FOption.empty();

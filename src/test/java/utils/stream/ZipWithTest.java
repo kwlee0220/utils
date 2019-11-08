@@ -6,8 +6,8 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.Tuple2;
 import utils.func.FOption;
+import utils.func.Tuple;
 
 /**
  * 
@@ -18,9 +18,9 @@ public class ZipWithTest {
 	public void test0() throws Exception {
 		FStream<String> stream1 = FStream.from(Lists.newArrayList("a","b", "c", "d"));
 		FStream<Integer> stream2 = FStream.range(0, 100);
-		FStream<Tuple2<Integer,String>> stream = stream2.zipWith(stream1);
+		FStream<Tuple<Integer,String>> stream = stream2.zipWith(stream1);
 		
-		FOption<Tuple2<Integer,String>> r;
+		FOption<Tuple<Integer,String>> r;
 		
 		r = stream.next();
 		Assert.assertEquals(true, r != null);
@@ -50,9 +50,9 @@ public class ZipWithTest {
 	public void test1() throws Exception {
 		FStream<String> stream1 = FStream.empty();
 		FStream<Integer> stream2 = FStream.range(0, 100);
-		FStream<Tuple2<Integer,String>> stream = stream2.zipWith(stream1);
+		FStream<Tuple<Integer,String>> stream = stream2.zipWith(stream1);
 
-		FOption<Tuple2<Integer,String>> r;
+		FOption<Tuple<Integer,String>> r;
 		
 		r = stream.next();
 		Assert.assertEquals(true, r.isAbsent());

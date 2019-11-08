@@ -34,10 +34,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import net.sf.cglib.proxy.MethodProxy;
 import utils.func.Try;
+import utils.func.Tuple;
 import utils.stream.FStream;
 
 /**
@@ -399,7 +398,7 @@ public class Utilities {
 		return null;
 	}
 	
-	public static Tuple2<String,String> split(String str, char delim) {
+	public static Tuple<String,String> split(String str, char delim) {
 		int idx = str.indexOf(delim);
 		if ( idx < 0 ) {
 			return Tuple.of(str, null);

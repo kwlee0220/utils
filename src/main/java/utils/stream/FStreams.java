@@ -10,14 +10,13 @@ import java.util.function.Supplier;
 
 import com.google.common.collect.Sets;
 
-import io.vavr.Tuple2;
 import utils.Utilities;
 import utils.async.ThreadInterruptedException;
 import utils.func.CheckedFunction;
 import utils.func.FOption;
 import utils.func.FailureCase;
 import utils.func.FailureHandler;
-import utils.func.Try;
+import utils.func.Tuple;
 import utils.io.IOUtils;
 
 /**
@@ -199,11 +198,11 @@ public class FStreams {
 	}
 	
 	static class UnfoldStream<S,T> implements FStream<T> {
-		private final Function<? super S,Tuple2<? extends S,? extends T>> m_gen;
+		private final Function<? super S,Tuple<? extends S,? extends T>> m_gen;
 		private S m_state;
 		private boolean m_closed = false;
 		
-		UnfoldStream(S init, Function<? super S,Tuple2<? extends S,? extends T>> gen) {
+		UnfoldStream(S init, Function<? super S,Tuple<? extends S,? extends T>> gen) {
 			m_state = init;
 			m_gen = gen;
 		}
@@ -221,7 +220,7 @@ public class FStreams {
 				return FOption.empty();
 			}
 			
-			Tuple2<? extends S,? extends T> unfolded = m_gen.apply(m_state);
+			Tuple<? extends S,? extends T> unfolded = m_gen.apply(m_state);
 			if ( unfolded != null ) {
 				m_state = unfolded._1;
 				

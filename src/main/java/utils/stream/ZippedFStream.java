@@ -1,17 +1,16 @@
 package utils.stream;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import utils.Utilities;
 import utils.func.FOption;
 import utils.func.Try;
+import utils.func.Tuple;
 
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-class ZippedFStream<T,S> implements FStream<Tuple2<T,S>> {
+class ZippedFStream<T,S> implements FStream<Tuple<T,S>> {
 	private final FStream<? extends T> m_src1;
 	private final FStream<? extends S> m_src2;
 	
@@ -32,7 +31,7 @@ class ZippedFStream<T,S> implements FStream<Tuple2<T,S>> {
 	}
 
 	@Override
-	public FOption<Tuple2<T,S>> next() {
+	public FOption<Tuple<T,S>> next() {
 		FOption<? extends T> next1 = m_src1.next();
 		FOption<? extends S> next2 = m_src2.next();
 		
