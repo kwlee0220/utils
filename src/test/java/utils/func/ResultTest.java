@@ -8,8 +8,6 @@ import java.util.function.Function;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.google.common.collect.Lists;
-
 import utils.Throwables;
 
 /**
@@ -17,7 +15,7 @@ import utils.Throwables;
  * @author Kang-Woo Lee (ETRI)
  */
 public class ResultTest {
-	private static final Result<String> R1 = Result.of("a");
+	private static final Result<String> R1 = Result.success("a");
 	private static final Result<String> R2 = Result.none();
 	private static final Result<String> R3 = Result.failure(new IOException("IOException"));
 	private static final Result<String> R4 = Result.failure(new IllegalArgumentException("IllegalArgumentException"));
@@ -26,13 +24,13 @@ public class ResultTest {
 	public void testIs() throws Exception {
 		Assert.assertEquals(true, R1.isSuccess());
 		Assert.assertEquals(false, R1.isFailure());
-		Assert.assertEquals(false, R1.isEmpty());
+		Assert.assertEquals(false, R1.isNone());
 		Assert.assertEquals(false, R2.isSuccess());
 		Assert.assertEquals(false, R2.isFailure());
-		Assert.assertEquals(true, R2.isEmpty());
+		Assert.assertEquals(true, R2.isNone());
 		Assert.assertEquals(false, R3.isSuccess());
 		Assert.assertEquals(true, R3.isFailure());
-		Assert.assertEquals(false, R3.isEmpty());
+		Assert.assertEquals(false, R3.isNone());
 	}
 	
 	@Test
@@ -127,34 +125,8 @@ public class ResultTest {
 	@Test
 	public void testFilter() throws Exception {
 		Assert.assertEquals("a", R1.filter(s -> s.length() == 1).get());
-		Assert.assertEquals(true, R1.filter(s -> s.length() == 2).isEmpty());
-		Assert.assertEquals(true, R2.filter(s -> s.length() == 1).isEmpty());
+		Assert.assertEquals(true, R1.filter(s -> s.length() == 2).isNone());
+		Assert.assertEquals(true, R2.filter(s -> s.length() == 1).isNone());
 		Assert.assertEquals(true, R3.filter(s -> s.length() == 1).isFailure());
-	}
-	
-	@Test
-	public void testToJavaList() throws Exception {
-		Assert.assertEquals(Lists.newArrayList("a"), R1.toJavaList());
-		Assert.assertEquals(Lists.newArrayList(), R2.toJavaList());
-		Assert.assertEquals(Lists.newArrayList(), R3.toJavaList());
-		Assert.assertEquals(Lists.newArrayList(), R4.toJavaList());
-	}
-	
-	@Test
-	public void testExists() throws Exception {
-		Assert.assertEquals(true, R1.exists(s -> s.length() == 1));
-		Assert.assertEquals(false, R1.exists(s -> s.length() == 2));
-		Assert.assertEquals(false, R2.exists(s -> s.length() == 1));
-		Assert.assertEquals(false, R3.exists(s -> s.length() == 1));
-		Assert.assertEquals(false, R4.exists(s -> s.length() == 1));
-	}
-	
-	@Test
-	public void testForAll() throws Exception {
-		Assert.assertEquals(true, R1.forAll(s -> s.length() == 1));
-		Assert.assertEquals(false, R1.forAll(s -> s.length() == 2));
-		Assert.assertEquals(true, R2.forAll(s -> s.length() == 1));
-		Assert.assertEquals(true, R3.forAll(s -> s.length() == 1));
-		Assert.assertEquals(true, R4.forAll(s -> s.length() == 1));
 	}
 }

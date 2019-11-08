@@ -160,7 +160,7 @@ public abstract class FuncList<T> {
 	}
 	private static <T> TailCall<Result<T>> get_(FuncList<T> list, int index) {
 		return index == 0
-				? TailCall.returns(Result.of(list.head()))
+				? TailCall.returns(Result.success(list.head()))
 				: TailCall.suspend(() -> get_(list.tail(), index-1));
 	}
 	
@@ -172,7 +172,7 @@ public abstract class FuncList<T> {
 	private static <T> TailCall<Result<Tuple2<FuncList<T>, FuncList<T>>>>
 							splitAt_(FuncList<T> accum, FuncList<T> list, int index) {
 		return index == 0 || list.isEmpty()
-				? TailCall.returns(Result.of(new Tuple2<>(list.reverse(), accum)))
+				? TailCall.returns(Result.success(new Tuple2<>(list.reverse(), accum)))
 				: TailCall.suspend(() -> splitAt_(accum.cons(list.head()), list.tail(),
 													index-1));
 	}
