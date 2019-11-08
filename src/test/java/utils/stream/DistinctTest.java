@@ -4,9 +4,8 @@ package utils.stream;
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import utils.func.FOption;
+import utils.func.Tuple;
 
 /**
  * 
@@ -15,7 +14,7 @@ import utils.func.FOption;
 public class DistinctTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Tuple2<Integer,Integer>> stream
+		FStream<Tuple<Integer,Integer>> stream
 					= FStream.of(Tuple.of(1,1), Tuple.of(1,2), Tuple.of(2,2),
 								Tuple.of(3,3), Tuple.of(3,2), Tuple.of(3,3));
 		

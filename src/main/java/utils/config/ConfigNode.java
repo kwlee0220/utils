@@ -10,9 +10,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import utils.UnitUtils;
+import utils.func.Tuple;
 
 /**
  * 
@@ -214,11 +213,11 @@ public interface ConfigNode {
 	public default Set<ConfigNode> findConfigByName(String name) {
 		Set<ConfigNode> found = Sets.newHashSet();
 		
-		List<Tuple2<String,ConfigNode>> remains = Lists.newArrayList();
+		List<Tuple<String,ConfigNode>> remains = Lists.newArrayList();
 		remains.add(Tuple.of("", getRoot()));
 		
 		while ( !remains.isEmpty() ) {
-			Tuple2<String,ConfigNode> tuple = remains.remove(0);
+			Tuple<String,ConfigNode> tuple = remains.remove(0);
 			if ( tuple._1.equals(name) ) {
 				found.add(tuple._2);
 			}
@@ -226,7 +225,7 @@ public interface ConfigNode {
 			if ( tuple._2.isMap() ) {
 				ConfigNode map = tuple._2;
 				tuple._2.names().stream()
-					.forEach(n -> remains.add(new Tuple2<>(n,map.get(n))));
+					.forEach(n -> remains.add(Tuple.of(n,map.get(n))));
 			}
 		}
 		
