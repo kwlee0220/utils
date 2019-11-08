@@ -3,8 +3,8 @@ package utils.async;
 import java.util.concurrent.CompletableFuture;
 
 import io.reactivex.Observable;
-import io.vavr.Lazy;
 import utils.Throwables;
+import utils.func.Lazy;
 
 
 /**

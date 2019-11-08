@@ -25,7 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 
 /**
@@ -80,7 +80,7 @@ public class XmlUtils {
 		return child;
 	}
 	
-	public static Option<Element> getFirstChildElement(Element parent) {
+	public static FOption<Element> getFirstChildElement(Element parent) {
 		Preconditions.checkArgument(parent != null, "Parent Element was null");
 
 		NodeList children = parent.getChildNodes();
@@ -88,14 +88,14 @@ public class XmlUtils {
 			Node child = children.item(i);
 
 			if (child.getNodeType() == Node.ELEMENT_NODE) {
-				return Option.some((Element) child);
+				return FOption.of((Element) child);
 			}
 		}
 		
-		return Option.none();
+		return FOption.empty();
 	}
 	
-	public static Option<Element> getFirstChildElement(Element parent, String childElmName) {
+	public static FOption<Element> getFirstChildElement(Element parent, String childElmName) {
 		Objects.requireNonNull(parent, "parent should not be null");
 		Objects.requireNonNull(childElmName, "childElmName should not be null");
 
@@ -104,11 +104,11 @@ public class XmlUtils {
 			Node child = children.item(i);
 			if (child.getNodeType() == Node.ELEMENT_NODE
 				&& child.getNodeName().equals(childElmName)) {
-				return Option.some((Element) child);
+				return FOption.of((Element) child);
 			}
 		}
 
-		return Option.none();
+		return FOption.empty();
 	}
 	
 	public static NodeIterable getChildren(Element elm) {
@@ -141,33 +141,33 @@ public class XmlUtils {
 		return StreamSupport.stream(nodes.spliterator(), false);
 	}
 
-	public static Option<String> getChildElementText(Element parent, String childTagName) {
+	public static FOption<String> getChildElementText(Element parent, String childTagName) {
 		return getFirstChildElement(parent, childTagName).flatMap(XmlUtils::getText);
 	}
 	
-	public static Option<String> getAttribute(Element elm, String attrName) {
+	public static FOption<String> getAttribute(Element elm, String attrName) {
 		String attrValue = elm.getAttribute(attrName);
-		return (attrValue.length() == 0) ? Option.none() : Option.some(attrValue);
+		return (attrValue.length() == 0) ? FOption.empty() : FOption.of(attrValue);
 	}
 	
-	public static Option<Boolean> getAttributeAsBoolean(Element elm, String attrName) {
+	public static FOption<Boolean> getAttributeAsBoolean(Element elm, String attrName) {
 		String attrValue = elm.getAttribute(attrName);
-		return (attrValue.length() == 0) ? Option.none()
-										: Option.some(Boolean.parseBoolean(attrValue));
+		return (attrValue.length() == 0) ? FOption.empty()
+										: FOption.of(Boolean.parseBoolean(attrValue));
 	}
 	
 	/**
 	 * 주어진 {@link Element}에 정의된 텍스트 문자열을 반환한다.
-	 * 텍스트가 정의되지 않은 경우는 {@link Option#none()}를 반환한다.
+	 * 텍스트가 정의되지 않은 경우는 {@link FOption#empty()}를 반환한다.
 	 * 
 	 * @param elm	element 객체
-	 * @return	Option 텍스트 객체
+	 * @return	FOption 텍스트 객체
 	 */
-	public static Option<String> getText(Element elm) {
+	public static FOption<String> getText(Element elm) {
 		NodeList nodeList = elm.getChildNodes();
 		if ( nodeList.getLength() == 0 ) {
-//			return Option.none();
-			return Option.some("");
+//			return FOption.empty();
+			return FOption.of("");
 		}
 
 		StringBuilder buf = new StringBuilder();
@@ -183,7 +183,7 @@ public class XmlUtils {
         		break;
         	}
         }
-        return Option.some(buf.toString());
+        return FOption.of(buf.toString());
 	}
 	
 	public static void appendText(Element parent, String text) {

@@ -33,9 +33,9 @@ import java.util.zip.Inflater;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 
-import io.vavr.control.Option;
 import utils.async.AbstractThreadedExecution;
 import utils.async.CancellableWork;
+import utils.func.FOption;
 
 /**
  * 
@@ -280,9 +280,9 @@ public class IOUtils {
 		return Base64.getDecoder().decode(encoded);
 	}
 	
-	public static void serializeOption(Option<? extends Serializable> obj,
+	public static void serializeOption(FOption<? extends Serializable> obj,
 										ObjectOutputStream oos) throws IOException {
-		if ( obj.isDefined() ) {
+		if ( obj.isPresent() ) {
 			oos.writeBoolean(true);
 			oos.writeObject(obj.get());
 		}
@@ -291,9 +291,9 @@ public class IOUtils {
 		}
 	}
 	
-	public static void writeOptionDouble(Option<Double> opt,
+	public static void writeOptionDouble(FOption<Double> opt,
 										DataOutput out) throws IOException {
-		if ( opt.isDefined() ) {
+		if ( opt.isPresent() ) {
 			out.writeBoolean(true);
 			out.writeDouble(opt.get());
 		}
@@ -304,10 +304,10 @@ public class IOUtils {
 	
 	@SuppressWarnings("unchecked")
 	public static <T extends Serializable>
-	Option<T> deserializeOption(ObjectInputStream ois, Class<T> cls) throws ClassNotFoundException, IOException {
+	FOption<T> deserializeOption(ObjectInputStream ois, Class<T> cls) throws ClassNotFoundException, IOException {
 		return (ois.readBoolean())
-				? Option.some((T)ois.readObject())
-				: Option.none();
+				? FOption.of((T)ois.readObject())
+				: FOption.empty();
 	}
 
 	public static <T extends Serializable>

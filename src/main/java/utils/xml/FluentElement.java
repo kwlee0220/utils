@@ -1,5 +1,6 @@
 package utils.xml;
 
+import java.security.cert.PKIXRevocationChecker.Option;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -8,7 +9,7 @@ import java.util.stream.Stream;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 
 /**
@@ -67,7 +68,7 @@ public interface FluentElement extends FluentNode {
 	 * @return	속성 이름에 해당하는 값. 만일 속성 이름에 해당하는 속성이 정의되지 않는 경우는
 	 * 			{@link Option#none()}
 	 */
-	public Option<String> attr(String name);
+	public FOption<String> attr(String name);
 	
 	/**
 	 * 주어진 이름의 속성 값을 설정한다.
@@ -78,16 +79,16 @@ public interface FluentElement extends FluentNode {
 	 */
 	public FluentElement attr(String name, Object value);
 	
-	public default Option<Integer> attrInt(String name) {
+	public default FOption<Integer> attrInt(String name) {
 		return attr(name).map(Integer::parseInt);
 	}
-	public default Option<Long> attrLong(String name) {
+	public default FOption<Long> attrLong(String name) {
 		return attr(name).map(Long::parseLong);
 	}
-	public default Option<Double> attrDouble(String name) {
+	public default FOption<Double> attrDouble(String name) {
 		return attr(name).map(Double::parseDouble);
 	}
-	public default Option<Boolean> attrBoolean(String name) {
+	public default FOption<Boolean> attrBoolean(String name) {
 		return attr(name).map(s -> {
 			if ( s.equalsIgnoreCase("false") || s.equalsIgnoreCase("no") ) {
 				return false;
@@ -98,14 +99,14 @@ public interface FluentElement extends FluentNode {
 		});
 	}
 
-	public Option<String> text();
-	public default Option<Integer> textInt() {
+	public FOption<String> text();
+	public default FOption<Integer> textInt() {
 		return text().map(Integer::parseInt);
 	}
-	public default Option<Long> textLong() {
+	public default FOption<Long> textLong() {
 		return text().map(Long::parseLong);
 	}
-	public default Option<Boolean> textBoolean() {
+	public default FOption<Boolean> textBoolean() {
 		return text().map(s -> {
 			if ( s.equalsIgnoreCase("false") || s.equalsIgnoreCase("no") ) {
 				return false;
@@ -115,13 +116,13 @@ public interface FluentElement extends FluentNode {
 			}
 		});
 	}
-	public default Option<Float> textFloat() {
+	public default FOption<Float> textFloat() {
 		return text().map(Float::parseFloat);
 	}
-	public default Option<Double> textDouble() {
+	public default FOption<Double> textDouble() {
 		return text().map(Double::parseDouble);
 	}
-	public default Option<Character> textChar() {
+	public default FOption<Character> textChar() {
 		return text().map(s -> s.charAt(0));
 	}
 	
@@ -152,8 +153,8 @@ public interface FluentElement extends FluentNode {
 	public FluentElement firstChild();
 	public FluentElement firstChild(String name);
 
-	public default Option<FluentElement> tryFirstChild() {
-		return Option.ofOptional(children().findFirst());
+	public default FOption<FluentElement> tryFirstChild() {
+		return FOption.from(children().findFirst());
 	}
 	
 	public default FluentElement tryFirstChild(String name) {
@@ -163,27 +164,27 @@ public interface FluentElement extends FluentNode {
 	public FluentElement with(Consumer<FluentElement> consumer);
 
 	public default FluentElement withInt(Consumer<Integer> consumer) {
-		textInt().forEach(consumer);
+		textInt().ifPresent(consumer);
 		return this;
 	}
 	public default FluentElement withLong(Consumer<Long> consumer) {
-		textLong().forEach(consumer);
+		textLong().ifPresent(consumer);
 		return this;
 	}
 	public default FluentElement withDouble(Consumer<Double> consumer) {
-		textDouble().forEach(consumer);
+		textDouble().ifPresent(consumer);
 		return this;
 	}
 	public default FluentElement withBoolean(Consumer<Boolean> consumer) {
-		textBoolean().forEach(consumer);
+		textBoolean().ifPresent(consumer);
 		return this;
 	}
 	public default FluentElement withText(Consumer<String> consumer) {
-		text().forEach(consumer);
+		text().ifPresent(consumer);
 		return this;
 	}
 	public default FluentElement withChar(Consumer<Character> consumer) {
-		textChar().forEach(consumer);
+		textChar().ifPresent(consumer);
 		return this;
 	}
 	
@@ -212,8 +213,8 @@ public interface FluentElement extends FluentNode {
 		return this;
 	}
 	
-	public default <T> Option<T> map(Function<FluentElement,T> func) {
-		return (exists()) ? Option.some(func.apply(this)) : Option.none();
+	public default <T> FOption<T> map(Function<FluentElement,T> func) {
+		return (exists()) ? FOption.of(func.apply(this)) : FOption.empty();
 	}
 	
 	public default <T> T getOrElse(Function<FluentElement,T> thenPart, Supplier<T> elsePart) {

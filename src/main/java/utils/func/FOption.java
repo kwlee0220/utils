@@ -7,7 +7,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import io.vavr.CheckedConsumer;
 import utils.Utilities;
 import utils.stream.FStream;
 import utils.stream.FStreamable;

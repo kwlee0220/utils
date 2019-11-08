@@ -14,7 +14,7 @@ import org.xml.sax.SAXException;
 
 import com.google.common.collect.Iterables;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 
 /**
@@ -73,9 +73,9 @@ public class FluentElementImpl implements FluentElement {
 	}
 
 	@Override
-	public Option<String> attr(String name) {
+	public FOption<String> attr(String name) {
 		String attr = get().getAttribute(name);
-		return ( attr.length() > 0 ) ? Option.some(attr) : Option.none();
+		return ( attr.length() > 0 ) ? FOption.of(attr) : FOption.empty();
 	}
 	
 	@Override
@@ -85,7 +85,7 @@ public class FluentElementImpl implements FluentElement {
 	}
 	
 	@Override
-	public Option<String> text() {
+	public FOption<String> text() {
 		return XmlUtils.getText(get());
 	}
 	

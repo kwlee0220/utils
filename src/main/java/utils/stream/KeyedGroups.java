@@ -13,8 +13,8 @@ import java.util.function.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import io.vavr.control.Option;
 import utils.KeyValue;
+import utils.func.FOption;
 
 /**
  * 
@@ -129,10 +129,10 @@ public class KeyedGroups<K,V> {
 		return this;
 	}
 	
-	public Option<Collection<V>> remove(K key) {
+	public FOption<Collection<V>> remove(K key) {
 		Objects.requireNonNull(key);
 		
-		return Option.of(m_groups.remove(key));
+		return FOption.ofNullable(m_groups.remove(key));
 	}
 	
 	public KVFStream<K,List<V>> stream() {

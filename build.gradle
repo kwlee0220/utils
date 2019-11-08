@@ -36,7 +36,7 @@ dependencies {
 	compile "org.slf4j:slf4j-log4j12:${slf4j_log4j_version}"
 	compile "net.jcip:jcip-annotations:${jcip_anno_version}"
 	compile "com.google.guava:guava:${guava_version}"
-	compile "io.vavr:vavr:${vavr_version}"
+//	compile "io.vavr:vavr:${vavr_version}"
 	compile "commons-io:commons-io:${commons_io_version}"
 	compile "commons-cli:commons-cli:${commons_cli_version}"
 	compile "cglib:cglib:${cglib_version}"

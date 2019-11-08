@@ -6,15 +6,24 @@ import java.util.function.Supplier;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class ReloadableLazy<T> {
+public class Lazy<T> {
 	private FOption<T> m_loaded;
-	private Supplier<T> m_supplier;
+	private final Supplier<T> m_supplier;
 	
-	public static <T> ReloadableLazy<T> of(Supplier<T> supplier) {
-		return new ReloadableLazy<>(supplier);
+	public static <T> Lazy<T> of(Supplier<T> supplier) {
+		return new Lazy<>(supplier);
 	}
 	
-	private ReloadableLazy(Supplier<T> supplier) {
+	public static <T> Lazy<T> of(T value) {
+		return new Lazy<>(value);
+	}
+	
+	private Lazy(T value) {
+		m_loaded = FOption.of(value);
+		m_supplier = null;
+	}
+	
+	private Lazy(Supplier<T> supplier) {
 		m_loaded = FOption.empty();
 		m_supplier = supplier;
 	}
@@ -29,13 +38,5 @@ public class ReloadableLazy<T> {
 		}
 		
 		return m_loaded.get();
-	}
-	
-	public synchronized void set(T value) {
-		m_loaded = FOption.of(value);
-	}
-	
-	public synchronized void invalidate() {
-		m_loaded = FOption.empty();
 	}
 }

@@ -9,8 +9,6 @@ import java.util.function.Function;
 
 import com.google.common.collect.Iterables;
 
-import io.vavr.control.Option;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -20,13 +18,13 @@ public class FLists {
 		throw new AssertionError("Should not be called: class=" + FLists.class);
 	}
 	
-	public static <T> Option<T> getFirst(Iterable<T> list) {
+	public static <T> FOption<T> getFirst(Iterable<T> list) {
 		Iterator<T> iter = list.iterator();
-		return iter.hasNext() ? Option.some(iter.next()) : Option.none();
+		return iter.hasNext() ? FOption.of(iter.next()) : FOption.empty();
 	}
 	
-	public static <T> Option<T> getLast(Iterable<T> list) {
-		return Option.of(Iterables.getLast(list, null));
+	public static <T> FOption<T> getLast(Iterable<T> list) {
+		return FOption.ofNullable(Iterables.getLast(list, null));
 	}
 	
 	public static <T,U> U foldLeft(List<T> list, U init, BiFunction<U, T, U> fold) {

@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 
-import io.vavr.Lazy;
+import utils.func.Lazy;
 import utils.stream.FStream;
 
 

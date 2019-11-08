@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-import io.vavr.control.Option;
+import utils.func.FOption;
 
 /**
  * 
@@ -46,8 +46,8 @@ final class NonExistentElement implements FluentElement {
 	}
 
 	@Override
-	public Option<String> attr(String name) {
-		return Option.none();
+	public FOption<String> attr(String name) {
+		return FOption.empty();
 	}
 
 	@Override
@@ -56,8 +56,8 @@ final class NonExistentElement implements FluentElement {
 	}
 
 	@Override
-	public Option<String> text() {
-		return Option.none();
+	public FOption<String> text() {
+		return FOption.empty();
 	}
 
 	@Override
