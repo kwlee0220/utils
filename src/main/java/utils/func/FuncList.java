@@ -7,8 +7,6 @@ import java.util.function.Function;
 
 import com.google.common.collect.Lists;
 
-import io.vavr.Tuple2;
-
 
 /**
  * 
@@ -26,7 +24,7 @@ public abstract class FuncList<T> {
 	public abstract FuncList<T> dropWhile(Function<T, Boolean> cond);
 	public abstract FuncList<T> reverse();
 	public abstract <U> U foldLeft(U identity, BiFunction<U,T,U> fold);
-	public abstract <U> Tuple2<U,FuncList<T>> foldLeft(U identity, U stopper, BiFunction<U,T,U> fold);
+	public abstract <U> Tuple<U,FuncList<T>> foldLeft(U identity, U stopper, BiFunction<U,T,U> fold);
 	
 	private FuncList() { }
 	
@@ -57,11 +55,11 @@ public abstract class FuncList<T> {
 				: Optional.of(foldLeft(head(), fold));
 	}
 	
-	public static <T,S> FuncList<T> unfold(S start, Function<S,Result<Tuple2<T,S>>> gen) {
+	public static <T,S> FuncList<T> unfold(S start, Function<S,Result<Tuple<T,S>>> gen) {
 		return unfold_(list(), start, gen).evaluate().reverse();
 	}
 	private static <T,S> TailCall<FuncList<T>> unfold_(FuncList<T> accum, S cursor,
-														Function<S,Result<Tuple2<T,S>>> gen) {
+														Function<S,Result<Tuple<T,S>>> gen) {
 		return gen.apply(cursor)
 					.map(t -> TailCall.suspend(() -> unfold_(accum.cons(t._1), t._2, gen)))
 					.getOrElse(TailCall.returns(accum));
@@ -133,15 +131,15 @@ public abstract class FuncList<T> {
 												list1.tail(), list2.tail(), zip));
 	}
 	
-	public static <U,V> Tuple2<FuncList<U>,FuncList<V>> unzip(FuncList<Tuple2<U,V>> list) {
-		return list.foldRight(new Tuple2<>(list(), list()),
-							(t,a) -> new Tuple2<>(a._1.cons(t._1), a._2.cons(t._2)));
+	public static <U,V> Tuple<FuncList<U>,FuncList<V>> unzip(FuncList<Tuple<U,V>> list) {
+		return list.foldRight(Tuple.of(list(), list()),
+							(t,a) -> Tuple.of(a._1.cons(t._1), a._2.cons(t._2)));
 	}
-	public <U,V> Tuple2<FuncList<U>,FuncList<V>> unzip(Function<T,Tuple2<U,V>> tear) {
-		return foldRight(new Tuple2<>(list(), list()),
+	public <U,V> Tuple<FuncList<U>,FuncList<V>> unzip(Function<T,Tuple<U,V>> tear) {
+		return foldRight(Tuple.of(list(), list()),
 						(t,a) -> {
-							Tuple2<U,V> p = tear.apply(t);
-							return new Tuple2<>(a._1.cons(p._1), a._2.cons(p._2));
+							Tuple<U,V> p = tear.apply(t);
+							return Tuple.of(a._1.cons(p._1), a._2.cons(p._2));
 						});
 	}
 	
@@ -164,15 +162,15 @@ public abstract class FuncList<T> {
 				: TailCall.suspend(() -> get_(list.tail(), index-1));
 	}
 	
-	public Result<Tuple2<FuncList<T>, FuncList<T>>> splitAt(int index) {
+	public Result<Tuple<FuncList<T>, FuncList<T>>> splitAt(int index) {
 		return index < 0 || index >= length()
 				? Result.failure(new IndexOutOfBoundsException(""+index))
 				: splitAt_(list(), reverse(), length() - index).evaluate();
 	}
-	private static <T> TailCall<Result<Tuple2<FuncList<T>, FuncList<T>>>>
+	private static <T> TailCall<Result<Tuple<FuncList<T>, FuncList<T>>>>
 							splitAt_(FuncList<T> accum, FuncList<T> list, int index) {
 		return index == 0 || list.isEmpty()
-				? TailCall.returns(Result.success(new Tuple2<>(list.reverse(), accum)))
+				? TailCall.returns(Result.success(Tuple.of(list.reverse(), accum)))
 				: TailCall.suspend(() -> splitAt_(accum.cons(list.head()), list.tail(),
 													index-1));
 	}
@@ -262,8 +260,8 @@ public abstract class FuncList<T> {
 		}
 
 		@Override
-		public <U> Tuple2<U, FuncList<T>> foldLeft(U identity, U stopper, BiFunction<U, T, U> fold) {
-			return new Tuple2<>(identity, this);
+		public <U> Tuple<U, FuncList<T>> foldLeft(U identity, U stopper, BiFunction<U, T, U> fold) {
+			return Tuple.of(identity, this);
 		}
 		
 		@Override
@@ -346,13 +344,13 @@ public abstract class FuncList<T> {
 		}
 
 		@Override
-		public <U> Tuple2<U,FuncList<T>> foldLeft(U identity, U stopper, BiFunction<U,T,U> fold) {
+		public <U> Tuple<U,FuncList<T>> foldLeft(U identity, U stopper, BiFunction<U,T,U> fold) {
 			return foldLeft_(identity, stopper, this, fold);
 		}
-		private static <T,U> Tuple2<U,FuncList<T>> foldLeft_(U acc, U stopper, FuncList<T> list,
+		private static <T,U> Tuple<U,FuncList<T>> foldLeft_(U acc, U stopper, FuncList<T> list,
 															BiFunction<U,T,U> fold) {
 			return list.isEmpty() || acc.equals(stopper)
-					? new Tuple2<>(acc, list)
+					? Tuple.of(acc, list)
 					: foldLeft_(fold.apply(acc, list.head()), stopper, list.tail(), fold);
 		}
 		

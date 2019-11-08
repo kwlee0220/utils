@@ -2,17 +2,14 @@ package utils.func;
 
 import java.util.function.Function;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public class State<S,T> {
-	private final Function<S,Tuple2<T,S>> m_run;
+	private final Function<S,Tuple<T,S>> m_run;
 	
-	public State(Function<S,Tuple2<T,S>> run) {
+	public State(Function<S,Tuple<T,S>> run) {
 		m_run = run;
 	}
 	
@@ -20,7 +17,7 @@ public class State<S,T> {
 		return new State<>(s -> Tuple.of(t,s));
 	}
 	
-	public Tuple2<T,S> apply(S s) {
+	public Tuple<T,S> apply(S s) {
 		return m_run.apply(s);
 	}
 	
@@ -30,7 +27,7 @@ public class State<S,T> {
 	
 	public <T2> State<S,T2> flatMap(Function<T,State<S,T2>> valueMapper) {
 		return new State<>(s -> {
-			Tuple2<T,S> tuple = m_run.apply(s);
+			Tuple<T,S> tuple = m_run.apply(s);
 			return valueMapper.apply(tuple._1).m_run.apply(tuple._2);
 		});
 	}

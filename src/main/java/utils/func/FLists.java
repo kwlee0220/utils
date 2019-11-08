@@ -9,7 +9,6 @@ import java.util.function.Function;
 
 import com.google.common.collect.Iterables;
 
-import io.vavr.Tuple2;
 import io.vavr.control.Option;
 
 /**
@@ -96,7 +95,7 @@ public class FLists {
 		return reduce(list, (accum,t) -> fold.apply(accum).apply(t));
 	}
 	
-	public static <T> Optional<Tuple2<Integer,T>> maxBy(List<T> list, Comparator<? super T> cmp) {
+	public static <T> Optional<Tuple<Integer,T>> maxBy(List<T> list, Comparator<? super T> cmp) {
 		int idx = -1;
 		T max = null;
 		for ( int i =0; i < list.size(); ++i ) {
@@ -107,6 +106,6 @@ public class FLists {
 			}
 		}
 		
-		return (idx >= 0) ? Optional.of(new Tuple2<>(idx, max)) : Optional.empty(); 
+		return (idx >= 0) ? Optional.of(Tuple.of(idx, max)) : Optional.empty(); 
 	}
 }
