@@ -19,6 +19,14 @@ public final class Tuple<T1,T2> {
 		_2 = t2;
 	}
 	
+	public T1 left() {
+		return _1;
+	}
+	
+	public T2 right() {
+		return _2;
+	}
+	
 	@Override
 	public boolean equals(Object obj) {
 		if ( this == obj ) {
