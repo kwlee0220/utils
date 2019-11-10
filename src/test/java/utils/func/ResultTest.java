@@ -43,11 +43,10 @@ public class ResultTest {
 		catch ( IllegalStateException expected ) { }
 		try {
 			R3.get();
-			Assert.fail("Exception 'RuntimeException' is expected");
+			Assert.fail("Exception 'IOException' is expected");
 		}
-		catch ( RuntimeException expected ) {
-			Throwable cause = Throwables.unwrapThrowable(expected);
-			Assert.assertEquals(IOException.class, cause.getClass());
+		catch ( Exception expected ) {
+			Assert.assertEquals(IOException.class, expected.getClass());
 		}
 		try {
 			R4.get();
