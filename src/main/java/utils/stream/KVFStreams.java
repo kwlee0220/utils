@@ -1,7 +1,7 @@
 package utils.stream;
 
-import utils.KeyValue;
 import utils.func.FOption;
+import utils.func.KeyValue;
 
 /**
  * 

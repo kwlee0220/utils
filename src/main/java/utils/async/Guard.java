@@ -1,4 +1,4 @@
-package utils;
+package utils.async;
 
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import utils.Utilities;
 import utils.func.CheckedConsumer;
 import utils.func.CheckedFunction;
 import utils.func.CheckedRunnable;

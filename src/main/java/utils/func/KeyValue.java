@@ -1,11 +1,12 @@
-package utils;
+package utils.func;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import utils.func.Tuple;
+import utils.CSV;
+import utils.Utilities;
 
 /**
  * 

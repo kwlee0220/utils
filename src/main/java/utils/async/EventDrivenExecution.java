@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 
 import net.jcip.annotations.GuardedBy;
-import utils.Guard;
 import utils.LoggerSettable;
 import utils.func.FOption;
 
