@@ -2,10 +2,11 @@ package utils.jni;
 
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.jcip.annotations.GuardedBy;
 import utils.LoggerSettable;
 
 

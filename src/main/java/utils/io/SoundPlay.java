@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
+import javax.annotation.concurrent.GuardedBy;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -18,8 +19,6 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import net.jcip.annotations.GuardedBy;
 
 
 /**

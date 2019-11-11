@@ -1,11 +1,12 @@
 package utils;
 
+import static utils.Utilities.checkArgument;
+import static utils.Utilities.checkNotNullArgument;
+
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.Set;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
 import net.sf.cglib.proxy.Callback;
@@ -26,10 +27,10 @@ public final class ProxyUtils {
 
 	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(ClassLoader loader, T obj, CallHandler<T>... handlers) {
-		Objects.requireNonNull(loader, "ClassLoader is null");
-		Objects.requireNonNull(obj, "target object is null");
-		Objects.requireNonNull(handlers, "CallHandler is null");
-		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
+		checkNotNullArgument(loader, "ClassLoader is null");
+		checkNotNullArgument(obj, "target object is null");
+		checkNotNullArgument(handlers, "CallHandler is null");
+		checkArgument(handlers.length > 0, "Zero CallHandler" );
 		
 		Callback[] callbacks = new Callback[handlers.length+1];
 		for ( int i =0; i < handlers.length; ++i ) {
@@ -48,9 +49,9 @@ public final class ProxyUtils {
 	@SafeVarargs
 	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(T obj, CallHandler<T>... handlers) {
-		Objects.requireNonNull(obj, "target object is null");
-		Objects.requireNonNull(handlers, "CallHandler is null");
-		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
+		checkNotNullArgument(obj, "target object is null");
+		checkNotNullArgument(handlers, "CallHandler is null");
+		checkArgument(handlers.length > 0, "Zero CallHandler" );
 		
 		Callback[] callbacks = new Callback[handlers.length+1];
 		for ( int i =0; i < handlers.length; ++i ) {
@@ -67,11 +68,10 @@ public final class ProxyUtils {
 
 	@SafeVarargs
 	@SuppressWarnings("unchecked")
-	public static <T> T replaceAction(T obj, Class<?>[] extraIntfcs,
-										CallHandler<T>... handlers) {
-		Objects.requireNonNull(obj, "target object is null");
-		Objects.requireNonNull(handlers, "CallHandler is null");
-		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
+	public static <T> T replaceAction(T obj, Class<?>[] extraIntfcs, CallHandler<T>... handlers) {
+		checkNotNullArgument(obj, "target object is null");
+		checkNotNullArgument(handlers, "CallHandler is null");
+		checkArgument(handlers.length > 0, "Zero CallHandler" );
 		
 		Callback[] callbacks = new Callback[handlers.length+1];
 		for ( int i =0; i < handlers.length; ++i ) {
@@ -87,6 +87,39 @@ public final class ProxyUtils {
 		enhancer.setInterfaces(intfcs);
 		enhancer.setCallbackFilter(new CallFilter<>(handlers));
 		enhancer.setCallbacks(callbacks);
+		return (T)enhancer.create();
+	}
+
+	/**
+	 * 주어진 객체(<code>toBeExtended</code>)를 확장하여 추가의 인터페이스(<code>intfc</code>)도
+	 * 지원하는 객체를 생성하여 반환한다.
+	 * <p>
+	 * 반환되는 객체는 확장 인터페이스도 지원하기 때문에 <code>instanceof</code> 관계도 성립되어,
+	 * 인자로 주어진 객체가 제공하는 모든 메소드를 처리할 뿐만 아니라 확장 인터페이스의 메소드도
+	 * 호출 가능하다. 확장된 인터페이스의 메소드가 호출되는 경우는 인자로 전달되는 핸들러 객체의 메소드를 
+	 * 호출하게 되고, 그외의 메소드는 기존 객체의 메소드를 호출하게 된다.
+	 * <br>
+	 * 만일 확장 인터페이스를 기존의 객체가 이미 지원하는 경우, 해당 인터페이스의 메소드가 호출되는
+	 * 경우는 확장 핸들러 객체의 메소드가 호출된다.
+	 * 
+	 * @param <T>		확장된 객체의 대표 타입.
+	 * @param cloader	생성된 확장 객체의 클래스를 적재할 클래스 로더. <code>null</code>인 경우는
+	 * 					<code>toBeExtended</code> 객체의 클래스 로더를 사용한다. 
+	 * @param src		확장시킬 객체.
+	 * @param intfc		추가될 인터페이스. 인터페이스 클래스만 사용 가능하다.
+	 * @param handler	확장 인터페이스 호출을 처리할 핸들러 객체.
+	 * @return	확장된 인터페이스의 객체.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> T extend(ClassLoader cloader, Object src, Class<T> intfc, T handler) {
+		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(src.getClass());
+		intfcSet.add(intfc);
+		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
+		
+		Enhancer enhancer = new Enhancer();
+		enhancer.setSuperclass(src.getClass());
+		enhancer.setInterfaces(intfcs);
+		enhancer.setCallback(new ExtendedCallHandler<>(src, intfc, handler));
 		return (T)enhancer.create();
 	}
 				
@@ -160,39 +193,6 @@ public final class ProxyUtils {
 //			}
 //		}
 //	}
-
-	/**
-	 * 주어진 객체(<code>toBeExtended</code>)를 확장하여 추가의 인터페이스(<code>intfc</code>)도
-	 * 지원하는 객체를 생성하여 반환한다.
-	 * <p>
-	 * 반환되는 객체는 확장 인터페이스도 지원하기 때문에 <code>instanceof</code> 관계도 성립되어,
-	 * 인자로 주어진 객체가 제공하는 모든 메소드를 처리할 뿐만 아니라 확장 인터페이스의 메소드도
-	 * 호출 가능하다. 확장된 인터페이스의 메소드가 호출되는 경우는 인자로 전달되는 핸들러 객체의 메소드를 
-	 * 호출하게 되고, 그외의 메소드는 기존 객체의 메소드를 호출하게 된다.
-	 * <br>
-	 * 만일 확장 인터페이스를 기존의 객체가 이미 지원하는 경우, 해당 인터페이스의 메소드가 호출되는
-	 * 경우는 확장 핸들러 객체의 메소드가 호출된다.
-	 * 
-	 * @param <T>		확장된 객체의 대표 타입.
-	 * @param cloader	생성된 확장 객체의 클래스를 적재할 클래스 로더. <code>null</code>인 경우는
-	 * 					<code>toBeExtended</code> 객체의 클래스 로더를 사용한다. 
-	 * @param src		확장시킬 객체.
-	 * @param intfc		추가될 인터페이스. 인터페이스 클래스만 사용 가능하다.
-	 * @param handler	확장 인터페이스 호출을 처리할 핸들러 객체.
-	 * @return	확장된 인터페이스의 객체.
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T> T extend(ClassLoader cloader, Object src, Class<T> intfc, T handler) {
-		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(src.getClass());
-		intfcSet.add(intfc);
-		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
-		
-		Enhancer enhancer = new Enhancer();
-		enhancer.setSuperclass(src.getClass());
-		enhancer.setInterfaces(intfcs);
-		enhancer.setCallback(new ExtendedCallHandler<>(src, intfc, handler));
-		return (T)enhancer.create();
-	}
 
 	private static class ExtendedCallHandler<T> implements MethodInterceptor {
 		private final Object m_src;

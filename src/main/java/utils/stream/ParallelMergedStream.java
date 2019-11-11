@@ -5,10 +5,11 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 
-import net.jcip.annotations.GuardedBy;
-import utils.Guard;
+import javax.annotation.concurrent.GuardedBy;
+
 import utils.async.AbstractThreadedExecution;
 import utils.async.CancellableWork;
+import utils.async.Guard;
 import utils.async.Result;
 import utils.func.FOption;
 import utils.func.Try;

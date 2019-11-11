@@ -1,6 +1,6 @@
 package utils;
 
-import net.jcip.annotations.GuardedBy;
+import javax.annotation.concurrent.GuardedBy;
 
 
 /**

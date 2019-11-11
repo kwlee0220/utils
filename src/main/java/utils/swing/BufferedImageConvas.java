@@ -17,8 +17,7 @@ import java.awt.image.RenderedImage;
 import java.util.Objects;
 
 import javax.annotation.Nonnull;
-
-import net.jcip.annotations.GuardedBy;
+import javax.annotation.concurrent.GuardedBy;
 
 
 

@@ -11,13 +11,13 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-import net.jcip.annotations.GuardedBy;
-import utils.Guard;
 import utils.LoggerSettable;
 import utils.func.FOption;
 

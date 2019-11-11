@@ -1,13 +1,14 @@
 package utils.async.op;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.jcip.annotations.GuardedBy;
-import utils.Guard;
 import utils.Utilities;
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
+import utils.async.Guard;
 import utils.async.Result;
 import utils.async.StartableExecution;
 import utils.func.Try;

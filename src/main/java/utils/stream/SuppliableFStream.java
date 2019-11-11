@@ -9,8 +9,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
-import net.jcip.annotations.GuardedBy;
 import utils.Suppliable;
 import utils.Throwables;
 import utils.async.ThreadInterruptedException;
