@@ -28,7 +28,7 @@ dependencies {
 	implementation "commons-cli:commons-cli:${commons_cli_version}"
 	implementation "org.lz4:lz4-java:${lz4_java_version}"
 	implementation "com.google.code.gson:gson:${gson_version}"
-	implementation "org.apache.commons:commons-text:${commons_text_version}"
+	api "org.apache.commons:commons-text:${commons_text_version}"
 	
 	testImplementation "junit:junit:${junit_version}"
 	testImplementation "org.mockito:mockito-core:${mokito_version}"
