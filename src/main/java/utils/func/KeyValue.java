@@ -39,6 +39,10 @@ public final class KeyValue<K,V> {
 		return m_value;
 	}
 	
+	public Tuple<K,V> toTuple() {
+		return Tuple.of(m_key, m_value);
+	}
+	
 	public <T> T map(BiFunction<? super K,? super V,? extends T> mapper) {
 		return mapper.apply(m_key, m_value);
 	}
