@@ -24,6 +24,9 @@ public class Unchecked {
 	public static <T> FailureHandler<T> ignore() {
 		return new IgnoreFailure<>();
 	}
+	public static <T> FailureHandler<T> throwSneakily() {
+		return new ThrowFailureSneakily<>();
+	}
 	
 	public static <T> CountingErrorHandler<T> count() {
 		return new CountingErrorHandler<>();
@@ -49,11 +52,11 @@ public class Unchecked {
 		return new UncheckedRunnable<>(checked, handler);
 	}
 	
-	public static <T> Runnable liftIE(CheckedRunnable checked) {
+	public static <T> Runnable ignore(CheckedRunnable checked) {
 		return lift(checked, ignore());
 	}
 	
-	public static <T> Runnable erase(CheckedRunnable checked) {
+	public static <T> Runnable sneakyThrow(CheckedRunnable checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
 		
 		return () -> {
@@ -103,13 +106,13 @@ public class Unchecked {
 // ****************************** Consumer **************************************
 // ******************************************************************************
 	
-	public static <T> Consumer<T> liftIE(CheckedConsumer<T> checked) {
+	public static <T> Consumer<T> ignore(CheckedConsumer<T> checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedConsumer is null");
 		
 		return new UncheckedConsumer<>(checked, ignore());
 	}
 	
-	public static <T> Consumer<T> erase(CheckedConsumer<T> checked) {
+	public static <T> Consumer<T> sneakyThrow(CheckedConsumer<T> checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedConsumer is null");
 		
 		return (data) -> {
@@ -117,7 +120,7 @@ public class Unchecked {
 				checked.accept(data);
 			}
 			catch ( Throwable e ) {
-				Throwables.sneakyThrow(e);
+				Throwables.sneakyThrow(Throwables.unwrapThrowable(e));
 			}
 		};
 	}
@@ -152,7 +155,7 @@ public class Unchecked {
 // ****************************** Supplier **************************************
 // ******************************************************************************
 	
-	public static <T> Supplier<T> erase(CheckedSupplier<T> checked) {
+	public static <T> Supplier<T> sneakyThrow(CheckedSupplier<T> checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
 		
 		return () -> {
@@ -171,7 +174,7 @@ public class Unchecked {
 // ****************************** Function **************************************
 // ******************************************************************************
 	
-	public static <T,S> Function<T,S> erase(CheckedFunction<T,S> checked) {
+	public static <T,S> Function<T,S> sneakyThrow(CheckedFunction<T,S> checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedFunction is null");
 		
 		return (data) -> {
@@ -200,6 +203,13 @@ public class Unchecked {
 	private static class IgnoreFailure<T> implements FailureHandler<T> {
 		@Override
 		public void handle(FailureCase<T> fcase) { }
+	}
+	
+	private static class ThrowFailureSneakily<T> implements FailureHandler<T> {
+		@Override
+		public void handle(FailureCase<T> fcase) {
+			Throwables.sneakyThrow(fcase.getCause());
+		}
 	}
 	
 	public static class CollectingErrorHandler<T> implements FailureHandler<T> {

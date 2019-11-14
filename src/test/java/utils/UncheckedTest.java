@@ -31,7 +31,7 @@ public class UncheckedTest {
 		};
 		
 		m_result = INIT;
-		Runnable r = Unchecked.liftIE(cr);
+		Runnable r = Unchecked.ignore(cr);
 		Assert.assertEquals(INIT, m_result);
 		r.run();
 		Assert.assertEquals(FAILED, m_result);
@@ -46,12 +46,12 @@ public class UncheckedTest {
 		};
 
 		m_result = INIT;
-		Unchecked.erase(cr0).run();;
+		Unchecked.sneakyThrow(cr0).run();;
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
 		try {
-			Unchecked.erase(cr1).run();
+			Unchecked.sneakyThrow(cr1).run();
 			Assert.fail();
 		}
 		catch ( Exception e ) {
@@ -69,12 +69,12 @@ public class UncheckedTest {
 		};
 		
 		m_result = INIT;
-		Supplier<String> ret0 = Unchecked.erase(cr0);
+		Supplier<String> ret0 = Unchecked.sneakyThrow(cr0);
 		Assert.assertEquals(INIT, m_result);
 		Assert.assertEquals(COMPLETED, ret0.get());
 		
 		m_result = INIT;
-		Supplier<String> ret1 = Unchecked.erase(cr1);
+		Supplier<String> ret1 = Unchecked.sneakyThrow(cr1);
 		Assert.assertEquals(INIT, m_result);
 		try {
 			Assert.assertNull(ret1.get());
@@ -92,7 +92,7 @@ public class UncheckedTest {
 			m_result = t;
 		};
 		m_result = INIT;
-		Consumer<String> ret0 = Unchecked.liftIE(cr0);
+		Consumer<String> ret0 = Unchecked.ignore(cr0);
 		Assert.assertEquals(INIT, m_result);
 		
 		ret0.accept(COMPLETED);
@@ -103,7 +103,7 @@ public class UncheckedTest {
 			throw new IOException("xxx");
 		};
 		m_result = INIT;
-		Consumer<String> ret1 = Unchecked.liftIE(cr1);
+		Consumer<String> ret1 = Unchecked.ignore(cr1);
 		Assert.assertEquals(INIT, m_result);
 
 		ret1.accept(COMPLETED);
@@ -116,7 +116,7 @@ public class UncheckedTest {
 			m_result = t;
 		};
 		m_result = INIT;
-		Consumer<String> ret0 = Unchecked.erase(cr0);
+		Consumer<String> ret0 = Unchecked.sneakyThrow(cr0);
 		Assert.assertEquals(INIT, m_result);
 		
 		ret0.accept(COMPLETED);
@@ -127,7 +127,7 @@ public class UncheckedTest {
 			throw new IOException("xxx");
 		};
 		m_result = INIT;
-		Consumer<String> ret1 = Unchecked.erase(cr1);
+		Consumer<String> ret1 = Unchecked.sneakyThrow(cr1);
 		Assert.assertEquals(INIT, m_result);
 		
 		try {

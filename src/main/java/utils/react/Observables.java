@@ -26,7 +26,7 @@ public class Observables {
 		return Observable.create(emitter -> {
 			try {
 				stream.takeWhile(v -> !emitter.isDisposed())
-						.forEach(Unchecked.liftIE(emitter::onNext));
+						.forEach(Unchecked.ignore(emitter::onNext));
 				if ( !emitter.isDisposed() ) {
 					emitter.onComplete();
 				}
