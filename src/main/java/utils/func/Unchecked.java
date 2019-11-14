@@ -65,6 +65,7 @@ public class Unchecked {
 			}
 			catch ( Throwable e ) {
 				Throwables.sneakyThrow(e);
+				throw new AssertionError("Should not be here");
 			}
 		};
 	}
