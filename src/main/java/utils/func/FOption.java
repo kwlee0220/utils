@@ -1,5 +1,9 @@
 package utils.func;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -15,7 +19,7 @@ import utils.stream.FStreamable;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class FOption<T> implements FStreamable<T> {
+public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 	@SuppressWarnings("rawtypes")
 	private static final FOption EMPTY = new FOption<>(null, false);
 	
@@ -118,16 +122,6 @@ public final class FOption<T> implements FStreamable<T> {
 		return this;
 	}
 	
-	public FOption<T> ifPresentTE(CheckedConsumer<? super T> effect) throws Throwable {
-		Utilities.checkNotNullArgument(effect, "present consumer is null");
-		
-		if ( m_present ) {
-			effect.accept(m_value);
-		}
-		
-		return this;
-	}
-	
 	public FOption<T> ifAbsent(Runnable orElse) {
 		if ( !m_present ) {
 			Utilities.checkNotNullArgument(orElse, "orElse is null");
@@ -175,7 +169,7 @@ public final class FOption<T> implements FStreamable<T> {
 	}
 	
 	public <S,X extends Throwable>
-	FOption<S> mapTE(CheckedFunctionX<? super T,? extends S,X> mapper) throws X {
+	FOption<S> mapOrThrow(CheckedFunctionX<? super T,? extends S,X> mapper) throws X {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
@@ -238,6 +232,15 @@ public final class FOption<T> implements FStreamable<T> {
 			Utilities.checkNotNullArgument(errorSupplier, "errorSupplier is null");
 			throw errorSupplier.get();
 		}
+	}
+	
+	public List<T> toList() {
+		return (m_present) ? Arrays.asList(m_value) : Collections.emptyList();
+	}
+
+	@Override
+	public Iterator<T> iterator() {
+		return toList().iterator();
 	}
 
 	@Override
