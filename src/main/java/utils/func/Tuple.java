@@ -43,6 +43,14 @@ public final class Tuple<T1,T2> {
 		return _2;
 	}
 	
+	public Tuple<T2,T1> swap() {
+		return Tuple.of(_2, _1);
+	}
+	
+	public KeyValue<T1,T2> toKeyValue() {
+		return KeyValue.of(_1, _2);
+	}
+	
 	@Override
 	public boolean equals(Object obj) {
 		if ( this == obj ) {
