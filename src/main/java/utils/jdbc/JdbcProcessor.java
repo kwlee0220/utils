@@ -103,7 +103,8 @@ public class JdbcProcessor implements Serializable {
 			return DriverManager.getConnection(m_jdbcUrl, m_user, m_passwd);
 		}
 		catch ( Exception e ) {
-			throw new JdbcException("fails to load JDBC driver class: name=" + m_driverClsName);
+			throw new JdbcException("fails to load JDBC driver class: name=" + m_driverClsName
+									+ ", cause=" + e);
 		}
 	}
 	
