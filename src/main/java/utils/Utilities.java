@@ -403,6 +403,14 @@ public class Utilities {
 			return Tuple.of(str.substring(0, idx), str.substring(idx+1));
 		}
 	}
+	
+	public static final boolean matchWithLike(String str, String likeExpr) {
+		String regExpr = likeExpr.toLowerCase()
+								.replace(".", "\\.")
+								.replace("?", ".")
+								.replace("%", ".*");
+		return str.toLowerCase().matches(regExpr);
+	}
 
 //	private static final Pattern KV_PAT = Pattern.compile("(\\w+)=\"*((?<=\")[^\"]+(?=\")|([^\\s]+))\"*");
 	private static final Pattern KV_PAT = Pattern.compile("(\\S+)\\s*=\\s*\"*(((?<=\\\")([^\\\"]*)(?=\\\"))|([^;\\s][^;\\s]*))\"*;?");
