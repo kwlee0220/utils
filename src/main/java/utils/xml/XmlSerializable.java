@@ -101,7 +101,7 @@ public interface XmlSerializable {
 	 */
 	public static Object loadXmlSerializable(FluentElement topElm) {
 		String clsName = topElm.attr("class")
-								.getOrElseThrow(()->new XmlSerializationException(
+								.getOrThrow(()->new XmlSerializationException(
 														"No 'class' attribute, Element=" + topElm));
 		
 		Class<?> cls =null;

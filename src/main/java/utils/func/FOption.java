@@ -102,7 +102,17 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 		}
 	}
 	
-	public <X extends Throwable> T getOrElseThrow(Supplier<X> thrower) throws X {
+	public <X extends Throwable> T getOrElseThrow(CheckedSupplierX<? extends T,X> elseSupplier) throws X {
+		if ( m_present ) {
+			return m_value;
+		}
+		else {
+			Utilities.checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			return elseSupplier.get();
+		}
+	}
+	
+	public <X extends Throwable> T getOrThrow(Supplier<X> thrower) throws X {
 		if ( m_present ) {
 			return m_value;
 		}
@@ -122,10 +132,30 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 		return this;
 	}
 	
+	public <X extends Throwable> FOption<T> ifPresentOrThrow(CheckedConsumerX<? super T,X> effect) throws X {
+		Utilities.checkNotNullArgument(effect, "present consumer is null");
+		
+		if ( m_present ) {
+			effect.accept(m_value);
+		}
+		
+		return this;
+	}
+	
 	public FOption<T> ifAbsent(Runnable orElse) {
 		if ( !m_present ) {
 			Utilities.checkNotNullArgument(orElse, "orElse is null");
 			
+			orElse.run();
+		}
+		
+		return this;
+	}
+
+	public <X extends Throwable> FOption<T> ifAbsentOrThrow(CheckedRunnableX<X> orElse) throws X {
+		if ( !m_present ) {
+			Utilities.checkNotNullArgument(orElse, "orElse is null");
+
 			orElse.run();
 		}
 		

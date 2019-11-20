@@ -40,11 +40,11 @@ public final class Either<T1,T2> {
 	}
 	
 	public T1 getLeft() {
-		return m_left.getOrElseThrow(() -> new NoSuchValueException("left"));
+		return m_left.getOrThrow(() -> new NoSuchValueException("left"));
 	}
 	
 	public T2 getRight() {
-		return m_right.getOrElseThrow(() -> new NoSuchValueException("right"));
+		return m_right.getOrThrow(() -> new NoSuchValueException("right"));
 	}
 	
 	@Override
