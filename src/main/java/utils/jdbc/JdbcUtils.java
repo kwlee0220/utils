@@ -83,6 +83,6 @@ public class JdbcUtils {
 			}
 		};
 		
-		return ProxyUtils.replaceAction(rset, replacer);
+		return ProxyUtils.replaceAction(rset.getClass().getClassLoader(), rset, replacer);
 	}
 }
