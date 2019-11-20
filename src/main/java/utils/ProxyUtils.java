@@ -9,6 +9,7 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 
+import net.sf.cglib.core.CodeGenerationException;
 import net.sf.cglib.proxy.Callback;
 import net.sf.cglib.proxy.CallbackFilter;
 import net.sf.cglib.proxy.Enhancer;
@@ -38,12 +39,20 @@ public final class ProxyUtils {
 		}
 		callbacks[0] = new NoOpHandler<>(obj);
 		
-		Enhancer enhancer = new Enhancer();
-		enhancer.setClassLoader(loader);
-		enhancer.setInterfaces(obj.getClass().getInterfaces());
-		enhancer.setCallbackFilter(new CallFilter<>(handlers));
-		enhancer.setCallbacks(callbacks);
-		return (T)enhancer.create();
+		try {
+			Enhancer enhancer = new Enhancer();
+			enhancer.setClassLoader(loader);
+			enhancer.setInterfaces(obj.getClass().getInterfaces());
+			enhancer.setCallbackFilter(new CallFilter<>(handlers));
+			enhancer.setCallbacks(callbacks);
+			return (T)enhancer.create();
+		}
+		catch ( CodeGenerationException e ) {
+			Throwable cause = Throwables.unwrapThrowable(e.getCause());
+			Throwables.sneakyThrow(cause);
+			
+			throw new AssertionError("should not be here");
+		}
 	}
 
 	@SafeVarargs
@@ -59,11 +68,21 @@ public final class ProxyUtils {
 		}
 		callbacks[0] = new NoOpHandler<>(obj);
 		
-		Enhancer enhancer = new Enhancer();
-		enhancer.setInterfaces(obj.getClass().getInterfaces());
-		enhancer.setCallbackFilter(new CallFilter<>(handlers));
-		enhancer.setCallbacks(callbacks);
-		return (T)enhancer.create();
+		Class<?>[] intfcs = obj.getClass().getInterfaces();
+		
+		try {
+			Enhancer enhancer = new Enhancer();
+			enhancer.setInterfaces(obj.getClass().getInterfaces());
+			enhancer.setCallbackFilter(new CallFilter<>(handlers));
+			enhancer.setCallbacks(callbacks);
+			return (T)enhancer.create();
+		}
+		catch ( CodeGenerationException e ) {
+			Throwable cause = Throwables.unwrapThrowable(e.getCause());
+			Throwables.sneakyThrow(cause);
+			
+			throw new AssertionError("should not be here");
+		}
 	}
 
 	@SafeVarargs
@@ -83,11 +102,19 @@ public final class ProxyUtils {
 		intfcSet.addAll(Arrays.asList(extraIntfcs));
 		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
 		
-		Enhancer enhancer = new Enhancer();
-		enhancer.setInterfaces(intfcs);
-		enhancer.setCallbackFilter(new CallFilter<>(handlers));
-		enhancer.setCallbacks(callbacks);
-		return (T)enhancer.create();
+		try {
+			Enhancer enhancer = new Enhancer();
+			enhancer.setInterfaces(intfcs);
+			enhancer.setCallbackFilter(new CallFilter<>(handlers));
+			enhancer.setCallbacks(callbacks);
+			return (T)enhancer.create();
+		}
+		catch ( CodeGenerationException e ) {
+			Throwable cause = Throwables.unwrapThrowable(e.getCause());
+			Throwables.sneakyThrow(cause);
+			
+			throw new AssertionError("should not be here");
+		}
 	}
 
 	/**
@@ -116,11 +143,19 @@ public final class ProxyUtils {
 		intfcSet.add(intfc);
 		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
 		
-		Enhancer enhancer = new Enhancer();
-		enhancer.setSuperclass(src.getClass());
-		enhancer.setInterfaces(intfcs);
-		enhancer.setCallback(new ExtendedCallHandler<>(src, intfc, handler));
-		return (T)enhancer.create();
+		try {
+			Enhancer enhancer = new Enhancer();
+			enhancer.setSuperclass(src.getClass());
+			enhancer.setInterfaces(intfcs);
+			enhancer.setCallback(new ExtendedCallHandler<>(src, intfc, handler));
+			return (T)enhancer.create();
+		}
+		catch ( CodeGenerationException e ) {
+			Throwable cause = Throwables.unwrapThrowable(e.getCause());
+			Throwables.sneakyThrow(cause);
+			
+			throw new AssertionError("should not be here");
+		}
 	}
 				
 	private static class CallFilter<T> implements CallbackFilter {
