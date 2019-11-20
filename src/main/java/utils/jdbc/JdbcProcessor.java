@@ -1,6 +1,10 @@
 package utils.jdbc;
 
+import java.io.File;
 import java.io.Serializable;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Driver;
@@ -14,6 +18,8 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +42,8 @@ public class JdbcProcessor implements Serializable {
 	private final String m_user;
 	private final String m_passwd;
 	private final String m_driverClsName;
-	private ClassLoader m_cloader;
+	@Nullable private File m_jarFile;
+	@Nullable private ClassLoader m_cloader;
 	
 	/**
 	 * 주어진 정보를 이용하한 JDBC 연결기 객체를 생성한다.
@@ -78,6 +85,11 @@ public class JdbcProcessor implements Serializable {
 		return m_cloader;
 	}
 	
+	public JdbcProcessor setJdbcJarFile(File jarFile) {
+		m_jarFile = jarFile;
+		return this;
+	}
+	
 	public JdbcProcessor setClassLoader(ClassLoader cloader) {
 		m_cloader = cloader;
 		return this;
@@ -90,10 +102,20 @@ public class JdbcProcessor implements Serializable {
 	 * @throws SQLException	JDBC 연결 도중 오류가 발생된 경우.
 	 */
 	public Connection connect() throws SQLException {
+		if ( m_jarFile != null && m_cloader == null ) {
+			try {
+				URL url = new URL(String.format("jar:file:%s!/", m_jarFile));
+				URLClassLoader cloader = new URLClassLoader(new URL[]{url});
+				setClassLoader(cloader);
+			}
+			catch ( MalformedURLException e ) {
+				throw new SQLException("fails to create " + getClass() + ", invalid jar path=" + m_jarFile);
+			}
+		}
+		
 		try {
 			if ( m_cloader != null ) {
-				Driver driver = (Driver)Class.forName(m_driverClsName, true, m_cloader)
-											.newInstance();
+				Driver driver = (Driver)Class.forName(m_driverClsName, true, m_cloader).newInstance();
 				DriverManager.registerDriver(new DriverDelegate(driver));
 			}
 			else {
@@ -301,5 +323,12 @@ public class JdbcProcessor implements Serializable {
 	@FunctionalInterface
 	public static interface JdbcConsumer<T> {
 		public void accept(T data) throws SQLException;
+	}
+
+	public static final String POSTGRESQL_CLASS = "org.postgresql.Driver";
+	public static JdbcProcessor PostgreSQL(String host, int port, String user, String passwd,
+											String dbName) {
+		String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, dbName);
+		return new JdbcProcessor(jdbcUrl, user, passwd, POSTGRESQL_CLASS);
 	}
 }
