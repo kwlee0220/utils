@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
+import utils.CSV;
 import utils.Throwables;
 import utils.stream.FStream;
 
@@ -44,6 +45,18 @@ public class JdbcProcessor implements Serializable {
 	private final String m_driverClsName;
 	@Nullable private File m_jarFile;
 	@Nullable private ClassLoader m_cloader;
+	
+	public static JdbcProcessor create(String system, String host, int port, String user,
+										String passwd, String dbName) {
+		JdbcConnectInfo connInfo = getJdbcConnectInfo(system);
+		
+		String jdbcUrl = String.format(connInfo.m_urlFormat, host, port, dbName);
+		return new JdbcProcessor(jdbcUrl, user, passwd, connInfo.m_driverClassName);
+	}
+	
+	public static String getJdbcDriverClassName(String protocol) {
+		return getJdbcConnectInfo(protocol).m_driverClassName;
+	}
 	
 	/**
 	 * 주어진 정보를 이용하한 JDBC 연결기 객체를 생성한다.
@@ -67,6 +80,12 @@ public class JdbcProcessor implements Serializable {
 	
 	public String getJdbcUrl() {
 		return m_jdbcUrl;
+	}
+	
+	public String getSystem() {
+		return CSV.parseCsv(m_jdbcUrl, ':')
+					.take(2).findLast()
+					.getOrThrow(() -> new IllegalArgumentException("jdbc_url=" + m_jdbcUrl));
 	}
 	
 	public String getUser() {
@@ -299,6 +318,7 @@ public class JdbcProcessor implements Serializable {
 		try ( Connection conn = connect() ) {
 			DatabaseMetaData meta = conn.getMetaData();
 			ResultSet rs = meta.getColumns(null, null, tblName, null);
+			
 			while ( rs.next() ) {
 				String name = rs.getString("COLUMN_NAME");
 				int type = rs.getInt("DATA_TYPE");
@@ -324,11 +344,31 @@ public class JdbcProcessor implements Serializable {
 	public static interface JdbcConsumer<T> {
 		public void accept(T data) throws SQLException;
 	}
-
-	public static final String POSTGRESQL_CLASS = "org.postgresql.Driver";
-	public static JdbcProcessor PostgreSQL(String host, int port, String user, String passwd,
-											String dbName) {
-		String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, dbName);
-		return new JdbcProcessor(jdbcUrl, user, passwd, POSTGRESQL_CLASS);
+	
+	private static JdbcConnectInfo getJdbcConnectInfo(String protocol) {
+		JdbcConnectInfo connInfo = JDBC_URLS.get(protocol);
+		if ( connInfo == null ) {
+			throw new IllegalArgumentException("unsupported jdbc protocol: " + protocol);
+		}
+		
+		return connInfo;
+	}
+	
+	private static class JdbcConnectInfo {
+		private String m_urlFormat;
+		private String m_driverClassName;
+		
+		JdbcConnectInfo(String urlFormat, String driverClassName) {
+			m_urlFormat = urlFormat;
+			m_driverClassName = driverClassName;
+		}
+	}
+	
+	private static final Map<String,JdbcConnectInfo> JDBC_URLS = Maps.newHashMap();
+	static {
+		JDBC_URLS.put("mysql", new JdbcConnectInfo("jdbc:mysql://%s:%d/%s?characterEncoding=utf8&useSSL=false",
+													"com.mysql.jdbc.Driver"));
+		JDBC_URLS.put("postgresql", new JdbcConnectInfo("jdbc:postgresql://%s:%d/%s",
+														"org.postgresql.Driver"));
 	}
 }
