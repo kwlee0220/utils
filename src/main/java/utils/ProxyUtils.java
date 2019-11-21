@@ -39,10 +39,14 @@ public final class ProxyUtils {
 		}
 		callbacks[0] = new NoOpHandler<>(obj);
 		
+		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(obj.getClass());
+		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
+		checkArgument(intfcs.length > 0, () -> "object implements no interfaces: obj=" + obj);
+		
 		try {
 			Enhancer enhancer = new Enhancer();
 			enhancer.setClassLoader(loader);
-			enhancer.setInterfaces(obj.getClass().getInterfaces());
+			enhancer.setInterfaces(intfcs);
 			enhancer.setCallbackFilter(new CallFilter<>(handlers));
 			enhancer.setCallbacks(callbacks);
 			return (T)enhancer.create();
@@ -67,12 +71,14 @@ public final class ProxyUtils {
 			callbacks[i+1] = new Interceptor<>(obj, handlers[i]);
 		}
 		callbacks[0] = new NoOpHandler<>(obj);
-		
-		Class<?>[] intfcs = obj.getClass().getInterfaces();
+
+		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(obj.getClass());
+		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
+		checkArgument(intfcs.length > 0, () -> "object implements no interfaces: obj=" + obj);
 		
 		try {
 			Enhancer enhancer = new Enhancer();
-			enhancer.setInterfaces(obj.getClass().getInterfaces());
+			enhancer.setInterfaces(intfcs);
 			enhancer.setCallbackFilter(new CallFilter<>(handlers));
 			enhancer.setCallbacks(callbacks);
 			return (T)enhancer.create();
@@ -98,7 +104,7 @@ public final class ProxyUtils {
 		}
 		callbacks[0] = new NoOpHandler<>(obj);
 		
-		Set<Class<?>> intfcSet = Sets.newHashSet(obj.getClass().getInterfaces());
+		Set<Class<?>> intfcSet = Sets.newHashSet(Utilities.getInterfaceAllRecusively(obj.getClass()));
 		intfcSet.addAll(Arrays.asList(extraIntfcs));
 		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
 		
