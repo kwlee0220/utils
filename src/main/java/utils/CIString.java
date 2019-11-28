@@ -82,7 +82,7 @@ public final class CIString implements Comparable<CIString>, Serializable {
 	private static class SerializationProxy implements Serializable {
 		private static final long serialVersionUID = -4183428723712485003L;
 		
-		private transient final String m_strRep;
+		private final String m_strRep;
 		
 		private SerializationProxy(CIString mcKey) {
 			m_strRep = mcKey.toString();
