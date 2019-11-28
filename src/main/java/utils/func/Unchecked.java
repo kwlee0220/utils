@@ -70,6 +70,18 @@ public class Unchecked {
 		};
 	}
 	
+	public static boolean runQuietly(CheckedRunnable checked) {
+		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
+		
+		try {
+			checked.run();
+			return true;
+		}
+		catch ( Throwable e ) {
+			return false;
+		}
+	}
+	
 	public static void runSneakily(CheckedRunnable checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
 		
