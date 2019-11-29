@@ -110,19 +110,11 @@ public class IOUtils {
 		}
     }
     
-    public static byte[] toBytes(InputStream is, boolean closeStream) throws IOException {
+    public static byte[] toBytes(InputStream is) throws IOException {
     	ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    	try {
-	    	transfer(is, baos, 4096);
-	    	baos.close();
-	    	
-	    	return baos.toByteArray();
-    	}
-    	finally {
-    		if ( closeStream ) {
-    			closeQuietly(is);
-    		}
-    	}
+    	transfer(is, baos, 4096);
+    	baos.close();
+    	return baos.toByteArray();
     }
     
     public static byte[] toBytes(File file) throws IOException {
