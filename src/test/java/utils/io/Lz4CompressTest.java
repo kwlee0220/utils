@@ -32,7 +32,7 @@ public class Lz4CompressTest {
 		}
 		
 		InputStream cin = Lz4Compressions.compress(new ByteArrayInputStream(bytes), 1024);
-		byte[] compressed = IOUtils.toBytes(cin, true);
+		byte[] compressed = IOUtils.toBytes(cin);
 
 		byte[] restored = new byte[4 * COUNT + 1];
 		InputStream in = Lz4Compressions.decompress(new ByteArrayInputStream(compressed));

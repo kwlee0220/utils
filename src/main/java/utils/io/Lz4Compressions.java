@@ -1,5 +1,7 @@
 package utils.io;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +38,23 @@ public class Lz4Compressions {
 	
 	public static int maxCompressedLength(int srcLength) {
 		return s_compressor.get().maxCompressedLength(srcLength);
+	}
+	
+	public static byte[] compress(byte[] bytes) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream(bytes.length);
+		try ( LZ4BlockOutputStream lz4os = new LZ4BlockOutputStream(baos, bytes.length) ) {
+			lz4os.write(bytes);
+		}
+		baos.close();
+		
+		return baos.toByteArray();
+	}
+	
+	public static byte[] decompress(byte[] bytes) throws IOException {
+		try ( ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+				LZ4BlockInputStream lz4is = new LZ4BlockInputStream(bais) ) {
+			return IOUtils.toBytes(lz4is);
+		}
 	}
 	
 	public static OutputStream toCompressedStream(OutputStream out, int blockSize) {
