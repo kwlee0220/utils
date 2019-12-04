@@ -25,7 +25,7 @@ dependencies {
 	api "cglib:cglib:${cglib_version}"
 	api "io.reactivex.rxjava2:rxjava:${rxjava2_version}"
 	api "org.mvel:mvel2:${mvel2_version}"
-	implementation "commons-cli:commons-cli:${commons_cli_version}"
+	api "commons-cli:commons-cli:${commons_cli_version}"
 	implementation "org.lz4:lz4-java:${lz4_java_version}"
 	implementation "com.google.code.gson:gson:${gson_version}"
 	api "org.apache.commons:commons-text:${commons_text_version}"
