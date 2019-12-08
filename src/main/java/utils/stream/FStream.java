@@ -488,6 +488,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return flatMap(t -> mapper.apply(t).fstream());
 	}
 	
+	public default <V> FStream<V> flatMapIterator(Function<? super T,? extends Iterator<V>> mapper) {
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		
+		return flatMap(t -> FStream.from(mapper.apply(t)));
+	}
+	
 	public default <V> FStream<V> flatMapIterable(Function<? super T,? extends Iterable<V>> mapper) {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
