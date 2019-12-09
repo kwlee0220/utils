@@ -11,6 +11,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import utils.Throwables;
 import utils.Utilities;
 import utils.stream.FStream;
 import utils.stream.FStreamable;
@@ -198,6 +199,25 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
 	
+	/**
+	 * 데이터가 존재하는 경우 주어진 mapper ({@link CheckedFunction})를 적용시킨다.
+	 * <p>
+	 * Mapper 적용 중 예외가 발생되면 해당 예외를 throw 시킨다.
+	 * 
+	 * @param	mapper	변형 함수
+	 */
+	public <S> FOption<S> mapSneakily(CheckedFunction<? super T,? extends S> mapper) {
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		
+		try {
+			return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
+		}
+		catch ( Throwable e ) {
+			Throwables.sneakyThrow(e);
+			throw new AssertionError();
+		}
+	}
+	
 	public <S,X extends Throwable>
 	FOption<S> mapOrThrow(CheckedFunctionX<? super T,? extends S,X> mapper) throws X {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
@@ -215,6 +235,18 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? mapper.apply(m_value) : empty();
+	}
+	
+	public <S> FOption<S> flatMapSneakily(CheckedFunction<? super T,FOption<S>> mapper) {
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		
+		try {
+			return (m_present) ? mapper.apply(m_value) : empty();
+		}
+		catch ( Throwable e ) {
+			Throwables.sneakyThrow(e);
+			throw new AssertionError();
+		}
 	}
 	
 	public <S> FOption<S> flatMapTry(Function<? super T,Try<S>> mapper) {
