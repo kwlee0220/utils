@@ -345,10 +345,10 @@ public class JdbcProcessor implements Serializable {
 		public void accept(T data) throws SQLException;
 	}
 	
-	private static JdbcConnectInfo getJdbcConnectInfo(String protocol) {
-		JdbcConnectInfo connInfo = JDBC_URLS.get(protocol);
+	private static JdbcConnectInfo getJdbcConnectInfo(String system) {
+		JdbcConnectInfo connInfo = JDBC_URLS.get(system);
 		if ( connInfo == null ) {
-			throw new IllegalArgumentException("unsupported jdbc protocol: " + protocol);
+			throw new IllegalArgumentException("unsupported jdbc system: " + system);
 		}
 		
 		return connInfo;
