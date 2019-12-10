@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 
 import utils.CSV;
 import utils.Throwables;
+import utils.func.CheckedConsumerX;
 import utils.stream.FStream;
 
 
@@ -185,6 +186,13 @@ public class JdbcProcessor implements Serializable {
 	public ResultSet executeQuery(String sql) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
 		return JdbcUtils.bindToConnection(rs);
+	}
+	
+	public ResultSet executeQuery(String sql,
+							CheckedConsumerX<Statement,SQLException> stmtSetter) throws SQLException {
+		Statement stmt = connect().createStatement();
+		stmtSetter.accept(stmt);
+		return JdbcUtils.bindToConnection(stmt.executeQuery(sql));
 	}
 	
 	public ResultSet executeQuery(Statement stmt, String sql) throws SQLException {
@@ -366,7 +374,7 @@ public class JdbcProcessor implements Serializable {
 	
 	private static final Map<String,JdbcConnectInfo> JDBC_URLS = Maps.newHashMap();
 	static {
-		JDBC_URLS.put("mysql", new JdbcConnectInfo("jdbc:mysql://%s:%d/%s?characterEncoding=utf8&useSSL=false",
+		JDBC_URLS.put("mysql", new JdbcConnectInfo("jdbc:mysql://%s:%d/%s?characterEncoding=utf8&useSSL=false&useCursorFetch=true",
 													"com.mysql.jdbc.Driver"));
 		JDBC_URLS.put("postgresql", new JdbcConnectInfo("jdbc:postgresql://%s:%d/%s",
 														"org.postgresql.Driver"));
