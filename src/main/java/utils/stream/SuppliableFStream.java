@@ -55,6 +55,8 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 			if ( !m_closed ) {
 				m_closed = true;
 				m_buffer.clear();
+				
+				// 본 conditional variable을 보고 sleep하고 있는 모든 thread을 깨운다.
 				m_cond.signalAll();
 			}
 		}
@@ -67,18 +69,17 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 	public FOption<T> next() {
 		m_lock.lock();
 		try {
-			if ( m_closed ) {
-				return FOption.empty();
-			}
-			
 			while ( true ) {
+				// wait에서 깨고 나서 m_buffer.size() == 0 인 경우는
+				// close 상태와 오류 발생 여부를 확인할 필요가 있음
+				//
 				if ( m_buffer.size() > 0 ) {
 					T value = m_buffer.remove(0);
 					m_cond.signalAll();
 					
 					return FOption.of(value);
 				}
-				else if ( m_eos ) {
+				else if ( m_closed || m_eos ) {
 					if ( m_error == null ) {
 						return FOption.empty();
 					}
@@ -99,19 +100,34 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 			m_lock.unlock();
 		}
 	}
+	
+	/**
+	 * 스트림의 다음 원소를 반환한다.
+	 * <p>
+	 * 만일 다음 원소가 없는 경우는 지정된 시간만큼 새 원소가 스트림에 삽입될 때까지
+	 * 대기한다. 지정된 시간동안 원소가 삽입되지 않으면 {@link TimeoutException} 예외가
+	 * 발생된다.
+	 * 
+	 * @param timeout	제한 시간
+	 * @param tu		제한 시간 단위
+	 * @throws TimeoutException	제한된 시간 동안 스트림이 비어있었던 경우.
+	 */
 	public FOption<T> next(long timeout, TimeUnit tu) throws TimeoutException {
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		
 		m_lock.lock();
 		try {
 			while ( true ) {
+				// wait에서 깨고 나서 m_buffer.size() == 0 인 경우는
+				// close 상태와 오류 발생 여부를 확인할 필요가 있음
+				//
 				if ( m_buffer.size() > 0 ) {
 					T value = m_buffer.remove(0);
 					m_cond.signalAll();
 					
 					return FOption.of(value);
 				}
-				else if ( m_eos ) {
+				else if ( m_closed || m_eos ) {
 					if ( m_error == null ) {
 						FOption.empty();
 					}
@@ -135,6 +151,13 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 		}
 	}
 	
+	/**
+	 * 스트림의 다음 원소를 반환한다.
+	 * <p>
+	 * 원소가 없는 경우는 {@link FOption#empty()}가 반환된다.
+	 * 
+	 * @return	다음 원소. 스트림이 빈 경우는 {@link FOption#empty()}
+	 */
 	public FOption<T> poll() {
 		m_lock.lock();
 		try {
@@ -144,7 +167,7 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 				
 				return FOption.of(value);
 			}
-			if ( m_eos ) {
+			else if ( m_closed || m_eos ) {
 				if ( m_error == null ) {
 					return FOption.empty();
 				}
@@ -163,7 +186,13 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 
 	@Override
 	public boolean isEndOfSupply() {
-		return m_eos;
+		m_lock.lock();
+		try {
+			return m_eos;
+		}
+		finally {
+			m_lock.unlock();
+		}
 	}
 
 	@Override
@@ -258,6 +287,6 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 	
 	@Override
 	public String toString() {
-		return String.format("SuppliableFStream[nbuffer=%d]", m_buffer.size());
+		return String.format("%s[nbuffer=%d]", getClass().getSimpleName(), m_buffer.size());
 	}
 }
