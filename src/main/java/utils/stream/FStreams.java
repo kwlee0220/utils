@@ -1,5 +1,7 @@
 package utils.stream;
 
+import static utils.Utilities.checkNotNullArgument;
+
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -10,9 +12,10 @@ import java.util.function.Supplier;
 
 import com.google.common.collect.Sets;
 
-import utils.Utilities;
+import utils.Throwables;
 import utils.async.ThreadInterruptedException;
 import utils.func.CheckedFunction;
+import utils.func.CheckedFunctionX;
 import utils.func.FOption;
 import utils.func.FailureCase;
 import utils.func.FailureHandler;
@@ -47,7 +50,7 @@ public class FStreams {
 		private boolean m_closed = false;
 		
 		protected SingleSourceStream(FStream<S> src) {
-			Utilities.checkNotNullArgument(src, "source FStream");
+			checkNotNullArgument(src, "source FStream");
 			
 			m_src = src;
 		}
@@ -66,7 +69,7 @@ public class FStreams {
 		
 		MappedStream(FStream<S> base, Function<? super S,? extends T> mapper) {
 			super(base);
-			Utilities.checkNotNullArgument(mapper, "mapper is null");
+			checkNotNullArgument(mapper, "mapper is null");
 			
 			m_mapper = mapper;
 		}
@@ -77,16 +80,16 @@ public class FStreams {
 		}
 	}
 	
-	static class MapIEStream<T,R> extends SingleSourceStream<T,R> {
+	static class MapOrHandleStream<T,R> extends SingleSourceStream<T,R> {
 		private final CheckedFunction<? super T,? extends R> m_mapper;
 		private final FailureHandler<? super T> m_handler;
 		
-		MapIEStream(FStream<T> base, CheckedFunction<? super T,? extends R> mapper,
+		MapOrHandleStream(FStream<T> base, CheckedFunction<? super T,? extends R> mapper,
 					FailureHandler<? super T> handler) {
 			super(base);
 			
-			Utilities.checkNotNullArgument(mapper, "mapper is null");
-			Utilities.checkNotNullArgument(handler, "FailureHandler is null");
+			checkNotNullArgument(mapper, "mapper is null");
+			checkNotNullArgument(handler, "FailureHandler is null");
 			
 			m_mapper = mapper;
 			m_handler = handler;
@@ -102,6 +105,35 @@ public class FStreams {
 				}
 				catch ( Throwable e ) {
 					m_handler.handle(new FailureCase<>(next, e));
+				}
+			}
+			
+			return FOption.empty();
+		}
+	}
+	
+	static class MapOrThrowStream<T,R,X extends Throwable> extends SingleSourceStream<T,R> {
+		private final CheckedFunctionX<? super T,? extends R,X> m_mapper;
+		
+		MapOrThrowStream(FStream<T> base, CheckedFunctionX<? super T,? extends R,X> mapper) {
+			super(base);
+			
+			checkNotNullArgument(mapper, "mapper is null");
+			
+			m_mapper = mapper;
+		}
+
+		@Override
+		public FOption<R> next() {
+			FOption<T> onext;
+			while ( (onext = m_src.next()).isPresent() ) {
+				try {
+					T next = onext.getUnchecked();
+					return FOption.of(m_mapper.apply(next));
+				}
+				catch ( Throwable e ) {
+					Throwables.sneakyThrow(e);
+					throw new AssertionError();
 				}
 			}
 			

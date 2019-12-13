@@ -27,7 +27,7 @@ public class MapIETest {
 	@Test
 	public void test0() throws Exception {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4))
-											.mapIE(v -> v -1);
+											.mapOrIgnore(v -> v -1);
 		
 		FOption<Integer> r;
 		
@@ -67,7 +67,7 @@ public class MapIETest {
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> stream = FStream.range(0, 10)
-										.mapIE(i -> {
+										.mapOrIgnore(i -> {
 											if ( i%2 == 0 ) {
 												return i;
 											}
@@ -89,7 +89,7 @@ public class MapIETest {
 		
 		FOption<Integer> r;
 		
-		List<Integer> list = FStream.range(0, 10).mapIE(func, handler).toList();
+		List<Integer> list = FStream.range(0, 10).mapOrHandle(func, handler).toList();
 		Assert.assertEquals(Lists.newArrayList(0, 2, 4, 6, 8), list);
 		Assert.assertEquals(Lists.newArrayList(1, 3, 5, 7, 9), FStream.from(faileds)
 																	.map(FailureCase::getData)

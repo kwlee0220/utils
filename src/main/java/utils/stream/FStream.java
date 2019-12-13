@@ -1,5 +1,8 @@
 package utils.stream;
 
+import static utils.Utilities.checkArgument;
+import static utils.Utilities.checkNotNullArgument;
+
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +29,9 @@ import io.reactivex.Observable;
 import utils.CSV;
 import utils.Utilities;
 import utils.func.CheckedConsumer;
+import utils.func.CheckedConsumerX;
 import utils.func.CheckedFunction;
+import utils.func.CheckedFunctionX;
 import utils.func.FLists;
 import utils.func.FOption;
 import utils.func.FailureHandler;
@@ -35,7 +40,8 @@ import utils.func.Try;
 import utils.func.Tuple;
 import utils.func.Unchecked;
 import utils.io.IOUtils;
-import utils.stream.FStreams.MapIEStream;
+import utils.stream.FStreams.MapOrHandleStream;
+import utils.stream.FStreams.MapOrThrowStream;
 import utils.stream.FStreams.MapToDoubleStream;
 import utils.stream.FStreams.MapToIntStream;
 import utils.stream.FStreams.MapToLongStream;
@@ -68,19 +74,27 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return FStreams.EMPTY;
 	}
 	
+	/**
+	 * 스트림을 닫는다.
+	 * <p>
+	 * 스트림을 위해 할당된 모든 장원을 반환한다.
+	 * 수행 중 오류가 발생하면 해당 정보를 {@link Try}를 통해 반환한다.
+	 * 
+	 * @return	수행 오류 객체.
+	 */
 	public default Try<Void> closeQuietly() {
 		return Try.run(this::close);
 	}
 	
 	/**
-	 * 주어진 {@link Iterator}객체로부터 FStream 객체를 생성한다.
+	 * 주어진 {@link Iterator} 객체로부터 FStream 객체를 생성한다.
 	 * 
 	 * @param <T> Iterator에서 반환하는 데이터 타입
 	 * @param iter	입력 순환자 객체.
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(final Iterator<? extends T> iter) {
-		Utilities.checkNotNullArgument(iter, "Iterator is null");
+		checkNotNullArgument(iter, "Iterator is null");
 		
 		return new FStream<T>() {
 			private boolean m_closed = false;
@@ -89,6 +103,9 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			public void close() throws Exception {
 				if ( !m_closed ) {
 					m_closed = true;
+					
+					// 구현에 따라 iter가 {@link Closeable}일 수도 있어서
+					// 그런 경우 {@link Closeable#close}를 호출하도록 한다.
 					IOUtils.closeQuietly(iter);
 				}
 			}
@@ -108,7 +125,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(Iterable<? extends T> values) {
-		Utilities.checkNotNullArgument(values, "Iterable is null");
+		checkNotNullArgument(values, "Iterable is null");
 		
 		return from(values.iterator());
 	}
@@ -122,7 +139,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 */
 	@SafeVarargs
 	public static <T> FStream<T> of(T... values) {
-		Utilities.checkNotNullArgument(values, "null values");
+		checkNotNullArgument(values, "null values");
 		
 		return from(Arrays.asList(values));
 	}
@@ -150,7 +167,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(Stream<? extends T> stream) {
-		Utilities.checkNotNullArgument(stream, "Stream is null");
+		checkNotNullArgument(stream, "Stream is null");
 		
 		return from(stream.iterator());
 	}
@@ -163,29 +180,42 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(Observable<? extends T> ob) {
-		Utilities.checkNotNullArgument(ob, "Observable is null");
+		checkNotNullArgument(ob, "Observable is null");
 		
 		return new ObservableStream<>(ob);
 	}
 	
+	/**
+	 * '? extends T' 타입 원소의 스트림서서 'T' 타입 원소의 스트림으로 변환시킨다.
+	 * 
+	 * @param <T>	생성된 스트림 데이터의 타입
+	 * @param stream	source FStream
+	 */
 	@SuppressWarnings("unchecked")
 	public static <T> FStream<T> narrow(FStream<? extends T> stream) {
-		Utilities.checkNotNullArgument(stream, "stream is null");
+		checkNotNullArgument(stream, "stream is null");
 		
 		return (FStream<T>)stream;
 	}
 	
 	/**
-	 * 주어진 길의 내부 버퍼를 사용하는 {@link SuppliableFStream} 객체를 생성한다.
+	 * 주어진 길이의 버퍼를 사용하는 {@link SuppliableFStream} 객체를 생성한다.
 	 * 
 	 * @param <T>	생성된 스트림 데이터의 타입
 	 * @param length	생성될 {@link SuppliableFStream}가 내부적으로 사용할 버퍼 길이.
 	 * @return SuppliableFStream 객체
 	 */
 	public static <T> SuppliableFStream<T> pipe(int length) {
-		Utilities.checkArgument(length > 0, "length > 0: but=" + length);
+		checkArgument(length > 0, "length > 0: but=" + length);
 		
 		return new SuppliableFStream<>(length);
+	}
+	
+	public static IntFStream range(int start, int end) {
+		return new IntFStream.RangedStream(start, end, false);
+	}
+	public static IntFStream rangeClosed(int start, int end) {
+		return new IntFStream.RangedStream(start, end, true);
 	}
 	
 	/**
@@ -204,24 +234,27 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 */
 	public static <S,T> FStream<T> unfold(S init,
 										Function<? super S,Tuple<? extends S,? extends T>> gen) {
-		Utilities.checkNotNullArgument(init, "initial value is null");
-		Utilities.checkNotNullArgument(gen, "next value generator is null");
+		checkNotNullArgument(init, "value generator is null");
+		checkNotNullArgument(gen, "next value generator is null");
 		
 		return new FStreams.UnfoldStream<>(init, gen);
 	}
 	
+	/**
+	 * 무한 스트림 객체를 생성한다.
+	 * <p>
+	 * 스트림에서 발행하는 초기값은 인자로 전달된 {@code init}이고, 이 후부터는
+	 * 마지막으로 발행된 값을 {@code inc}에 적용한 값을 반환한다.
+	 * 
+	 * @param <T>	생성된 스트림 데이터의 타입
+	 * @param init	스트림이 발생하는 첫번재 초기값
+	 * @param inc	마지막으로 발행한 값을 통해 다음으로 발행할 데이터를 생성할 {@link Function}
+	 */
 	public static <T> FStream<T> generate(T init, Function<? super T,? extends T> inc) {
-		Utilities.checkNotNullArgument(init, "initial value is null");
-		Utilities.checkNotNullArgument(inc, "next value generator is null");
+		checkNotNullArgument(init, "initial value is null");
+		checkNotNullArgument(inc, "next value generator is null");
 		
 		return new FStreams.GeneratedStream<>(init, inc);
-	}
-	
-	public static IntFStream range(int start, int end) {
-		return new IntFStream.RangedStream(start, end, false);
-	}
-	public static IntFStream rangeClosed(int start, int end) {
-		return new IntFStream.RangedStream(start, end, true);
 	}
 	
 	/**
@@ -231,7 +264,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return FStream 객체
 	 */
 	public default FStream<T> filter(final Predicate<? super T> pred) {
-		Utilities.checkNotNullArgument(pred, "predicate is null");
+		checkNotNullArgument(pred, "predicate is null");
 		
 		return new SingleSourceStream<T,T>(this) {
 			@Override
@@ -258,16 +291,61 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new MappedStream<>(this, mapper);
 	}
 	
-	public default <S> FStream<S> mapIE(CheckedFunction<? super T,? extends S> mapper,
-										FailureHandler<? super T> handler) {
-		return new MapIEStream<>(this, mapper, handler);
-	}
-	public default <S> FStream<S> mapIE(CheckedFunction<? super T,? extends S> mapper) {
-		return new MapIEStream<>(this, mapper, Unchecked.ignore());
+	/**
+	 * 본 스트림에 포함된 각 데이터에서 변화된 데이터로 구성된 스트림을 생성한다.
+	 * <p>
+	 * {@code mapper} 수행 중 오류가 발생되면 인자로 전달된
+	 * {@link FailureHandler#handle(utils.func.FailureCase)}를 통해 오류를 처리한다.
+	 * 
+	 * @param <S>		매핑된 데이터의 타입
+	 * @param mapper	매핑 함수 객체.
+	 * @param handler	오류 처리 객체
+	 * @return FStream 객체
+	 */
+	public default <S> FStream<S> mapOrHandle(CheckedFunction<? super T,? extends S> mapper,
+												FailureHandler<? super T> handler) {
+		return new MapOrHandleStream<>(this, mapper, handler);
 	}
 	
+	/**
+	 * 본 스트림에 포함된 각 데이터에서 변화된 데이터로 구성된 스트림을 생성한다.
+	 * <p>
+	 * {@code mapper} 수행 중 오류가 발생되면 무시한다.
+	 * 
+	 * @param <S>	매핑된 데이터의 타입
+	 * @param mapper	매핑 함수 객체.
+	 * @return FStream 객체
+	 */
+	public default <S> FStream<S> mapOrIgnore(CheckedFunction<? super T,? extends S> mapper) {
+		return new MapOrHandleStream<>(this, mapper, Unchecked.ignore());
+	}
+	
+	/**
+	 * 본 스트림에 포함된 각 데이터에서 변화된 데이터로 구성된 스트림을 생성한다.
+	 * <p>
+	 * {@code mapper} 수행 중 오류가 발생되면 바로 예외를 발생시킨다.
+	 * 
+	 * @param <S>		매핑된 데이터의 타입
+	 * @param <X>		발생될 수 있는 오류 타입
+	 * @param mapper	매핑 함수 객체.
+	 * @return FStream 객체
+	 */
+	public default <S,X extends Throwable>
+	FStream<S> mapOrThrow(CheckedFunctionX<? super T,? extends S,X> mapper) throws X {
+		return new MapOrThrowStream<>(this, mapper);
+	}
+	
+	/**
+	 * 인자 {@code flag}에 따라 {@code mapper}를 적용한 스트림을 반환한다.
+	 * 
+	 * @param flag		맵퍼 적용 여부
+	 * @param mapper	스트림의 각 데이터에 적용할 맵퍼 객체
+	 * @return	맵퍼가 적용된 스트림 객체
+	 */
 	public default FStream<T> mapIf(boolean flag,
-							Function<FStream<? extends T>,FStream<? extends T>> mapper) {
+									Function<FStream<? extends T>,FStream<? extends T>> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		
 		if ( flag ) {
 			return narrow(mapper.apply(this));
 		}
@@ -284,7 +362,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param effect	Consumer 객체.
 	 */
 	public default void forEach(Consumer<? super T> effect) {
-		Utilities.checkNotNullArgument(effect, "effect is null");
+		checkNotNullArgument(effect, "effect is null");
 		
 		try {
 			FOption<T> next;
@@ -297,24 +375,71 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		}
 	}
 	
-	public default void forEachIE(CheckedConsumer<? super T> effect,
-									FailureHandler<? super T> handler) {
-		Utilities.checkNotNullArgument(effect, "effect is null");
+	/**
+	 * 스트림에 포함된 모든 데이터를 이용하여 {@link CheckedConsumer#accept(Object)}를 호출한다.
+	 * <p>
+	 * 모든 데이터에 대한 호출이 완료되면 스트림의 {@link #closeQuietly()}를 호출한다.
+	 * {@code effect} 수행 중 오류가 발생되면 인자로 전달된
+	 * {@link FailureHandler#handle(utils.func.FailureCase)}를 통해 오류를 처리한다.
+	 * 
+	 * @param effect	Consumer 객체.
+	 * @param handler	오류 처리 객체
+	 */
+	public default void forEachOrHandle(CheckedConsumer<? super T> effect,
+										FailureHandler<? super T> handler) {
+		checkNotNullArgument(effect, "effect is null");
+		checkNotNullArgument(handler, "handler is null");
 		
 		forEach(Unchecked.lift(effect, handler));
 	}
-	public default void forEachIE(CheckedConsumer<? super T> effect) {
-		forEachIE(effect, Unchecked.ignore());
+	
+	/**
+	 * 스트림에 포함된 모든 데이터를 이용하여 {@link CheckedConsumer#accept(Object)}를 호출한다.
+	 * <p>
+	 * 모든 데이터에 대한 호출이 완료되면 스트림의 {@link #closeQuietly()}를 호출한다.
+	 * {@code effect} 수행 중 오류가 발생되면 해당 데이터에 대한 호출을 무시한다.
+	 * 
+	 * @param effect	Consumer 객체.
+	 */
+	public default void forEachOrIgnore(CheckedConsumer<? super T> effect) {
+		forEachOrHandle(effect, Unchecked.ignore());
+	}
+	
+	/**
+	 * 스트림에 포함된 모든 데이터를 이용하여 {@link CheckedConsumerX#accept(Object)}를 호출한다.
+	 * <p>
+	 * 모든 데이터에 대한 호출이 완료되면 스트림의 {@link #closeQuietly()}를 호출한다.
+	 * {@code effect} 수행 중 오류가 발생되면 남은 데이터에 대한 처리를 멈추고 해당
+	 * 예외를 발생시킨다.
+	 * 
+	 * @param effect	Consumer 객체.
+	 */
+	public default <X extends Throwable>
+	void forEachOrThrow(CheckedConsumerX<? super T,X> effect) throws X {
+		checkNotNullArgument(effect, "effect is null");
+		
+		try {
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				effect.accept(next.get());
+			}
+		}
+		finally {
+			closeQuietly();
+		}
 	}
 	
 	/**
 	 * 스트림의 첫 count개의 데이터로 구성된 FStream 객체를 생성한다.
+	 * <p>
+	 * 만일 입력 스트림의 데이터 수가 {@code count}보다 작다면 해당 갯수의
+	 * 스트림이 반환된다.
 	 * 
 	 * @param count	데이터 갯수.
-	 * @return	'count' 개의  데이터로 구성된 스트림 객체.
+	 * @return	최대 'count' 개의  데이터로 구성된 스트림 객체.
 	 */
 	public default FStream<T> take(long count) {
-		Utilities.checkArgument(count >= 0, "count >= 0: but: " + count);
+		checkArgument(count >= 0, () -> "count >= 0: but: " + count);
 		
 		return new SingleSourceStream<T,T>(this) {
 			private long m_remains = count;
@@ -332,8 +457,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		};
 	}
 	
+	/**
+	 * 스트림의 첫 count개의 데이터가 제거된 FStream 객체를 생성한다.
+	 * <p>
+	 * 만일 입력 스트림의 데이터 수가 {@code count}보다 작다면 빈 스트림이 반환된다.
+	 * 
+	 * @param count	데이터 갯수.
+	 * @return	최대 'count' 개의  데이터로 구성된 스트림 객체.
+	 */
 	public default FStream<T> drop(final long count) {
-		Utilities.checkArgument(count >= 0, "count >= 0: but: " + count);
+		checkArgument(count >= 0, () -> "count >= 0: but: " + count);
 		
 		return new SingleSourceStream<T,T>(this) {
 			private boolean m_dropped = false;
@@ -354,8 +487,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		};
 	}
 	
+	/**
+	 * 스트림의 마지막 count개의 데이터가 제거된 FStream 객체를 생성한다.
+	 * <p>
+	 * 만일 입력 스트림의 데이터 수가 {@code count}보다 작다면 빈 스트림이 반환된다.
+	 * 
+	 * @param count	데이터 갯수.
+	 * @return	스트림 객체.
+	 */
 	public default FStream<T> dropLast(final int count) {
-		Utilities.checkArgument(count >= 0, "count >= 0: but: " + count);
+		checkArgument(count >= 0, () -> "count >= 0: but: " + count);
 		
 		return new SingleSourceStream<T,T>(this) {
 			private List<T> m_tail = new ArrayList<T>(count+1);
@@ -364,6 +505,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			@Override
 			public FOption<T> next() {
 				if ( !m_filled ) {
+					m_filled = true;
+					
 					for ( int i =0; i < count; ++i ) {
 						FOption<T> next = m_src.next();
 						if ( next.isAbsent() ) {
@@ -372,8 +515,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 						
 						m_tail.add(next.getUnchecked());
 					}
-					
-					m_filled = true;
 				}
 
 				FOption<T> next = m_src.next();
@@ -386,9 +527,17 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			}
 		};
 	}
-
+	
+	/**
+	 * 스트림에서 주어진 조건식({@code pred})을 만족하지 않은 데이터가 출현하기 직전까지의
+	 * 데이터를 반환하는 스트림을 생성한다. 이때 조건을 만족하지 않게된 데이터는
+	 * 결과 스트림에 포함되지 않는다.
+	 * 
+	 * @param pred	조건식 객체
+	 * @return	스트림 객체.
+	 */
 	public default FStream<T> takeWhile(final Predicate<? super T> pred) {
-		Utilities.checkNotNullArgument(pred, "predicate is null");
+		checkNotNullArgument(pred, "predicate is null");
 		
 		return new SingleSourceStream<T,T>(this) {
 			private boolean m_eos = false;
@@ -413,8 +562,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		};
 	}
 	
+	/**
+	 * 스트림에서 주어진 조건식({@code pred})을 만족하지 않은 데이터가 출현할 때부터의
+	 * 데이터를 반환하는 스트림을 생성한다. 이때 조건을 만족하지 않게된 데이터부터
+	 * 결과 스트림에 포함된다.
+	 * 
+	 * @param pred	조건식 객체
+	 * @return	스트림 객체.
+	 */
 	public default FStream<T> dropWhile(final Predicate<? super T> pred) {
-		Utilities.checkNotNullArgument(pred, "predicate is null");
+		checkNotNullArgument(pred, "predicate is null");
 		
 		return new SingleSourceStream<T,T>(this) {
 			private boolean m_started = false;
@@ -435,67 +592,26 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		};
 	}
 	
-	public default FStream<T> sample(double ratio) {
-		Utilities.checkArgument(ratio >= 0, "ratio >= 0");
-		
-		return new FStreams.SampledStream<>(this, ratio);
-	}
-	
-	public default FStream<T> sample(long total, double ratio) {
-		Utilities.checkArgument(total >= 0, "total >= 0");
-		Utilities.checkArgument(ratio >= 0, "ratio >= 0");
-		
-		return new AdaptiveSamplingStream<>(this, total, ratio);
-	}
-	
-	public default FStream<T> shuffle() {
-		return new ShuffledFStream<>(this);
-	}
-	
-	public default <V> FStream<V> cast(Class<? extends V> cls) {
-		Utilities.checkNotNullArgument(cls, "target class is null");
-		
-		return map(cls::cast);
-	}
-	
-	public default <V> FStream<V> castSafely(Class<? extends V> cls) {
-		Utilities.checkNotNullArgument(cls, "target class is null");
-		
-		return filter(cls::isInstance).map(cls::cast);
-	}
-	
-	public default <V extends T> FStream<V> ofExactClass(Class<V> cls) {
-		Utilities.checkNotNullArgument(cls, "target class is null");
-		
-		return filter(v -> v.getClass().equals(cls)).map(cls::cast);
-	}
-	
-	public default FStream<T> peek(Consumer<? super T> effect) {
-		Utilities.checkNotNullArgument(effect, "effect is null");
-		
-		return new PeekedStream<>(this, effect);
-	}
-	
 	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<V>> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return concat(map(mapper));
 	}
 	
 	public default <V> FStream<V> flatMapOption(Function<? super T,FOption<V>> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 
 		return flatMap(t -> mapper.apply(t).fstream());
 	}
 	
 	public default <V> FStream<V> flatMapIterator(Function<? super T,? extends Iterator<V>> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return flatMap(t -> FStream.from(mapper.apply(t)));
 	}
 	
 	public default <V> FStream<V> flatMapIterable(Function<? super T,? extends Iterable<V>> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return flatMap(t -> FStream.from(mapper.apply(t)));
 	}
@@ -507,23 +623,47 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default <V> FStream<V> flatMapStream(Function<? super T,Stream<V>> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return flatMap(t -> FStream.from(mapper.apply(t)));
 	}
 	
 	public default <V> FStream<V> flatMapTry(Function<? super T,Try<V>> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 
 		return flatMap(t -> FStream.from(mapper.apply(t)));
 	}
 	
 	public default <V> FStream<V> flatMapParallel(Function<? super T,? extends FStream<V>> mapper,
 													int parallelLevel) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
-		Utilities.checkArgument(parallelLevel > 0, "parallelLevel > 0, but: " + parallelLevel);
+		checkNotNullArgument(mapper, "mapper is null");
+		checkArgument(parallelLevel > 0, "parallelLevel > 0, but: " + parallelLevel);
 		
 		return mergeParallel(map(t -> FStream.lazy(() -> mapper.apply(t))), parallelLevel);
+	}
+	
+	public default <V> FStream<V> cast(Class<? extends V> cls) {
+		checkNotNullArgument(cls, "target class is null");
+		
+		return map(cls::cast);
+	}
+	
+	public default <V> FStream<V> castSafely(Class<? extends V> cls) {
+		checkNotNullArgument(cls, "target class is null");
+		
+		return filter(cls::isInstance).map(cls::cast);
+	}
+	
+	public default <V extends T> FStream<V> ofExactClass(Class<V> cls) {
+		checkNotNullArgument(cls, "target class is null");
+		
+		return filter(v -> v.getClass().equals(cls)).map(cls::cast);
+	}
+	
+	public default FStream<T> peek(Consumer<? super T> effect) {
+		checkNotNullArgument(effect, "effect is null");
+		
+		return new PeekedStream<>(this, effect);
 	}
 	
 	public default boolean exists() {
@@ -535,27 +675,27 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default boolean forAll(Predicate<? super T> pred) {
-		Utilities.checkNotNullArgument(pred, "predicate");
+		checkNotNullArgument(pred, "predicate");
 		
 		return foldLeft(true, false,
 						(a,t) -> Try.supply(() -> pred.test(t)).getOrElse(false));
 	}
 	
 	public default FStream<T> scan(BiFunction<? super T,? super T,? extends T> combiner) {
-		Utilities.checkNotNullArgument(combiner, "combiner is null");
+		checkNotNullArgument(combiner, "combiner is null");
 		
 		return new FStreams.ScannedStream<>(this, combiner);
 	}
 	
 	public default FStream<List<T>> buffer(int count, int skip) {
-		Utilities.checkArgument(count >= 0, "count >= 0, but: " + count);
-		Utilities.checkArgument(skip > 0, "skip > 0, but: " + skip);
+		checkArgument(count >= 0, "count >= 0, but: " + count);
+		checkArgument(skip > 0, "skip > 0, but: " + skip);
 		
 		return new BufferedStream<>(this, count, skip);
 	}
 	
 	public default <S> S foldLeft(S accum, BiFunction<? super S,? super T,? extends S> folder) {
-		Utilities.checkNotNullArgument(folder, "folder is null");
+		checkNotNullArgument(folder, "folder is null");
 		
 		try {
 			FOption<T> next;
@@ -572,8 +712,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	
 	public default <S> S foldLeft(S accum, S stopper,
 								BiFunction<? super S,? super T,? extends S> folder) {
-		Utilities.checkNotNullArgument(accum, "accum is null");
-		Utilities.checkNotNullArgument(folder, "folder is null");
+		checkNotNullArgument(accum, "accum is null");
+		checkNotNullArgument(folder, "folder is null");
 		
 		try {
 			if ( accum.equals(stopper) ) {
@@ -596,7 +736,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default T reduce(BiFunction<? super T,? super T,? extends T> reducer) {
-		Utilities.checkNotNullArgument(reducer, "reducer is null");
+		checkNotNullArgument(reducer, "reducer is null");
 		
 		FOption<T> initial = next();
 		if ( initial.isAbsent() ) {
@@ -606,9 +746,42 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return foldLeft(initial.get(), (a,t) -> reducer.apply(a, t));
 	}
 	
+	/**
+	 * 주어진 키에 해당하는 데이터별로 reduce작업을 수행한다.
+	 * <p>
+	 * 수행된 결과는 key별로 {@link Map}에 저장되어 반환된다.
+	 * 
+	 * @param <K>	{@code keyer}를 통해 생성되는 키 타입 클래스.
+	 * @param keyer	입력 데이터에서 키를 뽑아내는 함수.
+	 * @param reducer	reduce 함수.
+	 * @return	키 별로 reduce된 결과를 담은 Map 객체.
+	 */
+	public default <K> Map<K,T> reduceByKey(Function<? super T,? extends K> keyer,
+											BiFunction<? super T,? super T,? extends T> reducer) {
+		checkNotNullArgument(keyer, "keyer is null");
+		checkNotNullArgument(reducer, "reducer is null");
+		
+		return collectLeft(Maps.newHashMap(), (accums,v) ->
+			accums.compute(keyer.apply(v), (k,old) -> (old != null) ? reducer.apply(old, v) : v));
+	}
+	
+	public default <K,S> Map<K,S> foldLeftByKey(Function<? super T,? extends K> keyer,
+												Function<? super K,? extends S> accumInitializer,
+												BiFunction<? super S,? super T,? extends S> folder) {
+		return collectLeft(Maps.newHashMap(),
+						(accums,v) -> accums.compute(keyer.apply(v),
+													(k,accum) -> {
+														if ( accum != null ) {
+															accum = accumInitializer.apply(k);
+														}
+														return folder.apply(accum, v);
+													})
+		);
+	}
+	
 	public default <S> S collectLeft(S accum, BiConsumer<? super S,? super T> collect) {
-		Utilities.checkNotNullArgument(accum, "accum is null");
-		Utilities.checkNotNullArgument(collect, "collect is null");
+		checkNotNullArgument(accum, "accum is null");
+		checkNotNullArgument(collect, "collect is null");
 		
 		try {
 			FOption<T> next;
@@ -625,6 +798,104 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	
 	public default <S> S foldRight(S accum, BiFunction<? super T,? super S,? extends S> folder) {
 		return FLists.foldRight(toList(), accum, folder);
+	}
+
+	public default FStream<Tuple<T,Integer>> zipWithIndex(int start) {
+		return zipWith(range(start, Integer.MAX_VALUE));
+	}
+	public default FStream<Tuple<T,Integer>> zipWithIndex() {
+		return zipWithIndex(0);
+	}
+	
+	public default <S> FStream<Tuple<T,S>> zipWith(FStream<? extends S> other) {
+		checkNotNullArgument(other, "zip FStream is null");
+		
+		return new ZippedFStream<>(this, other);
+	}
+	
+	/**
+	 * 원소 스트림에 포함된 모든 데이터들을 하나의 스트림으로 묶은 스트림 객체를 생성한다.
+	 * 
+	 * @param <T>	스트림의 원소 타입
+	 * @param fact	스트림의 스트림 객체.
+	 * @return	{@code FStream} 객체.
+	 */
+	public static <T> FStream<T> concat(FStream<? extends FStream<? extends T>> fact) {
+		checkNotNullArgument(fact, "source FStream factory");
+		
+		return new ConcatedStream<>(fact);
+	}
+	
+	/**
+	 * 현 스트림에 주어진 스트림을 연결하여 하나의 스트림 객체를 생성한다.
+	 * 
+	 * @param tail	본 스트림에 뒤에 붙일 스트림 객체.
+	 * @return	{@code FStream} 객체.
+	 */
+	public default FStream<T> concatWith(FStream<? extends T> tail) {
+		checkNotNullArgument(tail, "tail is null");
+		
+		return concat(FStream.of(this, tail));
+	}
+	
+	/**
+	 * 현 스트림에 주어진 원소를 추가하여 하나의 스트림 객체를 생성한다.
+	 * 
+	 * @param tail	본 스트림에 뒤에 붙일 원소 객체.
+	 * @return	{@code FStream} 객체.
+	 */
+	public default FStream<T> concatWith(T tail) {
+		checkNotNullArgument(tail, "tail is null");
+		
+		return concatWith(FStream.of(tail));
+	}
+	
+	public static <T> FStream<T> concat(FStream<? extends T> head,
+										FStream<? extends T> tail) {
+		checkNotNullArgument(head, "head is null");
+		checkNotNullArgument(tail, "tail is null");
+		
+		return concat(FStream.of(head, tail));
+	}
+	
+	public static <T> FStream<T> concat(FStream<? extends T> head, T tail) {
+		checkNotNullArgument(head, "head is null");
+		checkNotNullArgument(tail, "tail is null");
+		
+		return concat(head, FStream.of(tail));
+	}
+	
+	public default FStream<T> sample(double ratio) {
+		checkArgument(ratio >= 0, "ratio >= 0");
+		
+		return new FStreams.SampledStream<>(this, ratio);
+	}
+	
+	public default FStream<T> sample(long total, double ratio) {
+		checkArgument(total >= 0, "total >= 0");
+		checkArgument(ratio >= 0, "ratio >= 0");
+		
+		return new AdaptiveSamplingStream<>(this, total, ratio);
+	}
+	
+	public default FStream<T> shuffle() {
+		return new ShuffledFStream<>(this);
+	}
+	
+	public static <T> FStream<T> mergeParallel(FStream<? extends FStream<? extends T>> gen,
+												int parallelLevel) {
+		checkNotNullArgument(gen, "generator is null");
+		checkArgument(parallelLevel > 0, "parallelLevel > 0, but: " + parallelLevel);
+		
+		return new ParallelMergedStream<>(gen, parallelLevel);
+	}
+	
+	public default Iterator<T> iterator() {
+		return new FStreamIterator<>(this);
+	}
+	
+	public default Stream<T> stream() {
+		return Utilities.stream(iterator());
 	}
 	
 	public default long count() {
@@ -693,87 +964,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			closeQuietly();
 		}
 	}
-
-	public default FStream<Tuple<T,Integer>> zipWithIndex(int start) {
-		return zipWith(range(start, Integer.MAX_VALUE));
-	}
-	public default FStream<Tuple<T,Integer>> zipWithIndex() {
-		return zipWithIndex(0);
-	}
-	
-	public default <S> FStream<Tuple<T,S>> zipWith(FStream<? extends S> other) {
-		Utilities.checkNotNullArgument(other, "zip FStream is null");
-		
-		return new ZippedFStream<>(this, other);
-	}
-	
-	/**
-	 * 스트림에 포함된 모든 스트림 원소에 대해 하나의 스트림으로 묶어 하나의 스트림 객체를 생성한다.
-	 * 
-	 * @param <T>	스트림의 원소 타입
-	 * @param fact	스트림의 스트림 객체.
-	 * @return	{@code FStream} 객체.
-	 */
-	public static <T> FStream<T> concat(FStream<? extends FStream<? extends T>> fact) {
-		Utilities.checkNotNullArgument(fact, "source FStream factory");
-		
-		return new ConcatedStream<>(fact);
-	}
-	
-	/**
-	 * 현 스트림에 주어진 스트림을 연결하여 하나의 스트림 객체를 생성한다.
-	 * 
-	 * @param tail	본 스트림에 뒤에 붙일 스트림 객체.
-	 * @return	{@code FStream} 객체.
-	 */
-	public default FStream<T> concatWith(FStream<? extends T> tail) {
-		Utilities.checkNotNullArgument(tail, "tail is null");
-		
-		return concat(FStream.of(this, tail));
-	}
-	
-	/**
-	 * 현 스트림에 주어진 원소를 추가하여 하나의 스트림 객체를 생성한다.
-	 * 
-	 * @param tail	본 스트림에 뒤에 붙일 원소 객체.
-	 * @return	{@code FStream} 객체.
-	 */
-	public default FStream<T> concatWith(T tail) {
-		Utilities.checkNotNullArgument(tail, "tail is null");
-		
-		return concatWith(FStream.of(tail));
-	}
-	
-	public static <T> FStream<T> concat(FStream<? extends T> head,
-										FStream<? extends T> tail) {
-		Utilities.checkNotNullArgument(head, "head is null");
-		Utilities.checkNotNullArgument(tail, "tail is null");
-		
-		return concat(FStream.of(head, tail));
-	}
-	
-	public static <T> FStream<T> concat(FStream<? extends T> head, T tail) {
-		Utilities.checkNotNullArgument(head, "head is null");
-		Utilities.checkNotNullArgument(tail, "tail is null");
-		
-		return concat(head, FStream.of(tail));
-	}
-	
-	public static <T> FStream<T> mergeParallel(FStream<? extends FStream<? extends T>> gen,
-												int parallelLevel) {
-		Utilities.checkNotNullArgument(gen, "generator is null");
-		Utilities.checkArgument(parallelLevel > 0, "parallelLevel > 0, but: " + parallelLevel);
-		
-		return new ParallelMergedStream<>(gen, parallelLevel);
-	}
-	
-	public default Iterator<T> iterator() {
-		return new FStreamIterator<>(this);
-	}
-	
-	public default Stream<T> stream() {
-		return Utilities.stream(iterator());
-	}
 	
 	public default <C extends Collection<T>> C toCollection(C coll) {
 		return collectLeft(coll, (l,t) -> l.add(t));
@@ -815,7 +1005,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 */
 	@SuppressWarnings("unchecked")
 	public default <S> S[] toArray(Class<S> componentType) {
-		Utilities.checkNotNullArgument(componentType, "component-type is null");
+		checkNotNullArgument(componentType, "component-type is null");
 		
 		List<T> list = toList();
 		S[] array = (S[])Array.newInstance(componentType, list.size());
@@ -833,39 +1023,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default <K,V> KVFStream<K,V> toKeyValueStream(Function<? super T,? extends K> keyGen,
 														Function<? super T,? extends V> valueGen) {
 		return KVFStream.downcast(map(t -> KeyValue.of(keyGen.apply(t), valueGen.apply(t))));
-	}
-	
-	/**
-	 * 주어진 키에 해당하는 데이터별로 reduce작업을 수행한다.
-	 * <p>
-	 * 수행된 결과는 key별로 {@link Map}에 저장되어 반환된다.
-	 * 
-	 * @param <K>	{@code keyer}를 통해 생성되는 키 타입 클래스.
-	 * @param keyer	입력 데이터에서 키를 뽑아내는 함수.
-	 * @param reducer	reduce 함수.
-	 * @return	키 별로 reduce된 결과를 담은 Map 객체.
-	 */
-	public default <K> Map<K,T> reduceByKey(Function<? super T,? extends K> keyer,
-											BiFunction<? super T,? super T,? extends T> reducer) {
-		Utilities.checkNotNullArgument(keyer, "keyer is null");
-		Utilities.checkNotNullArgument(reducer, "reducer is null");
-		
-		return collectLeft(Maps.newHashMap(), (accums,v) ->
-			accums.compute(keyer.apply(v), (k,old) -> (old != null) ? reducer.apply(old, v) : v));
-	}
-	
-	public default <K,S> Map<K,S> foldLeftByKey(Function<? super T,? extends K> keyer,
-												Function<? super K,? extends S> accumInitializer,
-												BiFunction<? super S,? super T,? extends S> folder) {
-		return collectLeft(Maps.newHashMap(),
-						(accums,v) -> accums.compute(keyer.apply(v),
-													(k,accum) -> {
-														if ( accum != null ) {
-															accum = accumInitializer.apply(k);
-														}
-														return folder.apply(accum, v);
-													})
-		);
 	}
 	
 	public default <K> FStream<KeyedFStream<K,T>> groupBy(Function<? super T,? extends K> grouper) {
@@ -1022,7 +1179,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 
 	public default boolean startsWith(FStream<T> subList) {
-		Utilities.checkNotNullArgument(subList, "subList is null");
+		checkNotNullArgument(subList, "subList is null");
 		
 		FOption<T> subNext = subList.next();
 		FOption<T> next = next();
@@ -1071,19 +1228,19 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default IntFStream mapToInt(Function<? super T, Integer> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return new MapToIntStream<>(this, mapper);
 	}
 	
 	public default LongFStream mapToLong(Function<? super T, Long> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return new MapToLongStream<>(this, mapper);
 	}
 	
 	public default DoubleFStream mapToDouble(Function<? super T, Double> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return new MapToDoubleStream<>(this, mapper);
 	}
