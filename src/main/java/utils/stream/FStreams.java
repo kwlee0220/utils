@@ -55,8 +55,8 @@ public class FStreams {
 		@Override
 		public void close() throws Exception {
 			if ( !m_closed ) {
+				m_src.close();
 				m_closed = true;
-				m_src.closeQuietly();
 			}
 		}
 	}
