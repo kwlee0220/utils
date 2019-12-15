@@ -321,9 +321,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	/**
-	 * 본 스트림에 포함된 각 데이터에서 변화된 데이터로 구성된 스트림을 생성한다.
+	 * 본 스트림에 포함된 각 데이터에 주어진 함수({@code mapper})를 적용한 결과 데이터로
+	 * 구성된 스트림을 생성한다.
 	 * <p>
-	 * {@code mapper} 수행 중 오류가 발생되면 바로 예외를 발생시킨다.
+	 * 함수 수행 중 오류가 발생되면 바로 예외를 발생시킨다.
 	 * 
 	 * @param <S>		매핑된 데이터의 타입
 	 * @param <X>		발생될 수 있는 오류 타입
