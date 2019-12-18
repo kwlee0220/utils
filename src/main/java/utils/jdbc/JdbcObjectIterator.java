@@ -3,10 +3,10 @@ package utils.jdbc;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
-import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
 
+import utils.func.CheckedFunctionX;
 import utils.io.IOUtils;
 
 /**
@@ -15,10 +15,11 @@ import utils.io.IOUtils;
  */
 class JdbcObjectIterator<T> implements Iterator<T>, AutoCloseable {
 	private ResultSet m_rs;
-	private final Function<ResultSet,T> m_functor;
+	private final CheckedFunctionX<ResultSet,T,SQLException> m_functor;
 	private boolean m_hasNext;
 	
-	JdbcObjectIterator(ResultSet rs, Function<ResultSet,T> functor) throws SQLException {
+	JdbcObjectIterator(ResultSet rs, CheckedFunctionX<ResultSet,T,SQLException> functor)
+		throws SQLException {
 		m_rs = rs;
 		m_functor = functor;
 		

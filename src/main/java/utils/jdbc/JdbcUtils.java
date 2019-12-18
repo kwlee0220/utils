@@ -4,7 +4,6 @@ import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -12,6 +11,7 @@ import net.sf.cglib.proxy.MethodProxy;
 import utils.CallHandler;
 import utils.ProxyUtils;
 import utils.Utilities;
+import utils.func.CheckedFunctionX;
 import utils.func.Try;
 import utils.io.IOUtils;
 import utils.stream.FStream;
@@ -53,12 +53,14 @@ public class JdbcUtils {
 		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
 	}
 
-	public static <T> FStream<T> fstream(ResultSet rs, Function<ResultSet,T> trans)
+	public static <T> FStream<T> fstream(ResultSet rs,
+										CheckedFunctionX<ResultSet,T,SQLException> trans)
 		throws SQLException {
 		return FStream.from(new JdbcObjectIterator<T>(rs, trans));
 	}
 
-	public static <T> Stream<T> stream(ResultSet rs, Function<ResultSet,T> trans)
+	public static <T> Stream<T> stream(ResultSet rs,
+										CheckedFunctionX<ResultSet,T,SQLException> trans)
 		throws SQLException {
 		return Utilities.stream(new JdbcObjectIterator<T>(rs, trans));
 	}
