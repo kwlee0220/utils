@@ -41,8 +41,15 @@ public class KeyedGroups<K,V> {
 		m_groups = map;
 	}
 	
-	public int size() {
+	public int groupCount() {
 		return m_groups.size();
+	}
+	
+	public long size() {
+		return KVFStream.from(m_groups)
+						.toValueStream()
+						.mapToInt(List::size)
+						.sum();
 	}
 	
 	public Map<K,List<V>> asMap() {
@@ -129,7 +136,7 @@ public class KeyedGroups<K,V> {
 		return this;
 	}
 	
-	public FOption<Collection<V>> remove(K key) {
+	public FOption<List<V>> remove(K key) {
 		Objects.requireNonNull(key);
 		
 		return FOption.ofNullable(m_groups.remove(key));
@@ -176,7 +183,9 @@ public class KeyedGroups<K,V> {
 	
 	@Override
 	public String toString() {
-		return m_groups.toString();
+		return KVFStream.from(m_groups)
+						.map((key,list) -> String.format("%s:%d", key, list.size()))
+						.join(", ");
 	}
 	
 	private FStream<KeyValue<K,V>> ungroup(KeyValue<K,List<V>> group) {
