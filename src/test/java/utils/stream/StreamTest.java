@@ -39,4 +39,18 @@ public class StreamTest {
 			Assert.assertEquals((Integer)i, iter.next());
 		}
 	}
+
+	@Test
+	public void test2() throws Exception {
+		FStream<String> strm = FStream.range(0, 10).mapToObj(idx -> "" + idx);
+		
+		Assert.assertEquals("0", strm.next().get());
+		Assert.assertEquals("1", strm.next().get());
+		
+		strm.close();
+		Assert.assertTrue(strm.next().isAbsent());
+		
+		strm.close();
+		Assert.assertTrue(strm.next().isAbsent());
+	}
 }

@@ -18,7 +18,7 @@ import utils.func.Try;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class ParallelMergedStream<T> implements FStream<T> {
+class ParallelMergedStream<T> implements FStream<T> {
 	private final SuppliableFStream<T> m_merged;
 	
 	private final Guard m_guard = Guard.create();
@@ -89,6 +89,7 @@ public class ParallelMergedStream<T> implements FStream<T> {
 		if ( (result.isCompleted() || result.isFailed()) && !m_closed ) {
 			if ( !startNextHarvesterInGuard() ) {
 				if ( m_runningHarvesters.isEmpty() ) {
+					// 더 이상 harvest할 FStream이 없을 때
 					m_merged.endOfSupply();
 				}
 			}

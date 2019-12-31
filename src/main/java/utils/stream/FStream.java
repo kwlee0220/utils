@@ -679,7 +679,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(pred, "predicate");
 		
 		return foldLeft(true, false,
-						(a,t) -> Try.supply(() -> pred.test(t)).getOrElse(false));
+						(a,t) -> Try.get(() -> pred.test(t)).getOrElse(false));
 	}
 	
 	public default FStream<T> scan(BiFunction<? super T,? super T,? extends T> combiner) {
@@ -883,6 +883,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new ShuffledFStream<>(this);
 	}
 	
+	/**
+	 * 여러 FStream로부터 얻은 데이터를 하나의 FStream으로 묶는다.
+	 * <p>
+	 * {@code parallelLevel}에 따라 복수개의 thread에 의해 입력 FStream으로부터 데이터 읽어
+	 * 공용 결과 FStream으로 옮긴다.
+	 * 
+	 * @param gen	소스 FStream들의 FStream
+	 * @param parallelLevel	소드 FStream들에서 데이터를 옮길 쓰레드의 갯수
+	 * @return	여러 소스 FStream들의 내용이 합쳐진 FStream 객체
+	 */
 	public static <T> FStream<T> mergeParallel(FStream<? extends FStream<? extends T>> gen,
 												int parallelLevel) {
 		checkNotNullArgument(gen, "generator is null");

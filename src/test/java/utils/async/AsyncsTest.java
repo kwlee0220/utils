@@ -1,11 +1,15 @@
 package utils.async;
 
-
 import java.util.concurrent.CancellationException;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import utils.func.FOption;
+import utils.func.Try;
 
 /**
  * 
@@ -134,7 +138,9 @@ public class AsyncsTest {
 		Assert.assertEquals(true, m_done);
 	}
 
-	private static class ActiveTask extends AbstractThreadedExecution<Void> {
+	private static class ActiveTask extends AbstractThreadedExecution<Void> implements CancellableWork {
+		private Guard m_guard = Guard.create();
+		@GuardedBy("m_guard") private FOption<Thread> m_thread = FOption.empty();
 		private RuntimeException m_error;
 		
 		ActiveTask(RuntimeException error) {
@@ -143,6 +149,8 @@ public class AsyncsTest {
 
 		@Override
 		public Void executeWork() throws Exception {
+			m_guard.run(() -> m_thread = FOption.of(Thread.currentThread()));
+			
 			if ( m_error != null ) {
 				throw m_error;
 			}
@@ -150,9 +158,17 @@ public class AsyncsTest {
 			
 			return null;
 		}
+
+		@Override
+		public boolean cancelWork() {
+			return m_guard.get(() -> {
+				m_thread.ifPresent(Thread::interrupt);
+				return Try.run(() -> waitForDone()).isSuccess();
+			});
+		}
 	}
 	
-	private static class PassiveTask extends AbstractThreadedExecution<Void> {
+	private static class PassiveTask extends AbstractThreadedExecution<Void> implements CancellableWork {
 		private RuntimeException m_error;
 		
 		PassiveTask(RuntimeException error) {
@@ -176,6 +192,11 @@ public class AsyncsTest {
 			}
 			
 			return null;
+		}
+
+		@Override
+		public boolean cancelWork() {
+			return Try.run(() -> waitForDone()).isSuccess();
 		}
 	}
 }

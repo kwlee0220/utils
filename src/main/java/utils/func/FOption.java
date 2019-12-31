@@ -1,5 +1,7 @@
 package utils.func;
 
+import static utils.Utilities.checkNotNullArgument;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -12,7 +14,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import utils.Throwables;
-import utils.Utilities;
 import utils.stream.FStream;
 import utils.stream.FStreamable;
 
@@ -41,7 +42,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 	}
 	
 	public static <T> FOption<T> from(Optional<T> opt) {
-		Utilities.checkNotNullArgument(opt, "Optional is null");
+		checkNotNullArgument(opt, "Optional is null");
 		
 		return opt.isPresent() ? of(opt.get()) : empty();
 	}
@@ -98,7 +99,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 			return m_value;
 		}
 		else {
-			Utilities.checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -108,7 +109,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 			return m_value;
 		}
 		else {
-			Utilities.checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -118,13 +119,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 			return m_value;
 		}
 		else {
-			Utilities.checkNotNullArgument(thrower, "throwerSupplier is null");
+			checkNotNullArgument(thrower, "throwerSupplier is null");
 			throw thrower.get();
 		}
 	}
 	
 	public FOption<T> ifPresent(Consumer<? super T> effect) {
-		Utilities.checkNotNullArgument(effect, "present consumer is null");
+		checkNotNullArgument(effect, "present consumer is null");
 		
 		if ( m_present ) {
 			effect.accept(m_value);
@@ -134,7 +135,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 	}
 	
 	public <X extends Throwable> FOption<T> ifPresentOrThrow(CheckedConsumerX<? super T,X> effect) throws X {
-		Utilities.checkNotNullArgument(effect, "present consumer is null");
+		checkNotNullArgument(effect, "present consumer is null");
 		
 		if ( m_present ) {
 			effect.accept(m_value);
@@ -145,7 +146,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 	
 	public FOption<T> ifAbsent(Runnable orElse) {
 		if ( !m_present ) {
-			Utilities.checkNotNullArgument(orElse, "orElse is null");
+			checkNotNullArgument(orElse, "orElse is null");
 			
 			orElse.run();
 		}
@@ -155,7 +156,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 
 	public <X extends Throwable> FOption<T> ifAbsentOrThrow(CheckedRunnableX<X> orElse) throws X {
 		if ( !m_present ) {
-			Utilities.checkNotNullArgument(orElse, "orElse is null");
+			checkNotNullArgument(orElse, "orElse is null");
 
 			orElse.run();
 		}
@@ -163,21 +164,8 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 		return this;
 	}
 	
-	public FOption<T> ifPresentOrElse(Consumer<T> present, Runnable orElse) {
-		if ( m_present ) {
-			present.accept(m_value);
-		}
-		else {
-			Utilities.checkNotNullArgument(orElse, "orElse is null");
-			
-			orElse.run();
-		}
-		
-		return this;
-	}
-	
 	public FOption<T> filter(Predicate<? super T> pred) {
-		Utilities.checkNotNullArgument(pred, "Predicate is null");
+		checkNotNullArgument(pred, "Predicate is null");
 		
 		if ( m_present ) {
 			return (pred.test(m_value)) ? this : empty();
@@ -188,13 +176,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 	}
 
 	public boolean test(Predicate<? super T> pred) {
-		Utilities.checkNotNullArgument(pred, "Predicate is null");
+		checkNotNullArgument(pred, "Predicate is null");
 		
 		return m_present && pred.test(m_value);
 	}
 	
 	public <S> FOption<S> map(Function<? super T,? extends S> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
@@ -207,7 +195,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 	 * @param	mapper	변형 함수
 	 */
 	public <S> FOption<S> mapSneakily(CheckedFunction<? super T,? extends S> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		try {
 			return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
@@ -220,25 +208,25 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 	
 	public <S,X extends Throwable>
 	FOption<S> mapOrThrow(CheckedFunctionX<? super T,? extends S,X> mapper) throws X {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
 	
 	public <S> S transform(S src, BiFunction<S,T,? extends S> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper BiFunction");
+		checkNotNullArgument(mapper, "mapper BiFunction");
 		
 		return (m_present) ? mapper.apply(src, m_value) : src;
 	}
 	
 	public <S> FOption<S> flatMap(Function<? super T,FOption<S>> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? mapper.apply(m_value) : empty();
 	}
 	
 	public <S> FOption<S> flatMapSneakily(CheckedFunction<? super T,FOption<S>> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		try {
 			return (m_present) ? mapper.apply(m_value) : empty();
@@ -250,7 +238,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 	}
 	
 	public <S> FOption<S> flatMapTry(Function<? super T,Try<S>> mapper) {
-		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? mapper.apply(m_value).toFOption() : empty();
 	}
@@ -260,7 +248,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 			return this;
 		}
 		else {
-			Utilities.checkNotNullArgument(orElse, "orElse is null");
+			checkNotNullArgument(orElse, "orElse is null");
 			return orElse;
 		}
 	}
@@ -270,7 +258,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 			return this;
 		}
 		else {
-			Utilities.checkNotNullArgument(orElse, "orElse is null");
+			checkNotNullArgument(orElse, "orElse is null");
 			return FOption.of(orElse);
 		}
 	}
@@ -280,7 +268,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 			return this;
 		}
 		else {
-			Utilities.checkNotNullArgument(orElseSupplier, "orElseSupplier is null");
+			checkNotNullArgument(orElseSupplier, "orElseSupplier is null");
 			return orElseSupplier.get();
 		}
 	}
@@ -291,7 +279,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 			return this;
 		}
 		else {
-			Utilities.checkNotNullArgument(errorSupplier, "errorSupplier is null");
+			checkNotNullArgument(errorSupplier, "errorSupplier is null");
 			throw errorSupplier.get();
 		}
 	}
@@ -311,7 +299,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 	}
 	
 	public <V> FOption<V> cast(Class<? extends V> cls) {
-		Utilities.checkNotNullArgument(cls, "target class is null");
+		checkNotNullArgument(cls, "target class is null");
 		
 		return filter(cls::isInstance).map(cls::cast);
 	}

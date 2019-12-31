@@ -27,7 +27,7 @@ public interface Try<T> extends FStreamable<T> {
         return (Try<T>) t;
     }
 	
-	public static <T> Try<T> supply(CheckedSupplier<T> supplier) {
+	public static <T> Try<T> get(CheckedSupplier<T> supplier) {
 		try {
 			return success(supplier.get());
 		}

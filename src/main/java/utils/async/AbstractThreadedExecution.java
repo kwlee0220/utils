@@ -10,7 +10,32 @@ import utils.Throwables;
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecution<T>
-												implements StartableExecution<T> {
+													implements StartableExecution<T> {
+	/**
+	 * 비동기적으로 수행할 작업을 수행한다.
+	 * <p>
+	 * 본 메소드는 별도로 생성한 쓰레드에 의해 수행되고, 함수 호출이 종료될 때까지 대기된다.
+	 * 함수 수행이 예외 발생없이 반환된 경우는 비동기 작업이 완료된 것으로 간주된다.
+	 * <p>
+	 * 본 메소드가 발생하는 예외에 따라 비동기 작업의 결과가 결정된다.
+	 * <dl>
+	 * 	<dt>InterruptedException</dt>
+	 * 	<dd>비동기 작업이 수행 중단된 것으로 간주된다.
+	 * 		{@link Execution#isCancelled()} 가 {@code true} 가 됨.</dd>
+	 * 	<dt>CancellationException</dt>
+	 * 	<dd>비동기 작업이 수행 중단된 것으로 간주된다.
+	 * 		{@link Execution#isCancelled()} 가 {@code true} 가 됨.</dd>
+	 * </dl>
+	 * 	<dt>Exception</dt>
+	 * 	<dd>비동기 작업이 수행 중에 오류 발생으로 실패한 것으로 간주된다.
+	 * 		{@link Execution#isFailed()} 가 {@code true} 가 됨.</dd>
+	 * </dl>
+	 * 
+	 * @return	수행 작업의 결과
+	 * @throws InterruptedException	작업 수행중 수행 쓰레드가 중단된 경우
+	 * @throws CancellationException	작업 수행이 중단된 경우
+	 * @throws Exception	작업 수행 중 오류 발생으로 작업 실패된 경우
+	 */
 	protected abstract T executeWork() throws InterruptedException, CancellationException,
 												Exception;
 	

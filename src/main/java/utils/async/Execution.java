@@ -256,7 +256,7 @@ public interface Execution<T> extends Future<T> {
 	public boolean waitForDone(Date due) throws InterruptedException;
 
 	public Execution<T> whenStarted(Runnable listener);
-	public Execution<T> whenFinished(Consumer<Result<T>> listener);
+	public Execution<T> whenFinished(Consumer<Result<T>> resultConsumer);
 	public default void whenFinished(FinishListener<T> listener) {
 		whenFinished(r -> r.ifCompleted(listener::onCompleted)
 							.ifCancelled(listener::onCancelled)

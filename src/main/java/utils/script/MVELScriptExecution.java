@@ -36,8 +36,8 @@ public class MVELScriptExecution {
 		m_script = script;
 		for ( ImportClass ic: m_script.getImportedClassAll() ) {
 			ic.getImportName()
-				.ifPresentOrElse(n -> m_pc.addImport(n, ic.getImportClass()),
-								() -> m_pc.addImport(ic.getImportClass()));
+				.ifPresent(n -> m_pc.addImport(n, ic.getImportClass()))
+				.ifAbsent(() -> m_pc.addImport(ic.getImportClass()));
 		}
 	}
 	

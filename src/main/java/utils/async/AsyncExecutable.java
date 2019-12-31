@@ -15,8 +15,8 @@ public interface AsyncExecutable<T> {
 	public Execution<T> execute() throws Exception;
 	public Execution<T> execute(Executor executor) throws Exception;
 	
-	public default T executeSynchronously() throws InterruptedException,
-											ExecutionException, CancellationException {
+	public default T executeSynchronously() throws InterruptedException, ExecutionException,
+													CancellationException {
 		try {
 			return execute().get();
 		}

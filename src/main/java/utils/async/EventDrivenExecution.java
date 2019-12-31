@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 
 import utils.LoggerSettable;
+import utils.Utilities;
 import utils.func.FOption;
 
 /**
@@ -26,6 +27,8 @@ import utils.func.FOption;
  * @author Kang-Woo Lee (ETRI)
  */
 public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
+	private static final Logger s_logger = LoggerFactory.getLogger(EventDrivenExecution.class);
+	
 	private long m_timeoutMillis = TimeUnit.SECONDS.toMillis(3);	// 3 seconds
 	protected final Guard m_aopGuard = Guard.create();
 	@GuardedBy("m_aopGuard") private State m_aopState = State.NOT_STARTED;
@@ -35,7 +38,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@GuardedBy("m_aopGuard") private final List<Consumer<Result<T>>> m_finishListeners
 													= Lists.newCopyOnWriteArrayList();
 	
-	private Logger m_logger = LoggerFactory.getLogger(EventDrivenExecution.class);
+	private Logger m_logger = s_logger;
 
 	@Override
 	public State getState() {
@@ -52,50 +55,68 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 
 	@Override
 	public boolean cancel(boolean mayInterruptIfRunning) {
+		Date due = new Date(System.currentTimeMillis() + m_timeoutMillis);
+		
 		m_aopGuard.lock();
 		try {
-			try {
-				if ( !awaitWhileInGuard(() -> m_aopState == State.CANCELLING, m_timeoutMillis) ) {
-					throw new RuntimeException(new TimeoutException("timeout millis=" + m_timeoutMillis));
+			boolean inTransitionState = true;
+			while ( inTransitionState ) {
+				switch ( m_aopState ) {
+					case NOT_STARTED:
+						// 시작되지도 않은 상태이면 바로 cancel된 것으로 세팅하고 바로 반환한다.
+						notifyCancelled();
+						return true;
+					case STARTING:
+					case CANCELLING:
+						// 'STARTING'/'CANCELLING' 상태인 경우에는 상태가 바뀔때까지
+						// 제한시간동안 대기한다.
+						if ( !m_aopGuard.awaitUntil(due) ) {
+							return false;
+						}
+						break;
+					case CANCELLED:
+						return true;
+					case COMPLETED:
+					case FAILED:
+						return false;
+					default:
+						inTransitionState = false;
+						break;
 				}
 			}
-			catch ( InterruptedException e ) {
-				throw new ThreadInterruptedException();
+			
+			// 여기서 상태는 'RUNNING' 밖에 없음
+			
+			// mayInterruptIfRunning이 false인 경우거나 'CancellableWork'를 implement하지
+			// Execution은 시작되지 않는 execution만 취소시킬 수 있기
+			// 때문에 이미 RUNNING상태인 경우에는 false를 반환한다.
+			if ( !mayInterruptIfRunning || !(this instanceof CancellableWork) ) {
+				return false;
 			}
-
-			if ( m_aopState == State.NOT_STARTED ) {
-				notifyCancelled();
-				return true;
+			
+			// 일단 상태를 'CANCELLING' 상태로 전이시켜 놓고 원래 작업을 중단시킬 준비를 함
+			if ( !notifyCancelling() ) {
+				return false;
 			}
-			else if ( m_aopState == State.CANCELLED ) {
-				return true;
-			}
+		}
+		catch ( InterruptedException e ) {
+			throw new ThreadInterruptedException();
 		}
 		finally {
 			m_aopGuard.unlock();
 		}
 			
-		if ( !mayInterruptIfRunning ) {
-			return false;
-		}
-			
 		//
 		// 여기서부터는 수행 중인 execution을 명시적으로 cancel 시켜야 함.
 		//
-		if ( !notifyCancelling() ) {
-			return false;
+		try {
+			((CancellableWork)this).cancelWork();
 		}
-		
-		if ( this instanceof CancellableWork ) {
-			try {
-				((CancellableWork)this).cancelWork();
-			}
-			catch ( Exception e ) {
-				getLogger().warn("fails to cancel work: {}, cause={}", this, e.toString());
-				notifyFailed(e);
-				
-				return false;
-			}
+		catch ( Exception e ) {
+			getLogger().warn("fails to cancel work: {}, cause={}", this, e.toString());
+			notifyFailed(e);
+			
+			return false;
 		}
 		
 		return notifyCancelled();
@@ -359,6 +380,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 
 	@Override
 	public Execution<T> whenStarted(Runnable listener) {
+		Utilities.checkNotNullArgument(listener);
+		
 		m_aopGuard.lock();
     	try {
 			switch ( m_aopState ) {
@@ -367,6 +390,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					m_startListeners.add(listener);
 					break;
 				default:
+					// 이미 시작된 경우에는 바로 listener를 구동시킨다.
 					CompletableFuture.runAsync(listener::run);
 					break;
 			}
@@ -379,14 +403,17 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public Execution<T> whenFinished(Consumer<Result<T>> listener) {
+	public Execution<T> whenFinished(Consumer<Result<T>> resultConsumer) {
+		Utilities.checkNotNullArgument(resultConsumer);
+		
 		m_aopGuard.lock();
     	try {
+    		// 이미 종료된 경우에는 바로 수행시킨다.
     		if ( isDoneInGuard() ) {
-    			CompletableFuture.runAsync(() -> listener.accept(m_result));
+    			CompletableFuture.runAsync(() -> resultConsumer.accept(m_result));
     		}
     		else {
-				m_finishListeners.add(listener);
+				m_finishListeners.add(resultConsumer);
     		}
 			
 			return this;
@@ -465,17 +492,5 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	
 	private boolean isDoneInGuard() {
 		return isDone(m_aopState);
-	}
-	
-	private boolean awaitWhileInGuard(Supplier<Boolean> predicate, long timeoutMillis)
-		throws InterruptedException {
-		Date due = new Date(System.currentTimeMillis() + timeoutMillis);
-		while ( predicate.get() ) {
-			if ( !m_aopGuard.awaitUntil(due) ) {
-				return false;
-			}
-		}
-		
-		return true;
 	}
 }
