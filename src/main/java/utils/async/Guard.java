@@ -15,6 +15,7 @@ import utils.func.CheckedConsumer;
 import utils.func.CheckedFunction;
 import utils.func.CheckedRunnable;
 import utils.func.CheckedSupplier;
+import utils.func.CheckedSupplierX;
 import utils.func.Try;
 /**
  * 
@@ -137,6 +138,16 @@ public class Guard {
 	}
 	
 	public <T> T get(Supplier<T> suppl) {
+		m_lock.lock();
+		try {
+			return suppl.get();
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
+	public <T,X extends Throwable> T getOrThrow(CheckedSupplierX<T,X> suppl) throws X {
 		m_lock.lock();
 		try {
 			return suppl.get();
