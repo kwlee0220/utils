@@ -237,12 +237,6 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 		}
 	}
 	
-	public <S> FOption<S> flatMapTry(Function<? super T,Try<S>> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
-		
-		return (m_present) ? mapper.apply(m_value).toFOption() : empty();
-	}
-	
 	public FOption<T> orElse(FOption<T> orElse) {
 		if ( m_present ) {
 			return this;
@@ -273,7 +267,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 		}
 	}
 	
-	public <X extends Throwable> FOption<T> orElseThrow(Supplier<X> errorSupplier)
+	public <X extends Throwable> FOption<T> orThrow(Supplier<X> errorSupplier)
 		throws X {
 		if ( m_present ) {
 			return this;
