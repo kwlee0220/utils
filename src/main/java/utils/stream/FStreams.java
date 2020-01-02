@@ -45,9 +45,26 @@ public class FStreams {
 		}
 	}
 	
-	static abstract class SingleSourceStream<S,T> implements FStream<T> {
+	static abstract class AbstractFStream<T> implements FStream<T> {
+		protected boolean m_closed = false;
+		
+		abstract protected void closeInGuard() throws Exception;
+
+		@Override
+		public void close() throws Exception {
+			if ( !m_closed ) {
+				m_closed = true;
+				closeInGuard();
+			}
+		}
+		
+		public boolean isClosed() {
+			return m_closed;
+		}
+	}
+	
+	static abstract class SingleSourceStream<S,T> extends AbstractFStream<T> {
 		protected final FStream<S> m_src;
-		private boolean m_closed = false;
 		
 		protected SingleSourceStream(FStream<S> src) {
 			checkNotNullArgument(src, "source FStream");
@@ -56,11 +73,8 @@ public class FStreams {
 		}
 		
 		@Override
-		public void close() throws Exception {
-			if ( !m_closed ) {
-				m_src.close();
-				m_closed = true;
-			}
+		protected void closeInGuard() throws Exception {
+			m_src.close();
 		}
 	}
 	
@@ -76,7 +90,7 @@ public class FStreams {
 
 		@Override
 		public FOption<T> next() {
-			return m_src.next().map(m_mapper);
+			return (!isClosed()) ? m_src.next().map(m_mapper) : FOption.empty();
 		}
 	}
 	
@@ -324,6 +338,30 @@ public class FStreams {
 		}
 	}
 	
+	static final class CloserAttachedStream<T> implements FStream<T> {
+		private final FStream<T> m_base;
+		private final Runnable m_closingTask;
+		private boolean m_closed = false;
+		
+		CloserAttachedStream(FStream<T> base, Runnable closingTask) {
+			m_base = base;
+			m_closingTask = closingTask;
+		}
+
+		@Override
+		public void close() throws Exception {
+			if ( !m_closed ) {
+				m_closed = true;
+				m_closingTask.run();
+			}
+		}
+
+		@Override
+		public FOption<T> next() {
+			return (!m_closed) ? m_base.next() : FOption.empty();
+		}
+	}
+	
 	static class LazyStream<T> implements FStream<T> {
 		private final Supplier<FStream<T>> m_supplier;
 		private FStream<T> m_strm = null;
@@ -355,7 +393,6 @@ public class FStreams {
 			
 			return m_strm.next();
 		}
-		
 	}
 	
 	static class DistinctStream<T,K> implements FStream<T> {
@@ -386,6 +423,5 @@ public class FStreams {
 			
 			return onext;
 		}
-		
 	}
 }

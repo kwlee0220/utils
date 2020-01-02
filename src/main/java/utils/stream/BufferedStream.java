@@ -1,6 +1,5 @@
 package utils.stream;
 
-import java.util.Collections;
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -36,6 +35,10 @@ class BufferedStream<T> extends SingleSourceStream<T,List<T>> {
 
 	@Override
 	public FOption<List<T>> next() {
+		if ( isClosed() ) {
+			return FOption.empty();
+		}
+		
 		if ( m_buffer.size() > 0 ) {
 			drain();
 		}

@@ -1,12 +1,12 @@
 package utils.async.op;
 
-import java.util.Objects;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import utils.Utilities;
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
 import utils.async.Result;
@@ -28,6 +28,8 @@ import utils.stream.FStream;
  */
 public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 										implements CancellableWork {
+	private static final Logger s_logger = LoggerFactory.getLogger(SequentialAsyncExecution.class);
+	
 	private final FStream<StartableExecution<?>> m_sequence;
 	
 	@Nullable @GuardedBy("m_aopGuard") private StartableExecution<?> m_cursor = null;
@@ -47,11 +49,11 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 	 * 									길이가 0인 경우.
 	 */
 	SequentialAsyncExecution(FStream<StartableExecution<?>> execSeq) {
-		Objects.requireNonNull(execSeq, "AsyncExecution sequnece");
+		Utilities.checkNotNullArgument(execSeq, "AsyncExecution sequnece");
 		
 		m_sequence = execSeq;
 		
-		setLogger(LoggerFactory.getLogger(SequentialAsyncExecution.class));
+		setLogger(s_logger);
 	}
 	
 	public StartableExecution<?> getCurrentExecution() {

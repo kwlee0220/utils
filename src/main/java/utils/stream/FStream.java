@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +41,7 @@ import utils.func.Try;
 import utils.func.Tuple;
 import utils.func.Unchecked;
 import utils.io.IOUtils;
+import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.MapOrHandleStream;
 import utils.stream.FStreams.MapOrThrowStream;
 import utils.stream.FStreams.MapToDoubleStream;
@@ -48,6 +50,7 @@ import utils.stream.FStreams.MapToLongStream;
 import utils.stream.FStreams.MappedStream;
 import utils.stream.FStreams.PeekedStream;
 import utils.stream.FStreams.SingleSourceStream;
+
 
 /**
  * 
@@ -96,23 +99,17 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public static <T> FStream<T> from(final Iterator<? extends T> iter) {
 		checkNotNullArgument(iter, "Iterator is null");
 		
-		return new FStream<T>() {
-			private boolean m_closed = false;
-
+		return new AbstractFStream<T>() {
 			@Override
-			public void close() throws Exception {
-				if ( !m_closed ) {
-					m_closed = true;
-					
-					// 구현에 따라 iter가 {@link Closeable}일 수도 있어서
-					// 그런 경우 {@link Closeable#close}를 호출하도록 한다.
-					IOUtils.closeQuietly(iter);
-				}
+			protected void closeInGuard() throws Exception {
+				// 구현에 따라 iter가 {@link Closeable}일 수도 있어서
+				// 그런 경우 {@link Closeable#close}를 호출하도록 한다.
+				IOUtils.closeQuietly(iter);
 			}
 
 			@Override
 			public FOption<T> next() {
-				return iter.hasNext() && !m_closed ? FOption.of(iter.next()) : FOption.empty();
+				return iter.hasNext() && !isClosed() ? FOption.of(iter.next()) : FOption.empty();
 			}
 		};
 	}
@@ -142,21 +139,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(values, "null values");
 		
 		return from(Arrays.asList(values));
-	}
-	
-	/**
-	 * 주어진 {@link Try}객체로부터 FStream 객체를 생성한다.
-	 * Try가 성공적인 경우는 {@link Try#get()}의 반환 값으로 구성된 단일 원소의 스트림이
-	 * 생성되고, 오류인 경우는 {@link #empty()} 스트림이 생성된다.
-	 * 
-	 * @param <T> Try기 갖고 있는 데이터 타입
-	 * @param trial	입력 {@link Try} 객체.
-	 * @return FStream 객체
-	 */
-	public static <T> FStream<T> from(Try<? extends T> trial) {
-		Utilities.checkNotNullArgument(trial, "Try is null");
-		
-		return Try.<T>narrow(trial).map(FStream::of).getOrElse(FStream::empty);
 	}
 	
 	/**
@@ -488,6 +470,27 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		};
 	}
 	
+	public default List<T> takeLast(int count) {
+		checkArgument(count >= 0, () -> "count >= 0: but: " + count);
+		
+		try {
+			List<T> list = (count < 128) ? new ArrayList<>(count + 1) : new LinkedList<>();
+			
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				list.add(next.getUnchecked());
+				if ( list.size() > count ) {
+					list.remove(0);
+				}
+			}
+			
+			return list;
+		}
+		finally {
+			closeQuietly();
+		}
+	}
+	
 	/**
 	 * 스트림의 마지막 count개의 데이터가 제거된 FStream 객체를 생성한다.
 	 * <p>
@@ -632,7 +635,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default <V> FStream<V> flatMapTry(Function<? super T,Try<V>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 
-		return flatMap(t -> FStream.from(mapper.apply(t)));
+		return flatMap(t -> mapper.apply(t).fstream());
 	}
 	
 	public default <V> FStream<V> flatMapParallel(Function<? super T,? extends FStream<V>> mapper,
@@ -909,13 +912,25 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return Utilities.stream(iterator());
 	}
 	
+	/**
+	 * 스트림에 포함된 데이터의 갯수를 반환한다.
+	 * <p>
+	 * 메소드 호출 후에는 {@link FStream#close()} 가 호출된다.
+	 * 
+	 * @return	스트림에 포함된 데이터의 갯수
+	 */
 	public default long count() {
-		long count = 0;
-		while ( next().isPresent() ) {
-			++count;
+		try {
+			long count = 0;
+			while ( next().isPresent() ) {
+				++count;
+			}
+			
+			return count;
 		}
-		
-		return count;
+		finally {
+			closeQuietly();
+		}
 	}
 	
 	/**
@@ -1224,6 +1239,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	
 	public static <T> FStream<T> lazy(Supplier<FStream<T>> suppl) {
 		return new FStreams.LazyStream<>(suppl);
+	}
+	
+	public default FStream<T> onClose(Runnable closingTask) {
+		checkNotNullArgument(closingTask, "closingTask is null");
+		
+		return new FStreams.CloserAttachedStream<>(this, closingTask);
 	}
 	
 	public static IntFStream of(int[] values) {

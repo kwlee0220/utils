@@ -133,7 +133,6 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	public default KVFStream<K,V> sortByKey(Comparator<? super K> cmp) {
 		FStream<KeyValue<K,V>> sorted = sort((kv1,kv2) -> cmp.compare(kv1.key(), kv2.key()));
 		return downcast(sorted);
-		
 	}
 	
 	public default FStream<KeyValue<K,V>> toKeyValueStream() {
