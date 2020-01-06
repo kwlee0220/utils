@@ -69,12 +69,12 @@ public class UncheckedTest {
 		};
 		
 		m_result = INIT;
-		Supplier<String> ret0 = Unchecked.sneakyThrow(cr0);
+		Supplier<String> ret0 = Unchecked.getOrThrow(cr0);
 		Assert.assertEquals(INIT, m_result);
 		Assert.assertEquals(COMPLETED, ret0.get());
 		
 		m_result = INIT;
-		Supplier<String> ret1 = Unchecked.sneakyThrow(cr1);
+		Supplier<String> ret1 = Unchecked.getOrThrow(cr1);
 		Assert.assertEquals(INIT, m_result);
 		try {
 			Assert.assertNull(ret1.get());

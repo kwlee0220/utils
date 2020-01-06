@@ -82,7 +82,7 @@ public class Unchecked {
 		}
 	}
 	
-	public static void runSneakily(CheckedRunnable checked) {
+	public static void runOrThrowSneakily(CheckedRunnable checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
 		
 		try {
@@ -168,7 +168,7 @@ public class Unchecked {
 // ****************************** Supplier **************************************
 // ******************************************************************************
 	
-	public static <T> Supplier<T> sneakyThrow(CheckedSupplier<T> checked) {
+	public static <T> Supplier<T> getOrThrow(CheckedSupplier<T> checked) {
 		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
 		
 		return () -> {
