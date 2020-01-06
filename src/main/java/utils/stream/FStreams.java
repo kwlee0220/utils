@@ -45,7 +45,7 @@ public class FStreams {
 		}
 	}
 	
-	static abstract class AbstractFStream<T> implements FStream<T> {
+	public static abstract class AbstractFStream<T> implements FStream<T> {
 		protected boolean m_closed = false;
 		
 		abstract protected void closeInGuard() throws Exception;
