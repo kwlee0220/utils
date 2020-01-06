@@ -52,6 +52,9 @@ public class CompletionMonitor<T> extends AbstractFStream<Try<T>> implements Sup
 			return FOption.of(Try.success(result));
 		}
 		catch ( InterruptedException e ) {
+			Thread.currentThread().interrupt();
+			
+			// 이미 폐쇄된 경우에는 end-of-stream으로 간주한다.
 			if ( isClosed() ) {
 				return FOption.empty();
 			}
