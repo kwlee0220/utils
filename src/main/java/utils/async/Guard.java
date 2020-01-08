@@ -83,16 +83,20 @@ public class Guard {
 	}
 	
 	public void run(Runnable work) {
-		run(work, false);
-	}
-	
-	public void run(Runnable work, boolean signal) {
 		m_lock.lock();
 		try {
 			work.run();
-			if ( signal ) {
-				m_cond.signalAll();
-			}
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
+	public void runAndSignalAll(Runnable work) {
+		m_lock.lock();
+		try {
+			work.run();
+			m_cond.signalAll();
 		}
 		finally {
 			m_lock.unlock();

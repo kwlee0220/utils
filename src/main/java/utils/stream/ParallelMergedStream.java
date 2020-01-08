@@ -38,7 +38,7 @@ class ParallelMergedStream<T> implements FStream<T> {
 					break;
 				}
 			}
-		}, false);
+		});
 	}
 
 	@Override

@@ -122,7 +122,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 		m_target.whenFinished(r -> r.ifCompleted(this::notifyCompleted)
 								.ifFailed(this::notifyFailed)
 								.ifCancelled(this::onTargetCancelled));
-		m_guard.run(() -> m_istate = STATE_IDLE, false);
+		m_guard.run(() -> m_istate = STATE_IDLE);
 		
 		m_target.start();
 	}
@@ -154,7 +154,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	
 	private void onTargetStarted() {
 		m_future = m_scheduler.schedule(this::onTimeout, m_timeout, m_unit);
-		m_guard.run(() -> m_istate = STATE_RUNNING, true);
+		m_guard.runAndSignalAll(() -> m_istate = STATE_RUNNING);
 		notifyStarted();
 	}
 	

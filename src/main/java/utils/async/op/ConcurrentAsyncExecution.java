@@ -59,7 +59,7 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 		Utilities.checkArgument(count > 0 && count < m_elements.length,
 								() -> String.format("count > 0 && count < %d", m_elements.length));
 		
-		m_guard.run(() -> m_noOfElmCompletionToCompletion = count, false);
+		m_guard.run(() -> m_noOfElmCompletionToCompletion = count);
 	}
 	
 	@Override
@@ -112,7 +112,7 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 				|| m_noOfCompletions >= m_noOfElmCompletionToCompletion ) {
 				notifyCompleted(null);
 			}
-		}, false);
+		});
 		
 		if ( isDone() ) {
 			// 아직 수행이 종료되지 않은 멤버 aop들의 수행을 중단시킨다.
