@@ -13,15 +13,15 @@ import org.junit.Test;
 public class DelayStreamTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> strm = FStream.range(0, 10)
-										.delay(300, TimeUnit.MILLISECONDS);
+		FStream<Integer> strm = FStream.range(0, 5)
+										.delay(100, TimeUnit.MILLISECONDS);
 		
-		long started = System.currentTimeMillis();
-		Assert.assertEquals(Integer.valueOf(0), strm.next().getOrNull());
-		Assert.assertTrue(System.currentTimeMillis() - started >= 300);
-		
-		Assert.assertEquals(Integer.valueOf(1), strm.next().getOrNull());
-		Assert.assertTrue(System.currentTimeMillis() - started >= 600);
+		for ( int i =0; i < 5; ++i ) {
+			long started = System.currentTimeMillis();
+			Assert.assertEquals(Integer.valueOf(i), strm.next().getOrNull());
+			long elapsed = System.currentTimeMillis() - started;
+			Assert.assertTrue(elapsed >= 80 && elapsed <= 120);
+		}
 	}
 	
 	@Test

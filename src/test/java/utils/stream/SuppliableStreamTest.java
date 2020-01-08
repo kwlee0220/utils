@@ -15,6 +15,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import utils.StopWatch;
 import utils.func.FOption;
+import utils.func.Try;
 
 /**
  * 
@@ -39,13 +40,19 @@ public class SuppliableStreamTest {
 		Assert.assertEquals(true, r.isAbsent());
 	}
 
-	@Test(expected=TimeoutException.class)
+	@Test
 	public void test1() throws Exception {
-		m_stream.next(1, TimeUnit.SECONDS);
+		FOption<Try<Integer>> r;
+		
+		r = m_stream.next(1, TimeUnit.SECONDS);
+		Assert.assertTrue(r.get().isFailure());
+		Assert.assertEquals(TimeoutException.class, r.get().getCause().getClass());
 	}
 
-	@Test(expected=TimeoutException.class)
+	@Test
 	public void test2() throws Exception {
+		FOption<Try<Integer>> r;
+		
 		CompletableFuture.runAsync(() -> {
 			try {
 				Thread.sleep(700);
@@ -56,7 +63,9 @@ public class SuppliableStreamTest {
 			}
 		});
 
-		m_stream.next(200, TimeUnit.MILLISECONDS);
+		r = m_stream.next(200, TimeUnit.MILLISECONDS);
+		Assert.assertTrue(r.get().isFailure());
+		Assert.assertEquals(TimeoutException.class, r.get().getCause().getClass());
 	}
 	
 	@Test

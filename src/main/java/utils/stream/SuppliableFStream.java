@@ -15,12 +15,13 @@ import utils.Suppliable;
 import utils.Throwables;
 import utils.async.ThreadInterruptedException;
 import utils.func.FOption;
+import utils.func.Try;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
+public class SuppliableFStream<T> implements FStream<T>, TimedFStream<T>, Suppliable<T> {
 	private final int m_length;
 	
 	private final ReentrantLock m_lock = new ReentrantLock();
@@ -46,6 +47,10 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 	
 	public int size() {
 		return m_buffer.size();
+	}
+	
+	public int emptySlots() {
+		return m_length - m_buffer.size();
 	}
 
 	@Override
@@ -92,6 +97,7 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 					m_cond.await();
 				}
 				catch ( InterruptedException e ) {
+					Thread.currentThread().interrupt();
 					throw new ThreadInterruptedException("" + e);
 				}
 			}
@@ -105,14 +111,14 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 	 * 스트림의 다음 원소를 반환한다.
 	 * <p>
 	 * 만일 다음 원소가 없는 경우는 지정된 시간만큼 새 원소가 스트림에 삽입될 때까지
-	 * 대기한다. 지정된 시간동안 원소가 삽입되지 않으면 {@link TimeoutException} 예외가
-	 * 발생된다.
+	 * 대기한다. 지정된 시간동안 원소가 삽입되지 않으면 {@code FOption<Try.failed()>}가 반환된다.
 	 * 
 	 * @param timeout	제한 시간
 	 * @param tu		제한 시간 단위
 	 * @throws TimeoutException	제한된 시간 동안 스트림이 비어있었던 경우.
 	 */
-	public FOption<T> next(long timeout, TimeUnit tu) throws TimeoutException {
+	@Override
+	public FOption<Try<T>> next(long timeout, TimeUnit tu) {
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		
 		m_lock.lock();
@@ -125,7 +131,7 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 					T value = m_buffer.remove(0);
 					m_cond.signalAll();
 					
-					return FOption.of(value);
+					return FOption.of(Try.success(value));
 				}
 				else if ( m_closed || m_eos ) {
 					if ( m_error == null ) {
@@ -138,10 +144,11 @@ public class SuppliableFStream<T> implements FStream<T>, Suppliable<T> {
 				
 				try {
 					if ( !m_cond.awaitUntil(due) ) {
-						throw new TimeoutException();
+						return FOption.of(Try.failure(new TimeoutException()));
 					}
 				}
 				catch ( InterruptedException e ) {
+					Thread.currentThread().interrupt();
 					throw new ThreadInterruptedException("" + e);
 				}
 			}
