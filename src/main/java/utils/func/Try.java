@@ -195,7 +195,7 @@ public interface Try<T> extends FStreamable<T> {
 
 		@Override
 		public Throwable getCause() {
-			throw new UnsupportedOperationException();
+			throw new IllegalStateException();
 		}
 
 		@Override
