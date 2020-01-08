@@ -14,6 +14,7 @@ import utils.Utilities;
 import utils.func.CheckedConsumer;
 import utils.func.CheckedFunction;
 import utils.func.CheckedRunnable;
+import utils.func.CheckedRunnableX;
 import utils.func.CheckedSupplier;
 import utils.func.CheckedSupplierX;
 import utils.func.Try;
@@ -92,6 +93,16 @@ public class Guard {
 			if ( signal ) {
 				m_cond.signalAll();
 			}
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
+	public <X extends Throwable> void runOrThrow(CheckedRunnableX<X> work) throws X {
+		m_lock.lock();
+		try {
+			work.run();
 		}
 		finally {
 			m_lock.unlock();
