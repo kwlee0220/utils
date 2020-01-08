@@ -36,9 +36,7 @@ public class MultiWorkerExecutor<T> extends AbstractFStream<Try<T>> {
 	}
 
 	@Override
-	protected void closeInGuard() throws Exception {
-		
-	}
+	protected void closeInGuard() throws Exception { }
 
 	@Override
 	public FOption<Try<T>> next() {
@@ -47,7 +45,6 @@ public class MultiWorkerExecutor<T> extends AbstractFStream<Try<T>> {
 		}
 		
 		try {
-			@SuppressWarnings("unused")
 			T result = (T)m_completeService.take().get();
 			m_guard.run(() -> --m_remains);
 			
