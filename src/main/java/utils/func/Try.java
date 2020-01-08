@@ -248,6 +248,11 @@ public interface Try<T> extends FStreamable<T> {
 		public FOption<T> toFOption() {
 			return FOption.of(m_value);
 		}
+		
+		@Override
+		public String toString() {
+			return String.format("Success(%s)", m_value);
+		}
 	}
 	
 	public static final class Failure<T> implements Try<T> {
@@ -336,6 +341,11 @@ public interface Try<T> extends FStreamable<T> {
 		@Override
 		public FOption<T> toFOption() {
 			return FOption.empty();
+		}
+		
+		@Override
+		public String toString() {
+			return String.format("Failure(%s)", m_cause);
 		}
 	}
 }
