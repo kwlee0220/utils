@@ -3,14 +3,13 @@ package utils;
 
 import java.io.IOException;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import utils.func.CheckedConsumer;
 import utils.func.CheckedRunnable;
-import utils.func.CheckedSupplier;
+import utils.func.CheckedSupplierX;
 import utils.func.Unchecked;
 
 /**
@@ -61,29 +60,18 @@ public class UncheckedTest {
 	}
 	
 	@Test
-	public void test10() throws Exception {
-		CheckedSupplier<String> cr0 = () -> { return m_result = COMPLETED; };
-		CheckedSupplier<String> cr1 = () -> {
-			m_result = FAILED;
-			throw new IOException("xxx");
-		};
+	public void test10() throws IOException {
+		CheckedSupplierX<String,IOException> cr0 = () -> { return COMPLETED; };
+		CheckedSupplierX<String,IOException> cr1 = () -> { throw new IOException("xxx"); };
 		
-		m_result = INIT;
-		Supplier<String> ret0 = Unchecked.getOrThrow(cr0);
-		Assert.assertEquals(INIT, m_result);
-		Assert.assertEquals(COMPLETED, ret0.get());
+		String ret0 = Unchecked.getOrThrow(cr0);
+		Assert.assertEquals(COMPLETED, ret0);
 		
-		m_result = INIT;
-		Supplier<String> ret1 = Unchecked.getOrThrow(cr1);
-		Assert.assertEquals(INIT, m_result);
 		try {
-			Assert.assertNull(ret1.get());
+			Unchecked.getOrThrow(cr1);
 			Assert.fail();
 		}
-		catch ( Exception e ) {
-			Assert.assertEquals(IOException.class, e.getClass());
-			Assert.assertEquals(FAILED, m_result);
-		}
+		catch ( IOException e ) { }
 	}
 	
 	@Test

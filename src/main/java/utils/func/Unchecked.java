@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import io.reactivex.Observable;
 import io.reactivex.Observer;
@@ -168,18 +167,28 @@ public class Unchecked {
 // ****************************** Supplier **************************************
 // ******************************************************************************
 	
-	public static <T> Supplier<T> getOrThrow(CheckedSupplier<T> checked) {
+	public static <T, X extends Throwable> T getOrThrow(CheckedSupplierX<T,X> checked) throws X {
 		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
 		
-		return () -> {
-			try {
-				return checked.get();
-			}
-			catch ( Throwable e ) {
-				Throwables.sneakyThrow(e);
-				throw new AssertionError("Should not be here");
-			}
-		};
+		try {
+			return checked.get();
+		}
+		catch ( Throwable e ) {
+			Throwables.sneakyThrow(e);
+			throw new AssertionError("Should not be here");
+		}
+	}
+	
+	public static <T> T getOrThrowRuntimeException(CheckedSupplier<T> checked) {
+		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
+		
+		try {
+			return checked.get();
+		}
+		catch ( Throwable e ) {
+			Throwable cause = Throwables.unwrapThrowable(e);
+			throw Throwables.toRuntimeException(cause);
+		}
 	}
 
 
