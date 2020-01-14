@@ -473,7 +473,11 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 	
 	private void notifyStartListeners() {
-		CompletableFuture.runAsync(() -> m_startListeners.forEach(Runnable::run));
+		m_aopGuard.run(() -> {
+			if ( m_startListeners.size() > 0 ) {
+				CompletableFuture.runAsync(() -> m_startListeners.forEach(Runnable::run));
+			}
+		});
 	}
 	
 	private void notifyFinishListenersInGuard() {
