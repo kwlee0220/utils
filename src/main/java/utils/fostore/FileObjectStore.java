@@ -1,20 +1,21 @@
 package utils.fostore;
 
+import static utils.Utilities.checkNotNullArgument;
+
 import java.io.File;
-import java.io.FileFilter;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import org.apache.commons.io.FileExistsException;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import utils.Utilities;
 import utils.func.FOption;
 import utils.stream.FStream;
 
@@ -38,8 +39,8 @@ public class FileObjectStore<K,T> {
 	 * 					특히 저장소 디렉토리 생성에 실패한 경우.
 	 */
     public FileObjectStore(File rootDir, FileObjectHandler<K,T> handler) throws IOException {
-    	Utilities.checkNotNullArgument(rootDir, "Root directory of this FileObjectStore");
-    	Utilities.checkNotNullArgument(handler, "FileObjectHandler");
+    	checkNotNullArgument(rootDir, "Root directory of this FileObjectStore");
+    	checkNotNullArgument(handler, "FileObjectHandler");
     	
     	m_rootDir = rootDir;
     	if ( !m_rootDir.exists() ) {
@@ -65,7 +66,7 @@ public class FileObjectStore<K,T> {
      * @return	존재 여부.
      */
     public boolean exists(K key) {
-    	Utilities.checkNotNullArgument(key, "FileObject key");
+    	checkNotNullArgument(key, "FileObject key");
 
 		return m_handler.toFile(key).exists();
     }
@@ -75,64 +76,71 @@ public class FileObjectStore<K,T> {
      * 
      * @param key		검색 대상 식별자.
      * @return 파일 객체
-     * @throws IOException	파일 객체 획득에 실패한 경우.
+     * @throws IOException	파일 객체 읽기에 실패한 경우.
      */
     public FOption<T> get(K key) throws IOException  {
-    	Utilities.checkNotNullArgument(key, "FileObject key");
+    	return getFile(key).mapOrThrow(m_handler::readFileObject);
+    }
 
-		File file = m_handler.toFile(key);
-		if ( file.exists() ) {
-			return FOption.of(m_handler.readFileObject(file));
-		}
-		else {
-			return FOption.empty();
-		}
-    }
-    
-    public T getOrNull(K key) throws IOException {
-    	return get(key).getOrNull();
-    }
-    
+    /**
+     * 식별자에 해당하는 {@link File}을 반환한다.
+     * 
+     * @param key		검색 대상 식별자.
+     * @return 파일 객체
+     */
     public FOption<File> getFile(K key) {
-    	Utilities.checkNotNullArgument(key, "FileObject key");
+    	checkNotNullArgument(key, "FileObject key");
 
 		File file = m_handler.toFile(key);
 		return file.exists() ? FOption.of(file) : FOption.empty();
     }
     
     public File insert(K key, T fObj) throws IOException {
-    	Utilities.checkNotNullArgument(key, "FileObject key");
-    	Utilities.checkNotNullArgument(fObj, "FileObject");
-    	
         return insert(key, fObj, false);
     }
     
     public File insert(K key, T fObj, boolean updateIfExists) throws IOException {
-    	Utilities.checkNotNullArgument(key, "FileObject key");
-    	Utilities.checkNotNullArgument(fObj, "FileObject");
+    	checkNotNullArgument(key, "FileObject key");
+    	checkNotNullArgument(fObj, "FileObject");
 
     	File file = m_handler.toFile(key);
-    	if ( file.exists() && !updateIfExists ) {
-	        throw new FileNotFoundException("File[id=" + key + ", path="
-	        								+ file.getAbsolutePath() + "]");
+    	if ( file.exists() ) {
+    		if ( updateIfExists ) {
+    			file.delete();
+    		}
+    		else {
+    	        throw new FileExistsException("File[id=" + key + ", path="
+												+ file.getAbsolutePath() + "]");
+    		}
     	}
-    	
-    	FileUtils.forceMkdirParent(file);
+    	else {
+        	FileUtils.forceMkdirParent(file);
+    	}
     	m_handler.writeFileObject(fObj, file);
     	
     	return file;
     }
-    
-    public void remove(K key) {
-    	Utilities.checkNotNullArgument(key, "FileObject key");
+
+    /**
+     * 주어진 식별자에 해당하는 파일 객체를 삭제한다.
+     * 
+     * @param key	대상 파일 객체의 식별자.
+     * @return	삭제여부.
+     * @throws IOException	파일 객체 삭제가 실패한 경우
+     */
+    public boolean remove(K key) throws IOException {
+    	checkNotNullArgument(key, "FileObject key");
 
 		File file = m_handler.toFile(key);
 		if ( !file.exists() ) {
-			return;
+			return false;
 		}
 		
-		if ( !file.delete() ) {
-			s_logger.warn("fails to delete file " + file);
+		if ( file.delete() ) {
+			return true;
+		}
+		else {
+			throw new IOException("fails to delete file: path=" + file);
 		}
     }
     
@@ -142,18 +150,23 @@ public class FileObjectStore<K,T> {
 		}
     }
     
-    public FStream<K> getFileObjectKeyAll() throws IOException {
-    	return getObjectFileAll().map(m_handler::toFileObjectKey);
+    public Set<K> getFileObjectKeyAll() throws IOException {
+    	return streamFileObjectAll().map(m_handler::toFileObjectKey).toSet();
     }
     
-    public FStream<File> getObjectFileAll() throws IOException {
-		return utils.io.FileUtils.walk(m_rootDir);
+    public Set<K> findFileObjectKeyAll(Predicate<K> pred) throws IOException {
+    	return streamFileObjectAll()
+    				.map(m_handler::toFileObjectKey)
+    				.filter(pred)
+    				.toSet();
     }
     
-    public void traverse(FileObjectVisitor<K> visitor) {
-    	Utilities.checkNotNullArgument(visitor, "FileObjectVisitor is null");
-		
-    	traverseDirectory(m_rootDir, visitor);
+    public List<File> getFileObjectAll() throws IOException {
+		return streamFileObjectAll().toList();
+    }
+    
+    private FStream<File> streamFileObjectAll() throws IOException {
+		return utils.io.FileUtils.walk(m_rootDir).filter(m_handler::isVallidFile);
     }
     
     public Stream<K> traverse() throws IOException {
@@ -161,30 +174,5 @@ public class FileObjectStore<K,T> {
 		    		.map(Path::toFile)
 		    		.filter(m_handler::isVallidFile)
 		    		.map(m_handler::toFileObjectKey);
-    }
-    
-    private void traverseDirectory(File dir, FileObjectVisitor<K> visitor) {
-		final List<File> subDirList = new ArrayList<File>();
-		File[] files = dir.listFiles(new FileFilter() {
-										public boolean accept(File path) {
-											if ( path.isDirectory() ) {
-												subDirList.add(path);
-												return false;
-											}
-											else {
-												return m_handler.isVallidFile(path);
-											}
-										}
-									});
-		assert files != null;
-		
-		for ( int i =0; i < files.length; ++i ) {
-			visitor.visit(m_handler.toFileObjectKey(files[i]));
-		}
-		for ( int i =0; i < subDirList.size(); ++i ) {
-			File subDir = (File)subDirList.get(i);
-			
-			traverseDirectory(subDir, visitor);
-		}
     }
 }
