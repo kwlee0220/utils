@@ -21,7 +21,9 @@ class ShuffledFStream<T> implements FStream<T> {
 
 	@Override
 	public void close() throws Exception {
-		m_list.clear();
+		if ( m_list != null ) {
+			m_list.clear();
+		}
 		m_src.close();
 	}
 
