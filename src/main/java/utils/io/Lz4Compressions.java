@@ -178,12 +178,12 @@ public class Lz4Compressions {
 		}
 		
 		private void printCompressionRatio() {
-			if ( s_logger.isInfoEnabled() ) {
-				String msg = String.format("compressed: total=%d, output=%d, ratio=%.1f%%%n",
+			if ( s_logger.isDebugEnabled() ) {
+				String msg = String.format("compressed: total=%s, output=%s, ratio=%.1f%%",
 											UnitUtils.toByteSizeString(m_total),
 											UnitUtils.toByteSizeString(m_totalCompressed),
 											(m_totalCompressed*100.)/m_total);
-				s_logger.info(msg);
+				s_logger.debug(msg);
 			}
 		}
 	}
