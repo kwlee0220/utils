@@ -12,17 +12,17 @@ import utils.func.FOption;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class MVELScript2 {
+public class MVELScript {
 	private final String m_scriptExpr;
 	private final List<ImportClass> m_importedClasses = Lists.newArrayList();
 	
-	public static MVELScript2 of(String scriptStr) {
+	public static MVELScript of(String scriptStr) {
 		Utilities.checkNotNullArgument(scriptStr, "script is null");
 		
-		return new MVELScript2(scriptStr);
+		return new MVELScript(scriptStr);
 	}
 	
-	private MVELScript2(String expr) {
+	private MVELScript(String expr) {
 		m_scriptExpr = expr;
 	}
 	
@@ -34,21 +34,21 @@ public class MVELScript2 {
 		return Collections.unmodifiableList(m_importedClasses);
 	}
 	
-	public MVELScript2 importClass(ImportClass ic) {
+	public MVELScript importClass(ImportClass ic) {
 		Utilities.checkNotNullArgument(ic, "ImportedClass is null");
 		
 		m_importedClasses.add(ic);
 		return this;
 	}
 	
-	public MVELScript2 importClass(Class<?> cls) {
+	public MVELScript importClass(Class<?> cls) {
 		Utilities.checkNotNullArgument(cls, "ImportedClass is null");
 		
 		m_importedClasses.add(new ImportClass(cls));
 		return this;
 	}
 	
-	public MVELScript2 importClass(Class<?> cls, String name) {
+	public MVELScript importClass(Class<?> cls, String name) {
 		Utilities.checkNotNullArgument(cls, "ImportedClass is null");
 		
 		m_importedClasses.add(new ImportClass(cls, name));

@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import utils.Utilities;
-import utils.script.MVELScript2.ImportClass;
+import utils.script.MVELScript.ImportClass;
 
 /**
  * 
@@ -21,16 +21,16 @@ public class MVELScriptExecution {
 	private static final Logger s_logger = LoggerFactory.getLogger(MVELScriptExecution.class);
 	
 	private final ParserContext m_pc;
-	private final MVELScript2 m_script;
+	private final MVELScript m_script;
 	private volatile Serializable m_compiled;
 	
-	public static MVELScriptExecution of(MVELScript2 script) {
+	public static MVELScriptExecution of(MVELScript script) {
 		Utilities.checkNotNullArgument(script, "script is null");
 		
 		return new MVELScriptExecution(script);
 	}
 	
-	private MVELScriptExecution(MVELScript2 script) {
+	private MVELScriptExecution(MVELScript script) {
 		m_pc = createParserContext();
 		
 		m_script = script;
@@ -45,7 +45,7 @@ public class MVELScriptExecution {
 		return m_pc;
 	}
 	
-	public MVELScript2 getScript() {
+	public MVELScript getScript() {
 		return m_script;
 	}
 	
