@@ -34,21 +34,7 @@ public class MVELScript {
 		return Collections.unmodifiableList(m_importedClasses);
 	}
 	
-	public MVELScript importClass(ImportClass ic) {
-		Utilities.checkNotNullArgument(ic, "ImportedClass is null");
-		
-		m_importedClasses.add(ic);
-		return this;
-	}
-	
-	public MVELScript importClass(Class<?> cls) {
-		Utilities.checkNotNullArgument(cls, "ImportedClass is null");
-		
-		m_importedClasses.add(new ImportClass(cls));
-		return this;
-	}
-	
-	public MVELScript importClass(Class<?> cls, String name) {
+	public MVELScript importClass(Class<?> cls, FOption<String> name) {
 		Utilities.checkNotNullArgument(cls, "ImportedClass is null");
 		
 		m_importedClasses.add(new ImportClass(cls, name));
@@ -60,18 +46,13 @@ public class MVELScript {
 		return m_scriptExpr;
 	}
 	
-	public static class ImportClass {
+	static class ImportClass {
 		private final Class<?> m_class;
 		private final FOption<String> m_name;
 		
-		public ImportClass(Class<?> cls, String name) {
+		public ImportClass(Class<?> cls, FOption<String> name) {
 			m_class = cls;
-			m_name = FOption.of(name);
-		}
-		
-		public ImportClass(Class<?> cls) {
-			m_class = cls;
-			m_name = FOption.empty();
+			m_name = name;
 		}
 		
 		public Class<?> getImportClass() {
@@ -89,10 +70,10 @@ public class MVELScript {
 				Class<?> cls = Class.forName(parts[0]);
 				if ( parts.length == 2 ) {
 					String name = parts[1].trim();
-					return new ImportClass(cls, name);
+					return new ImportClass(cls, FOption.of(name));
 				}
 				else {
-					return new ImportClass(cls);
+					return new ImportClass(cls, FOption.empty());
 				}
 			}
 			catch ( ClassNotFoundException e ) {
