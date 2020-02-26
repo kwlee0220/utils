@@ -53,6 +53,15 @@ public class Lazy<T> {
 		
 		return m_loaded.get();
 	}
+	
+	public synchronized void unload() {
+		m_loaded = FOption.empty();
+	}
+	
+	@Override
+	public synchronized String toString() {
+		return String.format("Lazy[%s]", m_loaded.map(Object::toString).getOrElse("unloaded"));
+	}
 
 	private static class Interceptor<T> implements MethodInterceptor {
 		private final Supplier<T> m_supplier;
