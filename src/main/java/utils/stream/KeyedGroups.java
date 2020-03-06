@@ -20,7 +20,7 @@ import utils.func.KeyValue;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class KeyedGroups<K,V> {
+public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	private final Map<K,List<V>> m_groups;
 	
 	public static <K,V> KeyedGroups<K,V> create() {
@@ -179,6 +179,11 @@ public class KeyedGroups<K,V> {
 	
 	public Collection<List<V>> values() {
 		return m_groups.values();
+	}
+
+	@Override
+	public Iterator<KeyValue<K, List<V>>> iterator() {
+		return KVFStream.from(m_groups).iterator();
 	}
 	
 	@Override
