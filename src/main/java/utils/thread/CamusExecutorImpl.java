@@ -1,6 +1,7 @@
 package utils.thread;
 
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
@@ -65,6 +66,10 @@ public final class CamusExecutorImpl implements CamusExecutor {
 	}
 
 	public Future<?> submit(Runnable task) {
+		return m_executor.submit(task);
+	}
+
+	public <T> Future<T> submit(Callable<T> task) {
 		return m_executor.submit(task);
 	}
 

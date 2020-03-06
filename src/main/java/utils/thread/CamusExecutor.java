@@ -1,6 +1,7 @@
 package utils.thread;
 
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +39,7 @@ public interface CamusExecutor extends Executor {
 	public Future<?> schedule(Runnable task, long delayMillis);
 
 	public Future<?> submit(Runnable task);
+	public <T> Future<T> submit(Callable<T> task);
 	public void execute(Runnable task);
 
 	public RecurringSchedule createScheduleWithFixedRate(RecurringWork work, long initialDelay,
