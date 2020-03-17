@@ -66,6 +66,13 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return map(kv -> mapper.apply(kv.key(), kv.value()));
 	}
 	
+	public default <K2,V2> KVFStream<K2,V2>
+	mapKeyValue(BiFunction<? super K,? super V,KeyValue<K2,V2>> mapper) {
+		Utilities.checkNotNullArgument(mapper, "mapper is null");
+		
+		return downcast(map(kv -> mapper.apply(kv.key(), kv.value())));
+	}
+	
 	public default <S> KVFStream<S,V> mapKey(BiFunction<? super K,? super V,? extends S> mapper) {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 
