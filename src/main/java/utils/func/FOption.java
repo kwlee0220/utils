@@ -2,6 +2,7 @@ package utils.func;
 
 import static utils.Utilities.checkNotNullArgument;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -21,7 +22,9 @@ import utils.stream.FStreamable;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class FOption<T> implements FStreamable<T>, Iterable<T> {
+public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializable {
+	private static final long serialVersionUID = 1L;
+
 	@SuppressWarnings("rawtypes")
 	private static final FOption EMPTY = new FOption<>(null, false);
 	
@@ -223,6 +226,12 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T> {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? mapper.apply(m_value) : empty();
+	}
+	
+	public <S> FStream<S> flatMapFStream(Function<? super T,FStream<S>> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+
+		return (m_present) ? mapper.apply(m_value) : FStream.empty();
 	}
 	
 	public <S> FOption<S> flatMapSneakily(CheckedFunction<? super T,FOption<S>> mapper) {
