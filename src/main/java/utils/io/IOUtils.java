@@ -338,27 +338,34 @@ public class IOUtils {
 		}
 	}
 
-	public static CopyStream copyStream(InputStream from, boolean closeFrom,
-										OutputStream to, boolean closeTo) {
-		return new CopyStream(from, closeFrom, to, closeTo);
+	public static CopyStream copy(InputStream from, OutputStream to) {
+		return new CopyStream(from, to);
 	}
 	
 	public static final class CopyStream extends AbstractThreadedExecution<Long>
 											implements CancellableWork {
 		private final InputStream m_from;
 		private final OutputStream m_to;
-		private final boolean m_closeFromStream;
-		private final boolean m_closeToStream;
-		private int m_bufSize = 4096;
+		private boolean m_closeInputOnFinished = false;
+		private boolean m_closeOutputOnFinished = false;
+		private int m_bufSize = 4 * 1024;
 		
-		private CopyStream(InputStream from, boolean closeFrom, OutputStream to, boolean closeTo) {
+		private CopyStream(InputStream from, OutputStream to) {
 			Objects.requireNonNull(from, "from InputStream");
 			Objects.requireNonNull(to, "to OutputStream");
 			
 			m_from = from;
-			m_closeFromStream = closeFrom;
 			m_to = to;
-			m_closeToStream = closeTo;
+		}
+		
+		public CopyStream closeInputStreamOnFinished(boolean flag) {
+			m_closeInputOnFinished = flag;
+			return this;
+		}
+		
+		public CopyStream closeOutputStreamOnFinished(boolean flag) {
+			m_closeOutputOnFinished = flag;
+			return this;
 		}
 		
 		public CopyStream bufferSize(int size) {
@@ -368,14 +375,26 @@ public class IOUtils {
 		
 		@Override
 		public Long executeWork() throws Exception {
+	        byte[] buf = new byte[m_bufSize];
+	        
 			try {
-				return IOUtils.transfer(m_from, m_to, m_bufSize);
+		        long total = 0;
+		        for ( int nbytes = m_from.read(buf); nbytes >= 0; nbytes = m_from.read(buf) ) {
+		            m_to.write(buf, 0, nbytes);
+		            total += nbytes;
+		            
+		            if ( isCancelRequested() ) {
+		            	break;
+		            }
+		        }
+
+		        return total;
 			}
 			finally {
-				if ( m_closeFromStream ) {
+				if ( m_closeInputOnFinished ) {
 					IOUtils.closeQuietly(m_from);
 				}
-				if ( m_closeToStream ) {
+				if ( m_closeOutputOnFinished ) {
 					IOUtils.closeQuietly(m_to);
 				}
 			}
@@ -383,7 +402,7 @@ public class IOUtils {
 
 		@Override
 		public boolean cancelWork() {
-			return false;
+			return true;
 		}
 	}
 }
