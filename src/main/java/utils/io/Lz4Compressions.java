@@ -164,8 +164,8 @@ public class Lz4Compressions {
 			}
 			m_total += nread;
 			
-			int ncompresseds = m_compressor.compress(m_rawBuffer, 0, nread,
-													m_compressed, HEADER_SIZE, m_compressed.length-HEADER_SIZE);
+			int ncompresseds = m_compressor.compress(m_rawBuffer, 0, nread, m_compressed,
+													HEADER_SIZE, m_compressed.length-HEADER_SIZE);
 			m_header.clear();
 			m_header.putInt(nread)
 					.putInt(ncompresseds)
