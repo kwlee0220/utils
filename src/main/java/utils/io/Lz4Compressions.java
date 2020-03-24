@@ -294,8 +294,8 @@ public class Lz4Compressions {
 		}
 		
 		private void printCompressionRatio() {
-			if ( s_logger.isInfoEnabled() ) {
-				String msg = String.format("decompressed: total=%s, output=%s, ratio=%.1f%%%n",
+			if ( s_logger.isInfoEnabled() && m_totalCompressed > 0 ) {
+				String msg = String.format("decompressed: total=%s, output=%s, ratio=%.1f%%",
 											UnitUtils.toByteSizeString(m_totalCompressed),
 											UnitUtils.toByteSizeString(m_total),
 											(m_totalCompressed*100.)/m_total);
