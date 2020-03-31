@@ -50,6 +50,7 @@ import utils.stream.FStreams.MapToLongStream;
 import utils.stream.FStreams.MappedStream;
 import utils.stream.FStreams.PeekedStream;
 import utils.stream.FStreams.SingleSourceStream;
+import utils.stream.KVFStreams.FStreamAdaptor;
 
 
 /**
@@ -326,7 +327,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return	맵퍼가 적용된 스트림 객체
 	 */
 	public default FStream<T> mapIf(boolean flag,
-									Function<FStream<? extends T>,FStream<? extends T>> mapper) {
+									Function<FStream<T>,FStream<T>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		if ( flag ) {
@@ -1275,5 +1276,11 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return new MapToDoubleStream<>(this, mapper);
+	}
+	
+	public default <K,V> KVFStream<K,V> mapToKeyValue(Function<? super T, KeyValue<K,V>> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		
+		return new FStreamAdaptor<>(map(mapper));
 	}
 }
