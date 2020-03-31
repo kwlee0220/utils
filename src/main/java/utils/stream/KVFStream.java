@@ -131,6 +131,14 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return foldLeft(KeyedGroups.create(), (groups,kv) -> groups.add(kv.key(), kv.value()));
 	}
 	
+	public default KVFStream<K,List<V>> findBiggestGroupWithinWindow(int windowSize) {
+		return new FindBiggestGroupWithinWindow<>(this, windowSize);
+	}
+	
+	public default KVFStream<K,List<V>> findBiggestGroupWithinWindow(int windowSize, int minRetainSize) {
+		return new FindBiggestGroupWithinWindow<>(this, windowSize, minRetainSize);
+	}
+	
 	public default KVFStream<K,V> sortByKey() {
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		FStream<KeyValue<K,V>> sorted = sort((kv1,kv2) -> ((Comparable)kv1.key()).compareTo(kv2.key()));

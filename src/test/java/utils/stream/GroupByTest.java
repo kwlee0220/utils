@@ -69,10 +69,10 @@ public class GroupByTest {
 		
 		KeyedGroups<Integer,Integer> groups = base.groupByKey(v2 -> v2 % 3);
 		
-		Assert.assertEquals(Arrays.asList(0, 3, 6, 9), groups.get(0));
-		Assert.assertEquals(Arrays.asList(1, 4, 7), groups.get(1));
-		Assert.assertEquals(Arrays.asList(2, 5, 8), groups.get(2));
-		Assert.assertEquals(Arrays.asList(), groups.get(3));
+		Assert.assertEquals(Arrays.asList(0, 3, 6, 9), groups.getOrEmptyList(0));
+		Assert.assertEquals(Arrays.asList(1, 4, 7), groups.getOrEmptyList(1));
+		Assert.assertEquals(Arrays.asList(2, 5, 8), groups.getOrEmptyList(2));
+		Assert.assertEquals(Arrays.asList(), groups.getOrEmptyList(3));
 	}
 	
 	@Test
@@ -82,10 +82,10 @@ public class GroupByTest {
 		KeyedGroups<Integer,Integer> groups = base.groupByKey(k -> k % 3,
 															v -> v + (v%3));
 		
-		Assert.assertEquals(Arrays.asList(0, 3, 6, 9), groups.get(0));
-		Assert.assertEquals(Arrays.asList(2, 5, 8), groups.get(1));
-		Assert.assertEquals(Arrays.asList(4, 7, 10), groups.get(2));
-		Assert.assertEquals(Arrays.asList(), groups.get(3));
+		Assert.assertEquals(Arrays.asList(0, 3, 6, 9), groups.getOrEmptyList(0));
+		Assert.assertEquals(Arrays.asList(2, 5, 8), groups.getOrEmptyList(1));
+		Assert.assertEquals(Arrays.asList(4, 7, 10), groups.getOrEmptyList(2));
+		Assert.assertEquals(Arrays.asList(), groups.getOrEmptyList(3));
 	}
 	
 	@Test

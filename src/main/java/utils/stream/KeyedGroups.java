@@ -60,8 +60,12 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 		return m_groups.containsKey(key);
 	}
 	
-	public List<V> get(final K key) {
+	public List<V> getOrEmptyList(final K key) {
 		return m_groups.getOrDefault(key, Collections.emptyList());
+	}
+	
+	public FOption<List<V>> get(final K key) {
+		return FOption.ofNullable(m_groups.get(key));
 	}
 	
 	public KeyedGroups<K,V> add(K key, V value) {
