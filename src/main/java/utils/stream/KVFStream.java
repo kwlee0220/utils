@@ -35,6 +35,12 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return new FStreamAdaptor<>(FStream.from(kvList));
 	}
 	
+	public static <K,V> KVFStream<K,V> fromTupleList(List<Tuple<K,V>> stream) {
+		Utilities.checkNotNullArgument(stream, "stream is null");
+		
+		return fromTupleFStream(FStream.from(stream));
+	}
+	
 	public static <K,V> KVFStream<K,V> fromTupleFStream(FStream<Tuple<K,V>> stream) {
 		Utilities.checkNotNullArgument(stream, "stream is null");
 		
