@@ -424,4 +424,28 @@ public class FStreams {
 			return onext;
 		}
 	}
+	
+	static class FilteredMapStream<S,T> extends SingleSourceStream<S,T> {
+		private final Function<? super S,FOption<T>> m_mapper;
+		
+		FilteredMapStream(FStream<S> base, Function<? super S,FOption<T>> mapper) {
+			super(base);
+			checkNotNullArgument(mapper, "mapper is null");
+			
+			m_mapper = mapper;
+		}
+
+		@Override
+		public FOption<T> next() {
+			FOption<S> next;
+			while ( (next = m_src.next()).isPresent() ) {
+				FOption<T> mapped = m_mapper.apply(next.getUnchecked());
+				if ( mapped.isPresent() ) {
+					return mapped;
+				}
+			}
+			
+			return FOption.empty();
+		}
+	}
 }

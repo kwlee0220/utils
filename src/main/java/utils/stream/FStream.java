@@ -42,6 +42,7 @@ import utils.func.Tuple;
 import utils.func.Unchecked;
 import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
+import utils.stream.FStreams.FilteredMapStream;
 import utils.stream.FStreams.MapOrHandleStream;
 import utils.stream.FStreams.MapOrThrowStream;
 import utils.stream.FStreams.MapToDoubleStream;
@@ -336,6 +337,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		else {
 			return this;
 		}
+	}
+	
+	public default <S> FStream<S> filterMap(Function<? super T,FOption<S>> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		
+		return new FilteredMapStream<>(this, mapper);
 	}
 	
 	/**
@@ -1047,9 +1054,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return KVFStream.downcast(map(t -> KeyValue.of(keyGen.apply(t), t)));
 	}
 	
-	public default <K,V> KVFStream<K,V> toKeyValueStream(Function<? super T,? extends K> keyGen,
-														Function<? super T,? extends V> valueGen) {
-		return KVFStream.downcast(map(t -> KeyValue.of(keyGen.apply(t), valueGen.apply(t))));
+	public default <K,V> KVFStream<K,V> toKeyValueStream(Function<? super T, KeyValue<K,V>> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		
+		return new FStreamAdaptor<>(map(mapper));
 	}
 	
 	public default <K> FStream<KeyedFStream<K,T>> groupBy(Function<? super T,? extends K> grouper) {
@@ -1129,22 +1137,40 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 						});
 	}
 	
-	public default List<T> min(Comparator<? super T> cmp) {
+	public default <K extends Comparable<K>> List<T> max(Function<T,K> keyer) {
 		return foldLeft(new ArrayList<T>(),
-				(min,v) -> {
-					if ( min.isEmpty() ) {
-						return Lists.newArrayList(v);
-					}
-					
-					int ret = cmp.compare(v, min.get(0));
-					if ( ret < 0 ) {
-						min = Lists.newArrayList(v);
-					}
-					else if ( ret == 0 ) {
-						min.add(v);
-					}
-					return min;
-				});
+						(max,v) -> {
+							if ( max.isEmpty() ) {
+								return Lists.newArrayList(v);
+							}
+							
+							int ret = keyer.apply(v).compareTo(keyer.apply(max.get(0)));
+							if ( ret > 0 ) {
+								max = Lists.newArrayList(v);
+							}
+							else if ( ret == 0 ) {
+								max.add(v);
+							}
+							return max;
+						});
+	}
+	
+	public default <K extends Comparable<K>> List<T> min(Function<T,K> keyer) {
+		return foldLeft(new ArrayList<T>(),
+						(max,v) -> {
+							if ( max.isEmpty() ) {
+								return Lists.newArrayList(v);
+							}
+							
+							int ret = keyer.apply(v).compareTo(keyer.apply(max.get(0)));
+							if ( ret < 0 ) {
+								max = Lists.newArrayList(v);
+							}
+							else if ( ret == 0 ) {
+								max.add(v);
+							}
+							return max;
+						});
 	}
 
 	@SuppressWarnings("unchecked")
@@ -1276,11 +1302,5 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return new MapToDoubleStream<>(this, mapper);
-	}
-	
-	public default <K,V> KVFStream<K,V> mapToKeyValue(Function<? super T, KeyValue<K,V>> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
-		
-		return new FStreamAdaptor<>(map(mapper));
 	}
 }
