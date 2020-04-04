@@ -1,6 +1,7 @@
 package utils.func;
 
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * 
@@ -45,6 +46,12 @@ public final class Either<T1,T2> {
 	
 	public T2 getRight() {
 		return m_right.getOrThrow(() -> new NoSuchValueException("right"));
+	}
+	
+	public <S> S mapGet(Function<T1,S> leftMapper, Function<T2,S> rightMapper) {
+		return m_left.map(leftMapper)
+					.orElse(() -> m_right.map(rightMapper))
+					.get();
 	}
 	
 	@Override
