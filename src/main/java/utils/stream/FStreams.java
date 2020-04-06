@@ -167,8 +167,20 @@ public class FStreams {
 		}
 	}
 	
+	static class MapToFloatStream<T> extends MappedStream<T,Float> implements FloatFStream {
+		MapToFloatStream(FStream<T> base, Function<? super T,Float> mapper) {
+			super(base, mapper);
+		}
+	}
+	
 	static class MapToDoubleStream<T> extends MappedStream<T,Double> implements DoubleFStream {
 		MapToDoubleStream(FStream<T> base, Function<? super T,Double> mapper) {
+			super(base, mapper);
+		}
+	}
+	
+	static class MapToBooleanStream<T> extends MappedStream<T,Boolean> implements BooleanFStream {
+		MapToBooleanStream(FStream<T> base, Function<? super T,Boolean> mapper) {
 			super(base, mapper);
 		}
 	}

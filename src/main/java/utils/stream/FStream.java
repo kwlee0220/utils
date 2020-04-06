@@ -45,7 +45,9 @@ import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.FilteredMapStream;
 import utils.stream.FStreams.MapOrHandleStream;
 import utils.stream.FStreams.MapOrThrowStream;
+import utils.stream.FStreams.MapToBooleanStream;
 import utils.stream.FStreams.MapToDoubleStream;
+import utils.stream.FStreams.MapToFloatStream;
 import utils.stream.FStreams.MapToIntStream;
 import utils.stream.FStreams.MapToLongStream;
 import utils.stream.FStreams.MappedStream;
@@ -1298,9 +1300,21 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new MapToLongStream<>(this, mapper);
 	}
 	
+	public default FloatFStream mapToFloat(Function<? super T, Float> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		
+		return new MapToFloatStream<>(this, mapper);
+	}
+	
 	public default DoubleFStream mapToDouble(Function<? super T, Double> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return new MapToDoubleStream<>(this, mapper);
+	}
+	
+	public default BooleanFStream mapToBoolean(Function<? super T, Boolean> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		
+		return new MapToBooleanStream<>(this, mapper);
 	}
 }

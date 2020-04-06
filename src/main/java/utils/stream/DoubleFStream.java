@@ -1,6 +1,7 @@
 package utils.stream;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -17,6 +18,12 @@ import utils.func.Tuple;
 public interface DoubleFStream extends FStream<Double> {
 	public static DoubleFStream of(double... values) {
 		return new ToDoubleDowncaster(FStream.from(Arrays.stream(values).iterator()));
+	}
+	public static DoubleFStream of(Double... values) {
+		return new ToDoubleDowncaster(FStream.of(values));
+	}
+	public static DoubleFStream from(List<Double> values) {
+		return new ToDoubleDowncaster(FStream.from(values));
 	}
 	public static DoubleFStream downcast(FStream<Double> strm) {
 		return new ToDoubleDowncaster(strm);
