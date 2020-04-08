@@ -61,6 +61,12 @@ public class FStreams {
 		public boolean isClosed() {
 			return m_closed;
 		}
+		
+		public void checkNotClosed() {
+			if ( m_closed ) {
+				throw new IllegalStateException("already closed: " + this);
+			}
+		}
 	}
 	
 	static abstract class SingleSourceStream<S,T> extends AbstractFStream<T> {
