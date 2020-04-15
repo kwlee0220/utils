@@ -446,7 +446,7 @@ public class FStreams {
 	static class FilteredMapStream<S,T> extends SingleSourceStream<S,T> {
 		private final Function<? super S,FOption<T>> m_mapper;
 		
-		FilteredMapStream(FStream<S> base, Function<? super S,FOption<T>> mapper) {
+		FilteredMapStream(FStream<S> base, Function<? super S, FOption<T>> mapper) {
 			super(base);
 			checkNotNullArgument(mapper, "mapper is null");
 			
