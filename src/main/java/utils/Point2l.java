@@ -1,12 +1,15 @@
 package utils;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class Point2l implements Comparable<Point2l> {
+public final class Point2l implements Comparable<Point2l>, Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	private final long m_x;
 	private final long m_y;
 	

@@ -1,12 +1,15 @@
 package utils;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class Size2f {
+public class Size2f implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	private final float m_width;
 	private final float m_height;
 	

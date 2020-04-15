@@ -1,5 +1,6 @@
 package utils.func;
 
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -7,7 +8,7 @@ import java.util.function.Function;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class Either<T1,T2> {
+public final class Either<T1,T2> implements Serializable {
 	private final FOption<T1> m_left;
 	private final FOption<T2> m_right;
 	

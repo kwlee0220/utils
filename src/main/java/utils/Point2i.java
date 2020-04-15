@@ -1,5 +1,6 @@
 package utils;
 
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -9,7 +10,8 @@ import java.util.regex.Pattern;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class Point2i implements Comparable<Point2i> {
+public final class Point2i implements Comparable<Point2i>, Serializable {
+	private static final long serialVersionUID = 1L;
 	private static final Pattern PATTERN = Pattern.compile("\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)");
 	
 	private final int m_x;
