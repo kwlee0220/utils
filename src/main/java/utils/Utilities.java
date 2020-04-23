@@ -393,6 +393,22 @@ public class Utilities {
 		return null;
 	}
 	
+	public static Object[] concat(Object[] arr1, Object[] arr2) {
+		Object[] concated = new Object[arr1.length + arr2.length];
+		System.arraycopy(arr1, 0, concated, 0, arr1.length);
+		System.arraycopy(arr2, 0, concated, arr1.length, arr2.length);
+		
+		return concated;
+	}
+	
+	public static int[] concat(int[] arr1, int[] arr2) {
+		int[] concated = new int[arr1.length + arr2.length];
+		System.arraycopy(arr1, 0, concated, 0, arr1.length);
+		System.arraycopy(arr2, 0, concated, arr1.length, arr2.length);
+		
+		return concated;
+	}
+	
 	public static Tuple<String,String> split(String str, char delim) {
 		int idx = str.indexOf(delim);
 		if ( idx < 0 ) {
