@@ -852,6 +852,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return concat(FStream.of(this, tail));
 	}
 	
+	public default FStream<T> concatWith(List<? extends T> tailList) {
+		checkNotNullArgument(tailList, "tailList is null");
+		
+		return concat(FStream.of(this, FStream.from(tailList)));
+	}
+	
 	/**
 	 * 현 스트림에 주어진 원소를 추가하여 하나의 스트림 객체를 생성한다.
 	 * 

@@ -190,6 +190,18 @@ public class Unchecked {
 			throw Throwables.toRuntimeException(cause);
 		}
 	}
+	
+	public static <T> T getOrThrowSneakily(CheckedSupplier<T> checked) {
+		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
+		
+		try {
+			return checked.get();
+		}
+		catch ( Throwable e ) {
+			Throwables.sneakyThrow(e);
+			throw new AssertionError("Should not be here");
+		}
+	}
 
 
 // ******************************************************************************
