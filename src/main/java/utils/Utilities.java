@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -311,6 +312,10 @@ public class Utilities {
 	
 	public static ZonedDateTime fromUTCEpocMillis(long millis) {
 		return Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC);
+	}
+	
+	public static LocalDateTime toLLocalDateTime(long utcEpoc) {
+		return Instant.ofEpochMilli(utcEpoc).atZone(ZoneId.systemDefault()).toLocalDateTime();
 	}
 	
 	@SuppressWarnings("unchecked")
