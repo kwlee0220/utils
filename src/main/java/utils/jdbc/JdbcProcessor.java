@@ -21,6 +21,7 @@ import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
+import org.apache.commons.text.StringSubstitutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,12 @@ public class JdbcProcessor implements Serializable {
 										String passwd, String dbName) {
 		JdbcConnectInfo connInfo = getJdbcConnectInfo(system);
 		
-		String jdbcUrl = String.format(connInfo.m_urlFormat, host, port, dbName);
+		Map<String,String> values = Maps.newHashMap();
+		values.put("host", host);
+		values.put("port", Integer.toString(port));
+		values.put("dbname", dbName);
+		String jdbcUrl = new StringSubstitutor(values).replace(connInfo.m_urlFormat);
+		
 		return new JdbcProcessor(jdbcUrl, user, passwd, connInfo.m_driverClassName);
 	}
 	
@@ -374,9 +380,12 @@ public class JdbcProcessor implements Serializable {
 	
 	private static final Map<String,JdbcConnectInfo> JDBC_URLS = Maps.newHashMap();
 	static {
-		JDBC_URLS.put("mysql", new JdbcConnectInfo("jdbc:mysql://%s:%d/%s?characterEncoding=utf8&useSSL=false&useCursorFetch=true",
+		JDBC_URLS.put("mysql", new JdbcConnectInfo("jdbc:mysql://${host}:${port}/${dbname}?characterEncoding=utf8&useSSL=false&useCursorFetch=true",
 													"com.mysql.jdbc.Driver"));
-		JDBC_URLS.put("postgresql", new JdbcConnectInfo("jdbc:postgresql://%s:%d/%s",
+		JDBC_URLS.put("postgresql", new JdbcConnectInfo("jdbc:postgresql://${host}:${port}/${dbname}",
 														"org.postgresql.Driver"));
+		JDBC_URLS.put("h2_remote", new JdbcConnectInfo("jdbc:h2:tcp://${host}:${port}/${dbname}",
+														"org.h2.Driver"));
+		JDBC_URLS.put("h2_local", new JdbcConnectInfo("jdbc:h2:file:${dbname}", "org.h2.Driver"));
 	}
 }
