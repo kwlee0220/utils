@@ -2,6 +2,7 @@ package utils;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 
 /**
@@ -11,6 +12,14 @@ import java.time.ZoneOffset;
 public class LocalDateTimes {
 	private LocalDateTimes() {
 		throw new AssertionError("should not be called: " + getClass());
+	}
+	
+	public static long toEpochMillis(LocalDateTime ldt) {
+		return ldt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+	}
+	
+	public static LocalDateTime fromEpochMillis(long millis) {
+		return LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
 	}
 	
 	public static LocalDateTime fromUtcMillis(long millis) {

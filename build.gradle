@@ -115,6 +115,7 @@ eclipse {
 			
 			whenMerged { cp ->
 				Map entryByPath = cp.entries.groupBy { entry -> entry.path }
+				
 				entryByPath.each { key, values ->
 					if ( values.size() > 1 ) {
             			def entry = values.first()
