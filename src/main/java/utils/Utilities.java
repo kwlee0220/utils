@@ -326,6 +326,13 @@ public class Utilities {
 		ctor.setAccessible(true);
 		return (T)ctor.newInstance(new Object[0]);
 	}
+	public static <T> T callPrivateConstructor(Class<T> cls, String arg)
+		throws NoSuchMethodException, SecurityException, InstantiationException,
+			IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+		Constructor<?> ctor = cls.getDeclaredConstructor(new Class[] {String.class});
+		ctor.setAccessible(true);
+		return (T)ctor.newInstance(arg);
+	}
 	
 	public static <T extends AutoCloseable> T attachCloser(T object, Consumer<T> closer) {
 		return ProxyUtils.replaceAction(object, new CloseAttacher<T>(closer));
