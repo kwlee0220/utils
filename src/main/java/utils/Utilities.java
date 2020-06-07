@@ -1,5 +1,6 @@
 package utils;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -53,6 +54,14 @@ public class Utilities {
 	public static <T> int hashCode(FStream<T> strm) {
 		return strm.map(v -> v.hashCode())
 					.foldLeft(1, (accum,code) -> 31 * accum + code);
+	}
+	
+	public static File getCurrentWorkingDir() {
+		return new File(System.getProperty("user.dir"));
+	}
+	
+	public static File getHomeDir() {
+		return new File(System.getProperty("user.home"));
 	}
 	
 	public static String getLineSeparator() {

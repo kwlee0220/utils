@@ -16,8 +16,6 @@ import java.sql.Statement;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
@@ -206,25 +204,14 @@ public class JdbcProcessor implements Serializable {
 		return JdbcUtils.bindToConnection(rs);
 	}
 	
-	public Stream<ResultSet> streamQuery(String sql) throws SQLException {
-		ResultSet rs = connect().createStatement().executeQuery(sql);
-		rs = JdbcUtils.bindToConnection(rs);
-		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
-	}
-	
-	public FStream<ResultSet> fstreamQuery(String sql) throws SQLException {
+	public FStream<ResultSet> streamQuery(String sql) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
 		rs = JdbcUtils.bindToConnection(rs);
 
 		return new ResultSetFStream(rs);
 	}
 	
-	public Stream<ResultSet> executeQuery(PreparedStatement pstmt) throws SQLException {
-		ResultSet rs = pstmt.executeQuery();
-		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
-	}
-	
-	public FStream<ResultSet> fexecuteQuery(PreparedStatement pstmt) throws SQLException {
+	public FStream<ResultSet> executeQuery(PreparedStatement pstmt) throws SQLException {
 		ResultSet rs = pstmt.executeQuery();
 		return new ResultSetFStream(rs);
 	}
@@ -290,7 +277,7 @@ public class JdbcProcessor implements Serializable {
 	}
 	
 	public long rowCount(String tableName) throws SQLException {
-		return fstreamQuery("select count(*) from " + tableName)
+		return streamQuery("select count(*) from " + tableName)
 				.findFirst()
 				.mapOrThrow(rs -> rs.getLong(1))
 				.get();

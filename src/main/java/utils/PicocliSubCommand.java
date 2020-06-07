@@ -6,6 +6,7 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.ParseResult;
 import picocli.CommandLine.Spec;
+import utils.io.IOUtils;
 
 
 /**
@@ -42,7 +43,13 @@ public abstract class PicocliSubCommand<T> implements PicocliCommand<T> {
 				subC.run();
 			}
 			else {
-				run(m_parent.getInitialContext());
+				T ctxt = m_parent.getInitialContext();
+				try {
+					run(ctxt);
+				}
+				finally {
+					IOUtils.close(ctxt);
+				}
 			}
 		}
 		catch ( Exception e ) {
