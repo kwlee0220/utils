@@ -42,6 +42,9 @@ public class LimitedInputStream extends InputStream {
 		
 		int nbytes = Math.min(m_remains, len);
 		int nreads = m_src.read(b, off, nbytes);
+		if ( nreads < 0 ) {
+			return -1;
+		}
 		m_remains -= nreads;
 		
 		return nreads;
