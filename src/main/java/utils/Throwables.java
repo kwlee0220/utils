@@ -57,6 +57,15 @@ public class Throwables {
 		}
 	}
 	
+	public static Exception toException(Throwable e) {
+		if ( e instanceof Exception ) {
+			return (Exception)e;
+		}
+		else {
+			return new RuntimeException(e);
+		}
+	}
+	
 	public static <T extends Throwable> void throwIfInstanceOf(Throwable e,
 															Class<T> thrCls) throws T {
 		if ( thrCls.isInstance(e) ) {
