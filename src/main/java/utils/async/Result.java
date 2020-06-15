@@ -43,6 +43,10 @@ public abstract class Result<T> {
 	}
 	
 	public abstract T get() throws ExecutionException, CancellationException;
+
+	public T getUnchecked() {
+		throw new IllegalStateException("not completed state");
+	}
 	
 	public Throwable getCause() {
 		throw new IllegalStateException("not FAILED state: state=" + getState());
@@ -97,6 +101,11 @@ public abstract class Result<T> {
 
 		@Override
 		public T get() {
+			return m_value;
+		}
+
+		@Override
+		public T getUnchecked() {
 			return m_value;
 		}
 
