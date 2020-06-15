@@ -49,7 +49,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		m_timeoutMillis = unit.toMillis(timeout);
 	}
 	
-	public void complate(T result) {
+	public void complete(T result) {
 		notifyCompleted(result);
 	}
 
