@@ -2,6 +2,7 @@ package utils;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 
 /**
@@ -19,5 +20,13 @@ public class LocalDates {
 	
 	public static long toUtcMillis(LocalDate date) {
 		return date.atStartOfDay().atZone(ZoneOffset.UTC).toInstant().toEpochMilli();
+	}
+	
+	public static LocalDate fromEpochMillis(long millis) {
+		return Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate();
+	}
+	
+	public static long toEpochMillis(LocalDate ldt) {
+		return ldt.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
 	}
 }
