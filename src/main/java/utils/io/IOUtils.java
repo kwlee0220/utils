@@ -158,24 +158,21 @@ public class IOUtils {
     	}
     }
 
-	public static int readFully(InputStream is, byte[] buf) throws IOException {
-		return readFully(is, buf, 0, buf.length);
+	public static void readFully(InputStream is, byte[] buf) throws IOException {
+		readFully(is, buf, 0, buf.length);
 	}
 
-	public static int readFully(InputStream is, byte[] buf, int offset, final int length)
+	public static void readFully(InputStream is, byte[] buf, int offset, int length)
 		throws IOException {
-		int remains = length;
-		while ( remains > 0 ) {
-			int nbytes = is.read(buf, offset, remains);
+		while ( length > 0 ) {
+			int nbytes = is.read(buf, offset, length);
 			if ( nbytes < 0 ) {
 				throw new EOFException();
 			}
 			
 			offset += nbytes;
-			remains -= nbytes;
+			length -= nbytes;
 		}
-		
-		return length - remains;
 	}
 
 	public static int readAtBest(InputStream is, byte[] buf) throws IOException {
