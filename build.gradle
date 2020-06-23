@@ -71,6 +71,18 @@ artifacts {
 	archives javadocJar
 }
 
+apply plugin: 'maven-publish'
+publishing {
+	publications {
+		commonGrpc(MavenPublication) {
+			from components.java
+			
+			artifact sourceJar
+			artifact javadocJar
+		}
+	}
+}
+
 apply plugin: 'eclipse'
 eclipse {
 	classpath {
