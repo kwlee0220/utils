@@ -29,6 +29,7 @@ public class InputStreamFromOutputStream extends InputStream {
 			PipedOutputStream pipeOut = new PipedOutputStream();
 			m_pipe = new PipedInputStream(pipeOut, pipeSize);
 			m_pump = pump.apply(pipeOut);
+			m_pump.whenFailed(error -> m_error = error);
 		}
 		catch ( Exception e ) {
 			throw new IllegalArgumentException("" + e);

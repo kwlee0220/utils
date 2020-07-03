@@ -33,6 +33,14 @@ public interface IntFStream extends FStream<Integer> {
 		return new FStreamAdaptor(take(count));
 	}
 	
+	public default int maxValue() {
+		return reduce(Integer::max);
+	}
+	
+	public default int minValue() {
+		return reduce(Integer::min);
+	}
+	
 	public default long sum() {
 		return foldLeft(0L, (s,v) -> s+v);
 	}

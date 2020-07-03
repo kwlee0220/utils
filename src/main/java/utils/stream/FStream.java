@@ -131,6 +131,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return from(values.iterator());
 	}
 	
+	public static <K,V> KVFStream<K,V> from(Map<? extends K, ? extends V> map) {
+		Utilities.checkNotNullArgument(map, "map is null");
+		
+		return KVFStream.from(map);
+	}
+	
 	/**
 	 * 주어진 데이터 객체 배열 값을 갖는 FStream 객체를 생성한다.
 	 * 

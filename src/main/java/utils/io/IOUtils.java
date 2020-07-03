@@ -15,6 +15,8 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.io.Reader;
 import java.io.Serializable;
 import java.io.Writer;
@@ -33,9 +35,11 @@ import java.util.zip.Inflater;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 
+import utils.Utilities;
 import utils.async.AbstractThreadedExecution;
 import utils.async.CancellableWork;
 import utils.func.FOption;
+import utils.func.Tuple;
 
 /**
  * 
@@ -336,6 +340,13 @@ public class IOUtils {
 		for ( String item: coll ) {
 			out.writeUTF(item);
 		}
+	}
+	
+	public static Tuple<OutputStream, InputStream> pipe(int pipeSize) throws IOException {
+		Utilities.checkArgument(pipeSize > 0, "invalid pipe size: " + pipeSize);
+		
+		PipedOutputStream pipeOut = new PipedOutputStream();
+		return Tuple.of(pipeOut, new PipedInputStream(pipeOut, pipeSize));
 	}
 
 	public static CopyStream copy(InputStream from, OutputStream to) {

@@ -27,7 +27,7 @@ import utils.func.Lazy;
 public class Lz4Compressions {
 	private static final Logger s_logger = LoggerFactory.getLogger(Lz4Compressions.class);
 	
-	private static final int DEFAULT_BLOCK_SIZE = 16 * 1024;
+	private static final int DEFAULT_BLOCK_SIZE = 64 * 1024;
 	private static final int HEADER_SIZE = 4 + 4;
 	private static final Lazy<LZ4Factory> s_fact = Lazy.of(LZ4Factory::fastestInstance);
 	private static final Lazy<LZ4Compressor> s_compressor = Lazy.of(() -> s_fact.get().fastCompressor());

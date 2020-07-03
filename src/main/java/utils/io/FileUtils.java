@@ -1,6 +1,8 @@
 package utils.io;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.FileSystem;
@@ -18,6 +20,7 @@ import org.apache.commons.io.FilenameUtils;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import utils.func.CheckedSupplierX;
 import utils.stream.FStream;
 
 
