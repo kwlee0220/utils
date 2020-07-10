@@ -44,30 +44,30 @@ public class InputStreamFromOutputStreamTest {
 		}
 	}
 	
-	private static WriteRecordSetToOutStream pump(byte[] bytes, OutputStream os) {
-		WriteRecordSetToOutStream exec = new WriteRecordSetToOutStream(bytes, os);
+	private static WriteInToOutStream pump(byte[] bytes, OutputStream os) {
+		WriteInToOutStream exec = new WriteInToOutStream(bytes, os);
 		exec.start();
 		
 		return exec;
 	}
 	
-	private static class WriteRecordSetToOutStream extends AbstractThreadedExecution<Long> {
+	private static class WriteInToOutStream extends AbstractThreadedExecution<Void> {
 		private final byte[] m_bytes;
 		private final OutputStream m_os;
 		
-		private WriteRecordSetToOutStream(byte[] bytes, OutputStream os) {
+		private WriteInToOutStream(byte[] bytes, OutputStream os) {
 			m_bytes = bytes;
 			m_os = os;
 			
-			setLogger(LoggerFactory.getLogger(WriteRecordSetToOutStream.class));
+			setLogger(LoggerFactory.getLogger(WriteInToOutStream.class));
 		}
 
 		@Override
-		protected Long executeWork() throws CancellationException, Exception {
+		protected Void executeWork() throws CancellationException, Exception {
 			m_os.write(m_bytes);
 			m_os.close();
 			
-			return (long)m_bytes.length;
+			return null;
 		}
 	}
 }

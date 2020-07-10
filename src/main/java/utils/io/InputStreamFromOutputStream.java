@@ -9,6 +9,7 @@ import java.util.function.Function;
 
 import utils.Utilities;
 import utils.async.Execution;
+import utils.func.Tuple;
 
 /**
  * 
@@ -18,17 +19,18 @@ public class InputStreamFromOutputStream extends InputStream {
 	private static final int DEFAULT_PIPE_SIZE = 32 * 1024;
 	
 	private final PipedInputStream m_pipe;
-	private final Execution<Long> m_pump;
+	private final Execution<Void> m_pump;
 	private Throwable m_error;
 	
-	public InputStreamFromOutputStream(Function<OutputStream,Execution<Long>> pump, int pipeSize) {
+	public InputStreamFromOutputStream(Function<OutputStream,Execution<Void>> pump, int pipeSize) {
 		Utilities.checkNotNullArgument(pump, "pump");
 		Utilities.checkArgument(pipeSize > 0, "invalid pipe size: " + pipeSize);
 		
 		try {
-			PipedOutputStream pipeOut = new PipedOutputStream();
-			m_pipe = new PipedInputStream(pipeOut, pipeSize);
-			m_pump = pump.apply(pipeOut);
+			Tuple<PipedOutputStream, PipedInputStream> pipe = IOUtils.pipe(pipeSize);
+			
+			m_pipe = pipe._2;
+			m_pump = pump.apply(pipe._1);
 			m_pump.whenFailed(error -> m_error = error);
 		}
 		catch ( Exception e ) {
@@ -36,7 +38,7 @@ public class InputStreamFromOutputStream extends InputStream {
 		}
 	}
 	
-	public InputStreamFromOutputStream(Function<OutputStream,Execution<Long>> pump) {
+	public InputStreamFromOutputStream(Function<OutputStream,Execution<Void>> pump) {
 		this(pump, DEFAULT_PIPE_SIZE);
 	}
 	

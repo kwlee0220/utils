@@ -161,6 +161,14 @@ public class IOUtils {
     		return transfer(isc, bos, 16<<10);
     	}
     }
+    
+    public static long toFile(InputStream is, File file, int bufSize) throws IOException {
+    	try ( InputStream isc = is;
+    			FileOutputStream fos = new FileOutputStream(file);
+    		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
+    		return transfer(isc, bos, bufSize);
+    	}
+    }
 
 	public static void readFully(InputStream is, byte[] buf) throws IOException {
 		readFully(is, buf, 0, buf.length);
@@ -342,7 +350,7 @@ public class IOUtils {
 		}
 	}
 	
-	public static Tuple<OutputStream, InputStream> pipe(int pipeSize) throws IOException {
+	public static Tuple<PipedOutputStream, PipedInputStream> pipe(int pipeSize) throws IOException {
 		Utilities.checkArgument(pipeSize > 0, "invalid pipe size: " + pipeSize);
 		
 		PipedOutputStream pipeOut = new PipedOutputStream();

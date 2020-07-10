@@ -13,6 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -339,6 +340,19 @@ public class JdbcProcessor implements Serializable {
 	@Override
 	public String toString() {
 		return String.format("url=%s,user=%s,driver=%s", m_jdbcUrl, m_user, m_driverClsName);
+	}
+	
+	public static JdbcProcessor parseString(String str) {
+		List<String> parts = CSV.parseCsv(str, ':').toList();
+		
+		String system = parts.get(0);
+		String host = parts.get(1);
+		int port = Integer.parseInt(parts.get(2));
+		String user = parts.get(3);
+		String passwd = parts.get(4);
+		String dbName = parts.get(5);
+		
+		return JdbcProcessor.create(system, host, port, user, passwd, dbName);
 	}
 	
 	@FunctionalInterface
