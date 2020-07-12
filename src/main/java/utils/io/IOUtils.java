@@ -350,11 +350,16 @@ public class IOUtils {
 		}
 	}
 	
-	public static Tuple<PipedOutputStream, PipedInputStream> pipe(int pipeSize) throws IOException {
+	public static Tuple<PipedOutputStream, PipedInputStream> pipe(int pipeSize) {
 		Utilities.checkArgument(pipeSize > 0, "invalid pipe size: " + pipeSize);
 		
-		PipedOutputStream pipeOut = new PipedOutputStream();
-		return Tuple.of(pipeOut, new PipedInputStream(pipeOut, pipeSize));
+		try {
+			PipedOutputStream pipeOut = new PipedOutputStream();
+			return Tuple.of(pipeOut, new PipedInputStream(pipeOut, pipeSize));
+		}
+		catch ( IOException e ) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public static CopyStream copy(InputStream from, OutputStream to) {
