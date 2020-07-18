@@ -1,12 +1,12 @@
 package utils;
 
 import picocli.CommandLine;
+import picocli.CommandLine.Help.Ansi;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.ParseResult;
 import picocli.CommandLine.Spec;
-import utils.io.IOUtils;
 
 
 /**
@@ -21,7 +21,7 @@ public abstract class PicocliSubCommand<T> implements PicocliCommand<T> {
 	abstract protected void run(T initialContext) throws Exception;
 	
 	@Override
-	public T getInitialContext() {
+	public T getInitialContext() throws Exception {
 		return m_parent.getInitialContext();
 	}
 	
@@ -43,12 +43,14 @@ public abstract class PicocliSubCommand<T> implements PicocliCommand<T> {
 				subC.run();
 			}
 			else {
-				T ctxt = m_parent.getInitialContext();
 				try {
-					run(ctxt);
+					T server = m_parent.getInitialContext();
+					run(server);
 				}
-				finally {
-					IOUtils.close(ctxt);
+				catch ( Exception e ) {
+					System.err.printf("failed: %s%n%n", e);
+					
+					m_spec.commandLine().usage(System.out, Ansi.OFF);
 				}
 			}
 		}
