@@ -19,6 +19,11 @@ public class Funcs {
 			work.run();
 		}
 	}
+	public static <T> void runIfNotNull(T obj, Runnable work) {
+		if ( obj != null ) {
+			work.run();
+		}
+	}
 	
 	public static <T> void acceptIfNotNull(T obj, Consumer<T> consumer) {
 		if ( obj != null ) {
