@@ -58,6 +58,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return flag ? of(value.get()) : empty();
 	}
 	
+	public static FOption<Long> gtz(long value) {
+		return value > 0 ? of(value) : empty();
+	}
+	public static FOption<Integer> gtz(int value) {
+		return value > 0 ? of(value) : empty();
+	}
+	
 	@SuppressWarnings("unchecked")
 	public static <T> FOption<T> narrow(FOption<? extends T> opt) {
 		return (FOption<T>)opt;
