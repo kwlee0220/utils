@@ -1,5 +1,7 @@
 package utils;
 
+import java.io.IOException;
+
 import picocli.CommandLine;
 import picocli.CommandLine.Help.Ansi;
 import picocli.CommandLine.Mixin;
@@ -35,8 +37,10 @@ public abstract class PicocliSubCommand<T> implements PicocliCommand<T> {
 	
 	@Override
 	public void run() {
-		ParseResult sub = m_spec.commandLine().getParseResult().subcommand();
 		try {
+			configureLog4j();
+			
+			ParseResult sub = m_spec.commandLine().getParseResult().subcommand();
 			if ( sub != null ) {
 				@SuppressWarnings("unchecked")
 				PicocliCommand<T> subC = (PicocliCommand<T>)sub.commandSpec().userObject();
@@ -56,8 +60,11 @@ public abstract class PicocliSubCommand<T> implements PicocliCommand<T> {
 		}
 		catch ( Exception e ) {
 			System.err.printf("failed: %s%n%n", e);
-			
-//				m_spec.commandLine().usage(System.out, Ansi.OFF);
 		}
+	}
+
+	@Override
+	public void configureLog4j() throws IOException {
+		m_parent.configureLog4j();
 	}
 }
