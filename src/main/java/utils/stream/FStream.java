@@ -52,6 +52,7 @@ import utils.stream.FStreams.MapToIntStream;
 import utils.stream.FStreams.MapToLongStream;
 import utils.stream.FStreams.MappedStream;
 import utils.stream.FStreams.PeekedStream;
+import utils.stream.FStreams.SelectiveMapStream;
 import utils.stream.FStreams.SingleSourceStream;
 import utils.stream.KVFStreams.FStreamAdaptor;
 
@@ -351,6 +352,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return new FilteredMapStream<>(this, mapper);
+	}
+	
+	public default FStream<T> mapSelectively(Predicate<T> pred, Function<T,T> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		
+		return new SelectiveMapStream<>(this, pred, mapper);
 	}
 	
 	/**

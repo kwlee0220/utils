@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import com.google.common.collect.Sets;
@@ -460,6 +461,42 @@ public class FStreams {
 				FOption<T> mapped = m_mapper.apply(next.getUnchecked());
 				if ( mapped.isPresent() ) {
 					return mapped;
+				}
+			}
+			
+			return FOption.empty();
+		}
+	}
+	
+	static class SelectiveMapStream<T> extends AbstractFStream<T> {
+		private final FStream<T> m_src;
+		private final Predicate<T> m_pred;
+		private final Function<T,T> m_mapper;
+		
+		SelectiveMapStream(FStream<T> src, Predicate<T> pred, Function<T,T> mapper) {
+			checkNotNullArgument(pred, "predicate is null");
+			checkNotNullArgument(mapper, "mapper is null");
+
+			m_src = src;
+			m_pred = pred;
+			m_mapper = mapper;
+		}
+
+		@Override
+		protected void closeInGuard() throws Exception {
+			m_src.close();
+		}
+
+		@Override
+		public FOption<T> next() {
+			FOption<T> next;
+			while ( (next = m_src.next()).isPresent() ) {
+				T obj = next.getUnchecked();
+				if ( m_pred.test(obj) ) {
+					return FOption.of(m_mapper.apply(obj));
+				}
+				else {
+					return next;
 				}
 			}
 			
