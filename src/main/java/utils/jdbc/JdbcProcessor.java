@@ -37,7 +37,7 @@ import utils.stream.FStream;
  * @author Kang-Woo Lee (ETRI)
  */
 public class JdbcProcessor implements Serializable {
-	private static final long serialVersionUID = -7730009459945414576L;
+	private static final long serialVersionUID = 1L;
 	private final Logger s_logger = LoggerFactory.getLogger(JdbcProcessor.class);
 
 	private final String m_jdbcUrl;
@@ -387,6 +387,6 @@ public class JdbcProcessor implements Serializable {
 														"org.postgresql.Driver"));
 		JDBC_URLS.put("h2_remote", new JdbcConnectInfo("jdbc:h2:tcp://${host}:${port}/${dbname}",
 														"org.h2.Driver"));
-		JDBC_URLS.put("h2_local", new JdbcConnectInfo("jdbc:h2:file:${dbname}", "org.h2.Driver"));
+		JDBC_URLS.put("h2_local", new JdbcConnectInfo("jdbc:h2:${dbname}", "org.h2.Driver"));
 	}
 }
