@@ -1,6 +1,7 @@
 package utils.func;
 
 import java.lang.reflect.Method;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import net.sf.cglib.proxy.Enhancer;
@@ -54,7 +55,8 @@ public class Lazy<T> {
 		return m_loaded.get();
 	}
 	
-	public synchronized void unload() {
+	public synchronized void unload(Consumer<? super T> closer) {
+		m_loaded.ifPresent(closer);
 		m_loaded = FOption.empty();
 	}
 	
