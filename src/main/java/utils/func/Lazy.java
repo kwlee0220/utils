@@ -47,6 +47,10 @@ public class Lazy<T> {
 		return m_loaded.isPresent();
 	}
 	
+	public synchronized void ifLoaded(Consumer<T> job) {
+		m_loaded.ifPresent(job);
+	}
+	
 	public synchronized T get() {
 		if ( m_loaded.isAbsent() ) {
 			m_loaded = FOption.of(m_supplier.get());
