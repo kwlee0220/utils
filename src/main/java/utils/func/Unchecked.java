@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import io.reactivex.Observable;
 import io.reactivex.Observer;
@@ -200,6 +201,29 @@ public class Unchecked {
 		catch ( Throwable e ) {
 			Throwables.sneakyThrow(e);
 			throw new AssertionError("Should not be here");
+		}
+	}
+	
+	public static <T> Supplier<T> lift(CheckedSupplier<? extends T> checked) {
+		return new UncheckedSupplier<>(checked);
+	}
+	
+	private static class UncheckedSupplier<T,R> implements Supplier<T> {
+		private final CheckedSupplier<? extends T> m_checked;
+		
+		UncheckedSupplier(CheckedSupplier<? extends T> checked) {
+			m_checked = checked;
+		}
+
+		@Override
+		public T get() {
+			try {
+				return m_checked.get();
+			}
+			catch ( Throwable e ) {
+				Throwables.sneakyThrow(e);
+				throw new AssertionError("Should not be here: class=" + getClass());
+			}
 		}
 	}
 
