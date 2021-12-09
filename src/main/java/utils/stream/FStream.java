@@ -1020,7 +1020,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		}
 	}
 	
-	public default <C extends Collection<T>> C toCollection(C coll) {
+	public default <C extends Collection<? super T>> C toCollection(C coll) {
 		return collectLeft(coll, (l,t) -> l.add(t));
 	}
 	
