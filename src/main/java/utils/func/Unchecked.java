@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import io.reactivex.Observable;
@@ -250,6 +251,20 @@ public class Unchecked {
 // ******************************************************************************
 // ****************************** Predicate *************************************
 // ******************************************************************************
+	
+	public static <T,S> Predicate<T> sneakyThrow(CheckedPredicate<T> checked) {
+		Utilities.checkNotNullArgument(checked, "CheckedFunction is null");
+		
+		return (data) -> {
+			try {
+				return checked.test(data);
+			}
+			catch ( Throwable e ) {
+				Throwables.sneakyThrow(e);
+				return false;
+			}
+		};
+	}
 	
 
 
