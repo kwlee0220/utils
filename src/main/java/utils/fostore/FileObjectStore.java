@@ -109,7 +109,7 @@ public class FileObjectStore<K,T> {
     			file.delete();
     		}
     		else {
-    	        throw new FileExistsException("File[id=" + key + ", path="
+    	        throw new IOException("Already exists: File[id=" + key + ", path="
 												+ file.getAbsolutePath() + "]");
     		}
     	}

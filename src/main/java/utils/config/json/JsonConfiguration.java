@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.lang3.text.StrSubstitutor;
+import org.apache.commons.text.StringSubstitutor;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -48,13 +48,14 @@ public class JsonConfiguration implements Configuration {
 			Properties variables = new Properties();
 			variables.put("config_dir", configFile.getParentFile().getAbsolutePath());
 			
-			return load(new JsonParser().parse(reader), variables);
+			
+			return load(JsonParser.parseReader(reader), variables);
 		}
 	}
 
 	public static JsonConfiguration load(String configStr) {
 		Properties variables = new Properties();
-		return load(new JsonParser().parse(configStr), variables);
+		return load(JsonParser.parseString(configStr), variables);
 	}
 
 	private static JsonConfiguration load(JsonElement root, Properties variables) {
@@ -62,7 +63,7 @@ public class JsonConfiguration implements Configuration {
 		
 		Map<String,String> envVars = System.getenv();
 		for ( Map.Entry<String,String> e: envVars.entrySet() ) {
-			variables.put(e.getKey(), StrSubstitutor.replace(e.getValue(), variables));
+			variables.put(e.getKey(), StringSubstitutor.replace(e.getValue(), variables));
 		}
 		
 		JsonElement varsElm = ((JsonObject)root).get("config_variables");
@@ -72,7 +73,7 @@ public class JsonConfiguration implements Configuration {
 			objElm.entrySet().stream()
 					.forEach(ent -> {
 						String value = ent.getValue().getAsString();
-						value = StrSubstitutor.replace(value, variables);
+						value = StringSubstitutor.replace(value, variables);
 						variables.put(ent.getKey(), value);
 					});
 		}
