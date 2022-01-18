@@ -1,12 +1,15 @@
 package utils.func;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class Tuple<T1,T2> {
+public final class Tuple<T1,T2> implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	public final T1 _1;
 	public final T2 _2;
 	

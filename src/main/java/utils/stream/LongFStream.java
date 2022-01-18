@@ -18,6 +18,9 @@ public interface LongFStream extends FStream<Long> {
 	public static LongFStream of(long... values) {
 		return new FStreamAdaptor(FStream.from(Arrays.stream(values).iterator()));
 	}
+	public static LongFStream of(Long... values) {
+		return new FStreamAdaptor(FStream.from(Arrays.stream(values).iterator()));
+	}
 	
 	public default <T> FStream<T> mapToObj(Function<Long,? extends T> mapper) {
 		Objects.requireNonNull(mapper);

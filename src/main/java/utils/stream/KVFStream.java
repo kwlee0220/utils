@@ -160,6 +160,17 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return downcast(sorted);
 	}
 	
+	public default KVFStream<K,V> sortByValue() {
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		FStream<KeyValue<K,V>> sorted = sort((kv1,kv2) -> ((Comparable)kv1.value()).compareTo(kv2.value()));
+		return downcast(sorted);
+	}
+	
+	public default KVFStream<K,V> sortByValue(Comparator<? super V> cmp) {
+		FStream<KeyValue<K,V>> sorted = sort((kv1,kv2) -> cmp.compare(kv1.value(), kv2.value()));
+		return downcast(sorted);
+	}
+	
 	public default FStream<KeyValue<K,V>> toKeyValueStream() {
 		return map(KeyValue::of);
 	}

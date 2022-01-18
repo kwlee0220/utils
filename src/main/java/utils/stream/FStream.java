@@ -1336,4 +1336,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		
 		return new MapToBooleanStream<>(this, mapper);
 	}
+	
+	public default <K, V> KVFStream<K, V> mapToKeyValue(Function<? super T, KeyValue<K, V>> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+
+		return new FStreamAdaptor<>(map(mapper));
+	}
 }

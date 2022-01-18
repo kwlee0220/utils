@@ -58,12 +58,20 @@ public final class CIString implements Comparable<CIString>, Serializable {
 		if ( this == obj ) {
 			return true;
 		}
-		else if ( obj == null || obj.getClass() != CIString.class ) {
+		else if ( obj == null ) {
 			return false;
 		}
-		
-		CIString other = (CIString)obj;
-		return m_name.equalsIgnoreCase(other.m_name);
+		else if ( obj.getClass() == CIString.class ) {
+			CIString other = (CIString)obj;
+			return m_name.equalsIgnoreCase(other.get());
+		}
+		else if ( obj.getClass() == String.class ) {
+			String other = (String)obj;
+			return m_name.equalsIgnoreCase(other);
+		}
+		else {
+			return false;
+		}
 	}
 	
 	@Override
