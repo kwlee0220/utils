@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
-import io.reactivex.Observable;
 import utils.Throwables;
 import utils.func.FOption;
 
@@ -296,9 +295,9 @@ public interface Execution<T> extends Future<T> {
 		});
 	}
 	
-	public default Observable<ExecutionProgress<T>> observe(boolean cancelOnDispose) {
-		return Observable.create(new ExecutionProgressReport<T>(this, cancelOnDispose));
-	}
+//	public default Observable<ExecutionProgress<T>> observe(boolean cancelOnDispose) {
+//		return Observable.create(new ExecutionProgressReport<T>(this, cancelOnDispose));
+//	}
 	
 	@SuppressWarnings("unchecked")
 	public static <T> Execution<T> narrow(Execution<? extends T> exec) {

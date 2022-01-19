@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import io.reactivex.Observable;
 import utils.CSV;
 import utils.Utilities;
 import utils.func.CheckedConsumer;
@@ -163,19 +162,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(stream, "Stream is null");
 		
 		return from(stream.iterator());
-	}
-	
-	/**
-	 * 주어진 {@link Observable}객체로부터 FStream 객체를 생성한다.
-	 * 
-	 * @param <T> Observable에서 반환하는 데이터 타입
-	 * @param ob	입력 {@link Observable} 객체.
-	 * @return FStream 객체
-	 */
-	public static <T> FStream<T> from(Observable<? extends T> ob) {
-		checkNotNullArgument(ob, "Observable is null");
-		
-		return new ObservableStream<>(ob);
 	}
 	
 	/**

@@ -31,7 +31,7 @@ public class SuppliableFStream<T> implements FStream<T>, TimedFStream<T>, Suppli
 	@GuardedBy("m_lock") private boolean m_eos = false;
 	@GuardedBy("m_lock") @Nullable private Throwable m_error = null;
 	
-	SuppliableFStream(int length) {
+	public SuppliableFStream(int length) {
 		m_buffer = new ArrayList<>(length);
 		m_length = length;
 	}

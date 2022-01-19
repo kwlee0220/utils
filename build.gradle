@@ -10,13 +10,14 @@ targetCompatibility = JavaVersion.VERSION_1_8
 ext {
 	slf4j_version = '1.7.32'
 	guava_version = '30.1.1-jre'
-	cglib_version = '3.3.0'
 	rxjava2_version = '2.2.21'
+	picocli_version = '3.9.6'
+//	picocli_version = '4.6.2'
+	
+	cglib_version = '3.3.0'
 	commons_io_version = '2.11.0'
 	commons_text_version = '1.8'
 	gson_version = '2.8.9'
-	picocli_version = '3.9.6'
-//	picocli_version = '4.6.2'
 	
 	junit_version = '4.13.2'
 	mockito_version = '3.12.4'
@@ -29,16 +30,14 @@ repositories {
 
 dependencies {
 	api "org.slf4j:slf4j-api:${slf4j_version}"
-	
 	api "com.google.guava:guava:${guava_version}"
-	implementation "commons-io:commons-io:${commons_io_version}"
-	implementation "cglib:cglib:${cglib_version}"
-	api "io.reactivex.rxjava2:rxjava:${rxjava2_version}"
-	implementation "com.google.code.gson:gson:${gson_version}"
-	implementation "org.apache.commons:commons-text:${commons_text_version}"
 	
 	// command line parser
 	api "info.picocli:picocli:${picocli_version}"
+	
+	implementation "commons-io:commons-io:${commons_io_version}"
+	implementation "org.apache.commons:commons-text:${commons_text_version}"
+	implementation "cglib:cglib:${cglib_version}"
 	
 	implementation "junit:junit:${junit_version}"
 	implementation "org.mockito:mockito-core:${mockito_version}"
@@ -79,18 +78,6 @@ publishing {
 }
 
 apply plugin: 'eclipse'
-//eclipse {
-//	classpath {
-//		defaultOutputDir = file('build')
-//		file.whenMerged { cp ->
-//			cp.entries.each { entry ->
-//				if ( entry.kind == 'src' && entry.hasProperty('output') ) {
-//					entry.output = entry.output.replace('bin/', "build/")
-//				}
-//			}
-//		}
-//	}
-//}
 eclipse {
 	classpath {
 		file {
