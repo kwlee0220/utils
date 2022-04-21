@@ -88,10 +88,7 @@ public class DropWhileTest {
 	public void test4() throws Exception {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.dropWhile(i -> { throw new RuntimeException(); });
-		
-		FOption<Integer> r;
-		
-		r = stream.next();
+		stream.next();
 	}
 	
 	@Test(expected=IllegalArgumentException.class)

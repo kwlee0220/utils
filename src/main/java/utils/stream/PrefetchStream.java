@@ -13,7 +13,7 @@ import utils.thread.ExecutorAware;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-class PrefetchStream<T> implements FStream<T>, TimedFStream<T>, ExecutorAware {
+class PrefetchStream<T> implements TimedFStream<T>, ExecutorAware {
 	private final FStream<T> m_src;
 	private final SuppliableFStream<T> m_buffer;
 	private Executor m_executor = null;

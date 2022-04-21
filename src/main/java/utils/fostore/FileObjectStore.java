@@ -24,6 +24,7 @@ import utils.stream.FStream;
  * @author Kang-Woo Lee (ETRI)
  */
 public class FileObjectStore<K,T> {
+	@SuppressWarnings("unused")
     private static final Logger s_logger = LoggerFactory.getLogger(FileObjectStore.class);
     
 	private final File m_rootDir;

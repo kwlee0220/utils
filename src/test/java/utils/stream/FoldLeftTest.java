@@ -46,7 +46,7 @@ public class FoldLeftTest {
 	public void test4() throws Exception {
 		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 
-		String c = stream.foldLeft("", null);
+		stream.foldLeft("", null);
 	}
 
 	@Test(expected=RuntimeException.class)
@@ -54,6 +54,6 @@ public class FoldLeftTest {
 		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		
 		RuntimeException error = new RuntimeException();
-		String c = stream.foldLeft("", (s,t) -> {throw error;});
+		stream.foldLeft("", (s,t) -> {throw error;});
 	}
 }

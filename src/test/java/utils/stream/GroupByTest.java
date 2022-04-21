@@ -16,8 +16,6 @@ import utils.func.KeyValue;
 public class GroupByTest {
 	@Test
 	public void test0() throws Exception {
-		Integer v;
-		
 		IntFStream base = FStream.range(0, 10);
 		FStream<KeyedFStream<Integer,Integer>> groups = base.groupBy(v2 -> v2 % 3);
 		

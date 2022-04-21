@@ -17,7 +17,6 @@ import utils.Throwables;
 import utils.async.ThreadInterruptedException;
 import utils.func.CheckedFunction;
 import utils.func.CheckedFunctionX;
-import utils.func.CheckedPredicateX;
 import utils.func.FOption;
 import utils.func.FailureCase;
 import utils.func.FailureHandler;

@@ -26,7 +26,6 @@ public class SuppliableStreamTest {
 	private SuppliableFStream<Integer> m_stream;
 	private final Exception m_error = new Exception();
 	
-	@SuppressWarnings("unchecked")
 	@Before
 	public void setup() {
 		m_stream = FStream.pipe(3);

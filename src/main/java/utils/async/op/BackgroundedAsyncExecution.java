@@ -26,7 +26,7 @@ import utils.func.Try;
  * @author Kang-Woo Lee (ETRI)
  */
 class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
-									implements StartableExecution<T>, CancellableWork {
+									implements CancellableWork {
 	private static final Logger s_logger = LoggerFactory.getLogger(BackgroundedAsyncExecution.class);
 	
 	private final StartableExecution<T> m_fgAsync;

@@ -31,7 +31,7 @@ public class ReduceTest {
 	public void test2() throws Exception {
 		FStream<Integer> stream = FStream.empty();
 		
-		int sum = stream.reduce((s,t) -> s+t);
+		stream.reduce((s,t) -> s+t);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -46,7 +46,7 @@ public class ReduceTest {
 		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		
 		RuntimeException error = new RuntimeException();
-		String c = stream.reduce((s,t) -> {throw error;});
+		stream.reduce((s,t) -> {throw error;});
 	}
 	
 	@Test

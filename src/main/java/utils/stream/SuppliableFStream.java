@@ -21,7 +21,7 @@ import utils.func.Try;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class SuppliableFStream<T> implements FStream<T>, TimedFStream<T>, Suppliable<T> {
+public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 	private final int m_length;
 	
 	private final ReentrantLock m_lock = new ReentrantLock();

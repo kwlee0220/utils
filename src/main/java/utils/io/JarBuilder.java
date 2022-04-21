@@ -16,7 +16,6 @@ import java.util.jar.JarOutputStream;
  * @author Kang-Woo Lee (ETRI)
  */
 public class JarBuilder {
-	private final File m_jarFile;
 	private final JarOutputStream m_jos;
 	
 	public static JarBuilder builder(File jarFile) throws IOException {
@@ -24,7 +23,6 @@ public class JarBuilder {
 	}
 	
 	private JarBuilder(File jarFile) throws IOException {
-		m_jarFile = jarFile;
 		m_jos = new JarOutputStream(new BufferedOutputStream(new FileOutputStream(jarFile)));
 	}
 	
