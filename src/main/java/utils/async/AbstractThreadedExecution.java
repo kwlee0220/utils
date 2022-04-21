@@ -9,8 +9,7 @@ import utils.Throwables;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecution<T>
-													implements StartableExecution<T> {
+public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecution<T> {
 	/**
 	 * 비동기적으로 수행할 작업을 수행한다.
 	 * <p>
