@@ -33,15 +33,15 @@ dependencies {
 	api "com.google.guava:guava:${guava_version}"
 	
 	// command line parser
-	api "info.picocli:picocli:${picocli_version}"
+	implementation "info.picocli:picocli:${picocli_version}"
 	
 	implementation "commons-io:commons-io:${commons_io_version}"
 	implementation "org.apache.commons:commons-text:${commons_text_version}"
 	implementation "cglib:cglib:${cglib_version}"
 	
-	implementation "junit:junit:${junit_version}"
-	implementation "org.mockito:mockito-core:${mockito_version}"
-	implementation "org.hamcrest:hamcrest-all:${hamcrest_version}"
+	testImplementation "junit:junit:${junit_version}"
+	testImplementation "org.mockito:mockito-core:${mockito_version}"
+	testImplementation "org.hamcrest:hamcrest-all:${hamcrest_version}"
 }
 
 task sourceJar(type: Jar) {
