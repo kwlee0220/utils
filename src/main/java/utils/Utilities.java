@@ -1,6 +1,7 @@
 package utils;
 
 import java.io.File;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -414,13 +415,21 @@ public class Utilities {
 		return null;
 	}
 	
-	public static Object[] concat(Object[] arr1, Object[] arr2) {
-		Object[] concated = new Object[arr1.length + arr2.length];
-		System.arraycopy(arr1, 0, concated, 0, arr1.length);
-		System.arraycopy(arr2, 0, concated, arr1.length, arr2.length);
-		
-		return concated;
+	public static <T> T[] concat(T[] first, T... second) {
+		@SuppressWarnings("unchecked")
+		T[] expanded = (T[])Array.newInstance(second[0].getClass(), first.length + second.length);
+		System.arraycopy(first, 0, expanded, 0, first.length);
+		System.arraycopy(second, 0, expanded, first.length, second.length);
+		return expanded;
 	}
+	
+//	public static Object[] concat(Object[] arr1, Object[] arr2) {
+//		Object[] concated = new Object[arr1.length + arr2.length];
+//		System.arraycopy(arr1, 0, concated, 0, arr1.length);
+//		System.arraycopy(arr2, 0, concated, arr1.length, arr2.length);
+//		
+//		return concated;
+//	}
 	
 	public static int[] concat(int[] arr1, int[] arr2) {
 		int[] concated = new int[arr1.length + arr2.length];
@@ -428,6 +437,13 @@ public class Utilities {
 		System.arraycopy(arr2, 0, concated, arr1.length, arr2.length);
 		
 		return concated;
+	}
+	
+	public static double[] concat(double[] arr1, double... arr2) {
+		double[] expanded = new double[arr1.length + arr2.length];
+		System.arraycopy(arr1, 0, expanded, 0, arr1.length);
+		System.arraycopy(arr2, 0, expanded, arr1.length, arr2.length);
+		return arr2;
 	}
 	
 	public static Tuple<String,String> split(String str, char delim) {
