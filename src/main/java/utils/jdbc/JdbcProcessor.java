@@ -29,7 +29,9 @@ import com.google.common.collect.Maps;
 import utils.CSV;
 import utils.Throwables;
 import utils.func.CheckedConsumerX;
+import utils.func.FOption;
 import utils.stream.FStream;
+import utils.stream.KVFStream;
 
 
 /**
@@ -47,8 +49,8 @@ public class JdbcProcessor implements Serializable {
 	@Nullable private File m_jarFile;
 	@Nullable private ClassLoader m_cloader;
 	
-	public static JdbcProcessor create(String system, String host, int port, String user,
-										String passwd, String dbName) {
+	public static JdbcProcessor create(String system, String host, int port, String user, String passwd,
+										String dbName) {
 		JdbcConnectInfo connInfo = getJdbcConnectInfo(system);
 		
 		Map<String,String> values = Maps.newHashMap();
@@ -58,6 +60,16 @@ public class JdbcProcessor implements Serializable {
 		String jdbcUrl = new StringSubstitutor(values).replace(connInfo.m_urlFormat);
 		
 		return new JdbcProcessor(jdbcUrl, user, passwd, connInfo.m_driverClassName);
+	}
+	
+	public static JdbcProcessor create(String jdbcUrl, String user, String passwd) {
+		FOption<JdbcConnectInfo> oConnInfo = getJdbcConnectInfoByUrl(jdbcUrl);
+		if ( oConnInfo.isPresent() ) {
+			return new JdbcProcessor(jdbcUrl, user, passwd, oConnInfo.get().m_driverClassName);
+		}
+		else {
+			throw new IllegalArgumentException("invalid JdbcUrl: " + jdbcUrl);
+		}
 	}
 	
 	public static String getJdbcDriverClassName(String protocol) {
@@ -369,6 +381,15 @@ public class JdbcProcessor implements Serializable {
 		return connInfo;
 	}
 	
+	private static FOption<JdbcConnectInfo> getJdbcConnectInfoByUrl(String jdbcUrl) {
+		String[] parts = jdbcUrl.split(":");
+		String prefix = String.format("%s:%s", parts[0], parts[1]);
+		return KVFStream.from(JDBC_URLS)
+						.filterValue(info -> info.m_urlFormat.startsWith(prefix))
+						.toValueStream()
+						.findFirst();
+	}
+	
 	private static class JdbcConnectInfo {
 		private String m_urlFormat;
 		private String m_driverClassName;
@@ -376,6 +397,11 @@ public class JdbcProcessor implements Serializable {
 		JdbcConnectInfo(String urlFormat, String driverClassName) {
 			m_urlFormat = urlFormat;
 			m_driverClassName = driverClassName;
+		}
+		
+		@Override
+		public String toString() {
+			return String.format("jdbc_url=%s, driver_class=%s", m_urlFormat, m_driverClassName);
 		}
 	}
 	
@@ -385,8 +411,7 @@ public class JdbcProcessor implements Serializable {
 													"com.mysql.jdbc.Driver"));
 		JDBC_URLS.put("postgresql", new JdbcConnectInfo("jdbc:postgresql://${host}:${port}/${dbname}",
 														"org.postgresql.Driver"));
-		JDBC_URLS.put("h2_remote", new JdbcConnectInfo("jdbc:h2:tcp://${host}:${port}/${dbname}",
-														"org.h2.Driver"));
+		JDBC_URLS.put("h2_remote", new JdbcConnectInfo("jdbc:h2:tcp://${host}:${port}/${dbname}", "org.h2.Driver"));
 		JDBC_URLS.put("h2_local", new JdbcConnectInfo("jdbc:h2:${dbname}", "org.h2.Driver"));
 	}
 }
