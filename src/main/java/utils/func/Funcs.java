@@ -1,11 +1,13 @@
 package utils.func;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
@@ -74,6 +76,18 @@ public class Funcs {
 	
 	public static <T> Set<T> remove(Set<T> set, T elm) {
 		Set<T> removed = Sets.newHashSet(set);
+		removed.remove(elm);
+		return removed;
+	}
+	
+	public static <T> List<T> add(List<T> list, T elm) {
+		List<T> added = Lists.newArrayList(list);
+		added.add(elm);
+		return added;
+	}
+	
+	public static <T> List<T> remove(List<T> list, T elm) {
+		List<T> removed = Lists.newArrayList(list);
 		removed.remove(elm);
 		return removed;
 	}
