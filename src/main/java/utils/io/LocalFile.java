@@ -11,9 +11,12 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.concurrent.locks.LockSupport;
 
 import com.google.common.base.Objects;
+
+import utils.stream.FStream;
 
 /**
  * 
@@ -49,6 +52,11 @@ public class LocalFile implements FileProxy {
 	}
 
 	@Override
+	public boolean exists() {
+		return m_file.exists();
+	}
+
+	@Override
 	public LocalFile getParent() {
 		File parent = m_file.getParentFile();
 		return parent != null ? LocalFile.of(parent) : null;
@@ -65,8 +73,17 @@ public class LocalFile implements FileProxy {
 	}
 
 	@Override
-	public boolean exists() {
-		return m_file.exists();
+	public List<FileProxy> listFiles() {
+		File[] subFiles = m_file.listFiles();
+		if ( subFiles != null ) {
+			return FStream.of(subFiles)
+							.map(file -> LocalFile.of(file))
+							.cast(FileProxy.class)
+							.toList();
+		}
+		else {
+			return null;
+		}
 	}
 
 	@Override
@@ -148,7 +165,7 @@ public class LocalFile implements FileProxy {
     }
 
 	@Override
-	public LocalFile newFile(String path) {
+	public LocalFile proxy(String path) {
 		return LocalFile.of(new File(path));
 	}
 
