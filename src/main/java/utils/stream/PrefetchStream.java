@@ -2,7 +2,6 @@ package utils.stream;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import utils.Utilities;
 import utils.func.FOption;
@@ -15,18 +14,17 @@ import utils.thread.ExecutorAware;
  */
 class PrefetchStream<T> implements TimedFStream<T>, ExecutorAware {
 	private final FStream<T> m_src;
-	private final SuppliableFStream<T> m_buffer;
+	private final SuppliableFStream<Try<T>> m_buffer;
 	private Executor m_executor = null;
-	private AtomicBoolean m_prefetching = new AtomicBoolean(false);
 	
 	PrefetchStream(FStream<T> src, int prefetchSize) {
 		m_src = src;
 		m_buffer = new SuppliableFStream<>(prefetchSize);
+		Utilities.runAsync(m_executor, m_prefetcher);
 	}
 	
 	PrefetchStream(FStream<T> src) {
-		m_src = src;
-		m_buffer = new SuppliableFStream<>();
+		this(src, Integer.MAX_VALUE);
 	}
 	
 	@Override
@@ -55,32 +53,45 @@ class PrefetchStream<T> implements TimedFStream<T>, ExecutorAware {
 	
 	@Override
 	public FOption<T> next() {
-		if ( m_buffer.emptySlots() >= m_buffer.capacity()/2
-			&& m_prefetching.compareAndSet(false, true) ) {
-			Utilities.runAsync(m_executor, m_prefetcher);
-		}
-		
-		return m_buffer.next();
+		return m_buffer.next().map(t -> t.get());
 	}
 
 	@Override
 	public FOption<Try<T>> next(long timeout, TimeUnit tu) {
-		if ( m_buffer.emptySlots() >= m_buffer.capacity()/2
-			&& m_prefetching.compareAndSet(false, true) ) {
-			Utilities.runAsync(m_executor, m_prefetcher);
-		}
-
-		return m_buffer.next(timeout, tu);
+		FOption<Try<Try<T>>> oret = m_buffer.next(timeout, tu);
+		return oret.map(t -> {
+			if ( t.isFailure() ) {
+				return Try.failure(t.getCause());
+			}
+			else {
+				return t.get();
+			}
+		});
+	}
+	
+	@Override
+	public String toString() {
+		return m_buffer.toString();
 	}
 	
 	private final Runnable m_prefetcher = new Runnable() {
 		@Override
 		public void run() {
-			while ( m_buffer.capacity()-m_buffer.size() > 0
-					&& m_src.next().ifPresent(m_buffer::supply)
-									.ifAbsent(m_buffer::closeQuietly)
-									.isPresent() );
-			m_prefetching.set(false);
+			while ( true ) {
+				FOption<T> onext;
+				try {
+					onext = m_src.next();
+					if ( onext.isPresent() ) {
+						m_buffer.supply(Try.success(onext.get()));
+					}
+					else {
+						break;
+					}
+				}
+				catch ( Exception e ) {
+					m_buffer.supply(Try.failure(e));
+				}
+			}
 		}
 	};
 }

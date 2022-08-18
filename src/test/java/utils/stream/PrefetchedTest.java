@@ -30,20 +30,20 @@ public class PrefetchedTest {
 		elapsed = System.currentTimeMillis() - started;
 		Assert.assertTrue(elapsed >= 90 && elapsed < 150);
 		
-		MILLISECONDS.sleep(300);
+		MILLISECONDS.sleep(400);
 		Assert.assertEquals(true, strm.available());
 		
 		for ( int i =1; i < 4; ++i ) {
 			started = System.currentTimeMillis();
 			Assert.assertEquals(Integer.valueOf(i), strm.next().getOrNull());
 			elapsed = System.currentTimeMillis() - started;
-			Assert.assertTrue(elapsed <= 10);
+			Assert.assertTrue(elapsed <= 20);
 		}
 		
 		started = System.currentTimeMillis();
 		Assert.assertEquals(Integer.valueOf(4), strm.next().getOrNull());
 		elapsed = System.currentTimeMillis() - started;
-		Assert.assertTrue(elapsed >= 80 && elapsed < 120);
+		Assert.assertTrue(elapsed < 80);
 	}
 	
 	@Test
@@ -57,7 +57,7 @@ public class PrefetchedTest {
 		Assert.assertTrue(r.get().isFailure());
 		Assert.assertEquals(TimeoutException.class, r.get().getCause().getClass());
 
-		MILLISECONDS.sleep(300);
+		MILLISECONDS.sleep(500);
 		
 		for ( int i =0; i < 3; ++i ) {
 			long started = System.currentTimeMillis();
