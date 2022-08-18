@@ -294,6 +294,6 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 	
 	@Override
 	public String toString() {
-		return String.format("%s[nbuffer=%d]", getClass().getSimpleName(), m_buffer.size());
+		return String.format("%s[nbuffer=%d]: %s", getClass().getSimpleName(), m_buffer.size(), m_buffer);
 	}
 }
