@@ -30,9 +30,9 @@ public class MultiWorkerExecutorTest {
 	
 	@Test
 	public void test0() throws Exception {
-		m_executor.submit(() -> { MILLISECONDS.sleep(30); return 0; });
+		m_executor.submit(() -> { MILLISECONDS.sleep(300); return 0; });
 		m_executor.submit(() -> { return 1; });
-		m_executor.submit(() -> { MILLISECONDS.sleep(30); return 2; });
+		m_executor.submit(() -> { MILLISECONDS.sleep(100); return 2; });
 		
 		FOption<Try<Integer>> ret;
 		
@@ -40,10 +40,10 @@ public class MultiWorkerExecutorTest {
 		Assert.assertEquals(1, (int)ret.get().get());
 		
 		ret = m_executor.next();
-		Assert.assertEquals(0, (int)ret.get().get());
+		Assert.assertEquals(2, (int)ret.get().get());
 		
 		ret = m_executor.next();
-		Assert.assertEquals(2, (int)ret.get().get());
+		Assert.assertEquals(0, (int)ret.get().get());
 		
 		ret = m_executor.next(10, MILLISECONDS);
 		Assert.assertEquals(TimeoutException.class, ret.get().getCause().getClass());
@@ -55,9 +55,10 @@ public class MultiWorkerExecutorTest {
 	
 	@Test
 	public void test1() throws Exception {
-		m_executor.submit(() -> { MILLISECONDS.sleep(30); return 0; });
+		m_executor.submit(() -> { MILLISECONDS.sleep(100); return 0; });
 		m_executor.submit(() -> { throw new IllegalStateException(); });
-		m_executor.submit(() -> { MILLISECONDS.sleep(30); return 2; });
+		Thread.sleep(200);
+		m_executor.submit(() -> { MILLISECONDS.sleep(100); return 2; });
 		
 		FOption<Try<Integer>> ret;
 		Try<Integer> trial;
