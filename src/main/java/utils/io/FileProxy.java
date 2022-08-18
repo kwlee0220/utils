@@ -47,15 +47,15 @@ public interface FileProxy {
 	 * @return	존재하는 경우에는 {@code true}, 그렇지 않은 경우는 {@code false}.
 	 * @throws IOException	I/O 오류가 발생된 경우.
 	 */
-	public boolean exists() throws IOException;
+	public boolean exists();
 	
 	/**
 	 * 본 파일의 디렉토리 여부를 반환한다.
 	 *
-	 * @return	디렉토리 여부
-	 * @throws IOException	I/O 오류가 발생된 경우.
+	 * @return	본 proxy에 해당하는 파일이 디렉토리인 경우는 {@code true},
+	 * 			그렇지 않은 경우는 {@code false}가 반환됨.
 	 */
-	public boolean isDirectory() throws IOException;
+	public boolean isDirectory();
 	
 	/**
 	 * Parent 파일 객체를 반환한다.
@@ -95,9 +95,9 @@ public interface FileProxy {
 	/**
 	 * 현 파일 proxy에 해당하는 파일을 삭제한다.
 	 *
-	 * @throws IOException	I/O 오류가 발생된 경우.
+	 * @return	대상 파일이 삭제된 경우는 {@code true}, 그렇지 않은 경우에는 {@code false}.
 	 */
-	public void delete() throws IOException;
+	public boolean delete();
 	
 	public default void deleteUpward() throws IOException {
 		delete();
@@ -124,9 +124,11 @@ public interface FileProxy {
 	/**
 	 * 현 파일 proxy에 해당하는 디렉토리를 생성한다.
 	 *
+	 * @return	본 메소드로 디렉토리가 생성된 경우는 {@code true}가 반환되고,
+	 * 			그렇지 않으면 {@code false} 반환됨.
 	 * @throws IOException	I/O 오류가 발생된 경우.
 	 */
-	public void mkdir() throws IOException;
+	public boolean mkdirs();
 	
 	/**
 	 * 현 파일 proxy에 해당하는 파일의 길이를 byte 단위로 반환한다.

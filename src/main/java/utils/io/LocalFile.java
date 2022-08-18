@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -68,7 +67,7 @@ public class LocalFile implements FileProxy {
 	}
 
 	@Override
-	public boolean isDirectory() throws IOException {
+	public boolean isDirectory() {
 		return m_file.isDirectory();
 	}
 
@@ -87,10 +86,8 @@ public class LocalFile implements FileProxy {
 	}
 
 	@Override
-	public void delete() throws IOException {
-		if ( !m_file.delete() ) {
-			throw new IOException("fails to delete file: " + this);
-		}
+	public boolean delete() {
+		return m_file.delete();
 	}
 
 	@Override
@@ -104,6 +101,9 @@ public class LocalFile implements FileProxy {
 		}
 		LocalFile dst = (LocalFile)dstFile;
 		
+		FileProxy parent = dstFile.getParent();
+		parent.mkdirs();
+		
 		if ( replaceExisting ) {
 	        Files.move(m_file.toPath(), dst.m_file.toPath(), StandardCopyOption.REPLACE_EXISTING);
 		}
@@ -116,24 +116,22 @@ public class LocalFile implements FileProxy {
 	}
 
 	@Override
-	public void mkdir() throws IOException {
+	public boolean mkdirs() {
 		if ( exists() ) {
-			throw new FileAlreadyExistsException("already exists: file=" + m_file);
+			return false;
 		}
 		
 		LocalFile parent = getParent();
 		if ( parent != null ) {
 			if ( !parent.exists() ) {
-				parent.mkdir();
+				parent.mkdirs();
 			}
 			else if ( !parent.isDirectory() ) {
-				throw new IOException("the parent file is not a directory");
+				return false;
 			}
 		}
 		
-		if ( !m_file.mkdir() ) {
-			throw new IOException("fails to create a directory: " + m_file);
-		}
+		return m_file.mkdir();
 	}
 
 	@Override
@@ -176,6 +174,11 @@ public class LocalFile implements FileProxy {
 
 	@Override
 	public FileOutputStream openOutputStream(boolean append) throws IOException {
+		FileProxy parent = getParent();
+		if ( parent != null ) {
+			parent.mkdirs();
+		}
+		
 		return new FileOutputStream(m_file, append);
 	}
 	
