@@ -334,12 +334,31 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		}
 	}
 	
+	/**
+	 *  {@code mapper}에 따라 본 스트림을 변환시킨다. 동작 방식은 filter와 map을 통합된
+	 *  방식으로 동작한다.
+	 *  {@code mapper}에 각 데이터를 적용할 때 {@link FOption#empty()}인 경우 filter-out되고,
+	 *  그렇지 않은 경우는 적용 결과에 {@link FOption#get()}를 적용한 값으로 변환시킨다.
+	 *
+	 * @param <S>		맵 적용 결과 타입.
+	 * @param mapper	스트림의 각 데이터에 적용할 맵퍼 객체
+	 * @return	맵퍼가 적용된 스트림 객체
+	 */
 	public default <S> FStream<S> filterMap(Function<? super T,FOption<S>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return new FilteredMapStream<>(this, mapper);
 	}
 	
+	/**
+	 * 스트림에 속한 각 데이터에 대해 {@code pred}를 적용한 결과에 따라 선택적으로
+	 * mapper을 적용한 결과로 구성된 출력 스트림을 생성한다.
+	 *
+	 * @param pred	{@code mapper} 적용 여부를 결정할 predicate
+	 * @param mapper	적용할 mapper.
+	 * @return	{@code pred}을 적용하여 {@code true}인 element에 대해서만 {@code mapper}을
+	 * 			적용한 결과 스트림.
+	 */
 	public default FStream<T> mapSelectively(Predicate<T> pred, Function<T,T> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 		
