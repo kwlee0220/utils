@@ -11,10 +11,10 @@ import utils.Utilities;
  */
 public class UncheckedFunction<T,S> implements Function<T,S> {
 	private final CheckedFunction<? super T, ? extends S> m_checked;
-	private final FailureHandler<? extends S> m_handler;
+	private final FailureHandler<S> m_handler;
 	
 	UncheckedFunction(CheckedFunction<? super T, ? extends S> checked,
-						FailureHandler<? extends S> handler) {
+						FailureHandler<S> handler) {
 		Utilities.checkNotNullArgument(checked, "CheckedFunction is null");
 		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
 		
@@ -28,13 +28,13 @@ public class UncheckedFunction<T,S> implements Function<T,S> {
 			return m_checked.apply(t);
 		}
 		catch ( Throwable e ) {
-			m_handler.handle(new FailureCase<>(null, e));
+			m_handler.handle(new FailureCase<>((S)null, e));
 			throw new AssertionError("Should not be here");
 		}
 	}
 
 	public static <T,S> UncheckedFunction<T,S> lift(CheckedFunction<? super T, ? extends S> checked,
-													FailureHandler<? extends S> handler) {
+													FailureHandler<S> handler) {
 		return new UncheckedFunction<>(checked, handler);
 	}
 

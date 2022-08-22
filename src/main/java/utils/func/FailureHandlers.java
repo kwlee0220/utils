@@ -16,14 +16,14 @@ public class FailureHandlers {
 	public static <T> FailureHandler<T> ignoreHandler() {
 		return new FailureHandler<T>() {
 			@Override
-			public void handle(FailureCase<T> fcase) { }
+			public void handle(FailureCase<? extends T> fcase) { }
 		};
 	}
 	
 	public static <T> FailureHandler<T> sneakyThrowHandler() {
 		return new FailureHandler<T>() {
 			@Override
-			public void handle(FailureCase<T> fcase) {
+			public void handle(FailureCase<? extends T> fcase) {
 				Throwables.sneakyThrow(fcase.getCause());
 			}
 		};
@@ -33,7 +33,7 @@ public class FailureHandlers {
 		private long m_count = 0;
 
 		@Override
-		public void handle(FailureCase<T> fcase) {
+		public void handle(FailureCase<? extends T> fcase) {
 			++m_count;
 		}
 		
@@ -46,24 +46,25 @@ public class FailureHandlers {
 	}
 
 	public static class CollectingErrorHandler<T> implements FailureHandler<T> {
-		private final List<FailureCase<T>> m_fcases;
+		private final List<FailureCase<? extends T>> m_fcases;
 		
 		public CollectingErrorHandler() {
 			m_fcases = new ArrayList<>();
 		}
 		
-		public CollectingErrorHandler(List<FailureCase<T>> store) {
+		public CollectingErrorHandler(List<FailureCase<? extends T>> store) {
 			Utilities.checkNotNullArgument(store, "store is null");
 			m_fcases = store;
 		}
 
 		@Override
-		public void handle(FailureCase<T> fcase) {
+		public void handle(FailureCase<? extends T> fcase) {
 			Utilities.checkNotNullArgument(fcase, "FailureCase is null");
+			
 			m_fcases.add(fcase);
 		}
 		
-		public List<FailureCase<T>> getFailureCases() {
+		public List<FailureCase<? extends T>> getFailureCases() {
 			return Collections.unmodifiableList(m_fcases);
 		}
 	}
@@ -71,7 +72,7 @@ public class FailureHandlers {
 		return new CollectingErrorHandler<>();
 	}
 	
-	public static <T> CollectingErrorHandler<T> collectHandler(List<FailureCase<T>> store) {
+	public static <T> CollectingErrorHandler<T> collectHandler(List<FailureCase<? extends T>> store) {
 		return new CollectingErrorHandler<>(store);
 	}
 }
