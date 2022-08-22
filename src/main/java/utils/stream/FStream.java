@@ -38,7 +38,8 @@ import utils.func.FailureHandler;
 import utils.func.KeyValue;
 import utils.func.Try;
 import utils.func.Tuple;
-import utils.func.Unchecked;
+import utils.func.FailureHandlers;
+import utils.func.UncheckedConsumer;
 import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.FilteredMapStream;
@@ -190,6 +191,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new SuppliableFStream<>(length);
 	}
 	
+	/**
+	 * 무한 길이의 버퍼를 사용하는 {@link SuppliableFStream} 객체를 생성한다.
+	 * 
+	 * @param <T>	생성된 스트림 데이터의 타입
+	 * @return SuppliableFStream 객체
+	 */
+	public static <T> SuppliableFStream<T> pipe() {
+		return new SuppliableFStream<>();
+	}
+	
 	public static IntFStream range(int start, int end) {
 		return new IntFStream.RangedStream(start, end, false);
 	}
@@ -258,6 +269,9 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			}
 		};
 	}
+	public default FStream<T> filterNot(final Predicate<? super T> pred) {
+		return filter(pred.negate());
+	}
 	
 	/**
 	 * 본 스트림에 포함된 각 데이터에서 변화된 데이터로 구성된 스트림을 생성한다.
@@ -296,7 +310,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return FStream 객체
 	 */
 	public default <S> FStream<S> mapOrIgnore(CheckedFunction<? super T,? extends S> mapper) {
-		return new MapOrHandleStream<>(this, mapper, Unchecked.ignore());
+		return new MapOrHandleStream<>(this, mapper, FailureHandlers.ignoreHandler());
 	}
 	
 	/**
@@ -397,11 +411,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param handler	오류 처리 객체
 	 */
 	public default void forEachOrHandle(CheckedConsumer<? super T> effect,
-										FailureHandler<? super T> handler) {
-		checkNotNullArgument(effect, "effect is null");
-		checkNotNullArgument(handler, "handler is null");
-		
-		forEach(Unchecked.lift(effect, handler));
+										FailureHandler<Void> handler) {
+		forEach(UncheckedConsumer.lift(effect, handler));
 	}
 	
 	/**
@@ -413,7 +424,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param effect	Consumer 객체.
 	 */
 	public default void forEachOrIgnore(CheckedConsumer<? super T> effect) {
-		forEachOrHandle(effect, Unchecked.ignore());
+		forEachOrHandle(effect, FailureHandlers.ignoreHandler());
 	}
 	
 	/**

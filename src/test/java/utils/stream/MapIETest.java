@@ -12,8 +12,8 @@ import com.google.common.collect.Lists;
 import utils.func.CheckedFunction;
 import utils.func.FOption;
 import utils.func.FailureCase;
-import utils.func.Unchecked;
-import utils.func.Unchecked.CollectingErrorHandler;
+import utils.func.FailureHandlers;
+import utils.func.FailureHandlers.CollectingErrorHandler;
 
 /**
  * 
@@ -74,8 +74,6 @@ public class MapIETest {
 											throw new Exception("" + i);
 										});
 		
-		FOption<Integer> r;
-		
 		List<Integer> list = stream.toList();
 		Assert.assertEquals(Lists.newArrayList(0, 2, 4, 6, 8), list);
 	}
@@ -85,9 +83,7 @@ public class MapIETest {
 		CheckedFunction<Integer,Integer> func
 			= i -> { if (i%2 == 0) { return i; } throw  new Exception("" + i); };
 		List<FailureCase<Integer>> faileds = Lists.newArrayList();
-		CollectingErrorHandler<Integer> handler = Unchecked.collect(faileds);
-		
-		FOption<Integer> r;
+		CollectingErrorHandler<Integer> handler = FailureHandlers.collectHandler(faileds);
 		
 		List<Integer> list = FStream.range(0, 10).mapOrHandle(func, handler).toList();
 		Assert.assertEquals(Lists.newArrayList(0, 2, 4, 6, 8), list);

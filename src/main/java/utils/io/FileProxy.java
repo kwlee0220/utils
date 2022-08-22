@@ -9,8 +9,8 @@ import java.io.OutputStream;
 import java.util.List;
 import java.util.function.Function;
 
-import utils.func.CheckedPredicate;
-import utils.func.Unchecked;
+import utils.func.UncheckedFunction;
+import utils.func.UncheckedPredicate;
 import utils.stream.FStream;
 
 /**
@@ -159,14 +159,8 @@ public interface FileProxy {
 
 	public default FStream<FileProxy> walkTree(boolean includeCurrent) throws IOException {
 		Function<FileProxy,FStream<FileProxy>> walkDown
-			= Unchecked.sneakyThrow((FileProxy fp) ->  {
-										if ( fp.isDirectory() ) {
-											return fp.walkTree(includeCurrent);
-										}
-										else {
-											return FStream.of(fp);
-										}
-									});
+			= UncheckedFunction.sneakyThrow(fp ->  fp.isDirectory() ? fp.walkTree(includeCurrent)
+																	: FStream.of(fp));
 		FStream<FileProxy> descendents = FStream.from(listFiles())
 												.flatMap(walkDown);
 		if ( includeCurrent ) {
@@ -178,7 +172,6 @@ public interface FileProxy {
 	}
 	
 	public default FStream<FileProxy> walkRegularFileTree() throws IOException {
-		CheckedPredicate<FileProxy> isRegularFile = fp -> !fp.isDirectory(); 
-		return walkTree(false).filter(Unchecked.sneakyThrow(isRegularFile));
+		return walkTree(false).filterNot(UncheckedPredicate.sneakyThrow(FileProxy::isDirectory));
 	}
 }

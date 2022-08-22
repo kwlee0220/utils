@@ -1,314 +1,93 @@
 package utils.func;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-
-import utils.Throwables;
-import utils.Utilities;
-
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public class Unchecked {
-	public static <T> FailureHandler<T> ignore() {
-		return new IgnoreFailure<>();
+	public static void runOrIgnore(CheckedRunnable checked) {
+		UncheckedRunnable.ignore(checked).run();
 	}
-	public static <T> FailureHandler<T> throwSneakily() {
-		return new ThrowFailureSneakily<>();
-	}
-	
-	public static <T> CountingErrorHandler<T> count() {
-		return new CountingErrorHandler<>();
-	}
-	
-	public static <T> CollectingErrorHandler<T> collect() {
-		return new CollectingErrorHandler<>();
-	}
-	
-	public static <T> CollectingErrorHandler<T> collect(List<FailureCase<T>> store) {
-		return new CollectingErrorHandler<>(store);
-	}
-	
-// ******************************************************************************
-// ****************************** Runnable **************************************
-// ******************************************************************************
-	
-	public static Runnable lift(CheckedRunnable checked, FailureHandler<Void> handler) {
-		return new UncheckedRunnable<>(checked, handler);
-	}
-	
-	public static <T> Runnable ignore(CheckedRunnable checked) {
-		return lift(checked, ignore());
-	}
-	
-	public static <T> Runnable sneakyThrow(CheckedRunnable checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
-		
-		return () -> {
-			try {
-				checked.run();
-			}
-			catch ( Throwable e ) {
-				Throwables.sneakyThrow(e);
-				throw new AssertionError("Should not be here");
-			}
-		};
-	}
-	
-	public static boolean runQuietly(CheckedRunnable checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
-		
-		try {
-			checked.run();
-			return true;
-		}
-		catch ( Throwable e ) {
-			return false;
-		}
-	}
-	
 	public static void runOrThrowSneakily(CheckedRunnable checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
-		
-		try {
-			checked.run();
-		}
-		catch ( Throwable e ) {
-			Throwables.sneakyThrow(e);
-			throw new AssertionError("Should not be here");
-		}
+		checked.tryRun().get();
 	}
-	
-	private static class UncheckedRunnable<R> implements Runnable {
-		private final CheckedRunnable m_checked;
-		private final FailureHandler<Void> m_handler;
-		
-		UncheckedRunnable(CheckedRunnable checked, FailureHandler<Void> handler) {
-			m_checked = checked;
-			m_handler = handler;
-		}
-
-		@Override
-		public void run() {
-			try {
-				m_checked.run();
+	public static void runOrRTE(CheckedRunnable checked) {
+		checked.tryRun().mapFailure(cause -> {
+			if ( cause instanceof RuntimeException ) {
+				return (RuntimeException)cause;
 			}
-			catch ( Throwable e ) {
-				m_handler.handle(new FailureCase<>(null, e));
+			else {
+				return new RuntimeException(cause);
 			}
-		}
+		}).get();
 	}
-	
 
-// ******************************************************************************
-// ****************************** Consumer **************************************
-// ******************************************************************************
-	
-	public static <T> Consumer<T> ignore(CheckedConsumer<T> checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedConsumer is null");
-		
-		return new UncheckedConsumer<>(checked, ignore());
+	public static <T> void acceptOrIgnore(CheckedConsumer<? super T> checked, T data) {
+		UncheckedConsumer.ignore(checked).accept(data);
 	}
-	
-	public static <T> Consumer<T> sneakyThrow(CheckedConsumer<T> checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedConsumer is null");
-		
-		return (data) -> {
-			try {
-				checked.accept(data);
+	public static <T> void acceptOrThrowSneakily(CheckedConsumer<? super T> checked, T data) {
+		checked.tryAccept(data).get();
+	}
+	public static <T> void acceptOrRTE(CheckedConsumer<? super T> checked, T data) {
+		checked.tryAccept(data).mapFailure(cause -> {
+			if ( cause instanceof RuntimeException ) {
+				return (RuntimeException)cause;
 			}
-			catch ( Throwable e ) {
-				Throwables.sneakyThrow(Throwables.unwrapThrowable(e));
+			else {
+				return new RuntimeException(cause);
 			}
-		};
+		}).get();
 	}
-	
-	public static <T> Consumer<T> lift(CheckedConsumer<? super T> checked,
-										FailureHandler<? super T> handler) {
-		return new UncheckedConsumer<>(checked, handler);
-	}
-	
-	private static class UncheckedConsumer<T,R> implements Consumer<T> {
-		private final CheckedConsumer<? super T> m_checked;
-		private final FailureHandler<? super T> m_handler;
-		
-		UncheckedConsumer(CheckedConsumer<? super T> checked, FailureHandler<? super T> handler) {
-			m_checked = checked;
-			m_handler = handler;
-		}
 
-		@Override
-		public void accept(T data) {
-			try {
-				m_checked.accept(data);
+	public static <T> T getOrIgnore(CheckedSupplier<? extends T> checked) {
+		return UncheckedSupplier.ignore(checked).get();
+	}
+	public static <T> T getOrThrowSneakily(CheckedSupplier<? extends T> checked) {
+		return checked.tryGet().get();
+	}
+	public static <T> T getOrRTE(CheckedSupplier<? extends T> checked) {
+		return checked.tryGet().mapFailure(cause -> {
+			if ( cause instanceof RuntimeException ) {
+				return (RuntimeException)cause;
 			}
-			catch ( Throwable e ) {
-				m_handler.handle(new FailureCase<>(data, e));
+			else {
+				return new RuntimeException(cause);
 			}
-		}
+		}).get();
 	}
-	
 
-// ******************************************************************************
-// ****************************** Supplier **************************************
-// ******************************************************************************
-	
-	public static <T, X extends Throwable> T getOrThrow(CheckedSupplierX<T,X> checked) throws X {
-		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
-		
-		try {
-			return checked.get();
-		}
-		catch ( Throwable e ) {
-			Throwables.sneakyThrow(e);
-			throw new AssertionError("Should not be here");
-		}
+	public static <T,R> R applyOrIgnore(CheckedFunction<? super T, ? extends R> checked, T input) {
+		return UncheckedFunction.ignore(checked).apply(input);
 	}
-	
-	public static <T> T getOrThrowRuntimeException(CheckedSupplier<T> checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
-		
-		try {
-			return checked.get();
-		}
-		catch ( Throwable e ) {
-			Throwable cause = Throwables.unwrapThrowable(e);
-			throw Throwables.toRuntimeException(cause);
-		}
+	public static <T,R> R applyOrThrowSneakily(CheckedFunction<? super T, ? extends R> checked, T input) {
+		return checked.tryApply(input).get();
 	}
-	
-	public static <T> T getOrThrowSneakily(CheckedSupplier<T> checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
-		
-		try {
-			return checked.get();
-		}
-		catch ( Throwable e ) {
-			Throwables.sneakyThrow(e);
-			throw new AssertionError("Should not be here");
-		}
-	}
-	
-	public static <T> Supplier<T> lift(CheckedSupplier<? extends T> checked) {
-		return new UncheckedSupplier<>(checked);
-	}
-	
-	private static class UncheckedSupplier<T,R> implements Supplier<T> {
-		private final CheckedSupplier<? extends T> m_checked;
-		
-		UncheckedSupplier(CheckedSupplier<? extends T> checked) {
-			m_checked = checked;
-		}
-
-		@Override
-		public T get() {
-			try {
-				return m_checked.get();
+	public static <T,R> R applyOrRTE(CheckedFunction<? super T, ? extends R> checked, T input) {
+		return checked.tryApply(input).mapFailure(cause -> {
+			if ( cause instanceof RuntimeException ) {
+				return (RuntimeException)cause;
 			}
-			catch ( Throwable e ) {
-				Throwables.sneakyThrow(e);
-				throw new AssertionError("Should not be here: class=" + getClass());
+			else {
+				return new RuntimeException(cause);
 			}
-		}
+		}).get();
 	}
 
-
-// ******************************************************************************
-// ****************************** Function **************************************
-// ******************************************************************************
-	
-	public static <T,S> Function<T,S> sneakyThrow(CheckedFunction<T,S> checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedFunction is null");
-		
-		return (data) -> {
-			try {
-				return checked.apply(data);
+	public static<T> boolean testOrIgnore(CheckedPredicate<? super T> checked, T input) {
+		return UncheckedPredicate.ignore(checked).test(input);
+	}
+	public static <T> boolean testOrThrowSneakily(CheckedPredicate<? super T> checked, T input) {
+		return checked.tryTest(input).get();
+	}
+	public static <T> boolean testOrRTE(CheckedPredicate<? super T> checked, T input) {
+		return checked.tryTest(input).mapFailure(cause -> {
+			if ( cause instanceof RuntimeException ) {
+				return (RuntimeException)cause;
 			}
-			catch ( Throwable e ) {
-				Throwables.sneakyThrow(e);
-				return null;
+			else {
+				return new RuntimeException(cause);
 			}
-		};
-	}
-	
-	
-// ******************************************************************************
-// ****************************** Predicate *************************************
-// ******************************************************************************
-	
-	public static <T,S> Predicate<T> sneakyThrow(CheckedPredicate<T> checked) {
-		Utilities.checkNotNullArgument(checked, "CheckedFunction is null");
-		
-		return (data) -> {
-			try {
-				return checked.test(data);
-			}
-			catch ( Throwable e ) {
-				Throwables.sneakyThrow(e);
-				return false;
-			}
-		};
-	}
-	
-
-
-
-// ******************************************************************************
-// ******************************************************************************
-// ******************************************************************************
-	
-	private static class IgnoreFailure<T> implements FailureHandler<T> {
-		@Override
-		public void handle(FailureCase<T> fcase) { }
-	}
-	
-	private static class ThrowFailureSneakily<T> implements FailureHandler<T> {
-		@Override
-		public void handle(FailureCase<T> fcase) {
-			Throwables.sneakyThrow(fcase.getCause());
-		}
-	}
-	
-	public static class CollectingErrorHandler<T> implements FailureHandler<T> {
-		private final List<FailureCase<T>> m_fcases;
-		
-		public CollectingErrorHandler() {
-			m_fcases = new ArrayList<>();
-		}
-		
-		public CollectingErrorHandler(List<FailureCase<T>> store) {
-			Utilities.checkNotNullArgument(store, "store is null");
-			m_fcases = store;
-		}
-
-		@Override
-		public void handle(FailureCase<T> fcase) {
-			Utilities.checkNotNullArgument(fcase, "FailureCase is null");
-			m_fcases.add(fcase);
-		}
-		
-		public List<FailureCase<T>> getFailureCases() {
-			return Collections.unmodifiableList(m_fcases);
-		}
-	}
-
-	public static class CountingErrorHandler<T> implements FailureHandler<T> {
-		private long m_count = 0;
-
-		@Override
-		public void handle(FailureCase<T> fcase) {
-			++m_count;
-		}
-		
-		public long getErrorCount() {
-			return m_count;
-		}
+		}).get();
 	}
 }

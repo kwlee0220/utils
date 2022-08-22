@@ -10,7 +10,8 @@ import org.junit.Test;
 import utils.func.CheckedConsumer;
 import utils.func.CheckedRunnable;
 import utils.func.CheckedSupplierX;
-import utils.func.Unchecked;
+import utils.func.UncheckedConsumer;
+import utils.func.UncheckedRunnable;
 
 /**
  * 
@@ -30,7 +31,7 @@ public class UncheckedTest {
 		};
 		
 		m_result = INIT;
-		Runnable r = Unchecked.ignore(cr);
+		Runnable r = UncheckedRunnable.ignore(cr);
 		Assert.assertEquals(INIT, m_result);
 		r.run();
 		Assert.assertEquals(FAILED, m_result);
@@ -45,12 +46,12 @@ public class UncheckedTest {
 		};
 
 		m_result = INIT;
-		Unchecked.sneakyThrow(cr0).run();;
+		UncheckedRunnable.sneakyThrow(cr0).run();
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
 		try {
-			Unchecked.sneakyThrow(cr1).run();
+			UncheckedRunnable.sneakyThrow(cr1).run();
 			Assert.fail();
 		}
 		catch ( Exception e ) {
@@ -64,11 +65,11 @@ public class UncheckedTest {
 		CheckedSupplierX<String,IOException> cr0 = () -> { return COMPLETED; };
 		CheckedSupplierX<String,IOException> cr1 = () -> { throw new IOException("xxx"); };
 		
-		String ret0 = Unchecked.getOrThrow(cr0);
+		String ret0 = cr0.get();
 		Assert.assertEquals(COMPLETED, ret0);
 		
 		try {
-			Unchecked.getOrThrow(cr1);
+			cr1.get();
 			Assert.fail();
 		}
 		catch ( IOException e ) { }
@@ -80,7 +81,7 @@ public class UncheckedTest {
 			m_result = t;
 		};
 		m_result = INIT;
-		Consumer<String> ret0 = Unchecked.ignore(cr0);
+		Consumer<String> ret0 = UncheckedConsumer.ignore(cr0);
 		Assert.assertEquals(INIT, m_result);
 		
 		ret0.accept(COMPLETED);
@@ -91,7 +92,7 @@ public class UncheckedTest {
 			throw new IOException("xxx");
 		};
 		m_result = INIT;
-		Consumer<String> ret1 = Unchecked.ignore(cr1);
+		Consumer<String> ret1 = UncheckedConsumer.ignore(cr1);
 		Assert.assertEquals(INIT, m_result);
 
 		ret1.accept(COMPLETED);
@@ -104,7 +105,7 @@ public class UncheckedTest {
 			m_result = t;
 		};
 		m_result = INIT;
-		Consumer<String> ret0 = Unchecked.sneakyThrow(cr0);
+		Consumer<String> ret0 = UncheckedConsumer.sneakyThrow(cr0);
 		Assert.assertEquals(INIT, m_result);
 		
 		ret0.accept(COMPLETED);
@@ -115,7 +116,7 @@ public class UncheckedTest {
 			throw new IOException("xxx");
 		};
 		m_result = INIT;
-		Consumer<String> ret1 = Unchecked.sneakyThrow(cr1);
+		Consumer<String> ret1 = UncheckedConsumer.sneakyThrow(cr1);
 		Assert.assertEquals(INIT, m_result);
 		
 		try {
