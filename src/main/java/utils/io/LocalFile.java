@@ -46,6 +46,11 @@ public class LocalFile implements FileProxy {
 	}
 
 	@Override
+	public String getPath() {
+		return m_file.getPath();
+	}
+
+	@Override
 	public String getAbsolutePath() {
 		return m_file.getAbsolutePath();
 	}

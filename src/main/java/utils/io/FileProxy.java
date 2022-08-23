@@ -27,6 +27,13 @@ public interface FileProxy {
 	public String getName();
 	
 	/**
+	 * 본 파일의 경로를 반환한다.
+	 * 
+	 * @return	파일 경로명.
+	 */
+	public String getPath();
+	
+	/**
 	 * 본 파일의 절대 경로를 반환한다.
 	 *
 	 * @return 절대 경로.
