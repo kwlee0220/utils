@@ -14,6 +14,14 @@ public class LocalDateTimes {
 		throw new AssertionError("should not be called: " + getClass());
 	}
 	
+	public static LocalDateTime fromInstant(Instant instant, ZoneId zoneId) {
+        return LocalDateTime.ofInstant(instant, zoneId);
+	}
+	
+	public static LocalDateTime fromInstant(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+	}
+	
 	public static long toEpochMillis(LocalDateTime ldt) {
 		return ldt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
 	}
