@@ -295,7 +295,7 @@ public class IOUtils {
 		}
 		
 		@Override
-		public Long executeWork() throws Exception {
+		public Long executeWork() throws IOException {
 	        byte[] buf = new byte[m_bufSize];
 	        
 			try {
