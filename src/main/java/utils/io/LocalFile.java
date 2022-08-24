@@ -1,6 +1,3 @@
-/**
- * 
- */
 package utils.io;
 
 import java.io.File;
