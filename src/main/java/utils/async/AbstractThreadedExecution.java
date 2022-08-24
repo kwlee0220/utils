@@ -16,7 +16,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 * 본 메소드는 별도로 생성한 쓰레드에 의해 수행되고, 함수 호출이 종료될 때까지 대기된다.
 	 * 함수 수행이 예외 발생없이 반환된 경우는 비동기 작업이 완료된 것으로 간주된다.
 	 * <p>
-	 * 본 메소드가 발생하는 예외에 따라 비동기 작업의 결과가 결정된다.
+	 * 메소드 수행 중 발생하는 예외에 따라 비동기 작업의 결과가 결정된다.
 	 * <dl>
 	 * 	<dt>InterruptedException</dt>
 	 * 	<dd>비동기 작업이 수행 중단된 것으로 간주된다.
