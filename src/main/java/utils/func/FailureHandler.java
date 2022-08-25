@@ -7,5 +7,5 @@ package utils.func;
  */
 @FunctionalInterface
 public interface FailureHandler<T> {
-	public void handle(FailureCase<? extends T> fcase);
+	public void handle(FailureCase<T> fcase);
 }

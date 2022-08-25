@@ -35,10 +35,10 @@ import utils.func.CheckedFunctionX;
 import utils.func.FLists;
 import utils.func.FOption;
 import utils.func.FailureHandler;
+import utils.func.FailureHandlers;
 import utils.func.KeyValue;
 import utils.func.Try;
 import utils.func.Tuple;
-import utils.func.FailureHandlers;
 import utils.func.UncheckedConsumer;
 import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
@@ -310,7 +310,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return FStream 객체
 	 */
 	public default <S> FStream<S> mapOrIgnore(CheckedFunction<? super T,? extends S> mapper) {
-		return new MapOrHandleStream<>(this, mapper, FailureHandlers.ignoreHandler());
+		return new MapOrHandleStream<>(this, mapper, FailureHandlers.ignore());
 	}
 	
 	/**
@@ -411,7 +411,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param handler	오류 처리 객체
 	 */
 	public default void forEachOrHandle(CheckedConsumer<? super T> effect,
-										FailureHandler<Void> handler) {
+										FailureHandler<? super T> handler) {
 		forEach(UncheckedConsumer.lift(effect, handler));
 	}
 	
@@ -424,7 +424,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param effect	Consumer 객체.
 	 */
 	public default void forEachOrIgnore(CheckedConsumer<? super T> effect) {
-		forEachOrHandle(effect, FailureHandlers.ignoreHandler());
+		forEachOrHandle(effect, FailureHandlers.ignore());
 	}
 	
 	/**

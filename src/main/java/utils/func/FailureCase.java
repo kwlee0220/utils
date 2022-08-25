@@ -18,7 +18,7 @@ public final class FailureCase<T> {
 		return m_data;
 	}
 	
-	public Throwable getCause() {
+	public Throwable getFailureCause() {
 		return m_cause;
 	}
 }

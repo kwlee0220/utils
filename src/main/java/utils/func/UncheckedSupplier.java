@@ -11,9 +11,9 @@ import utils.Utilities;
  */
 public class UncheckedSupplier<T> implements Supplier<T> {
 	private final CheckedSupplier<? extends T> m_checked;
-	private final FailureHandler<? extends T> m_handler;
+	private final FailureHandler<Void> m_handler;
 	
-	UncheckedSupplier(CheckedSupplier<? extends T> checked, FailureHandler<? extends T> handler) {
+	UncheckedSupplier(CheckedSupplier<? extends T> checked, FailureHandler<Void> handler) {
 		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
 		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
 		
@@ -33,15 +33,15 @@ public class UncheckedSupplier<T> implements Supplier<T> {
 	}
 
 	public static <T> UncheckedSupplier<T> lift(CheckedSupplier<? extends T> checked,
-												FailureHandler<? extends T> handler) {
+												FailureHandler<Void> handler) {
 		return new UncheckedSupplier<>(checked, handler);
 	}
 
 	public static <T> UncheckedSupplier<T> ignore(CheckedSupplier<? extends T> checked) {
-		return lift(checked, FailureHandlers.ignoreHandler());
+		return lift(checked, FailureHandlers.ignore());
 	}
 
 	public static <T> UncheckedSupplier<T> sneakyThrow(CheckedSupplier<? extends T> checked) {
-		return lift(checked, FailureHandlers.sneakyThrowHandler());
+		return lift(checked, FailureHandlers.throwSneakly());
 	}
 }

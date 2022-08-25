@@ -34,10 +34,10 @@ public class UncheckedRunnable implements Runnable {
 	}
 
 	public static UncheckedRunnable ignore(CheckedRunnable checked) {
-		return lift(checked, FailureHandlers.ignoreHandler());
+		return lift(checked, FailureHandlers.ignore());
 	}
 
 	public static UncheckedRunnable sneakyThrow(CheckedRunnable checked) {
-		return lift(checked, FailureHandlers.sneakyThrowHandler());
+		return lift(checked, FailureHandlers.throwSneakly());
 	}
 }

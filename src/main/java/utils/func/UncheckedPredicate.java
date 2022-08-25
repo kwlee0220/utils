@@ -11,9 +11,9 @@ import utils.Utilities;
  */
 public class UncheckedPredicate<T> implements Predicate<T> {
 	private final CheckedPredicate<? super T> m_checked;
-	private final FailureHandler<Void> m_handler;
+	private final FailureHandler<? super T> m_handler;
 	
-	UncheckedPredicate(CheckedPredicate<? super T> checked, FailureHandler<Void> handler) {
+	UncheckedPredicate(CheckedPredicate<? super T> checked, FailureHandler<? super T> handler) {
 		Utilities.checkNotNullArgument(checked, "CheckedPredicate is null");
 		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
 		
@@ -27,21 +27,21 @@ public class UncheckedPredicate<T> implements Predicate<T> {
 			return m_checked.test(input);
 		}
 		catch ( Throwable e ) {
-			m_handler.handle(new FailureCase<>(null, e));
+			m_handler.handle(new FailureCase<>(input, e));
 			throw new AssertionError("Should not be here");
 		}
 	}
 
 	public static <T> UncheckedPredicate<T> lift(CheckedPredicate<? super T> checked,
-												FailureHandler<Void> handler) {
+												FailureHandler<? super T> handler) {
 		return new UncheckedPredicate<>(checked, handler);
 	}
 
 	public static <T> UncheckedPredicate<T> ignore(CheckedPredicate<? super T> checked) {
-		return lift(checked, FailureHandlers.ignoreHandler());
+		return lift(checked, FailureHandlers.ignore());
 	}
 
 	public static <T> UncheckedPredicate<T> sneakyThrow(CheckedPredicate<? super T> checked) {
-		return lift(checked, FailureHandlers.sneakyThrowHandler());
+		return lift(checked, FailureHandlers.throwSneakly());
 	}
 }

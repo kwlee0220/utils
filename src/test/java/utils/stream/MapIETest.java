@@ -82,8 +82,8 @@ public class MapIETest {
 	public void test3() throws Exception {
 		CheckedFunction<Integer,Integer> func
 			= i -> { if (i%2 == 0) { return i; } throw  new Exception("" + i); };
-		List<FailureCase<? extends Integer>> faileds = Lists.newArrayList();
-		CollectingErrorHandler<Integer> handler = FailureHandlers.collectHandler(faileds);
+		CollectingErrorHandler<Integer> handler = FailureHandlers.collect();
+		List<FailureCase<Integer>> faileds = handler.getFailureCases();
 		
 		List<Integer> list = FStream.range(0, 10).mapOrHandle(func, handler).toList();
 		Assert.assertEquals(Lists.newArrayList(0, 2, 4, 6, 8), list);

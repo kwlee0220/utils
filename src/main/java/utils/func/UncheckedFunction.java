@@ -11,10 +11,10 @@ import utils.Utilities;
  */
 public class UncheckedFunction<T,S> implements Function<T,S> {
 	private final CheckedFunction<? super T, ? extends S> m_checked;
-	private final FailureHandler<S> m_handler;
+	private final FailureHandler<? super T> m_handler;
 	
 	UncheckedFunction(CheckedFunction<? super T, ? extends S> checked,
-						FailureHandler<S> handler) {
+						FailureHandler<? super T> handler) {
 		Utilities.checkNotNullArgument(checked, "CheckedFunction is null");
 		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
 		
@@ -28,21 +28,21 @@ public class UncheckedFunction<T,S> implements Function<T,S> {
 			return m_checked.apply(t);
 		}
 		catch ( Throwable e ) {
-			m_handler.handle(new FailureCase<>((S)null, e));
+			m_handler.handle(new FailureCase<>(t, e));
 			throw new AssertionError("Should not be here");
 		}
 	}
 
 	public static <T,S> UncheckedFunction<T,S> lift(CheckedFunction<? super T, ? extends S> checked,
-													FailureHandler<S> handler) {
+													FailureHandler<? super T> handler) {
 		return new UncheckedFunction<>(checked, handler);
 	}
 
 	public static <T,S> UncheckedFunction<T,S> ignore(CheckedFunction<? super T, ? extends S> checked) {
-		return lift(checked, FailureHandlers.ignoreHandler());
+		return lift(checked, FailureHandlers.ignore());
 	}
 
 	public static <T,S> UncheckedFunction<T,S> sneakyThrow(CheckedFunction<? super T, ? extends S> checked) {
-		return lift(checked, FailureHandlers.sneakyThrowHandler());
+		return lift(checked, FailureHandlers.throwSneakly());
 	}
 }

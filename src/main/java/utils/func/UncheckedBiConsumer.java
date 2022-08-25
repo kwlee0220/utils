@@ -11,9 +11,10 @@ import utils.Utilities;
  */
 public class UncheckedBiConsumer<S,T> implements BiConsumer<S,T> {
 	private final CheckedBiConsumer<? super S, ? super T> m_checked;
-	private final FailureHandler<Void> m_handler;
+	private final FailureHandler<Tuple<? super S, ? super T>> m_handler;
 	
-	UncheckedBiConsumer(CheckedBiConsumer<? super S, ? super T> checked, FailureHandler<Void> handler) {
+	UncheckedBiConsumer(CheckedBiConsumer<? super S, ? super T> checked,
+						FailureHandler<Tuple<? super S, ? super T>> handler) {
 		Utilities.checkNotNullArgument(checked, "CheckedBiConsumer is null");
 		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
 		
@@ -27,20 +28,20 @@ public class UncheckedBiConsumer<S,T> implements BiConsumer<S,T> {
 			m_checked.accept(input1, input2);
 		}
 		catch ( Throwable e ) {
-			m_handler.handle(new FailureCase<Void>(null, e));
+			m_handler.handle(new FailureCase<>(Tuple.of(input1, input2), e));
 		}
 	}
 
 	public static <S,T> UncheckedBiConsumer<S,T> lift(CheckedBiConsumer<? super S, ? super T> checked,
-														FailureHandler<Void> handler) {
+														FailureHandler<Tuple<? super S, ? super T>> handler) {
 		return new UncheckedBiConsumer<>(checked, handler);
 	}
 
 	public static <S,T> UncheckedBiConsumer<S,T> ignore(CheckedBiConsumer<? super S, ? super T> checked) {
-		return lift(checked, FailureHandlers.ignoreHandler());
+		return lift(checked, FailureHandlers.ignore());
 	}
 
 	public static <S,T> UncheckedBiConsumer<S,T> sneakyThrow(CheckedBiConsumer<? super S, ? super T> checked) {
-		return lift(checked, FailureHandlers.sneakyThrowHandler());
+		return lift(checked, FailureHandlers.throwSneakly());
 	}
 }

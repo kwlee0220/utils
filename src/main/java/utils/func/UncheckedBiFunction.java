@@ -11,10 +11,10 @@ import utils.Utilities;
  */
 public class UncheckedBiFunction<S,T,R> implements BiFunction<S,T,R> {
 	private final CheckedBiFunction<? super S, ? super T, ? extends R> m_checked;
-	private final FailureHandler<? extends R> m_handler;
+	private final FailureHandler<Tuple<? super S, ? super T>> m_handler;
 	
 	UncheckedBiFunction(CheckedBiFunction<? super S, ? super T, ? extends R> checked,
-						FailureHandler<? extends R> handler) {
+						FailureHandler<Tuple<? super S, ? super T>> handler) {
 		Utilities.checkNotNullArgument(checked, "CheckedBiFunction is null");
 		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
 		
@@ -28,23 +28,23 @@ public class UncheckedBiFunction<S,T,R> implements BiFunction<S,T,R> {
 			return m_checked.apply(input1, input2);
 		}
 		catch ( Throwable e ) {
-			m_handler.handle(new FailureCase<>(null, e));
+			m_handler.handle(new FailureCase<>(Tuple.of(input1, input2), e));
 			throw new AssertionError("Should not be here");
 		}
 	}
 
 	public static <S,T,R> UncheckedBiFunction<S,T,R>
-	lift(CheckedBiFunction<? super S, ? super T, ? extends R> checked, FailureHandler<? extends R> handler) {
+	lift(CheckedBiFunction<? super S, ? super T, ? extends R> checked, FailureHandler<Tuple<? super S, ? super T>> handler) {
 		return new UncheckedBiFunction<>(checked, handler);
 	}
 
 	public static <S,T,R> UncheckedBiFunction<S,T,R>
 	ignore(CheckedBiFunction<? super S, ? super T, ? extends R> checked) {
-		return lift(checked, FailureHandlers.ignoreHandler());
+		return lift(checked, FailureHandlers.ignore());
 	}
 
 	public static <S,T,R> UncheckedBiFunction<S,T,R>
 	sneakyThrow(CheckedBiFunction<? super S, ? super T, ? extends R> checked) {
-		return lift(checked, FailureHandlers.sneakyThrowHandler());
+		return lift(checked, FailureHandlers.throwSneakly());
 	}
 }

@@ -11,9 +11,9 @@ import utils.Utilities;
  */
 public class UncheckedConsumer<T> implements Consumer<T> {
 	private final CheckedConsumer<? super T> m_checked;
-	private final FailureHandler<Void> m_handler;
+	private final FailureHandler<? super T> m_handler;
 	
-	UncheckedConsumer(CheckedConsumer<? super T> checked, FailureHandler<Void> handler) {
+	UncheckedConsumer(CheckedConsumer<? super T> checked, FailureHandler<? super T> handler) {
 		Utilities.checkNotNullArgument(checked, "CheckedConsumer is null");
 		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
 		
@@ -27,20 +27,20 @@ public class UncheckedConsumer<T> implements Consumer<T> {
 			m_checked.accept(data);
 		}
 		catch ( Throwable e ) {
-			m_handler.handle(new FailureCase<Void>(null, e));
+			m_handler.handle(new FailureCase<>(data, e));
 		}
 	}
 
 	public static <T> UncheckedConsumer<T> lift(CheckedConsumer<? super T> checked,
-												FailureHandler<Void> handler) {
+												FailureHandler<? super T> handler) {
 		return new UncheckedConsumer<>(checked, handler);
 	}
 
 	public static <T> UncheckedConsumer<T> ignore(CheckedConsumer<? super T> checked) {
-		return lift(checked, FailureHandlers.ignoreHandler());
+		return lift(checked, FailureHandlers.ignore());
 	}
 
 	public static <T> UncheckedConsumer<T> sneakyThrow(CheckedConsumer<? super T> checked) {
-		return lift(checked, FailureHandlers.sneakyThrowHandler());
+		return lift(checked, FailureHandlers.throwSneakly());
 	}
 }
