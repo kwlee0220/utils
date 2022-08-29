@@ -1,6 +1,12 @@
 package utils.async;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.function.Function;
+import java.util.function.Supplier;
+
+import utils.Throwables;
+import utils.func.CheckedSupplier;
 
 /**
  * 
@@ -9,6 +15,48 @@ import java.util.function.Function;
 public class Executions {
 	private Executions() {
 		throw new AssertionError("Should not be called: class=" + getClass());
+	}
+	
+	public static AbstractThreadedExecution<Void> toExecution(Runnable task) {
+		return new AbstractThreadedExecution<Void>() {
+			@Override
+			protected Void executeWork() throws InterruptedException, CancellationException, Exception {
+				task.run();
+				return null;
+			}
+		};
+	}
+	
+	public static <T> AbstractThreadedExecution<T> toExecution(Supplier<T> task) {
+		return new AbstractThreadedExecution<T>() {
+			@Override
+			protected T executeWork() throws InterruptedException, CancellationException, Exception {
+				return task.get();
+			}
+		};
+	}
+	
+	public static <T> AbstractThreadedExecution<T> toExecution(CheckedSupplier<T> task) {
+		return new AbstractThreadedExecution<T>() {
+			@Override
+			protected T executeWork() throws InterruptedException, CancellationException, Exception {
+				try {
+					return task.get();
+				}
+				catch ( Throwable e ) {
+					throw Throwables.toException(e);
+				}
+			}
+		};
+	}
+	
+	public static <T> AbstractThreadedExecution<T> toExecution(Callable<T> task) {
+		return new AbstractThreadedExecution<T>() {
+			@Override
+			protected T executeWork() throws InterruptedException, CancellationException, Exception {
+				return task.call();
+			}
+		};
 	}
 	
 	static class FlatMapCompleteChainExecution<T,S> extends EventDrivenExecution<S> {
