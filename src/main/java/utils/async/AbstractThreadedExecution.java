@@ -11,10 +11,10 @@ import utils.Throwables;
  */
 public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecution<T> {
 	/**
-	 * 비동기적으로 수행할 작업을 수행한다.
+	 * 비동기적으로 작업을 수행한다.
 	 * <p>
-	 * 본 메소드는 별도로 생성한 쓰레드에 의해 수행되고, 함수 호출이 종료될 때까지 대기된다.
-	 * 함수 수행이 예외 발생없이 반환된 경우는 비동기 작업이 완료된 것으로 간주된다.
+	 * 본 메소드는 별도로 생성된 쓰레드에 의해 수행되고, 함수 호출이 종료될 때까지 대기된다.
+	 * 함수 수행이 예외 발생없이 반환된 경우는 작업이 완료된 것으로 간주된다.
 	 * <p>
 	 * 메소드 수행 중 발생하는 예외에 따라 비동기 작업의 결과가 결정된다.
 	 * <dl>
@@ -35,8 +35,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 * @throws CancellationException	작업 수행이 중단된 경우
 	 * @throws Exception	작업 수행 중 오류 발생으로 작업 실패된 경우
 	 */
-	protected abstract T executeWork() throws InterruptedException, CancellationException,
-												Exception;
+	protected abstract T executeWork() throws InterruptedException, CancellationException, Exception;
 	
 	public final T run() throws CancellationException, Exception {
 		notifyStarted();
