@@ -324,7 +324,7 @@ public class Utilities {
 		return Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC);
 	}
 	
-	public static LocalDateTime toLLocalDateTime(long utcEpoc) {
+	public static LocalDateTime toLocalDateTime(long utcEpoc) {
 		return Instant.ofEpochMilli(utcEpoc).atZone(ZoneId.systemDefault()).toLocalDateTime();
 	}
 	
@@ -433,6 +433,14 @@ public class Utilities {
 	
 	public static int[] concat(int[] arr1, int[] arr2) {
 		int[] concated = new int[arr1.length + arr2.length];
+		System.arraycopy(arr1, 0, concated, 0, arr1.length);
+		System.arraycopy(arr2, 0, concated, arr1.length, arr2.length);
+		
+		return concated;
+	}
+	
+	public static long[] concat(long[] arr1, long... arr2) {
+		long[] concated = new long[arr1.length + arr2.length];
 		System.arraycopy(arr1, 0, concated, 0, arr1.length);
 		System.arraycopy(arr2, 0, concated, arr1.length, arr2.length);
 		
