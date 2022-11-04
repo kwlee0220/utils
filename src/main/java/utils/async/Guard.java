@@ -1,5 +1,6 @@
 package utils.async;
 
+import java.io.Serializable;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -22,7 +23,9 @@ import utils.func.Try;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class Guard {
+public class Guard implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	private final Lock m_lock;
 	private final Condition m_cond;
 	
