@@ -62,28 +62,28 @@ public class UnitUtils {
 		szStr = szStr.toLowerCase();
 		
 	    if ( szStr.endsWith("m") ) {
-	    	long mega = Long.parseLong(szStr.substring(0, szStr.length()-1));
-	    	return mega * 1024 * 1024;
+	    	double mega = Double.parseDouble(szStr.substring(0, szStr.length()-1));
+	    	return Math.round(mega * 1024 * 1024);
 	    }
 	    else if ( szStr.endsWith("mb") ) {
-	    	long mega = Long.parseLong(szStr.substring(0, szStr.length()-2));
-	    	return mega * 1024 * 1024;
+	    	double mega = Double.parseDouble(szStr.substring(0, szStr.length()-2));
+	    	return Math.round(mega * 1024 * 1024);
 	    }
 	    else if ( szStr.endsWith("k") ) {
-	    	long kilo = Long.parseLong(szStr.substring(0, szStr.length()-1));
-	    	return kilo * 1024;
+	    	double kilo = Double.parseDouble(szStr.substring(0, szStr.length()-1));
+	    	return Math.round(kilo * 1024);
 	    }
 	    else if ( szStr.endsWith("kb") ) {
-	    	long kilo = Long.parseLong(szStr.substring(0, szStr.length()-2));
-	    	return kilo * 1024;
+	    	double kilo = Double.parseDouble(szStr.substring(0, szStr.length()-2));
+	    	return Math.round(kilo * 1024);
 	    }
 	    else if ( szStr.endsWith("g") ) {
-	    	long giga = Long.parseLong(szStr.substring(0, szStr.length()-1));
-	    	return giga * 1024*1024*1024;
+	    	double giga = Double.parseDouble(szStr.substring(0, szStr.length()-1));
+	    	return Math.round(giga * 1024*1024*1024);
 	    }
 	    else if ( szStr.endsWith("gb") ) {
-	    	long giga = Long.parseLong(szStr.substring(0, szStr.length()-2));
-	    	return giga * 1024*1024*1024;
+	    	double giga = Double.parseDouble(szStr.substring(0, szStr.length()-2));
+	    	return Math.round(giga * 1024*1024*1024);
 	    }
 	    else {
 	    	return Long.parseLong(szStr);
