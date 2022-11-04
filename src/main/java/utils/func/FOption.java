@@ -103,10 +103,22 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	public T getOrElse(T elseValue) {
 		return (m_present) ? m_value : elseValue;
 	}
+	public static <T> T getOrElse(T value, T elseValue) {
+		return (value != null) ? value : elseValue;
+	}
 	
 	public T getOrElse(Supplier<? extends T> elseSupplier) {
 		if ( m_present ) {
 			return m_value;
+		}
+		else {
+			checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			return elseSupplier.get();
+		}
+	}
+	public static <T> T getOrElse(T value, Supplier<? extends T> elseSupplier) {
+		if ( value != null ) {
+			return value;
 		}
 		else {
 			checkNotNullArgument(elseSupplier, "elseSupplier is null");
