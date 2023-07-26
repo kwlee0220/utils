@@ -6,8 +6,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 /**
  * 
@@ -105,5 +107,24 @@ public class FLists {
 		}
 		
 		return (idx >= 0) ? Optional.of(Tuple.of(idx, max)) : Optional.empty(); 
+	}
+	
+	@SafeVarargs
+	public static <T> List<List<T>> branch(List<T> list, Predicate<T>... guards) {
+		List<List<T>> branches = Lists.newArrayListWithExpectedSize(guards.length);
+		for ( int i =0; i < guards.length; ++i ) {
+			branches.add(Lists.newArrayList());
+		}
+		
+		for ( T v: list ) {
+			for ( int i =0; i < guards.length; ++i ) {
+				if ( guards[i].test(v) ) {
+					branches.get(i).add(v);
+					break;
+				}
+			}
+		}
+		
+		return branches;
 	}
 }
