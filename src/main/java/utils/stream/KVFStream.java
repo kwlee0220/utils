@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -52,6 +53,12 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		
 		return downcast(FStream.from(map.entrySet().iterator())
 								.map(e -> KeyValue.of(e.getKey(), e.getValue())));
+	}
+	
+	public default KVFStream<K,V> filter(BiPredicate<? super K, ? super V> pred) {
+		Utilities.checkNotNullArgument(pred, "predicate is null");
+		
+		return downcast(filter((k,v) -> pred.test(k, v)));
 	}
 	
 	public default KVFStream<K,V> filterKey(Predicate<? super K> pred) {
