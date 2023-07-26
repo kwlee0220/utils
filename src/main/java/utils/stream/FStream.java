@@ -1,8 +1,5 @@
 package utils.stream;
 
-import static utils.Utilities.checkArgument;
-import static utils.Utilities.checkNotNullArgument;
-
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,6 +52,9 @@ import utils.stream.FStreams.PeekedStream;
 import utils.stream.FStreams.SelectiveMapStream;
 import utils.stream.FStreams.SingleSourceStream;
 import utils.stream.KVFStreams.FStreamAdaptor;
+
+import static utils.Utilities.checkArgument;
+import static utils.Utilities.checkNotNullArgument;
 
 
 /**
@@ -1134,6 +1134,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return from(list);
 	}
 	
+	public default <S extends Comparable<S>> FStream<T> sort(Function<? super T,S> keyer) {
+		return sort((t1,t2) -> (keyer.apply(t1)).compareTo(keyer.apply(t2)));
+	}
+	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public default FStream<T> sort() {
 		return sort((t1,t2) -> ((Comparable)t1).compareTo(t2));
@@ -1157,87 +1161,42 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
     }
 	
 	public default List<T> max(Comparator<? super T> cmp) {
-		return foldLeft(new ArrayList<T>(),
-						(max,v) -> {
-							if ( max.isEmpty() ) {
-								return Lists.newArrayList(v);
-							}
-							
-							int ret = cmp.compare(v, max.get(0));
-							if ( ret > 0 ) {
-								max = Lists.newArrayList(v);
-							}
-							else if ( ret == 0 ) {
-								max.add(v);
-							}
-							return max;
-						});
+		return foldLeft(
+					new ArrayList<T>(),
+					(max,v) -> {
+						if ( max.isEmpty() ) {
+							return Lists.newArrayList(v);
+						}
+						
+						int ret = cmp.compare(v, max.get(0));
+						if ( ret > 0 ) {
+							max = Lists.newArrayList(v);
+						}
+						else if ( ret == 0 ) {
+							max.add(v);
+						}
+						return max;
+					});
 	}
 	
 	public default <K extends Comparable<K>> List<T> max(Function<T,K> keyer) {
-		return foldLeft(new ArrayList<T>(),
-						(max,v) -> {
-							if ( max.isEmpty() ) {
-								return Lists.newArrayList(v);
-							}
-							
-							int ret = keyer.apply(v).compareTo(keyer.apply(max.get(0)));
-							if ( ret > 0 ) {
-								max = Lists.newArrayList(v);
-							}
-							else if ( ret == 0 ) {
-								max.add(v);
-							}
-							return max;
-						});
-	}
-	
-	public default <K extends Comparable<K>> List<T> min(Function<T,K> keyer) {
-		return foldLeft(new ArrayList<T>(),
-						(max,v) -> {
-							if ( max.isEmpty() ) {
-								return Lists.newArrayList(v);
-							}
-							
-							int ret = keyer.apply(v).compareTo(keyer.apply(max.get(0)));
-							if ( ret < 0 ) {
-								max = Lists.newArrayList(v);
-							}
-							else if ( ret == 0 ) {
-								max.add(v);
-							}
-							return max;
-						});
+		return max((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
 	}
 
 	@SuppressWarnings("unchecked")
 	public default List<T> max() {
-		return foldLeft(new ArrayList<T>(),
-				(max,v) -> {
-					if ( max.isEmpty() ) {
-						return Lists.newArrayList(v);
-					}
-					
-					int ret = ((Comparable<T>)v).compareTo(max.get(0));
-					if ( ret > 0 ) {
-						max = Lists.newArrayList(v);
-					}
-					else if ( ret == 0 ) {
-						max.add(v);
-					}
-					return max;
-				});
+		return max((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
 	}
 
-	@SuppressWarnings("unchecked")
-	public default List<T> min() {
-		return foldLeft(new ArrayList<T>(),
-				(min,v) -> {
+	public default List<T> min(Comparator<T> cmptor) {
+		return foldLeft(
+				new ArrayList<T>(),
+				(min, v) -> {
 					if ( min.isEmpty() ) {
 						return Lists.newArrayList(v);
 					}
 					
-					int ret = ((Comparable<T>)v).compareTo(min.get(0));
+					int ret = cmptor.compare(v, min.get(0));
 					if ( ret < 0 ) {
 						min = Lists.newArrayList(v);
 					}
@@ -1246,6 +1205,15 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 					}
 					return min;
 				});
+	}
+	
+	public default <K extends Comparable<K>> List<T> min(Function<T,K> keyer) {
+		return min((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
+	}
+
+	@SuppressWarnings("unchecked")
+	public default List<T> min() {
+		return min((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
 	}
 	
 	public default String join(String delim, String begin, String end) {
