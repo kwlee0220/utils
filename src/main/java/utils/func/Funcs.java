@@ -1,14 +1,18 @@
 package utils.func;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import utils.stream.FStream;
 
 /**
  * 
@@ -90,5 +94,21 @@ public class Funcs {
 		List<T> removed = Lists.newArrayList(list);
 		removed.remove(elm);
 		return removed;
+	}
+	
+	public static <T> boolean intersects(Collection<T> set1, Collection<T> set2) {
+		return FStream.from(set1).exists(v -> set2.contains(v));
+	}
+	
+	public static <T> List<T> filter(List<T> list, Predicate<? super T> pred) {
+		return FStream.from(list).filter(pred).toList();
+	}
+	
+	public static <T> FOption<T> findFirst(Iterable<T> coll, Predicate<? super T> pred) {
+		return FStream.from(coll).findFirst(pred);
+	}
+	
+	public static <T> boolean exists(Iterable<T> coll, Predicate<? super T> pred) {
+		return FStream.from(coll).exists(pred);
 	}
 }
