@@ -1,14 +1,12 @@
 package utils.func;
 
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 /**
@@ -18,15 +16,6 @@ import com.google.common.collect.Lists;
 public class FLists {
 	private FLists() {
 		throw new AssertionError("Should not be called: class=" + FLists.class);
-	}
-	
-	public static <T> FOption<T> getFirst(Iterable<T> list) {
-		Iterator<T> iter = list.iterator();
-		return iter.hasNext() ? FOption.of(iter.next()) : FOption.empty();
-	}
-	
-	public static <T> FOption<T> getLast(Iterable<T> list) {
-		return FOption.ofNullable(Iterables.getLast(list, null));
 	}
 	
 	public static <T,U> U foldLeft(List<T> list, U init, BiFunction<U, T, U> fold) {

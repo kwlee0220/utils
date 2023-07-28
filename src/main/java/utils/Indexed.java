@@ -10,7 +10,7 @@ public final class Indexed<T> {
 	private final int m_index;
 	private final T m_data;
 	
-	public static <T> Indexed<T> of(int index, T data) {
+	public static <T> Indexed<T> with(T data, int index) {
 		return new Indexed<>(index, data);
 	}
 	
@@ -43,5 +43,10 @@ public final class Indexed<T> {
 		
 		Indexed<T> other = (Indexed)obj;
 		return m_index == other.m_index && m_data.equals(other.m_data);
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("%d:%s", m_index, m_data);
 	}
 }

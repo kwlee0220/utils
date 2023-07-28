@@ -59,8 +59,7 @@ public class Lazy<T> {
 		return m_loaded.get();
 	}
 	
-	public synchronized void unload(Consumer<? super T> closer) {
-		m_loaded.ifPresent(closer);
+	public synchronized void unload() {
 		m_loaded = FOption.empty();
 	}
 	
