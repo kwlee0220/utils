@@ -19,11 +19,11 @@ public final class Indexed<T> {
 		m_data = data;
 	}
 	
-	public int getIndex() {
+	public int index() {
 		return m_index;
 	}
 	
-	public T getData() {
+	public T value() {
 		return m_data;
 	}
 	
