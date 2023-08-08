@@ -1,5 +1,8 @@
 package utils.stream;
 
+import static utils.Utilities.checkArgument;
+import static utils.Utilities.checkNotNullArgument;
+
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,9 +55,6 @@ import utils.stream.FStreams.PeekedStream;
 import utils.stream.FStreams.SelectiveMapStream;
 import utils.stream.FStreams.SingleSourceStream;
 import utils.stream.KVFStreams.FStreamAdaptor;
-
-import static utils.Utilities.checkArgument;
-import static utils.Utilities.checkNotNullArgument;
 
 
 /**
@@ -641,6 +641,13 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return concat(map(mapper));
 	}
 	
+	public default <V> FStream<V> flatMapNullable(Function<? super T,? extends V> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		
+		FStream<V> tmp = map(mapper::apply);
+		return tmp.filter(v -> v != null);
+	}
+	
 	public default <V> FStream<V> flatMapOption(Function<? super T,FOption<V>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 
@@ -854,6 +861,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(other, "zip FStream is null");
 		
 		return new ZippedFStream<>(this, other);
+	}
+	
+	public static <T> FStream<T> concat(Iterable<? extends T>... iterables) {
+		checkNotNullArgument(iterables, "source iterables");
+		return FStream.of(iterables)
+						.flatMap(iter -> FStream.from(iter));
 	}
 	
 	/**
@@ -1160,7 +1173,32 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
         return new TopKPickedFStream<>(this, k, (t1,t2) -> ((Comparable)t1).compareTo(t2));
     }
 	
-	public default List<T> max(Comparator<? super T> cmp) {
+	public default T max(Comparator<? super T> cmp) {
+		try {
+			T max = null;
+			
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				T v = next.get();
+				if ( max == null || cmp.compare(v, max) > 0 ) {
+					max = v;
+				}
+			}
+			return max;
+		}
+		finally {
+			closeQuietly();
+		}
+	}
+	public default <K extends Comparable<K>> T max(Function<T,K> keyer) {
+		return max((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
+	}
+	@SuppressWarnings("unchecked")
+	public default T max() {
+		return max((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
+	}
+	
+	public default List<T> maxMultiple(Comparator<? super T> cmp) {
 		return foldLeft(
 					new ArrayList<T>(),
 					(max,v) -> {
@@ -1179,16 +1217,43 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 					});
 	}
 	
-	public default <K extends Comparable<K>> List<T> max(Function<T,K> keyer) {
-		return max((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
+	public default <K extends Comparable<K>> List<T> maxMultiple(Function<T,K> keyer) {
+		return maxMultiple((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
 	}
 
 	@SuppressWarnings("unchecked")
-	public default List<T> max() {
-		return max((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
+	public default List<T> maxMultiple() {
+		return maxMultiple((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
 	}
 
-	public default List<T> min(Comparator<T> cmptor) {
+	public default T min(Comparator<T> cmptor) {
+		try {
+			T min = null;
+			
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				T v = next.get();
+				if ( min == null || cmptor.compare(v, min) < 0 ) {
+					min = v;
+				}
+			}
+			return min;
+		}
+		finally {
+			closeQuietly();
+		}
+	}
+	
+	public default <K extends Comparable<K>> T min(Function<T,K> keyer) {
+		return min((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
+	}
+
+	@SuppressWarnings("unchecked")
+	public default T min() {
+		return min((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
+	}
+
+	public default List<T> minMultiple(Comparator<T> cmptor) {
 		return foldLeft(
 				new ArrayList<T>(),
 				(min, v) -> {
@@ -1207,13 +1272,13 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 				});
 	}
 	
-	public default <K extends Comparable<K>> List<T> min(Function<T,K> keyer) {
-		return min((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
+	public default <K extends Comparable<K>> List<T> minMultiple(Function<T,K> keyer) {
+		return minMultiple((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
 	}
 
 	@SuppressWarnings("unchecked")
-	public default List<T> min() {
-		return min((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
+	public default List<T> minMultiple() {
+		return minMultiple((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
 	}
 	
 	public default String join(String delim, String begin, String end) {

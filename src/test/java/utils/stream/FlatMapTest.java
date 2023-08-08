@@ -83,4 +83,25 @@ public class FlatMapTest {
 		FStream<Integer> strm = FStream.of(0);
 		FStream<Integer> stream = strm.flatMap(null);
 	}
+	
+	@Test
+	public void test4() throws Exception {
+		List<FStream<Integer>> strmList = Lists.newArrayList();
+		
+		FStream<Integer> strm = FStream.of(0, 1, 2, 3);
+		FStream<Integer> stream = strm.flatMapNullable(i -> i % 2 == 0 ? i : null);
+		
+		FOption<Integer> r;
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals((long)0, (long)r.get());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals((long)2, (long)r.get());
+		
+		r = stream.next();
+		Assert.assertEquals(true, r.isAbsent());
+	}
 }
