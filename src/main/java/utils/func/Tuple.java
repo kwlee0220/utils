@@ -7,7 +7,7 @@ import java.util.Objects;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class Tuple<T1,T2> implements Serializable {
+public final class Tuple<T1,T2> implements Serializable, Comparable<Tuple<T1,T2>> {
 	private static final long serialVersionUID = 1L;
 	
 	public final T1 _1;
@@ -71,6 +71,17 @@ public final class Tuple<T1,T2> implements Serializable {
 	@Override
 	public int hashCode() {
 		return Objects.hash(_1, _2);
+	}
+
+	@Override
+	public int compareTo(Tuple<T1, T2> other) {
+		int cmp = ((Comparable<T1>)_1).compareTo(other._1);
+		if ( cmp == 0 ) {
+			return ((Comparable<T2>)_2).compareTo(other._2);
+		}
+		else {
+			return cmp;
+		}
 	}
 	
 	@Override
