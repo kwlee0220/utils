@@ -168,6 +168,33 @@ public class JdbcProcessor implements Serializable {
 	}
 	
 	/**
+	 * 주어진 이름의 테이블의 존재 여부를 반환한다.
+	 * 
+	 * TODO: 일단 급하게 작성한 것이어서 코드 정리가 필요함.
+	 * 
+	 * @param tableName		검색 대상 테이블 이름.
+	 * @return	존재하면 {@code true}, 그렇지 않으면 {@code false}.
+	 */
+	public boolean existsTable(String tableName) {
+		try ( Connection conn = connect() ) {
+			DatabaseMetaData meta = conn.getMetaData();
+			ResultSet rs = meta.getTables(null, null, null, new String[]{"TABLE"});
+			
+			while ( rs.next() ) {
+				String name = rs.getString("TABLE_NAME");
+				if ( tableName.equals(name) ) {
+					return true;
+				}
+			}
+			
+			return false;
+		}
+		catch ( SQLException e ) {
+			throw new JdbcException(e);
+		}
+	}
+	
+	/**
 	 * 주어진 이름의 테이블을 삭제시킨다.
 	 * 
 	 * @param tblName	삭제할 테이블 이름.
