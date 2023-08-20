@@ -207,8 +207,11 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 		m_lock.lock();
 		try {
 			while ( true ) {
-				if ( m_closed || m_eos ) {
-					return false;
+				if ( m_closed ) {
+					throw new IllegalStateException("closed at consumer-side");
+				}
+				else if ( m_eos ) {
+					throw new IllegalStateException("Supplier has closed the stream");
 				}
 				if ( m_buffer.size() < m_length ) {
 					m_buffer.add(value);
@@ -237,8 +240,11 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 		m_lock.lock();
 		try {
 			while ( true ) {
-				if ( m_closed || m_eos ) {
-					return false;
+				if ( m_closed ) {
+					throw new IllegalStateException("closed at consumer-side");
+				}
+				else if ( m_eos ) {
+					throw new IllegalStateException("Supplier has closed the stream");
 				}
 				
 				if ( m_buffer.size() < m_length ) {
