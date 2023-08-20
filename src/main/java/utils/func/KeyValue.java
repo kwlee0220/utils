@@ -1,6 +1,7 @@
 package utils.func;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -15,6 +16,10 @@ import utils.Utilities;
 public final class KeyValue<K,V> {
 	private final K m_key;
 	private final V m_value;
+	
+	public static <K,V> KeyValue<K,V> from(Map.Entry<? extends K,? extends V> entry) {
+		return new KeyValue<>(entry.getKey(), entry.getValue());
+	}
 	
 	public static <K,V> KeyValue<K,V> from(Tuple<? extends K,? extends V> tupl) {
 		return new KeyValue<>(tupl._1, tupl._2);

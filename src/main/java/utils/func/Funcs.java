@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -233,6 +234,30 @@ public class Funcs {
 			}
 		}
 		
+		return removeds;
+	}
+	
+	/**
+	 * 주어진 {@link Map}에 등록된 entry들 중에서 주어진 조건 (pred)를 만족하는 것들을 삭제한다.
+	 * 
+	 * @param <K>
+	 * @param <V>
+	 * @param map	삭제를 수행할 대상 Map 객체.
+	 * @param pred	삭제 조건.
+	 * @return		삭제된 {@link Map.Entry} 객체들.
+	 */
+	public static <K,V> List<KeyValue<K,V>> removeIf(Map<K,V> map, BiPredicate<? super K, ? super V> pred) {
+		List<KeyValue<K,V>> removeds = Lists.newArrayList();
+		
+		Iterator<Map.Entry<K, V>> iter = map.entrySet().iterator();
+		while ( iter.hasNext() ) {
+			Map.Entry<K, V> ent = iter.next();
+			if ( pred.test(ent.getKey(), ent.getValue()) ) {
+				removeds.add(KeyValue.from(ent));
+				iter.remove();
+			}
+		}
+
 		return removeds;
 	}
 
