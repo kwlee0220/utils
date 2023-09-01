@@ -214,12 +214,12 @@ public class Funcs {
 	}
 
 	/**
-	 * 주어진 목록들 중에서 주어진 조건을 만족하는 모든 element를 삭제하고,
+	 * 주어진 목록들 중에서 조건을 만족하는 모든 element를 삭제하고,
 	 * 삭제된 목록들을 반환한다.
 	 *
 	 * @param <T>
 	 * @param iterable	Iterable 객체.
-	 * @param pred	Element의 삭제 여부를 판달할 Predicate 객체.
+	 * @param pred		Element의 삭제 여부를 판달할 Predicate 객체.
 	 * @return	삭제된 목록들의 리스트.
 	 */
 	public static <T> List<T> removeIf(Iterable<T> iterable, Predicate<? super T> pred) {
@@ -307,6 +307,52 @@ public class Funcs {
 		Set<T> removed = Sets.newHashSet(set);
 		removed.remove(elm);
 		return removed;
+	}
+	
+	public static <T,K extends Comparable<K>>
+	int argmax(List<T> list, Function<? super T,? extends K> keyer) {
+		int maxIdx = -1;
+		K maxValue = null;
+		for ( int i =0; i < list.size(); ++i ) {
+			K key = keyer.apply(list.get(i));
+			if ( maxValue == null ) {
+				maxValue = key;
+				maxIdx = 0;
+			}
+			else if ( key.compareTo(maxValue) > 0 ) {
+				maxValue = key;
+				maxIdx = i;
+			}
+		}
+		return maxIdx;
+	}
+	
+	public static <T, K extends Comparable<K>>
+	T min(Iterable<T> list, Function<? super T,? extends K> keyer) {
+		return FStream.from(list).min(keyer);
+	}
+	
+	public static <T, K extends Comparable<K>>
+	T max(Iterable<T> list, Function<? super T,? extends K> keyer) {
+		return FStream.from(list).max(keyer);
+	}
+	
+	public static <T,K extends Comparable<K>>
+	int argmin(List<T> list, Function<? super T,? extends K> keyer) {
+		int minIdx = -1;
+		K minValue = null;
+		for ( int i =0; i < list.size(); ++i ) {
+			K key = keyer.apply(list.get(i));
+			if ( minValue == null ) {
+				minValue = key;
+				minIdx = 0;
+			}
+			else if ( key.compareTo(minValue) < 0 ) {
+				minValue = key;
+				minIdx = i;
+			}
+		}
+		return minIdx;
 	}
 	
 	public static <T> boolean intersects(Collection<T> set1, Collection<T> set2) {
