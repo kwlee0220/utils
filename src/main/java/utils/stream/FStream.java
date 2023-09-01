@@ -863,6 +863,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new ZippedFStream<>(this, other);
 	}
 	
+	@SafeVarargs
 	public static <T> FStream<T> concat(Iterable<? extends T>... iterables) {
 		checkNotNullArgument(iterables, "source iterables");
 		return FStream.of(iterables)
@@ -1190,7 +1191,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			closeQuietly();
 		}
 	}
-	public default <K extends Comparable<K>> T max(Function<T,K> keyer) {
+	public default <K extends Comparable<K>> T max(Function<? super T,? extends K> keyer) {
 		return max((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
 	}
 	@SuppressWarnings("unchecked")
@@ -1244,7 +1245,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		}
 	}
 	
-	public default <K extends Comparable<K>> T min(Function<T,K> keyer) {
+	public default <K extends Comparable<K>> T min(Function<? super T,? extends K> keyer) {
 		return min((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
 	}
 
