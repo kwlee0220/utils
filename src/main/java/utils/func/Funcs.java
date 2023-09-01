@@ -309,6 +309,16 @@ public class Funcs {
 		return removed;
 	}
 	
+	public static <T, K extends Comparable<K>>
+	T min(Iterable<T> list, Function<? super T,? extends K> keyer) {
+		return FStream.from(list).min(keyer);
+	}
+	
+	public static <T, K extends Comparable<K>>
+	T max(Iterable<T> list, Function<? super T,? extends K> keyer) {
+		return FStream.from(list).max(keyer);
+	}
+	
 	public static <T,K extends Comparable<K>>
 	int argmax(List<T> list, Function<? super T,? extends K> keyer) {
 		int maxIdx = -1;
@@ -325,16 +335,6 @@ public class Funcs {
 			}
 		}
 		return maxIdx;
-	}
-	
-	public static <T, K extends Comparable<K>>
-	T min(Iterable<T> list, Function<? super T,? extends K> keyer) {
-		return FStream.from(list).min(keyer);
-	}
-	
-	public static <T, K extends Comparable<K>>
-	T max(Iterable<T> list, Function<? super T,? extends K> keyer) {
-		return FStream.from(list).max(keyer);
 	}
 	
 	public static <T,K extends Comparable<K>>
