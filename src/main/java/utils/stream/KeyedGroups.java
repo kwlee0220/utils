@@ -10,11 +10,14 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import utils.func.FOption;
 import utils.func.KeyValue;
+import utils.func.MultipleCases;
 
 /**
  * 
@@ -64,8 +67,8 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 		return m_groups.getOrDefault(key, Collections.emptyList());
 	}
 	
-	public FOption<List<V>> get(final K key) {
-		return FOption.ofNullable(m_groups.get(key));
+	public @Nullable List<V> get(final K key) {
+		return m_groups.get(key);
 	}
 	
 	public KeyedGroups<K,V> add(K key, V value) {
@@ -199,5 +202,9 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	
 	private FStream<KeyValue<K,V>> ungroup(KeyValue<K,List<V>> group) {
 		return FStream.from(group.value()).map(v -> KeyValue.of(group.key(), v));
+	}
+	
+	public MultipleCases<K,List<V>> switcher() {
+		return MultipleCases.switching(asMap());
 	}
 }
