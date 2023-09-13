@@ -635,7 +635,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		};
 	}
 	
-	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<V>> mapper) {
+	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<? extends V>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return concat(map(mapper));
@@ -1149,7 +1149,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default <S extends Comparable<S>> FStream<T> sort(Function<? super T,S> keyer) {
-		return sort((t1,t2) -> (keyer.apply(t1)).compareTo(keyer.apply(t2)));
+		return sort(keyer, false);
+	}
+	
+	public default <S extends Comparable<S>> FStream<T> sort(Function<? super T,S> keyer, boolean reverse) {
+		if ( reverse ) {
+			return sort((t1,t2) -> (keyer.apply(t2)).compareTo(keyer.apply(t1)));
+		}
+		else {
+			return sort((t1,t2) -> (keyer.apply(t1)).compareTo(keyer.apply(t2)));
+		}
 	}
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
