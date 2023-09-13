@@ -72,7 +72,6 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	}
 	
 	public KeyedGroups<K,V> add(K key, V value) {
-		Objects.requireNonNull(key);
 		Objects.requireNonNull(value);
 		
 		m_groups.computeIfAbsent(key, k -> Lists.newArrayList())
@@ -81,8 +80,6 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	}
 	
 	KeyedGroups<K,V> put(K key, List<V> values) {
-		Objects.requireNonNull(key);
-		
 		m_groups.compute(key, (k, old) -> {
 			if ( old == null ) {
 				return values;
@@ -96,7 +93,6 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	}
 	
 	public KeyedGroups<K,V> addAll(K key, Iterator<? extends V> values) {
-		Objects.requireNonNull(key);
 		Objects.requireNonNull(values);
 		
 		m_groups.compute(key, (k, group) -> {
@@ -113,7 +109,6 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	}
 	
 	public KeyedGroups<K,V> addAll(K key, Collection<? extends V> values) {
-		Objects.requireNonNull(key);
 		Objects.requireNonNull(values);
 		
 		m_groups.compute(key, (k, group) -> {
@@ -129,7 +124,6 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	}
 	
 	public KeyedGroups<K,V> addAll(K key, FStream<? extends V> values) {
-		Objects.requireNonNull(key);
 		Objects.requireNonNull(values);
 		
 		m_groups.compute(key, (k, group) -> {
@@ -144,8 +138,6 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	}
 	
 	public FOption<List<V>> remove(K key) {
-		Objects.requireNonNull(key);
-		
 		return FOption.ofNullable(m_groups.remove(key));
 	}
 	

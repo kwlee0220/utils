@@ -30,8 +30,6 @@ public final class KeyValue<K,V> {
 	}
 	
 	private KeyValue(K key, V value) {
-		Utilities.checkNotNullArgument(key, "key is null");
-		
 		m_key = key;
 		m_value = value;
 	}
