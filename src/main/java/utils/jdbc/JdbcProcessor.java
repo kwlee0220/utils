@@ -251,6 +251,11 @@ public class JdbcProcessor implements Serializable {
 		return new ResultSetFStream(rs);
 	}
 	
+	public FStream<ResultSet> streamQuery(Connection conn, String sql) throws SQLException {
+		ResultSet rs = conn.createStatement().executeQuery(sql);
+		return new ResultSetFStream(rs);
+	}
+	
 	public FStream<ResultSet> executeQuery(PreparedStatement pstmt) throws SQLException {
 		ResultSet rs = pstmt.executeQuery();
 		return new ResultSetFStream(rs);
