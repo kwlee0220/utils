@@ -1,6 +1,7 @@
 package utils;
 
 import java.awt.Dimension;
+import java.time.Duration;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -140,7 +141,7 @@ public class UnitUtils {
 		}
 	}
 	
-	public static long parseDuration(String durStr) {
+	public static long parseDurationMillis(String durStr) {
 	    if ( durStr.endsWith("ms") ) {
 	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-2));
 	    	return value;
@@ -161,6 +162,31 @@ public class UnitUtils {
 	    	long value = Long.parseLong(durStr.substring(0, durStr.length()));
 	    	return value;
 	    }
+	}
+	
+	public static Duration parseDuration(String durStr) {
+		long millis = -1;
+		
+	    if ( durStr.endsWith("ms") ) {
+	    	millis = Long.parseLong(durStr.substring(0, durStr.length()-2));
+	    }
+	    else if ( durStr.endsWith("s") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	millis = TimeUnit.SECONDS.toMillis(value);
+	    }
+	    else if ( durStr.endsWith("m") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	millis = TimeUnit.MINUTES.toMillis(value);
+	    }
+	    else if ( durStr.endsWith("h") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	millis = TimeUnit.HOURS.toMillis(value);
+	    }
+	    else {
+	    	millis = Long.parseLong(durStr.substring(0, durStr.length()));
+	    }
+	    
+    	return Duration.ofMillis(millis);
 	}
 
 	public static String toMillisString(long millis) {
