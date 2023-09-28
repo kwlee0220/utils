@@ -279,15 +279,9 @@ public class JdbcProcessor implements Serializable {
 		}
 	}
 	
-	public int executeUpdate(String sql) throws SQLException, ExecutionException {
+	public int executeUpdate(String sql) throws SQLException {
 		try ( Connection conn = connect() ) {
 			return conn.createStatement().executeUpdate(sql);
-		}
-		catch ( SQLException e ) {
-			throw e;
-		}
-		catch ( Throwable e ) {
-			throw new ExecutionException(Throwables.unwrapThrowable(e));
 		}
 	}
 	
@@ -443,6 +437,8 @@ public class JdbcProcessor implements Serializable {
 													"com.mysql.jdbc.Driver"));
 		JDBC_URLS.put("postgresql", new JdbcConnectInfo("jdbc:postgresql://${host}:${port}/${dbname}",
 														"org.postgresql.Driver"));
+		JDBC_URLS.put("kairos", new JdbcConnectInfo("jdbc:kairos://${host}:${port}/${dbname}",
+													"kr.co.realtimetech.kairos.jdbc.kairosDriver"));
 		JDBC_URLS.put("h2_remote", new JdbcConnectInfo("jdbc:h2:tcp://${host}:${port}/${dbname}", "org.h2.Driver"));
 		JDBC_URLS.put("h2_local", new JdbcConnectInfo("jdbc:h2:${dbname}", "org.h2.Driver"));
 	}
