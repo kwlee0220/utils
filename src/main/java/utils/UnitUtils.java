@@ -192,24 +192,24 @@ public class UnitUtils {
 	public static String toMillisString(long millis) {
 		long seconds = millis / 1000;
 		if ( seconds == 0 ) {
-			return String.format("%dms", millis);
+			return String.format("0.%d", millis);
 		}
 		millis = millis % 1000;
 		String millisStr = (millis > 0) ? String.format(".%03d", millis) : "";
 		
 		long minutes = seconds / 60;
 		if ( minutes == 0 ) {
-			return String.format("%02d%ss", seconds, millisStr);
+			return String.format("%02d%s", seconds, millisStr);
 		}
 		seconds = seconds % 60;
 		
 		long hours = minutes / 60;
 		if ( hours == 0 ) {
-			return String.format("%02d:%02d%ss", minutes, seconds, millisStr);
+			return String.format("%02d:%02d%s", minutes, seconds, millisStr);
 		}
 		minutes = minutes % 60;
 		
-		return String.format("%d:%02d:%02d%ss", hours, minutes, seconds, millisStr);
+		return String.format("%d:%02d:%02d%s", hours, minutes, seconds, millisStr);
 	}
 
 	public static String toSecondString(long millis) {
