@@ -48,6 +48,10 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 		return m_groups.size();
 	}
 	
+	public Set<K> keys() {
+		return m_groups.keySet();
+	}
+	
 	public long size() {
 		return KVFStream.from(m_groups)
 						.toValueStream()
