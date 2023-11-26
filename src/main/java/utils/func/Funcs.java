@@ -310,17 +310,17 @@ public class Funcs {
 	}
 	
 	public static <T, K extends Comparable<K>>
-	T min(Iterable<T> list, Function<? super T,? extends K> keyer) {
+	FOption<? extends T> min(Iterable<? extends T> list, Function<? super T,? extends K> keyer) {
 		return FStream.from(list).min(keyer);
 	}
 	
 	public static <T, K extends Comparable<K>>
-	T max(Iterable<T> list, Function<? super T,? extends K> keyer) {
+	FOption<? extends T> max(Iterable<? extends T> list, Function<? super T,? extends K> keyer) {
 		return FStream.from(list).max(keyer);
 	}
 	
 	public static <T,K extends Comparable<K>>
-	int argmax(List<T> list, Function<? super T,? extends K> keyer) {
+	int argmax(List<? extends T> list, Function<? super T,? extends K> keyer) {
 		int maxIdx = -1;
 		K maxValue = null;
 		for ( int i =0; i < list.size(); ++i ) {
@@ -338,7 +338,7 @@ public class Funcs {
 	}
 	
 	public static <T,K extends Comparable<K>>
-	int argmin(List<T> list, Function<? super T,? extends K> keyer) {
+	int argmin(List<? extends T> list, Function<? super T,? extends K> keyer) {
 		int minIdx = -1;
 		K minValue = null;
 		for ( int i =0; i < list.size(); ++i ) {
@@ -355,7 +355,7 @@ public class Funcs {
 		return minIdx;
 	}
 	
-	public static <T> boolean intersects(Collection<T> set1, Collection<T> set2) {
+	public static <T> boolean intersects(Collection<? extends T> set1, Collection<? extends T> set2) {
 		return FStream.from(set1).exists(v -> set2.contains(v));
 	}
 	

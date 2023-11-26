@@ -1183,7 +1183,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
         return new TopKPickedFStream<>(this, k, (t1,t2) -> ((Comparable)t1).compareTo(t2));
     }
 	
-	public default T max(Comparator<? super T> cmp) {
+	public default FOption<T> max(Comparator<? super T> cmp) {
 		try {
 			T max = null;
 			
@@ -1194,17 +1194,17 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 					max = v;
 				}
 			}
-			return max;
+			return FOption.ofNullable(max);
 		}
 		finally {
 			closeQuietly();
 		}
 	}
-	public default <K extends Comparable<K>> T max(Function<? super T,? extends K> keyer) {
+	public default <K extends Comparable<K>> FOption<T> max(Function<? super T,? extends K> keyer) {
 		return max((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
 	}
 	@SuppressWarnings("unchecked")
-	public default T max() {
+	public default FOption<T> max() {
 		return max((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
 	}
 	
@@ -1236,7 +1236,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return maxMultiple((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
 	}
 
-	public default T min(Comparator<T> cmptor) {
+	public default FOption<T> min(Comparator<T> cmptor) {
 		try {
 			T min = null;
 			
@@ -1247,19 +1247,19 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 					min = v;
 				}
 			}
-			return min;
+			return FOption.ofNullable(min);
 		}
 		finally {
 			closeQuietly();
 		}
 	}
 	
-	public default <K extends Comparable<K>> T min(Function<? super T,? extends K> keyer) {
+	public default <K extends Comparable<K>> FOption<T> min(Function<? super T,? extends K> keyer) {
 		return min((v1,v2) -> keyer.apply(v1).compareTo(keyer.apply(v2)));
 	}
 
 	@SuppressWarnings("unchecked")
-	public default T min() {
+	public default FOption<T> min() {
 		return min((v1,v2) -> ((Comparable<T>)v1).compareTo(v2));
 	}
 

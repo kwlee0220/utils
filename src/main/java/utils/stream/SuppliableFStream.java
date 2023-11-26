@@ -1,5 +1,7 @@
 package utils.stream;
 
+import static utils.Utilities.checkArgument;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -32,6 +34,8 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 	@GuardedBy("m_lock") @Nullable private Throwable m_error = null;
 	
 	public SuppliableFStream(int length) {
+		checkArgument(length > 0, String.format("invalid length: %d", length));
+		
 		m_buffer = new ArrayList<>(length);
 		m_length = length;
 	}
