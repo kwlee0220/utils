@@ -5,9 +5,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
-import net.sf.cglib.proxy.MethodProxy;
 import utils.CallHandler;
 import utils.ProxyUtils;
 import utils.Utilities;
@@ -16,6 +14,9 @@ import utils.func.Try;
 import utils.io.IOUtils;
 import utils.stream.FStream;
 
+import net.sf.cglib.proxy.MethodProxy;
+
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -23,34 +24,6 @@ import utils.stream.FStream;
 public class JdbcUtils {
 	private JdbcUtils() {
 		throw new AssertionError("Should not be called: " + JdbcUtils.class);
-	}
-	
-//	public static boolean closeQuietly(Statement stmt) {
-//		if ( stmt != null ) {
-//			try {
-//				stmt.close();
-//				return true;
-//			}
-//			catch ( SQLException e ) { }
-//		}
-//		
-//		return false;
-//	}
-//	
-//	public static boolean closeQuietly(Connection conn) {
-//		if ( conn != null ) {
-//			try {
-//				conn.close();
-//				return true;
-//			}
-//			catch ( SQLException e ) { }
-//		}
-//		
-//		return false;
-//	}
-	
-	public static Stream<ResultSet> stream(ResultSet rs) throws SQLException {
-		return StreamSupport.stream(new ResultSetSpliterator(rs), false);
 	}
 
 	public static <T> FStream<T> fstream(ResultSet rs,

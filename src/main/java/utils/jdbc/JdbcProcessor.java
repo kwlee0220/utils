@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import utils.CSV;
 import utils.Throwables;
 import utils.func.CheckedConsumerX;
+import utils.func.CheckedFunction;
 import utils.func.FOption;
 import utils.stream.FStream;
 import utils.stream.KVFStream;
@@ -244,39 +245,11 @@ public class JdbcProcessor implements Serializable {
 		return JdbcUtils.bindToConnection(rs);
 	}
 	
-	public FStream<ResultSet> streamQuery(String sql) throws SQLException {
-		ResultSet rs = connect().createStatement().executeQuery(sql);
-		rs = JdbcUtils.bindToConnection(rs);
-
-		return new ResultSetFStream(rs);
-	}
-	
-	public FStream<ResultSet> streamQuery(Connection conn, String sql) throws SQLException {
-		ResultSet rs = conn.createStatement().executeQuery(sql);
-		return new ResultSetFStream(rs);
-	}
-	
-	public FStream<ResultSet> executeQuery(PreparedStatement pstmt) throws SQLException {
-		ResultSet rs = pstmt.executeQuery();
-		return new ResultSetFStream(rs);
-	}
-	
-	public void processQuery(String sql, JdbcConsumer<ResultSet> resultConsumer)
-		throws SQLException, ExecutionException {
-		try ( Connection conn = connect() ) {
-			Statement stmt = conn.createStatement();
-			
-			ResultSet rs = stmt.executeQuery(sql);
-			while ( rs.next() ) {
-				resultConsumer.accept(rs);
-			}
-		}
-		catch ( SQLException e ) {
-			throw e;
-		}
-		catch ( Throwable e ) {
-			throw new ExecutionException(Throwables.unwrapThrowable(e));
-		}
+	public <T> FStream<T> streamQuery(String sql, CheckedFunction<ResultSet, T> deserializer) {
+		return JdbcRowSource.select(deserializer)
+							.from(this)
+							.executeQuery(sql)
+							.fstream();
 	}
 	
 	public int executeUpdate(String sql) throws SQLException {
@@ -316,9 +289,8 @@ public class JdbcProcessor implements Serializable {
 	}
 	
 	public long rowCount(String tableName) throws SQLException {
-		return streamQuery("select count(*) from " + tableName)
+		return streamQuery("select count(*) from " + tableName, rs -> rs.getLong(1))
 				.findFirst()
-				.mapOrThrow(rs -> rs.getLong(1))
 				.get();
 	}
 	
