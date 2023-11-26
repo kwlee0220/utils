@@ -14,6 +14,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import javax.annotation.Nonnull;
+
 import utils.Throwables;
 import utils.stream.FStream;
 import utils.stream.FStreamable;
@@ -146,7 +148,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		}
 	}
 	
-	public FOption<T> ifPresent(Consumer<? super T> effect) {
+	public FOption<T> ifPresent(@Nonnull Consumer<? super T> effect) {
 		checkNotNullArgument(effect, "present consumer is null");
 		
 		if ( m_present ) {
@@ -156,7 +158,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return this;
 	}
 	
-	public <X extends Throwable> FOption<T> ifPresentOrThrow(CheckedConsumerX<? super T,X> effect) throws X {
+	public <X extends Throwable> FOption<T> ifPresentOrThrow(@Nonnull CheckedConsumerX<? super T,X> effect) throws X {
 		checkNotNullArgument(effect, "present consumer is null");
 		
 		if ( m_present ) {
@@ -245,6 +247,12 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return (m_present) ? mapper.apply(m_value) : empty();
+	}
+	
+	public <S> FOption<S> flatMapNullable(Function<? super T,? extends S> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		
+		return (m_present) ? FOption.ofNullable(mapper.apply(m_value)) : empty();
 	}
 	
 	public <S> FStream<S> flatMapFStream(Function<? super T,FStream<S>> mapper) {
