@@ -10,7 +10,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
 ext {
 	slf4j_version = '1.7.32'
 	guava_version = '30.1.1-jre'
-	rxjava2_version = '2.2.21'
+	rxjava3_version = '3.1.8'
 	picocli_version = '3.9.6'
 //	picocli_version = '4.6.2'
 	
@@ -30,6 +30,7 @@ repositories {
 dependencies {
 	api "org.slf4j:slf4j-api:${slf4j_version}"
 	api "com.google.guava:guava:${guava_version}"
+	api "io.reactivex.rxjava3:rxjava:${rxjava3_version}"
 	
 	// command line parser
 	implementation "info.picocli:picocli:${picocli_version}"
