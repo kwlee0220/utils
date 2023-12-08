@@ -17,8 +17,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -49,7 +47,7 @@ public class EventDrivenExecution5Test {
 	public void test_CANCELLED_01() throws Exception {
 		boolean ret = m_exec.notifyStarting();
 		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(State.CANCELLED));
+		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
 	}
 
 	@Test
@@ -68,7 +66,7 @@ public class EventDrivenExecution5Test {
 	public void test_CANCELLED_04() throws Exception {
 		boolean ret = m_exec.notifyCancelled();
 		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(State.CANCELLED));
+		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -81,13 +79,13 @@ public class EventDrivenExecution5Test {
 	public void test_CANCELLED_05() throws Exception {
 		boolean ret = m_exec.notifyCompleted("ok");
 		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(State.CANCELLED));
+		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
 	}
 
 	@Test
 	public void test_CANCELLED_06() throws Exception {
 		boolean ret = m_exec.notifyFailed(m_cause);
 		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(State.CANCELLED));
+		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
 	}
 }

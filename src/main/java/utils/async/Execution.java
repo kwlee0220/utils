@@ -19,33 +19,6 @@ import utils.func.FOption;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface Execution<T> extends Future<T> {
-	public enum State {
-		/** 연산 시작 이전 상태 */
-		NOT_STARTED(0),
-		/** 연산이 동작을 위해 초기화 중인 상태 */
-		STARTING(1),
-		/** 연산이 동작 중인 상태 */
-		RUNNING(2),
-		/** 연산 수행이 성공적으로 종료된 상태. */
-		COMPLETED(3),
-		/** 연산 수행 중 오류 발생으로 종료된 상태. */
-		FAILED(4),
-		/** 연산 수행 중단이 요청되어 중단 중인 상태. */
-		CANCELLING(5),
-		/** 연산 수행 중간에 강제로 중단된 상태. */
-		CANCELLED(6);
-		
-		int m_code;
-		
-		State(int code) {
-			m_code = code;
-		}
-		
-		int getCode() {
-			return m_code;
-		}
-	};
-	
 	public interface FinishListener<T> {
 		public void onCompleted(T result);
 		public void onFailed(Throwable cause);
@@ -75,7 +48,7 @@ public interface Execution<T> extends Future<T> {
 	 * 
 	 * @return	연산 수행 상태.
 	 */
-	public State getState();
+	public AsyncState getState();
 	
 	/**
 	 * 연산 수행이 시작되었는지를 반환한다.
@@ -85,7 +58,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산의 시작 여부.
 	 */
 	public default boolean isStarted() {
-		return getState().getCode() >= State.STARTING.getCode();
+		return getState().getCode() >= AsyncState.STARTING.getCode();
 	}
 	
 	/**
@@ -94,7 +67,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	수행 중인 경우는 {@code true} 그렇지 않은 경우는 {@code false}를 반환한다.
 	 */
 	public default boolean isRunning() {
-		return getState() == State.RUNNING;
+		return getState() == AsyncState.RUNNING;
 	}
 
 	/**
@@ -103,7 +76,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산의 성공 종료 여부.
 	 */
 	public default boolean isCompleted() {
-		return getState() == State.COMPLETED;
+		return getState() == AsyncState.COMPLETED;
 	}
 
 	/**
@@ -112,7 +85,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산의 실패 종료 여부.
 	 */
 	public default boolean isFailed() {
-		return getState() == State.FAILED;
+		return getState() == AsyncState.FAILED;
 	}
 
 	/**
@@ -121,7 +94,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산의 중단 종료 여부.
 	 */
 	public default boolean isCancelled() {
-		return getState() == State.CANCELLED;
+		return getState() == AsyncState.CANCELLED;
 	}
 	
 	/**
@@ -133,9 +106,9 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산 종료 여부.
 	 */
 	public default boolean isDone() {
-		State state = getState();
-		return state == State.COMPLETED || state == State.FAILED
-			|| state == State.CANCELLED;
+		AsyncState state = getState();
+		return state == AsyncState.COMPLETED || state == AsyncState.FAILED
+			|| state == AsyncState.CANCELLED;
 	}
 	
 	/**
@@ -175,19 +148,19 @@ public interface Execution<T> extends Future<T> {
     	}
     }
     
-	public FOption<Result<T>> pollResult();
+	public FOption<AsyncResult<T>> pollResult();
 
 	/**
 	 * 비동기 작업이 종료될 때까지 기다려 그 결과를 반환한다.
 	 * 
 	 * @return	종료 결과.
-	 * 			성공적으로 종료된 경우는 {@link Result#isCompleted()}가 {@code true},
-	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailed()}가 {@code true},
-	 * 			또는 작업이 취소되어 종료된 경우는 {@link Result#isCancelled()}가
+	 * 			성공적으로 종료된 경우는 {@link AsyncResult#isCompleted()}가 {@code true},
+	 * 			오류가 발생되어 종료된 경우는 {@link AsyncResult#isFailed()}가 {@code true},
+	 * 			또는 작업이 취소되어 종료된 경우는 {@link AsyncResult#isCancelled()}가
 	 * 			{@code true}가 됨.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-    public Result<T> waitForResult() throws InterruptedException;
+    public AsyncResult<T> waitForResult() throws InterruptedException;
 	
 	/**
 	 * 본 작업이 제한시간 동안 종료될 때까지 기다려 그 결과를 반환한다.
@@ -195,19 +168,19 @@ public interface Execution<T> extends Future<T> {
 	 * @param timeout	제한시간
 	 * @param unit		제한시간 단위
 	 * @return	종료 결과.
-	 * 			성공적으로 종료된 경우는 {@link Result#isCompleted()}가 {@code true},
-	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailed()}가 {@code true},
+	 * 			성공적으로 종료된 경우는 {@link AsyncResult#isCompleted()}가 {@code true},
+	 * 			오류가 발생되어 종료된 경우는 {@link AsyncResult#isFailed()}가 {@code true},
 	 * 			또는 작업이 취소되어 종료된 경우거나 시간제한으로 반환되는 경우
-	 * 			{@link Result#isCancelled()}가 {@code true}가 됨.
+	 * 			{@link AsyncResult#isCancelled()}가 {@code true}가 됨.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 * @throws TimeoutException	작업 종료 대기 중 시간제한이 걸린 경우.
 	 */
-    public default Result<T> waitForResult(long timeout, TimeUnit unit)
+    public default AsyncResult<T> waitForResult(long timeout, TimeUnit unit)
     	throws InterruptedException, TimeoutException {
     	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
     	return waitForResult(due);
     }
-    public Result<T> waitForResult(Date due) throws InterruptedException, TimeoutException;
+    public AsyncResult<T> waitForResult(Date due) throws InterruptedException, TimeoutException;
     
 	/**
 	 * 비동기 작업이 시작될 때까지 대기한다.
@@ -255,7 +228,7 @@ public interface Execution<T> extends Future<T> {
 	public boolean waitForDone(Date due) throws InterruptedException;
 
 	public Execution<T> whenStarted(Runnable listener);
-	public Execution<T> whenFinished(Consumer<Result<T>> resultConsumer);
+	public Execution<T> whenFinished(Consumer<AsyncResult<T>> resultConsumer);
 	public default void whenFinished(FinishListener<T> listener) {
 		whenFinished(r -> r.ifCompleted(listener::onCompleted)
 							.ifCancelled(listener::onCancelled)

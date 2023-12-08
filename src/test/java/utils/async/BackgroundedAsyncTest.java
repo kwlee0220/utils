@@ -13,7 +13,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
 import utils.async.op.AsyncExecutions;
 
 
@@ -26,7 +25,7 @@ public class BackgroundedAsyncTest {
 	private final ScheduledExecutorService m_scheduler = Executors.newScheduledThreadPool(4);
 	private final Exception m_error = new Exception();
 	
-	@Mock Consumer<Result<Integer>> m_doneListener;
+	@Mock Consumer<AsyncResult<Integer>> m_doneListener;
 	
 	@Before
 	public void setup() {
@@ -38,7 +37,7 @@ public class BackgroundedAsyncTest {
 		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Thread.sleep(30);
@@ -59,7 +58,7 @@ public class BackgroundedAsyncTest {
 		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		exec.waitForStarted();
@@ -79,7 +78,7 @@ public class BackgroundedAsyncTest {
 		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		exec.waitForDone();
@@ -95,7 +94,7 @@ public class BackgroundedAsyncTest {
 		StartableExecution<?> bg = AsyncExecutions.failure(m_error);
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		bg.waitForDone();

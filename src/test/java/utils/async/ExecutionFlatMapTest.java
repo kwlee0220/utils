@@ -14,8 +14,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -51,24 +49,24 @@ public class ExecutionFlatMapTest {
 		
 		boolean ret;
 		
-		assertThat(comp.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyStarted();
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(comp.getState(), is(State.RUNNING));
-		assertThat(follower.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.RUNNING));
+		assertThat(follower.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyCompleted("abc");
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(m_leader.getState(), is(State.COMPLETED));
-		assertThat(follower.getState(), is(State.RUNNING));
+		assertThat(m_leader.getState(), is(AsyncState.COMPLETED));
+		assertThat(follower.getState(), is(AsyncState.RUNNING));
 		
 		ret = follower.notifyCompleted(3);
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(comp.getState(), is(State.COMPLETED));
+		assertThat(comp.getState(), is(AsyncState.COMPLETED));
 	}
 
 	@Test
@@ -81,20 +79,20 @@ public class ExecutionFlatMapTest {
 		
 		boolean ret;
 		
-		assertThat(comp.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyStarted();
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(comp.getState(), is(State.RUNNING));
-		assertThat(follower.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.RUNNING));
+		assertThat(follower.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyFailed(m_cause);
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(m_leader.getState(), is(State.FAILED));
-		assertThat(follower.getState(), is(State.NOT_STARTED));
-		assertThat(comp.getState(), is(State.FAILED));
+		assertThat(m_leader.getState(), is(AsyncState.FAILED));
+		assertThat(follower.getState(), is(AsyncState.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.FAILED));
 	}
 
 	@Test
@@ -107,20 +105,20 @@ public class ExecutionFlatMapTest {
 		
 		boolean ret;
 		
-		assertThat(comp.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyStarted();
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(comp.getState(), is(State.RUNNING));
-		assertThat(follower.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.RUNNING));
+		assertThat(follower.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyCancelled();
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(m_leader.getState(), is(State.CANCELLED));
-		assertThat(follower.getState(), is(State.NOT_STARTED));
-		assertThat(comp.getState(), is(State.CANCELLED));
+		assertThat(m_leader.getState(), is(AsyncState.CANCELLED));
+		assertThat(follower.getState(), is(AsyncState.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.CANCELLED));
 	}
 
 	@Test
@@ -133,24 +131,24 @@ public class ExecutionFlatMapTest {
 		
 		boolean ret;
 		
-		assertThat(comp.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyStarted();
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(comp.getState(), is(State.RUNNING));
-		assertThat(follower.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.RUNNING));
+		assertThat(follower.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyCompleted("abc");
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(m_leader.getState(), is(State.COMPLETED));
-		assertThat(follower.getState(), is(State.RUNNING));
+		assertThat(m_leader.getState(), is(AsyncState.COMPLETED));
+		assertThat(follower.getState(), is(AsyncState.RUNNING));
 		
 		ret = follower.notifyFailed(m_cause);
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(comp.getState(), is(State.FAILED));
+		assertThat(comp.getState(), is(AsyncState.FAILED));
 	}
 
 	@Test
@@ -163,24 +161,24 @@ public class ExecutionFlatMapTest {
 		
 		boolean ret;
 		
-		assertThat(comp.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyStarted();
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(comp.getState(), is(State.RUNNING));
-		assertThat(follower.getState(), is(State.NOT_STARTED));
+		assertThat(comp.getState(), is(AsyncState.RUNNING));
+		assertThat(follower.getState(), is(AsyncState.NOT_STARTED));
 		
 		ret = m_leader.notifyCompleted("abc");
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(m_leader.getState(), is(State.COMPLETED));
-		assertThat(follower.getState(), is(State.RUNNING));
+		assertThat(m_leader.getState(), is(AsyncState.COMPLETED));
+		assertThat(follower.getState(), is(AsyncState.RUNNING));
 		
 		ret = follower.notifyCancelled();
 		try { Thread.sleep(100); } catch ( Exception e ) { }
 		assertThat(ret, is(true));
-		assertThat(comp.getState(), is(State.CANCELLED));
+		assertThat(comp.getState(), is(AsyncState.CANCELLED));
 	}
 	
 	private static class ExecutionImpl<T> extends EventDrivenExecution<T>
@@ -195,12 +193,12 @@ public class ExecutionFlatMapTest {
 	public void test11() throws Exception {
 		EventDrivenExecution<Integer> follower = new ExecutionImpl<>();
 		EventDrivenExecution<Integer> exec = m_leader.flatMapOnCompleted(str -> follower);
-		assertThat(exec.getState(), is(State.NOT_STARTED));
+		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
-		assertEquals(State.RUNNING, exec.getState());
-		assertEquals(State.NOT_STARTED, follower.getState());
+		assertEquals(AsyncState.RUNNING, exec.getState());
+		assertEquals(AsyncState.NOT_STARTED, follower.getState());
 
 		assertTrue(m_leader.notifyCompleted("abc"));
 		sleep(100);
@@ -215,11 +213,11 @@ public class ExecutionFlatMapTest {
 	@Test
 	public void test21() throws Exception {
 		EventDrivenExecution<Integer> exec = m_leader.flatMap(r -> m_follower);
-		assertThat(exec.getState(), is(State.NOT_STARTED));
+		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
-		assertEquals(State.RUNNING, exec.getState());
+		assertEquals(AsyncState.RUNNING, exec.getState());
 
 		assertTrue(m_leader.notifyCompleted("abc"));
 		sleep(100);
@@ -235,11 +233,11 @@ public class ExecutionFlatMapTest {
 	@Test
 	public void test22() throws Exception {
 		EventDrivenExecution<Integer> exec = m_leader.flatMap(r -> m_follower);
-		assertThat(exec.getState(), is(State.NOT_STARTED));
+		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
-		assertEquals(State.RUNNING, exec.getState());
+		assertEquals(AsyncState.RUNNING, exec.getState());
 
 		assertTrue(m_leader.notifyFailed(m_cause));
 		sleep(100);
@@ -255,11 +253,11 @@ public class ExecutionFlatMapTest {
 	@Test
 	public void test23() throws Exception {
 		EventDrivenExecution<Integer> exec = m_leader.flatMap(r -> m_follower);
-		assertThat(exec.getState(), is(State.NOT_STARTED));
+		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
-		assertEquals(State.RUNNING, exec.getState());
+		assertEquals(AsyncState.RUNNING, exec.getState());
 
 		assertTrue(m_leader.notifyCancelled());
 		sleep(100);
@@ -275,11 +273,11 @@ public class ExecutionFlatMapTest {
 	@Test
 	public void test31() throws Exception {
 		EventDrivenExecution<Integer> exec = m_leader.flatMap(r -> m_follower);
-		assertThat(exec.getState(), is(State.NOT_STARTED));
+		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
-		assertEquals(State.RUNNING, exec.getState());
+		assertEquals(AsyncState.RUNNING, exec.getState());
 
 		assertTrue(m_leader.notifyCompleted("abc"));
 		sleep(100);
@@ -295,11 +293,11 @@ public class ExecutionFlatMapTest {
 	@Test
 	public void test32() throws Exception {
 		EventDrivenExecution<Integer> exec = m_leader.flatMap(r -> m_follower);
-		assertThat(exec.getState(), is(State.NOT_STARTED));
+		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
-		assertEquals(State.RUNNING, exec.getState());
+		assertEquals(AsyncState.RUNNING, exec.getState());
 
 		assertTrue(m_leader.notifyCompleted("abc"));
 		sleep(100);

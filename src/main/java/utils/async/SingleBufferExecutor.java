@@ -95,7 +95,7 @@ class SingleBufferExecutor implements LoggerSettable {
 		m_logger = logger != null ? logger : s_logger;
 	}
 	
-	private void onDone(Result<?> result) {
+	private void onDone(AsyncResult<?> result) {
 		m_lock.lock();
 		try {
 			m_running = null;

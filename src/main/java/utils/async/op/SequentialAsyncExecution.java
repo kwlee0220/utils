@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import utils.Utilities;
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
-import utils.async.Result;
+import utils.async.AsyncResult;
 import utils.async.StartableExecution;
 import utils.stream.FStream;
 
@@ -71,7 +71,7 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 		}
 		
 		// 첫번째 element를 시작시키기 위해 가상의 이전 element AsyncExecution이 종료된 효과를 발생시킨다.
-		onFinishedInGuard(Result.completed(null));
+		onFinishedInGuard(AsyncResult.completed(null));
 	}
 
 	@Override
@@ -91,7 +91,7 @@ public class SequentialAsyncExecution<T> extends AbstractAsyncExecution<T>
 	}
 	
 	@SuppressWarnings("unchecked")
-	private void onFinishedInGuard(Result<?> result) {
+	private void onFinishedInGuard(AsyncResult<?> result) {
 		if ( result.isCompleted() ) {
 			// m_sequence가 empty인 경우 notifyStarting() 만 호출된 상태이기 때문에
 			// 먼저강제로 notifyStarted()를 호출해준다.

@@ -18,8 +18,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -51,7 +49,7 @@ public class EventDrivenExecutionTest1 {
 	public void test_STARTING_01() throws Exception {
 		boolean ret = m_exec.notifyStarting();
 		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(State.STARTING));
+		assertThat(m_exec.getState(), is(AsyncState.STARTING));
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();
@@ -64,7 +62,7 @@ public class EventDrivenExecutionTest1 {
 	public void test_STARTING_02() throws Exception {
 		boolean ret = m_exec.notifyStarted();
 		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(State.RUNNING));
+		assertThat(m_exec.getState(), is(AsyncState.RUNNING));
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -75,7 +73,7 @@ public class EventDrivenExecutionTest1 {
 
 	@Test
 	public void test_STARTING_03() throws Exception {
-		assertThat(m_exec.getState(), is(State.STARTING));
+		assertThat(m_exec.getState(), is(AsyncState.STARTING));
 		
 		CompletableFuture.runAsync(() -> {
 			try {
@@ -89,7 +87,7 @@ public class EventDrivenExecutionTest1 {
 		assertThat(m_tag, is(0));
 		assertThat(m_exec.notifyCancelling(), is(true));
 		assertThat(m_tag, is(1));
-		assertThat(m_exec.getState(), is(State.CANCELLING));
+		assertThat(m_exec.getState(), is(AsyncState.CANCELLING));
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -111,7 +109,7 @@ public class EventDrivenExecutionTest1 {
 		assertThat(m_tag, is(0));
 		assertThat(m_exec.notifyCancelled(), is(true));
 		assertThat(m_tag, is(1));
-		assertThat(m_exec.getState(), is(State.CANCELLED));
+		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -128,7 +126,7 @@ public class EventDrivenExecutionTest1 {
 	public void test_STARTING_06() throws Exception {
 		boolean ret = m_exec.notifyFailed(m_cause);
 		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(State.FAILED));
+		assertThat(m_exec.getState(), is(AsyncState.FAILED));
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();

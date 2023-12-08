@@ -13,7 +13,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
 import utils.func.FOption;
 
 
@@ -30,13 +29,13 @@ public class AbstractLoopExecutionTest {
 	@Test
 	public void test1() throws Exception {
 		StartableExecution<Integer> exec = new TestExecution1(5);
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
 		Assert.assertEquals(false, exec.isDone());
 		
-		Result<Integer> result;
+		AsyncResult<Integer> result;
 		try {
 			exec.waitForResult(100, TimeUnit.MILLISECONDS);
 		}
@@ -62,10 +61,10 @@ public class AbstractLoopExecutionTest {
 	
 	@Test
 	public void test3() throws Exception {
-		Result<Integer> result;
+		AsyncResult<Integer> result;
 		
 		StartableExecution<Integer> exec = new TestExecution2(5);
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
@@ -77,7 +76,7 @@ public class AbstractLoopExecutionTest {
 	
 	@Test
 	public void test4() throws Exception {
-		Result<Integer> result;
+		AsyncResult<Integer> result;
 		
 		StartableExecution<Integer> exec = new TestExecution3(5);
 		
@@ -90,7 +89,7 @@ public class AbstractLoopExecutionTest {
 	
 	@Test
 	public void test5() throws Exception {
-		Result<Integer> result;
+		AsyncResult<Integer> result;
 		
 		StartableExecution<Integer> exec = new TestExecution4(5);
 		

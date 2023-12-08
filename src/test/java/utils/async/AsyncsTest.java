@@ -34,7 +34,7 @@ public class AsyncsTest {
 		task.waitForStarted();
 		Assert.assertTrue(task.isStarted());
 		
-		Result<Void> result = task.waitForResult();
+		AsyncResult<Void> result = task.waitForResult();
 		Assert.assertTrue(result.isCompleted());
 		Thread.sleep(100);
 		Assert.assertEquals(true, m_done);
@@ -53,7 +53,7 @@ public class AsyncsTest {
 		
 		Assert.assertEquals(true, task.cancel(true));
 
-		Result<Void> result = task.waitForResult();
+		AsyncResult<Void> result = task.waitForResult();
 		Assert.assertEquals(true, result.isCancelled());
 		Thread.sleep(100);
 		Assert.assertEquals(true, m_done);
@@ -74,7 +74,7 @@ public class AsyncsTest {
 		task.waitForStarted();
 		Assert.assertTrue(task.isStarted());
 
-		Result<Void> result = task.waitForResult();
+		AsyncResult<Void> result = task.waitForResult();
 		Assert.assertEquals(true, result.isFailed());
 		Assert.assertEquals(IllegalStateException.class, result.getCause().getClass());
 		Assert.assertEquals("aaa", result.getCause().getMessage());
@@ -92,7 +92,7 @@ public class AsyncsTest {
 		task.waitForStarted();
 		Assert.assertTrue(task.isStarted());
 		
-		Result<Void> result = task.waitForResult();
+		AsyncResult<Void> result = task.waitForResult();
 		Assert.assertEquals(true, result.isCompleted());
 		Thread.sleep(100);
 		Assert.assertEquals(true, m_done);
@@ -110,7 +110,7 @@ public class AsyncsTest {
 		
 		Assert.assertEquals(true, task.cancel(true));
 
-		Result<Void> result = task.waitForResult();
+		AsyncResult<Void> result = task.waitForResult();
 		Assert.assertEquals(true, result.isCancelled());
 		Thread.sleep(100);
 		Assert.assertEquals(true, m_done);
@@ -130,7 +130,7 @@ public class AsyncsTest {
 		task.waitForStarted();
 		Assert.assertTrue(task.isStarted());
 
-		Result<Void> result = task.waitForResult();
+		AsyncResult<Void> result = task.waitForResult();
 		Assert.assertEquals(true, result.isFailed());
 		Assert.assertEquals(IllegalStateException.class, result.getCause().getClass());
 		Assert.assertEquals("aaa", result.getCause().getMessage());

@@ -82,7 +82,7 @@ public class Executions {
 	
 	static class FlatMapChainExecution<T,S> extends EventDrivenExecution<S> {
 		FlatMapChainExecution(EventDrivenExecution<? extends T> leader,
-							Function<Result<? extends T>,Execution<? extends S>> chain) {
+							Function<AsyncResult<? extends T>,Execution<? extends S>> chain) {
 			leader.whenStarted(this::notifyStarted);
 			leader.whenFinished(ret -> {
 				Execution<S> follower = Execution.narrow(chain.apply(ret));
@@ -99,7 +99,7 @@ public class Executions {
 	
 	static class MapChainExecution<T,S> extends EventDrivenExecution<S> {
 		MapChainExecution(EventDrivenExecution<? extends T> leader,
-							Function<Result<? extends T>,? extends S> chain) {
+							Function<AsyncResult<? extends T>,? extends S> chain) {
 			leader.whenStarted(this::notifyStarted);
 			leader.whenFinished(ret -> {
 				try {

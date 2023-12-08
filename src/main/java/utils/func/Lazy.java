@@ -59,8 +59,18 @@ public class Lazy<T> {
 		return m_loaded.get();
 	}
 	
+	public synchronized void set(T v) {
+		m_loaded = FOption.of(v);
+	}
+	
 	public synchronized void unload() {
 		m_loaded = FOption.empty();
+	}
+	
+	public synchronized void unload(Consumer<T> dtor) {
+		if ( m_loaded.ifPresent(dtor).isPresent() ) {
+			m_loaded = FOption.empty();
+		}
 	}
 	
 	@Override

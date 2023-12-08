@@ -240,11 +240,6 @@ public class JdbcProcessor implements Serializable {
 		return JdbcUtils.bindToConnection(stmt.executeQuery(sql));
 	}
 	
-	public ResultSet executeQuery(Statement stmt, String sql) throws SQLException {
-		ResultSet rs = stmt.executeQuery(sql);
-		return JdbcUtils.bindToConnection(rs);
-	}
-	
 	public <T> FStream<T> streamQuery(String sql, CheckedFunction<ResultSet, T> deserializer) {
 		return JdbcRowSource.select(deserializer)
 							.from(this)
@@ -265,20 +260,6 @@ public class JdbcProcessor implements Serializable {
 			pstmtSetter.accept(pstmt);
 			
 			return pstmt.executeUpdate();
-		}
-		catch ( SQLException e ) {
-			throw e;
-		}
-		catch ( Throwable e ) {
-			throw new ExecutionException(Throwables.unwrapThrowable(e));
-		}
-	}
-	
-	public void execute(JdbcConsumer<Statement> job) throws SQLException, ExecutionException {
-		try ( Connection conn = connect() ) {
-			Statement stmt = conn.createStatement();
-			
-			job.accept(stmt);
 		}
 		catch ( SQLException e ) {
 			throw e;
