@@ -199,4 +199,31 @@ public class ConcatTeat {
 			Assert.assertEquals(Integer.valueOf(i), r.get());
 		}
 	}
+	
+	@Test
+	public void test8() throws Exception {
+		FStream<Double> dstream = FStream.concat(FStream.of(1.15), FStream.of(1.03), FStream.generate(1d, d->d));
+		
+		FOption<Double> r;
+		
+		r = dstream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Double.valueOf(1.15), r.get());
+		
+		r = dstream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Double.valueOf(1.03), r.get());
+		
+		r = dstream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Double.valueOf(1d), r.get());
+		
+		r = dstream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Double.valueOf(1d), r.get());
+		
+		r = dstream.next();
+		Assert.assertEquals(true, r.isPresent());
+		Assert.assertEquals(Double.valueOf(1d), r.get());
+	}
 }

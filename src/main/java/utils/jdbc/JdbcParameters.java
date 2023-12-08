@@ -50,7 +50,7 @@ public class JdbcParameters {
 	@Option(names={"--jdbc-url"},
 			paramLabel="<system>:<jdbc_host>:<jdbc_port>:<user_id>:<passwd>:<db_name>",
 			required=true,
-			description={"JDBC locator, (eg. 'mysql:localhost:3306:sbdata:xxxyy:bigdata')"})
+			description={"JDBC locator, (eg. 'mysql:localhost:3306:sbdata:<passwd>:<db-name>')"})
 	public JdbcParameters jdbcLoc(String loc) {
 		checkNotNullArgument(loc, "JDBC locator is null");
 		

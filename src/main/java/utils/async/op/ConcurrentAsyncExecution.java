@@ -7,9 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import utils.Utilities;
 import utils.async.AbstractAsyncExecution;
+import utils.async.AsyncResult;
 import utils.async.CancellableWork;
 import utils.async.Guard;
-import utils.async.Result;
 import utils.async.StartableExecution;
 import utils.func.Try;
 
@@ -95,7 +95,7 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 		return true;
 	}
 	
-	private void onElementFinished(Result<?> result) {
+	private void onElementFinished(AsyncResult<?> result) {
 		// start 과정 중에, 일부 element exec가 종료될 수도 있기 때문에
 		// 모든 element의 start가 모두 끝날 때까지 대기한다.
 		Try.run(() -> waitForStarted());

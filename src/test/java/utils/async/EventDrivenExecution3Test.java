@@ -12,8 +12,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -44,7 +42,7 @@ public class EventDrivenExecution3Test {
 	public void test_COMPLETED_01() throws Exception {
 		boolean ret = m_exec.notifyStarting();
 		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(State.COMPLETED));
+		assertThat(m_exec.getState(), is(AsyncState.COMPLETED));
 	}
 
 	@Test
@@ -57,27 +55,27 @@ public class EventDrivenExecution3Test {
 	public void test_COMPLETED_03() throws Exception {
 		boolean ret = m_exec.notifyCancelling();
 		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(State.COMPLETED));
+		assertThat(m_exec.getState(), is(AsyncState.COMPLETED));
 	}
 
 	@Test
 	public void test_COMPLETED_04() throws Exception {
 		boolean ret = m_exec.notifyCancelled();
 		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(State.COMPLETED));
+		assertThat(m_exec.getState(), is(AsyncState.COMPLETED));
 	}
 
 	@Test
 	public void test_COMPLETED_05() throws Exception {
 		boolean ret = m_exec.notifyCompleted("ok");
 		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(State.COMPLETED));
+		assertThat(m_exec.getState(), is(AsyncState.COMPLETED));
 	}
 
 	@Test
 	public void test_COMPLETED_06() throws Exception {
 		boolean ret = m_exec.notifyFailed(m_cause);
 		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(State.COMPLETED));
+		assertThat(m_exec.getState(), is(AsyncState.COMPLETED));
 	}
 }

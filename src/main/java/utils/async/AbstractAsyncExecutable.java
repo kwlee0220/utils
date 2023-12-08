@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 
 import utils.LoggerSettable;
 import utils.Throwables;
-import utils.async.Execution.State;
 
 /**
  * 
@@ -27,7 +26,7 @@ public abstract class AbstractAsyncExecutable<T> implements AsyncExecutable<T>,
 		EventDrivenExecution<T> exec = new EventDrivenExecution<>();
 		if ( !exec.notifyStarting() ) {
 			String details = String.format("expected=%s, actual=%s",
-											State.NOT_STARTED, exec.getState());
+											AsyncState.NOT_STARTED, exec.getState());
 			throw new IllegalStateException(details);
 		}
 
@@ -44,7 +43,7 @@ public abstract class AbstractAsyncExecutable<T> implements AsyncExecutable<T>,
 		EventDrivenExecution<T> exec = new EventDrivenExecution<>();
 		if ( !exec.notifyStarting() ) {
 			String details = String.format("expected=%s, actual=%s",
-											State.NOT_STARTED, exec.getState());
+											AsyncState.NOT_STARTED, exec.getState());
 			throw new IllegalStateException(details);
 		}
 
@@ -74,7 +73,7 @@ public abstract class AbstractAsyncExecutable<T> implements AsyncExecutable<T>,
 			try {
 				if ( !m_exec.notifyStarted() ) {
 					String details = String.format("expected=%s, actual=%s",
-												State.STARTING, m_exec.getState());
+												AsyncState.STARTING, m_exec.getState());
 					m_exec.notifyFailed(new IllegalStateException(details));
 					return;
 				}

@@ -17,7 +17,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
 import utils.async.op.AsyncExecutions;
 import utils.stream.FStream;
 
@@ -33,7 +32,7 @@ public class FoldAsyncTest {
 	private FStream<StartableExecution<Integer>> m_gen3;
 	private final Exception m_error = new Exception();
 	
-	@Mock Consumer<Result<Integer>> m_doneListener;
+	@Mock Consumer<AsyncResult<Integer>> m_doneListener;
 	
 	@Before
 	public void setup() {
@@ -49,7 +48,7 @@ public class FoldAsyncTest {
 	public void test01() throws Exception {
 		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
@@ -57,7 +56,7 @@ public class FoldAsyncTest {
 		MILLISECONDS.sleep(50);
 		Assert.assertEquals(true, exec.isStarted());
 		
-		exec.waitForDone();
+		exec.pollInfinite();
 		Assert.assertEquals(10, (int)exec.get());
 	}
 	
@@ -67,8 +66,8 @@ public class FoldAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
-		verify(m_doneListener, times(1)).accept(Result.completed(Integer.valueOf(10)));
+		exec.pollInfinite();
+		verify(m_doneListener, times(1)).accept(AsyncResult.completed(Integer.valueOf(10)));
 	}
 
 	@Test
@@ -77,12 +76,11 @@ public class FoldAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		boolean ok = exec.waitForDone(230, MILLISECONDS);
-		Assert.assertEquals(false, ok);
+		Assert.assertEquals(true, exec.poll(230, MILLISECONDS).isRunning());
 		
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
-		verify(m_doneListener, times(1)).accept(Result.cancelled());
+		verify(m_doneListener, times(1)).accept(AsyncResult.cancelled());
 	}
 
 	@Test
@@ -91,12 +89,12 @@ public class FoldAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.pollInfinite();
 		
 		Assert.assertEquals(true, exec.isFailed());
-		Assert.assertEquals(m_error, exec.pollResult().get().getCause());
+		Assert.assertEquals(m_error, exec.poll().getCause());
 		MILLISECONDS.sleep(50);
-		verify(m_doneListener, times(1)).accept(Result.failed(m_error));
+		verify(m_doneListener, times(1)).accept(AsyncResult.failed(m_error));
 	}
 	
 	@Test
@@ -105,10 +103,10 @@ public class FoldAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.pollInfinite();
 		
 		Assert.assertEquals(true, exec.isCancelled());
 		MILLISECONDS.sleep(50);
-		verify(m_doneListener, times(1)).accept(Result.cancelled());
+		verify(m_doneListener, times(1)).accept(AsyncResult.cancelled());
 	}
 }

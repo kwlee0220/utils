@@ -20,7 +20,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
 import utils.async.op.SequentialAsyncExecution;
 import utils.stream.FStream;
 
@@ -40,7 +39,7 @@ public class SequentialAsyncTest {
 	private FStream<StartableExecution<?>> m_gen3;
 	private final Exception m_error = new Exception();
 	
-	@Mock Consumer<Result<Integer>> m_doneListener;
+	@Mock Consumer<AsyncResult<Integer>> m_doneListener;
 	
 	@Before
 	public void setup() {
@@ -61,7 +60,7 @@ public class SequentialAsyncTest {
 	public void test01() throws Exception {
 		SequentialAsyncExecution<Integer> exec = SequentialAsyncExecution.of(m_gen);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
@@ -70,7 +69,7 @@ public class SequentialAsyncTest {
 		StartableExecution<?> elm = exec.getCurrentExecution();
 		Assert.assertEquals(true, elm.isStarted());
 		
-		exec.waitForDone();
+		exec.pollInfinite();
 		Assert.assertEquals(4, (int)exec.get());
 
 		MILLISECONDS.sleep(50);
@@ -85,11 +84,11 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.pollInfinite();
 		
 		// finish_listener가 호출될 때까지 일정시간동안 대기한다.
 		MILLISECONDS.sleep(50);
-		verify(m_doneListener, times(1)).accept(Result.completed(Integer.valueOf(4)));
+		verify(m_doneListener, times(1)).accept(AsyncResult.completed(Integer.valueOf(4)));
 	}
 	
 	@Test
@@ -98,12 +97,12 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		boolean ok = exec.waitForDone(250, MILLISECONDS);
+		boolean wasRunning = exec.poll(250, MILLISECONDS).isRunning();
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
 		
-		Assert.assertEquals(false, ok);
-		verify(m_doneListener, times(1)).accept(Result.cancelled());
+		Assert.assertEquals(true, wasRunning);
+		verify(m_doneListener, times(1)).accept(AsyncResult.cancelled());
 		Assert.assertEquals(2, exec.getCurrentExecutionIndex());
 		Assert.assertTrue(m_execList.get(2).isCancelled());
 	}
@@ -114,14 +113,14 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.pollInfinite();
 		MILLISECONDS.sleep(50);
 
 		Assert.assertEquals(true, m_failed.isFailed());
 		Assert.assertEquals(true, exec.isFailed());
-		Assert.assertEquals(m_error, exec.pollResult().get().getCause());
+		Assert.assertEquals(m_error, exec.poll().getCause());
 		
-		verify(m_doneListener, times(1)).accept(Result.failed(m_error));
+		verify(m_doneListener, times(1)).accept(AsyncResult.failed(m_error));
 		Assert.assertEquals(5, exec.getCurrentExecutionIndex());
 	}
 	
@@ -131,13 +130,13 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.pollInfinite();
 		MILLISECONDS.sleep(50);
 
 		Assert.assertEquals(true, m_cancelled.isCancelled());
 		Assert.assertEquals(true, exec.isCancelled());
 		
-		verify(m_doneListener, times(1)).accept(Result.cancelled());
+		verify(m_doneListener, times(1)).accept(AsyncResult.cancelled());
 		Assert.assertEquals(5, exec.getCurrentExecutionIndex());
 	}
 }

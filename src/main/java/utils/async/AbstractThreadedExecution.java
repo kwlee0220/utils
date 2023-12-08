@@ -50,7 +50,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 				throw new CancellationException();
 			}
 			
-			return pollResult().get().get();
+			return poll().get();
 		}
 		catch ( InterruptedException | CancellationException e ) {
 			notifyCancelled();

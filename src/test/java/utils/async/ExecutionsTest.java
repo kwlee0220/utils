@@ -11,7 +11,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
 import utils.async.op.AsyncExecutions;
 
 
@@ -29,7 +28,7 @@ public class ExecutionsTest {
 	public void testNop() throws Exception {
 		StartableExecution<String> exec = AsyncExecutions.nop("abc");
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
@@ -42,12 +41,12 @@ public class ExecutionsTest {
 		ScheduledExecutorService executors = Executors.newScheduledThreadPool(4);
 		StartableExecution<Void> exec = AsyncExecutions.idle(300, TimeUnit.MILLISECONDS, executors);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		long started = System.currentTimeMillis();
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
-		exec.waitForDone();
+		exec.pollInfinite();
 		
 		Assert.assertEquals(true, exec.isCompleted());
 		Assert.assertEquals(null, exec.get());

@@ -198,6 +198,17 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return this;
 		}
 	}
+	
+	public FOption<T> filterNot(Predicate<? super T> pred) {
+		checkNotNullArgument(pred, "Predicate is null");
+		
+		if ( m_present ) {
+			return (!pred.test(m_value)) ? this : empty();
+		}
+		else {
+			return this;
+		}
+	}
 
 	public boolean test(Predicate<? super T> pred) {
 		checkNotNullArgument(pred, "Predicate is null");
@@ -249,6 +260,14 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return (m_present) ? mapper.apply(m_value) : empty();
 	}
 	
+	public <S> FOption<S> flatMapOrElse(Function<? super T,FOption<S>> mapper,
+										Supplier<FOption<S>> emptyMapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		checkNotNullArgument(emptyMapper, "emptyMapper is null");
+		
+		return (m_present) ? mapper.apply(m_value) : emptyMapper.get();
+	}
+	
 	public <S> FOption<S> flatMapNullable(Function<? super T,? extends S> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 		
@@ -271,6 +290,16 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			Throwables.sneakyThrow(e);
 			throw new AssertionError();
 		}
+	}
+	
+	public FOption<T> peek(Consumer<? super T> effect) {
+		checkNotNullArgument(effect, "effect is null");
+		
+		if ( m_present ) {
+			effect.accept(m_value);
+		}
+		
+		return this;
 	}
 	
 	public FOption<T> orElse(FOption<T> orElse) {

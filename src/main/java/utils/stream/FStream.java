@@ -166,7 +166,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	/**
-	 * '? extends T' 타입 원소의 스트림서서 'T' 타입 원소의 스트림으로 변환시킨다.
+	 * '? extends T' 타입 원소의 스트림에서 'T' 타입 원소의 스트림으로 변환시킨다.
 	 * 
 	 * @param <T>	생성된 스트림 데이터의 타입
 	 * @param stream	source FStream
@@ -1173,6 +1173,19 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default FStream<T> quasiSort(int queueLength, Comparator<T> cmptor) {
 		return new QuasiSortedFStream<>(this, queueLength, cmptor);
 	}
+	public default <S extends Comparable<S>> FStream<T> quasiSort(int queueLength,
+																	Function<? super T,S> keyer) {
+		return quasiSort(queueLength, (t1,t2) -> (keyer.apply(t1)).compareTo(keyer.apply(t2)));
+	}
+	public default <S extends Comparable<S>> FStream<T> quasiSort(int queueLength,
+															Function<? super T,S> keyer, boolean reverse) {
+		if ( reverse ) {
+			return quasiSort(queueLength, (t1,t2) -> (keyer.apply(t2)).compareTo(keyer.apply(t1)));
+		}
+		else {
+			return quasiSort(queueLength, (t1,t2) -> (keyer.apply(t1)).compareTo(keyer.apply(t2)));
+		}
+	}
 	
     public default FStream<T> takeTopK(int k, Comparator<? super T> cmp) {
         return new TopKPickedFStream<>(this, k, cmp);
@@ -1180,6 +1193,17 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public default FStream<T> takeTopK(int k) {
+        return new TopKPickedFStream<>(this, k, (t1,t2) -> ((Comparable)t1).compareTo(t2));
+    }
+    public default FStream<T> takeTopK(int k, boolean reverse) {
+    	Comparator<? super T> cmptor = (reverse)
+    									? (t1,t2) -> ((Comparable)t2).compareTo(t1)
+    									: (t1,t2) -> ((Comparable)t1).compareTo(t2); 
+        return new TopKPickedFStream<>(this, k, cmptor);
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public default <S extends Comparable<S>> FStream<T> takeTopK(int k, Function<? super T,S> keyer) {
         return new TopKPickedFStream<>(this, k, (t1,t2) -> ((Comparable)t1).compareTo(t2));
     }
 	

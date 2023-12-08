@@ -5,7 +5,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -13,7 +12,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
 import utils.func.FOption;
 
 
@@ -30,19 +28,17 @@ public class AbstractLoopExecutionTest {
 	@Test
 	public void test1() throws Exception {
 		StartableExecution<Integer> exec = new TestExecution1(5);
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
 		Assert.assertEquals(false, exec.isDone());
 		
-		Result<Integer> result;
-		try {
-			exec.waitForResult(100, TimeUnit.MILLISECONDS);
-		}
-		catch ( TimeoutException expected ) { }
+		AsyncResult<Integer> result;
+		result = exec.poll(100, TimeUnit.MILLISECONDS);
+		Assert.assertEquals(true, result.isRunning());
 		
-		result = exec.waitForResult(1, TimeUnit.SECONDS);
+		result = exec.poll(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isCompleted());
 		Assert.assertEquals(5, (int)result.get());
 	}
@@ -52,7 +48,7 @@ public class AbstractLoopExecutionTest {
 		StartableExecution<Integer> exec = new TestExecution1(5000);
 		
 		exec.start();
-		Assert.assertEquals(false, exec.waitForDone(100, TimeUnit.MILLISECONDS));
+		Assert.assertEquals(true, exec.poll(100, TimeUnit.MILLISECONDS).isRunning());
 		
 		boolean done;
 		done = exec.cancel(true);
@@ -62,41 +58,41 @@ public class AbstractLoopExecutionTest {
 	
 	@Test
 	public void test3() throws Exception {
-		Result<Integer> result;
+		AsyncResult<Integer> result;
 		
 		StartableExecution<Integer> exec = new TestExecution2(5);
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
 		Assert.assertEquals(false, exec.isDone());
 		
-		result = exec.waitForResult(1, TimeUnit.SECONDS);
+		result = exec.poll(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isCancelled());
 	}
 	
 	@Test
 	public void test4() throws Exception {
-		Result<Integer> result;
+		AsyncResult<Integer> result;
 		
 		StartableExecution<Integer> exec = new TestExecution3(5);
 		
 		exec.start();
 		
-		result = exec.waitForResult(1, TimeUnit.SECONDS);
+		result = exec.poll(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isFailed());
 		Assert.assertEquals("test", result.getCause().getMessage());
 	}
 	
 	@Test
 	public void test5() throws Exception {
-		Result<Integer> result;
+		AsyncResult<Integer> result;
 		
 		StartableExecution<Integer> exec = new TestExecution4(5);
 		
 		exec.start();
 		
-		result = exec.waitForResult(1, TimeUnit.SECONDS);
+		result = exec.poll(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isFailed());
 		Assert.assertEquals("test", result.getCause().getMessage());
 	}

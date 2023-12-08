@@ -13,7 +13,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
 import utils.async.op.AsyncExecutions;
 
 
@@ -26,7 +25,7 @@ public class BackgroundedAsyncTest {
 	private final ScheduledExecutorService m_scheduler = Executors.newScheduledThreadPool(4);
 	private final Exception m_error = new Exception();
 	
-	@Mock Consumer<Result<Integer>> m_doneListener;
+	@Mock Consumer<AsyncResult<Integer>> m_doneListener;
 	
 	@Before
 	public void setup() {
@@ -38,7 +37,7 @@ public class BackgroundedAsyncTest {
 		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Thread.sleep(30);
@@ -46,7 +45,7 @@ public class BackgroundedAsyncTest {
 		Assert.assertEquals(true, fg.isStarted());
 		Assert.assertEquals(true, bg.isStarted());
 		
-		fg.waitForDone();
+		fg.pollInfinite();
 		Thread.sleep(30);
 		Assert.assertEquals(true, exec.isCompleted());
 		Assert.assertEquals(true, fg.isCompleted());
@@ -59,7 +58,7 @@ public class BackgroundedAsyncTest {
 		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		exec.waitForStarted();
@@ -79,10 +78,10 @@ public class BackgroundedAsyncTest {
 		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS, m_scheduler);
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
-		exec.waitForDone();
+		exec.pollInfinite();
 		
 		Assert.assertEquals(true, exec.isFailed());
 		Assert.assertEquals(true, fg.isFailed());
@@ -95,10 +94,10 @@ public class BackgroundedAsyncTest {
 		StartableExecution<?> bg = AsyncExecutions.failure(m_error);
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
-		bg.waitForDone();
+		bg.pollInfinite();
 		Thread.sleep(30);
 		
 		Assert.assertEquals(true, exec.isRunning());

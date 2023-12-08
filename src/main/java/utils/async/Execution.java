@@ -8,9 +8,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import utils.Throwables;
-import utils.func.FOption;
+import utils.async.AsyncResult.Cancelled;
+import utils.async.AsyncResult.Completed;
+import utils.async.AsyncResult.Failed;
+import utils.async.AsyncResult.Running;
 
 
 /**
@@ -19,33 +23,6 @@ import utils.func.FOption;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface Execution<T> extends Future<T> {
-	public enum State {
-		/** 연산 시작 이전 상태 */
-		NOT_STARTED(0),
-		/** 연산이 동작을 위해 초기화 중인 상태 */
-		STARTING(1),
-		/** 연산이 동작 중인 상태 */
-		RUNNING(2),
-		/** 연산 수행이 성공적으로 종료된 상태. */
-		COMPLETED(3),
-		/** 연산 수행 중 오류 발생으로 종료된 상태. */
-		FAILED(4),
-		/** 연산 수행 중단이 요청되어 중단 중인 상태. */
-		CANCELLING(5),
-		/** 연산 수행 중간에 강제로 중단된 상태. */
-		CANCELLED(6);
-		
-		int m_code;
-		
-		State(int code) {
-			m_code = code;
-		}
-		
-		int getCode() {
-			return m_code;
-		}
-	};
-	
 	public interface FinishListener<T> {
 		public void onCompleted(T result);
 		public void onFailed(Throwable cause);
@@ -62,7 +39,7 @@ public interface Execution<T> extends Future<T> {
 	 * 반환 값이 {@code true}인 경우는 중단 요청이 접수되어 중단 작업이 시작된 것을 의미한다.
 	 * 물론, 이때도 중단이 반드시 성공하는 것을 의미하지 않는다.
 	 * 
-	 * 작업 중단을 확인하기 위해서는 {@link #waitForDone()}이나 {@link #waitForDone(long, TimeUnit)}
+	 * 작업 중단을 확인하기 위해서는 {@link #pollInfinite()}이나 {@link #waitForDone(long, TimeUnit)}
 	 * 메소드를 사용하여 최종적으로 확인할 수 있다.
 	 * 
 	 * @param mayInterruptIfRunning	 이미 동적 중인 경우에도 cancel할지 여부
@@ -75,7 +52,7 @@ public interface Execution<T> extends Future<T> {
 	 * 
 	 * @return	연산 수행 상태.
 	 */
-	public State getState();
+	public AsyncState getState();
 	
 	/**
 	 * 연산 수행이 시작되었는지를 반환한다.
@@ -85,7 +62,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산의 시작 여부.
 	 */
 	public default boolean isStarted() {
-		return getState().getCode() >= State.STARTING.getCode();
+		return getState().getCode() >= AsyncState.STARTING.getCode();
 	}
 	
 	/**
@@ -94,7 +71,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	수행 중인 경우는 {@code true} 그렇지 않은 경우는 {@code false}를 반환한다.
 	 */
 	public default boolean isRunning() {
-		return getState() == State.RUNNING;
+		return getState() == AsyncState.RUNNING;
 	}
 
 	/**
@@ -103,7 +80,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산의 성공 종료 여부.
 	 */
 	public default boolean isCompleted() {
-		return getState() == State.COMPLETED;
+		return getState() == AsyncState.COMPLETED;
 	}
 
 	/**
@@ -112,7 +89,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산의 실패 종료 여부.
 	 */
 	public default boolean isFailed() {
-		return getState() == State.FAILED;
+		return getState() == AsyncState.FAILED;
 	}
 
 	/**
@@ -121,7 +98,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산의 중단 종료 여부.
 	 */
 	public default boolean isCancelled() {
-		return getState() == State.CANCELLED;
+		return getState() == AsyncState.CANCELLED;
 	}
 	
 	/**
@@ -133,9 +110,9 @@ public interface Execution<T> extends Future<T> {
 	 * @return	연산 종료 여부.
 	 */
 	public default boolean isDone() {
-		State state = getState();
-		return state == State.COMPLETED || state == State.FAILED
-			|| state == State.CANCELLED;
+		AsyncState state = getState();
+		return state == AsyncState.COMPLETED || state == AsyncState.FAILED
+			|| state == AsyncState.CANCELLED;
 	}
 	
 	/**
@@ -174,20 +151,20 @@ public interface Execution<T> extends Future<T> {
     		throw Throwables.toRuntimeException(Throwables.unwrapThrowable(e));
     	}
     }
-    
-	public FOption<Result<T>> pollResult();
-
+	
 	/**
-	 * 비동기 작업이 종료될 때까지 기다려 그 결과를 반환한다.
+	 * 본 작업이 제한시간 동안 종료될 때까지 기다려 그 결과를 반환한다.
 	 * 
-	 * @return	종료 결과.
-	 * 			성공적으로 종료된 경우는 {@link Result#isCompleted()}가 {@code true},
-	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailed()}가 {@code true},
-	 * 			또는 작업이 취소되어 종료된 경우는 {@link Result#isCancelled()}가
-	 * 			{@code true}가 됨.
+	 * @param due	대기 제한 시간.
+	 * 				주어진 시간을 경과하면 {@link Running}을 반환한다.
+	 * @return	작업 수행 결과.
+	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
+	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
+	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
+	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-    public Result<T> waitForResult() throws InterruptedException;
+    public AsyncResult<T> poll(Date due) throws InterruptedException;
 	
 	/**
 	 * 본 작업이 제한시간 동안 종료될 때까지 기다려 그 결과를 반환한다.
@@ -195,19 +172,38 @@ public interface Execution<T> extends Future<T> {
 	 * @param timeout	제한시간
 	 * @param unit		제한시간 단위
 	 * @return	종료 결과.
-	 * 			성공적으로 종료된 경우는 {@link Result#isCompleted()}가 {@code true},
-	 * 			오류가 발생되어 종료된 경우는 {@link Result#isFailed()}가 {@code true},
-	 * 			또는 작업이 취소되어 종료된 경우거나 시간제한으로 반환되는 경우
-	 * 			{@link Result#isCancelled()}가 {@code true}가 됨.
+	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
+	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
+	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
+	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
-	 * @throws TimeoutException	작업 종료 대기 중 시간제한이 걸린 경우.
 	 */
-    public default Result<T> waitForResult(long timeout, TimeUnit unit)
-    	throws InterruptedException, TimeoutException {
+    public default AsyncResult<T> poll(long timeout, TimeUnit unit) throws InterruptedException {
     	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
-    	return waitForResult(due);
+    	return poll(due);
     }
-    public Result<T> waitForResult(Date due) throws InterruptedException, TimeoutException;
+    
+    /**
+     * 본 작업의 수행결과를 반환한다.
+     * 
+	 * @return	종료 결과.
+	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
+	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
+	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
+	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
+     */
+	public AsyncResult<T> poll();
+
+	/**
+	 * 비동기 작업이 종료될 때까지 기다려 그 결과를 반환한다.
+	 * 
+	 * @return	종료 결과.
+	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
+	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
+	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환된다.
+	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
+	 */
+    public AsyncResult<T> pollInfinite() throws InterruptedException;
     
 	/**
 	 * 비동기 작업이 시작될 때까지 대기한다.
@@ -230,32 +226,18 @@ public interface Execution<T> extends Future<T> {
     	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
     	return waitForStarted(due);
 	}
-    public  boolean waitForStarted(Date due) throws InterruptedException;
-
-	/**
-	 * 비동기 작업이 종료될 때까지 대기한다.
-	 * 
-	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
-	 */
-	public void waitForDone() throws InterruptedException;
-
-	/**
-	 * 본 작업이 종료될 때까지 제한된 시간 동안만 대기한다.
-	 * 
-	 * @param timeout	대기시간
-	 * @param unit		대기시간 단위
-	 * @return	제한시간 전에 성공적으로 반환하는 경우는 {@code true},
-	 * 			대기 중에 제한시간 경과로 반환되는 경우는 {@code false}.
-	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
-	 */
-	public default boolean waitForDone(long timeout, TimeUnit unit) throws InterruptedException {
-    	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
-    	return waitForDone(due);
+    public boolean waitForStarted(Date due) throws InterruptedException;
+	
+	public default <S> EventDrivenExecution<S> map(Function<AsyncResult<? extends T>,? extends S> mapper) {
+		return new Executions.MapChainExecution<>(this, mapper);
 	}
-	public boolean waitForDone(Date due) throws InterruptedException;
+    
+    public default <S> Execution<S> mapOnCompleted(Function<? super T,? extends S> mapper) {
+    	return new Executions.MapCompleteChainExecution<>(this, mapper);
+    }
 
 	public Execution<T> whenStarted(Runnable listener);
-	public Execution<T> whenFinished(Consumer<Result<T>> resultConsumer);
+	public Execution<T> whenFinished(Consumer<AsyncResult<T>> resultConsumer);
 	public default void whenFinished(FinishListener<T> listener) {
 		whenFinished(r -> r.ifCompleted(listener::onCompleted)
 							.ifCancelled(listener::onCancelled)

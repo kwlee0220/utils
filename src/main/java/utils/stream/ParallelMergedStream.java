@@ -8,9 +8,9 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.GuardedBy;
 
 import utils.async.AbstractThreadedExecution;
+import utils.async.AsyncResult;
 import utils.async.CancellableWork;
 import utils.async.Guard;
-import utils.async.Result;
 import utils.func.FOption;
 import utils.func.Try;
 
@@ -56,7 +56,7 @@ class ParallelMergedStream<T> implements FStream<T> {
 		}
 		Try.run(() -> {
 			for ( Harvester harvester: harvesters ) {
-				harvester.waitForDone(100, TimeUnit.MILLISECONDS);
+				harvester.poll(100, TimeUnit.MILLISECONDS);
 			}
 		});
 		m_guard.run(m_runningHarvesters::clear);
@@ -84,7 +84,7 @@ class ParallelMergedStream<T> implements FStream<T> {
 		}
 	}
 	
-	private void onHarvesterFinishedInGuard(Harvester harvester, Result<Void> result) {
+	private void onHarvesterFinishedInGuard(Harvester harvester, AsyncResult<Void> result) {
 		m_runningHarvesters.remove(harvester);
 		if ( (result.isCompleted() || result.isFailed()) && !m_closed ) {
 			if ( !startNextHarvesterInGuard() ) {

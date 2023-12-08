@@ -13,8 +13,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -31,12 +29,12 @@ public class ExecutionMapTest {
 
 	@Test
 	public void test01() throws Exception {
-		EventDrivenExecution<Integer> exec = m_leader.mapOnCompleted(new Action());
-		assertThat(exec.getState(), is(State.NOT_STARTED));
+		Execution<Integer> exec = m_leader.mapOnCompleted(new Action());
+		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
-		assertEquals(State.RUNNING, exec.getState());
+		assertEquals(AsyncState.RUNNING, exec.getState());
 
 		assertTrue(m_leader.notifyCompleted("abc"));
 		sleep(100);
@@ -47,28 +45,28 @@ public class ExecutionMapTest {
 
 	@Test
 	public void test02() throws Exception {
-		EventDrivenExecution<Integer> exec = m_leader.mapOnCompleted(new Action());
-		assertThat(exec.getState(), is(State.NOT_STARTED));
+		Execution<Integer> exec = m_leader.mapOnCompleted(new Action());
+		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
-		assertEquals(State.RUNNING, exec.getState());
+		assertEquals(AsyncState.RUNNING, exec.getState());
 
 		assertTrue(m_leader.notifyFailed(s_cause));
 		sleep(100);
 		assertTrue(m_leader.isFailed());
 		assertTrue(exec.isFailed());
-		assertEquals(s_cause, exec.waitForResult().getCause());
+		assertEquals(s_cause, exec.pollInfinite().getCause());
 	}
 
 	@Test
 	public void test03() throws Exception {
-		EventDrivenExecution<Integer> exec = m_leader.mapOnCompleted(new Action());
-		assertThat(exec.getState(), is(State.NOT_STARTED));
+		Execution<Integer> exec = m_leader.mapOnCompleted(new Action());
+		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
-		assertEquals(State.RUNNING, exec.getState());
+		assertEquals(AsyncState.RUNNING, exec.getState());
 
 		assertTrue(m_leader.notifyCancelled());
 		sleep(100);

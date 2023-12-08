@@ -9,6 +9,8 @@ import java.util.function.Function;
  * @author Kang-Woo Lee (ETRI)
  */
 public final class Either<T1,T2> implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	private final FOption<T1> m_left;
 	private final FOption<T2> m_right;
 	

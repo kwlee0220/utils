@@ -322,6 +322,25 @@ public class FOptionTest {
 		Assert.assertTrue(opt.isAbsent());
 	}
 	
+	@Test
+	public void testFlatmap2() {
+		FOption<Integer> opt1 = FOption.of(10);
+		FOption<Integer> opt3 = FOption.of(5);
+		FOption<Integer> opt2 = FOption.empty();
+
+		FOption<Integer> opt
+			= opt1.flatMapOrElse(v -> (v % 2 == 0) ? FOption.of(v/2) : FOption.empty(), () -> FOption.of(0));
+		Assert.assertTrue(opt.isPresent());
+		Assert.assertEquals(5, (int)opt.get());
+		
+		opt = opt3.flatMapOrElse(v -> (v % 2 == 0) ? FOption.of(v/2) : FOption.empty(), () -> FOption.of(0));
+		Assert.assertTrue(opt.isAbsent());
+		
+		opt = opt2.flatMapOrElse(v -> (v % 2 == 0) ? FOption.of(v/2) : FOption.empty(), () -> FOption.of(0));
+		Assert.assertTrue(opt.isPresent());
+		Assert.assertEquals(0, (int)opt.get());
+	}
+	
 	@Test(expected=IOException.class)
 	public void testFlatMapSneakily() {
 		FOption<Integer> opt1 = FOption.of(10);

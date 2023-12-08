@@ -3,46 +3,58 @@ package utils.async;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import utils.Utilities;
-import utils.async.Execution.State;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class Result<T> {
-	public static <T> Result<T> completed(T value) {
+public abstract class AsyncResult<T> {
+	public static <T> AsyncResult<T> completed(T value) {
 		return new Completed<>(value);
 	}
 	
-	public static <T> Result<T> failed(Throwable cause) {
+	public static <T> AsyncResult<T> failed(Throwable cause) {
 		return new Failed<>(cause);
 	}
 	
-	public static <T> Result<T> cancelled() {
+	public static <T> AsyncResult<T> cancelled() {
 		return new Cancelled<>();
 	}
 	
-	public abstract State getState();
+	public static <T> AsyncResult<T> running() {
+		return new Running<>();
+	}
+	
+	public abstract AsyncState getState();
 	
 	public boolean isCompleted() {
-		return getState() == State.COMPLETED;
+		return getState() == AsyncState.COMPLETED;
 	}
 
 	public boolean isFailed() {
-		return getState() == State.FAILED;
+		return getState() == AsyncState.FAILED;
 	}
 	
 	public boolean isCancelled() {
-		return getState() == State.CANCELLED;
+		return getState() == AsyncState.CANCELLED;
 	}
 	
-	public abstract T get() throws ExecutionException, CancellationException;
+	public boolean isRunning() {
+		return getState() == AsyncState.RUNNING;
+	}
+	
+	public boolean isFinished() {
+		return getState() != AsyncState.RUNNING;
+	}
+	
+	public abstract T get() throws ExecutionException, CancellationException, TimeoutException;
 
 	public T getUnchecked() {
 		throw new IllegalStateException("not completed state");
@@ -66,28 +78,27 @@ public abstract class Result<T> {
 		return supplier.get();
     }
 
+	public abstract AsyncResult<T> filter(Predicate<? super T> predicate);
+    public abstract <S> AsyncResult<S> map(Function<? super T, ? extends S> mapper);
 	
-	public abstract Result<T> filter(Predicate<? super T> predicate);
-    public abstract <S> Result<S> map(Function<? super T, ? extends S> mapper);
-	
-    public Result<T> ifCompleted(Consumer<? super T> handler) {
+    public AsyncResult<T> ifCompleted(Consumer<? super T> handler) {
 		return this;
     }
 	
-    public Result<T> ifFailed(Consumer<Throwable> handler) {
+    public AsyncResult<T> ifFailed(Consumer<Throwable> handler) {
 		return this;
     }
 	
-    public Result<T> ifCancelled(Runnable handler) {
+    public AsyncResult<T> ifCancelled(Runnable handler) {
 		return this;
     }
     
     @SuppressWarnings("unchecked")
-	public static <T> Result<T> narrow(Result<? extends T> result) {
-    	return (Result<T>)result;
+	public static <T> AsyncResult<T> narrow(AsyncResult<? extends T> result) {
+    	return (AsyncResult<T>)result;
     }
 	
-	public static class Completed<T> extends Result<T> {
+	public static class Completed<T> extends AsyncResult<T> {
 		private final T m_value;
 		
 		private Completed(T value) {
@@ -95,8 +106,8 @@ public abstract class Result<T> {
 		}
 
 		@Override
-		public State getState() {
-			return State.COMPLETED;
+		public AsyncState getState() {
+			return AsyncState.COMPLETED;
 		}
 
 		@Override
@@ -125,20 +136,20 @@ public abstract class Result<T> {
 	    }
 
 		@Override
-		public Result<T> filter(Predicate<? super T> predicate) {
+		public AsyncResult<T> filter(Predicate<? super T> predicate) {
 	        Utilities.checkNotNullArgument(predicate, "predicate is null");
 			return predicate.test(m_value) ? this : cancelled();
 		}
 
 		@Override
-	    public <S> Result<S> map(Function<? super T, ? extends S> mapper) {
+	    public <S> AsyncResult<S> map(Function<? super T, ? extends S> mapper) {
 	        Utilities.checkNotNullArgument(mapper, "mapper is null");
 	        
 			return completed(mapper.apply(m_value));
 	    }
 
 		@Override
-	    public Result<T> ifCompleted(Consumer<? super T> handler) {
+	    public AsyncResult<T> ifCompleted(Consumer<? super T> handler) {
 	        Utilities.checkNotNullArgument(handler, "handler is null");
 
 			handler.accept(m_value);
@@ -170,7 +181,7 @@ public abstract class Result<T> {
 		}
 	}
 	
-	public static class Failed<T> extends Result<T> {
+	public static class Failed<T> extends AsyncResult<T> {
 		private final Throwable m_cause;
 		
 		private Failed(Throwable cause) {
@@ -178,8 +189,8 @@ public abstract class Result<T> {
 		}
 
 		@Override
-		public State getState() {
-			return State.FAILED;
+		public AsyncState getState() {
+			return AsyncState.FAILED;
 		}
 
 		@Override
@@ -193,17 +204,17 @@ public abstract class Result<T> {
 		}
 
 		@Override
-		public Result<T> filter(Predicate<? super T> predicate) {
+		public AsyncResult<T> filter(Predicate<? super T> predicate) {
 			return failed(m_cause);
 		}
 
 		@Override
-	    public <S> Result<S> map(Function<? super T, ? extends S> mapper) {
+	    public <S> AsyncResult<S> map(Function<? super T, ? extends S> mapper) {
 			return failed(m_cause);
 	    }
 
 		@Override
-	    public Result<T> ifFailed(Consumer<Throwable> handler) {
+	    public AsyncResult<T> ifFailed(Consumer<Throwable> handler) {
 	        Utilities.checkNotNullArgument(handler, "handler is null");
 
 			handler.accept(m_cause);
@@ -235,12 +246,12 @@ public abstract class Result<T> {
 		}
 	}
 	
-	public static class Cancelled<T> extends Result<T> {
+	public static class Cancelled<T> extends AsyncResult<T> {
 		private Cancelled() { }
 
 		@Override
-		public State getState() {
-			return State.CANCELLED;
+		public AsyncState getState() {
+			return AsyncState.CANCELLED;
 		}
 
 		@Override
@@ -249,17 +260,17 @@ public abstract class Result<T> {
 		}
 
 		@Override
-		public Result<T> filter(Predicate<? super T> predicate) {
+		public AsyncResult<T> filter(Predicate<? super T> predicate) {
 			return cancelled();
 		}
 
 		@Override
-	    public <S> Result<S> map(Function<? super T, ? extends S> mapper) {
+	    public <S> AsyncResult<S> map(Function<? super T, ? extends S> mapper) {
 			return cancelled();
 	    }
 
 		@Override
-	    public Result<T> ifCancelled(Runnable handler) {
+	    public AsyncResult<T> ifCancelled(Runnable handler) {
 	        Utilities.checkNotNullArgument(handler, "handler is null");
 
 			handler.run();
@@ -288,4 +299,53 @@ public abstract class Result<T> {
 			return true;
 		}
     }
+	
+	public static class Running<T> extends AsyncResult<T> {
+		@Override
+		public AsyncState getState() {
+			return AsyncState.RUNNING;
+		}
+
+		@Override
+		public T get() throws TimeoutException {
+			throw new TimeoutException();
+		}
+
+		@Override
+		public Throwable getCause() {
+			return new TimeoutException();
+		}
+
+		@Override
+		public AsyncResult<T> filter(Predicate<? super T> predicate) {
+			return this;
+		}
+
+		@Override
+		public <S> AsyncResult<S> map(Function<? super T, ? extends S> mapper) {
+			return AsyncResult.running();
+		}
+	    
+	    @Override
+	    public String toString() {
+			return String.format("running");
+	    }
+		
+		@Override
+		public int hashCode() {
+			return Objects.hash(getState());
+		}
+		
+		@Override
+		public boolean equals(Object obj) {
+			if ( obj == this ) {
+				return true;
+			}
+			else if ( obj == null || obj.getClass() != Running.class ) {
+				return false;
+			}
+			
+			return true;
+		}
+	}
 }

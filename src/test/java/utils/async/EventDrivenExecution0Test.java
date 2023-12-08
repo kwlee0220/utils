@@ -17,8 +17,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
-
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -46,7 +44,7 @@ public class EventDrivenExecution0Test {
 	public void test_NOT_STARTED_01() throws Exception {
 		boolean ret = m_exec.notifyStarting();
 		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(State.STARTING));
+		assertThat(m_exec.getState(), is(AsyncState.STARTING));
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();
@@ -58,7 +56,7 @@ public class EventDrivenExecution0Test {
 	public void test_NOT_STARTED_02() throws Exception {
 		boolean ret = m_exec.notifyStarted();
 		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(State.RUNNING));
+		assertThat(m_exec.getState(), is(AsyncState.RUNNING));
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -71,7 +69,7 @@ public class EventDrivenExecution0Test {
 	public void test_NOT_STARTED_03() throws Exception {
 		boolean ret = m_exec.notifyCancelling();
 		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(State.CANCELLING));
+		assertThat(m_exec.getState(), is(AsyncState.CANCELLING));
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();
@@ -84,7 +82,7 @@ public class EventDrivenExecution0Test {
 	public void test_NOT_STARTED_04() throws Exception {
 		boolean ret = m_exec.notifyCancelled();
 		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(State.CANCELLED));
+		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();

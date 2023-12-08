@@ -14,7 +14,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.async.Execution.State;
 import utils.async.op.AsyncExecutions;
 import utils.async.op.TimedAsyncExecution;
 
@@ -28,7 +27,7 @@ public class TimedAsyncTest {
 	private final ScheduledExecutorService m_scheduler = Executors.newScheduledThreadPool(4);
 	private final Exception m_error = new Exception();
 	
-	@Mock Consumer<Result<Integer>> m_doneListener;
+	@Mock Consumer<AsyncResult<Integer>> m_doneListener;
 	
 	@Before
 	public void setup() {
@@ -39,14 +38,14 @@ public class TimedAsyncTest {
 		StartableExecution<String> target = AsyncExecutions.idle("done", 300, MILLISECONDS, m_scheduler);
 		TimedAsyncExecution<String> exec = AsyncExecutions.timed(target, 500, MILLISECONDS, m_scheduler);
 		
-		Assert.assertEquals(State.NOT_STARTED, exec.getState());
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		Thread.sleep(30);
 		Assert.assertEquals(true, exec.isStarted());
 		Assert.assertEquals(true, target.isStarted());
 		
-		exec.waitForDone();
+		exec.pollInfinite();
 		Thread.sleep(30);
 		Assert.assertEquals(true, exec.isCompleted());
 		Assert.assertEquals(true, target.isCompleted());
@@ -59,7 +58,7 @@ public class TimedAsyncTest {
 		TimedAsyncExecution<String> exec = AsyncExecutions.timed(target, 300, MILLISECONDS, m_scheduler);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.pollInfinite();
 		
 		Thread.sleep(30);
 		Assert.assertEquals(true, exec.isCancelled());
@@ -101,7 +100,7 @@ public class TimedAsyncTest {
 		TimedAsyncExecution<String> exec = AsyncExecutions.timed(target, 500, MILLISECONDS, m_scheduler);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.pollInfinite();
 		Thread.sleep(30);
 		
 		Assert.assertEquals(true, exec.isFailed());
