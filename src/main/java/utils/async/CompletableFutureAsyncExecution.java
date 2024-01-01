@@ -1,37 +1,49 @@
 package utils.async;
 
+import static utils.Utilities.checkState;
+
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
+
+import utils.Throwables;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class CompletableFutureAsyncExecution<T> extends EventDrivenExecution<T>
-												implements CancellableWork {
+abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExecution<T>
+											implements StartableExecution<T>, CancellableWork {
 	private volatile CompletableFuture<? extends T> m_future;
 	
-	public static <T> CompletableFutureAsyncExecution<T> from(Supplier<T> suppl) {
-		CompletableFuture<T> cfuture = CompletableFuture.supplyAsync(suppl);
-		return new CompletableFutureAsyncExecution<>(cfuture);
-	}
-	
-	private CompletableFutureAsyncExecution(CompletableFuture<? extends T> future) {
-		m_future = future.whenComplete((r, ex) -> {
-				if ( ex != null ) {
-					if ( ex instanceof CancellationException ) {
-						this.notifyCancelled();
+	protected abstract CompletableFuture<? extends T> startExecution();
+
+	@Override
+	public void start() {
+		if ( notifyStarting() ) {
+			try {
+				m_future = startExecution();
+				m_future.whenComplete((ret,ex) -> {
+					if ( ex == null ) {
+						notifyCompleted(ret);
 					}
 					else {
-						this.notifyFailed(ex);
+						Throwable cause = Throwables.unwrapThrowable(ex);
+						if ( cause instanceof CancellationException ) {
+							notifyCancelled();
+						}
+						else {
+							notifyFailed(cause);
+						}
 					}
-				}
-				else {
-					this.notifyCompleted(r);
-				}
-			});
-		super.notifyStarted();
+				});
+				
+				boolean done = notifyStarted();
+				checkState(done);
+			}
+			catch ( Throwable e ) {
+				notifyFailed(Throwables.unwrapThrowable(e));
+			}
+		}
 	}
 
 	@Override

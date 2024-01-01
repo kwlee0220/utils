@@ -10,11 +10,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import utils.Throwables;
 import utils.async.AsyncResult.Cancelled;
 import utils.async.AsyncResult.Completed;
 import utils.async.AsyncResult.Failed;
 import utils.async.AsyncResult.Running;
+import utils.async.Executions.FlatMapChainExecution;
 
 
 /**
@@ -32,14 +32,14 @@ public interface Execution<T> extends Future<T> {
 	/**
 	 * 연산 수행을 중단시킨다.
 	 * <p>
-	 * 메소드 호출은 연산이 완전히 중단되기 전에 반환될 수 있기 때문에, 본 메소드 호출한 결과로
-	 * 바로 종료되는 것을 의미하지 않는다.
-	 * 또한 메소드 호출 당시 작업 상태에 따라 중단 요청을 무시되기도 한다.
-	 * 이는 본 메소드의 반환값이 {@code false}인 경우는 요청이 명시적으로 무시된 것을 의미한다.
+	 * 본 메소드는 연산이 완전히 중단되기 전에 반환될 수 있기 때문에, 메소드가 반환되어도
+	 * 바로 종료되지 않을 수 있다.
+	 * 메소드 호출시 대상 작업의 상태에 따라 중단 요청을 무시될 수 있고, 이 경우
+	 * 반환 값이 {@code false}가 된다.
 	 * 반환 값이 {@code true}인 경우는 중단 요청이 접수되어 중단 작업이 시작된 것을 의미한다.
 	 * 물론, 이때도 중단이 반드시 성공하는 것을 의미하지 않는다.
 	 * 
-	 * 작업 중단을 확인하기 위해서는 {@link #pollInfinite()}이나 {@link #waitForDone(long, TimeUnit)}
+	 * 작업 중단을 확인하기 위해서는 {@link #waitForDone()}이나 {@link #waitForDone(long, TimeUnit)}
 	 * 메소드를 사용하여 최종적으로 확인할 수 있다.
 	 * 
 	 * @param mayInterruptIfRunning	 이미 동적 중인 경우에도 cancel할지 여부
@@ -58,6 +58,7 @@ public interface Execution<T> extends Future<T> {
 	 * 연산 수행이 시작되었는지를 반환한다.
 	 * <p>
 	 * 연산이 시작되어 이미 종료된 경우에도 {@code true}가 반환된다.
+	 * 연산이 현재 수행 중인지를 확인하기 위해서는 {@link #isRunning()}을 사용한다.
 	 * 
 	 * @return	연산의 시작 여부.
 	 */
@@ -97,6 +98,7 @@ public interface Execution<T> extends Future<T> {
 	 * 
 	 * @return	연산의 중단 종료 여부.
 	 */
+	@Override
 	public default boolean isCancelled() {
 		return getState() == AsyncState.CANCELLED;
 	}
@@ -118,15 +120,15 @@ public interface Execution<T> extends Future<T> {
 	/**
 	 * 연산 수행 결과를 반환한다.
 	 * <p>
-	 * 메소드 호출 당시 연산이 아직 종료되지 않은 경우는 연산이 종료될 때까지 대기한다.
-	 * 만일 대기 중에 중단 경우에는 {@code InterruptedException} 예외가 발생된다.
+	 * 메소드 호출시 대상 연산이 아직 종료되지 않은 경우는 연산이 종료될 때까지 대기한다.
+	 * 만일 연산 수행 대기 중에 대기 쓰레드가 중단된 경우에는 {@code InterruptedException} 예외가 발생된다.
 	 * <p>
 	 * 연산이 성공적으로 종료된 경우에는 수행 결과를 반환하지만, 그렇지 않은 경우는
-	 * 종료 방식에 따라 해당하는 예외를 발생시킨다.
+	 * 종료 결과에 따라 해당하는 예외를 발생시킨다.
 	 * <ul>
-	 * 	<li> 예외 발생으로 종료된 경우는 {@code ExecutionException} 예외를 발생시킨다.
+	 * 	<li> 예외 발생으로 종료된 경우는 {@code ExecutionException} 예외가 발생된다.
 	 * 		이때 발생된 예외 객체는 {@code ExecutionException#getCause()}를 통해 얻을 수 있다.
-	 * 	<li> 수행 중 중단 경우에는 {@code CancellationException} 예외를 발생시킨다.
+	 * 	<li> 수행 중단 경우에는 {@code CancellationException} 예외가 발생된다.
 	 * </ul>
 	 * 
 	 * @return 수행 결과
@@ -135,52 +137,70 @@ public interface Execution<T> extends Future<T> {
 	 * @throws ExecutionException	수행 도중 예외가 발생된 경우.
 	 */
     public T get() throws InterruptedException, ExecutionException, CancellationException;
+	
+	/**
+	 * 연산 수행 결과를 반환한다.
+	 * <p>
+	 * 메소드 호출시 대상 연산이 아직 종료되지 않은 경우는 연산이 종료될 때까지
+	 * 주어진 대기 시각까지 대기한다.
+	 * 만일 연산 수행 대기 중에 대기 쓰레드가 중단된 경우에는 {@code InterruptedException} 예외가 발생된다.
+	 * <p>
+	 * 연산이 성공적으로 종료된 경우에는 수행 결과를 반환하지만, 그렇지 않은 경우는
+	 * 종료 결과에 따라 해당하는 예외를 발생시킨다.
+	 * <ul>
+	 * 	<li> 예외 발생으로 종료된 경우는 {@code ExecutionException} 예외가 발생된다.
+	 * 		이때 발생된 예외 객체는 {@code ExecutionException#getCause()}를 통해 얻을 수 있다.
+	 * 	<li> 수행 중단 경우에는 {@code CancellationException} 예외가 발생된다.
+	 * </ul>
+	 * 
+	 * @param timeout	대기 기간
+	 * @param unit		대기 기간 단위
+	 * @return 수행 결과
+	 * @throws InterruptedException	수행 도중 쓰레드 인터럽트로 중단된 경우.
+	 * @throws CancellationException	수행 도중 중단된 경우.
+	 * @throws ExecutionException	수행 도중 예외가 발생된 경우.
+	 * @throws TimeoutException	수행 대기가 제한 시각을 경과한 경우.
+	 */
+    @Override
     public default T get(long timeout, TimeUnit unit)
     	throws InterruptedException, ExecutionException, TimeoutException, CancellationException {
-    	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
-    	return get(due);
+    	return waitForDone(timeout, unit).get();
     }
-    public T get(Date due) throws InterruptedException, ExecutionException,
-									TimeoutException, CancellationException;
+	
+	/**
+	 * 연산 수행 결과를 반환한다.
+	 * <p>
+	 * 메소드 호출시 대상 연산이 아직 종료되지 않은 경우는 연산이 종료될 때까지
+	 * 주어진 대기 시각까지 대기한다.
+	 * 만일 연산 수행 대기 중에 대기 쓰레드가 중단된 경우에는 {@code InterruptedException} 예외가 발생된다.
+	 * <p>
+	 * 연산이 성공적으로 종료된 경우에는 수행 결과를 반환하지만, 그렇지 않은 경우는
+	 * 종료 결과에 따라 해당하는 예외를 발생시킨다.
+	 * <ul>
+	 * 	<li> 예외 발생으로 종료된 경우는 {@code ExecutionException} 예외가 발생된다.
+	 * 		이때 발생된 예외 객체는 {@code ExecutionException#getCause()}를 통해 얻을 수 있다.
+	 * 	<li> 수행 중단 경우에는 {@code CancellationException} 예외가 발생된다.
+	 * </ul>
+	 * 
+	 * @param due	대기 제한 시각
+	 * @return 수행 결과
+	 * @throws InterruptedException	수행 도중 쓰레드 인터럽트로 중단된 경우.
+	 * @throws CancellationException	수행 도중 중단된 경우.
+	 * @throws ExecutionException	수행 도중 예외가 발생된 경우.
+	 * @throws TimeoutException	수행 대기가 제한 시각을 경과한 경우.
+	 */
+    public default T get(Date due) throws InterruptedException, ExecutionException,
+											TimeoutException, CancellationException {
+		return waitForDone(due).get();
+    }
     
     public default T getUnchecked() {
     	try {
-    		return get();
-    	}
-    	catch ( Throwable e ) {
-    		throw Throwables.toRuntimeException(Throwables.unwrapThrowable(e));
-    	}
-    }
-	
-	/**
-	 * 본 작업이 제한시간 동안 종료될 때까지 기다려 그 결과를 반환한다.
-	 * 
-	 * @param due	대기 제한 시간.
-	 * 				주어진 시간을 경과하면 {@link Running}을 반환한다.
-	 * @return	작업 수행 결과.
-	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
-	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
-	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
-	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
-	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
-	 */
-    public AsyncResult<T> poll(Date due) throws InterruptedException;
-	
-	/**
-	 * 본 작업이 제한시간 동안 종료될 때까지 기다려 그 결과를 반환한다.
-	 * 
-	 * @param timeout	제한시간
-	 * @param unit		제한시간 단위
-	 * @return	종료 결과.
-	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
-	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
-	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
-	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
-	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
-	 */
-    public default AsyncResult<T> poll(long timeout, TimeUnit unit) throws InterruptedException {
-    	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
-    	return poll(due);
+			return get();
+		}
+		catch ( InterruptedException|ExecutionException|CancellationException e ) {
+			throw new IllegalStateException(e);
+		}
     }
     
     /**
@@ -193,9 +213,40 @@ public interface Execution<T> extends Future<T> {
 	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
      */
 	public AsyncResult<T> poll();
+	
+	/**
+	 * 본 작업이 종료될 때까지 주어진 제한 시간 동안 기다려 그 결과를 반환한다.
+	 * 
+	 * @param due	대기 제한 시각.
+	 * 				주어진 시각을 경과하면 {@link Running}을 반환한다.
+	 * @return	작업 수행 결과.
+	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
+	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
+	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
+	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
+	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
+	 */
+    public AsyncResult<T> waitForDone(Date due) throws InterruptedException;
+	
+	/**
+	 * 본 작업이 종료될 때까지 주어진 기간 동안 기다려 그 결과를 반환한다.
+	 * 
+	 * @param timeout	대기 기간
+	 * @param unit		대기 기간 단위
+	 * @return	종료 결과.
+	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
+	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
+	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
+	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
+	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
+	 */
+    public default AsyncResult<T> waitForDone(long timeout, TimeUnit unit) throws InterruptedException {
+    	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
+    	return waitForDone(due);
+    }
 
 	/**
-	 * 비동기 작업이 종료될 때까지 기다려 그 결과를 반환한다.
+	 * 작업이 종료될 때까지 기다려 그 결과를 반환한다.
 	 * 
 	 * @return	종료 결과.
 	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
@@ -203,7 +254,7 @@ public interface Execution<T> extends Future<T> {
 	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환된다.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-    public AsyncResult<T> pollInfinite() throws InterruptedException;
+    public AsyncResult<T> waitForDone() throws InterruptedException;
     
 	/**
 	 * 비동기 작업이 시작될 때까지 대기한다.
@@ -226,6 +277,17 @@ public interface Execution<T> extends Future<T> {
     	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
     	return waitForStarted(due);
 	}
+	
+	/**
+	 * 비동기 작업이 시작될 때까지 대기한다.
+	 * 
+	 * 주어진 제한 시각까지만 대기하며, 이를 초과한 경우에는 {@code false}를 반환한다.
+	 * 
+	 * @param due	대기 제한 시각
+	 * @return	제한 시각 전에 작업이 시작되어 성공적으로 반환하는 경우는 {@code true},
+	 * 			대기 제한 시각이 경과한 경우는 {@code false}.
+	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
+	 */
     public boolean waitForStarted(Date due) throws InterruptedException;
 	
 	public default <S> EventDrivenExecution<S> map(Function<AsyncResult<? extends T>,? extends S> mapper) {
@@ -235,9 +297,14 @@ public interface Execution<T> extends Future<T> {
     public default <S> Execution<S> mapOnCompleted(Function<? super T,? extends S> mapper) {
     	return new Executions.MapCompleteChainExecution<>(this, mapper);
     }
+	
+	public default <S> Execution<S> flatMap(Function<AsyncResult<T>, Execution<S>> chain) {
+		return new FlatMapChainExecution<>(this, chain);
+	}
 
 	public Execution<T> whenStarted(Runnable listener);
 	public Execution<T> whenFinished(Consumer<AsyncResult<T>> resultConsumer);
+	
 	public default void whenFinished(FinishListener<T> listener) {
 		whenFinished(r -> r.ifCompleted(listener::onCompleted)
 							.ifCancelled(listener::onCancelled)
@@ -247,39 +314,32 @@ public interface Execution<T> extends Future<T> {
 	public default void whenCompleted(Consumer<T> handler) {
 		Objects.requireNonNull(handler, "handler is null");
 		
-		whenFinished(new SimpleFinishListener<T>() {
-			@Override
-			public void onCompleted(T result) {
-				handler.accept(result);
-			}
+		whenFinished(new FinishListener<T>() {
+			@Override public void onCompleted(T result) { handler.accept(result); }
+			@Override public void onFailed(Throwable cause) { }
+			@Override public void onCancelled() { }
 		});
 	}
 	
 	public default void whenFailed(Consumer<Throwable> handler) {
 		Objects.requireNonNull(handler, "handler is null");
 		
-		whenFinished(new SimpleFinishListener<T>() {
-			@Override
-			public void onFailed(Throwable cause) {
-				handler.accept(cause);
-			}
+		whenFinished(new FinishListener<T>() {
+			@Override public void onCompleted(T result) { }
+			@Override public void onFailed(Throwable cause) { handler.accept(cause); }
+			@Override public void onCancelled() { }
 		});
 	}
 	
 	public default void whenCancelled(Runnable handler) {
 		Objects.requireNonNull(handler, "handler is null");
 		
-		whenFinished(new SimpleFinishListener<T>() {
-			@Override
-			public void onCancelled() {
-				handler.run();
-			}
+		whenFinished(new FinishListener<T>() {
+			@Override public void onCompleted(T result) { }
+			@Override public void onFailed(Throwable cause) { }
+			@Override public void onCancelled() { handler.run(); }
 		});
 	}
-	
-//	public default Observable<ExecutionProgress<T>> observe(boolean cancelOnDispose) {
-//		return Observable.create(new ExecutionProgressReport<T>(this, cancelOnDispose));
-//	}
 	
 	@SuppressWarnings("unchecked")
 	public static <T> Execution<T> narrow(Execution<? extends T> exec) {

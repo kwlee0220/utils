@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -42,7 +43,8 @@ import utils.func.Tuple;
 import utils.func.UncheckedConsumer;
 import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
-import utils.stream.FStreams.FilteredMapStream;
+import utils.stream.FStreams.FlatMapFOption;
+import utils.stream.FStreams.FlatMapTry;
 import utils.stream.FStreams.MapOrHandleStream;
 import utils.stream.FStreams.MapOrThrowStream;
 import utils.stream.FStreams.MapToBooleanStream;
@@ -218,16 +220,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 
 	 * @param <S>	상태 객체 타입
 	 * @param <T>	데이터 생성 함수에 의해 생성되는 데이터의 타입
-	 * @param init	상태 객체 초기 값
+	 * @param initialState	상태 객체 초기 값
 	 * @param gen	데이터 생성 함수
 	 * @return FStream 객체
 	 */
-	public static <S,T> FStream<T> unfold(S init,
-										Function<? super S,Tuple<? extends S,? extends T>> gen) {
-		checkNotNullArgument(init, "value generator is null");
+	public static <S,T> FStream<T> unfold(S initialState,
+											Function<? super S, Tuple<? extends S,? extends T>> gen) {
+		checkNotNullArgument(initialState, "value generator is null");
 		checkNotNullArgument(gen, "next value generator is null");
 		
-		return new FStreams.UnfoldStream<>(init, gen);
+		return new FStreams.UnfoldStream<>(initialState, gen);
 	}
 	
 	/**
@@ -346,22 +348,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		else {
 			return this;
 		}
-	}
-	
-	/**
-	 *  {@code mapper}에 따라 본 스트림을 변환시킨다. 동작 방식은 filter와 map을 통합된
-	 *  방식으로 동작한다.
-	 *  {@code mapper}에 각 데이터를 적용할 때 {@link FOption#empty()}인 경우 filter-out되고,
-	 *  그렇지 않은 경우는 적용 결과에 {@link FOption#get()}를 적용한 값으로 변환시킨다.
-	 *
-	 * @param <S>		맵 적용 결과 타입.
-	 * @param mapper	스트림의 각 데이터에 적용할 맵퍼 객체
-	 * @return	맵퍼가 적용된 스트림 객체
-	 */
-	public default <S> FStream<S> filterMap(Function<? super T,FOption<S>> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
-		
-		return new FilteredMapStream<>(this, mapper);
 	}
 	
 	/**
@@ -648,10 +634,20 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return tmp.filter(v -> v != null);
 	}
 	
-	public default <V> FStream<V> flatMapOption(Function<? super T,FOption<V>> mapper) {
+	/**
+	 *  {@code mapper}에 따라 본 스트림을 변환시킨다. 동작 방식은 filter와 map을 통합된
+	 *  방식으로 동작한다.
+	 *  {@code mapper}에 각 데이터를 적용할 때 {@link FOption#empty()}인 경우 filter-out되고,
+	 *  그렇지 않은 경우는 적용 결과에 {@link FOption#get()}를 적용한 값으로 변환시킨다.
+	 *
+	 * @param <V>		맵 적용 결과 타입.
+	 * @param mapper	스트림의 각 데이터에 적용할 맵퍼 객체
+	 * @return	맵퍼가 적용된 스트림 객체
+	 */
+	public default <V> FStream<V> flatMapFOption(Function<? super T,FOption<V>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 
-		return flatMap(t -> mapper.apply(t).fstream());
+		return new FlatMapFOption<>(this, mapper);
 	}
 	
 	public default <V> FStream<V> flatMapIterator(Function<? super T,? extends Iterator<V>> mapper) {
@@ -681,7 +677,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default <V> FStream<V> flatMapTry(Function<? super T,Try<V>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 
-		return flatMap(t -> mapper.apply(t).fstream());
+		return new FlatMapTry<>(this, mapper);
 	}
 	
 	public default <V> FStream<V> flatMapParallel(Function<? super T,? extends FStream<V>> mapper,
@@ -1424,5 +1420,21 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(mapper, "mapper is null");
 
 		return new FStreamAdaptor<>(map(mapper));
+	}
+
+	public default <S> FStream<Try<S>> mapAsync(Function<? super T,? extends S> mapper, int workerCount) {
+		return new AsyncMapStream<>(this, mapper, FOption.of(workerCount), FOption.empty());
+	}
+	public default <S> FStream<Try<S>> mapAsync(Function<? super T,? extends S> mapper,
+											FOption<Integer> workerCount, FOption<Executor> executor) {
+		return new AsyncMapStream<>(this, mapper, workerCount, executor);
+	}
+
+	public default <S> FStream<Try<S>> flatMapAsync(Function<? super T, ? extends FStream<? extends S>> mapper, int workerCount) {
+		return new AsyncFlatMapStream<>(this, mapper, FOption.of(workerCount), FOption.empty());
+	}
+	public default <S> FStream<Try<S>> flatMapAsync(Function<? super T, ? extends FStream<? extends S>> mapper,
+											FOption<Integer> workerCount, FOption<Executor> executor) {
+		return new AsyncFlatMapStream<>(this, mapper, workerCount, executor);
 	}
 }

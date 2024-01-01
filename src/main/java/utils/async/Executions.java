@@ -1,60 +1,64 @@
 package utils.async;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import utils.Throwables;
-import utils.func.CheckedSupplier;
+import utils.func.CheckedRunnable;
+import utils.func.Lazy;
+import utils.func.UncheckedRunnable;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
 public class Executions {
+	private static final ScheduledExecutorService EXECUTOR
+					= Lazy.wrap(Executions::createDefaultExecutor, ScheduledExecutorService.class);
+	
 	private Executions() {
 		throw new AssertionError("Should not be called: class=" + getClass());
 	}
 	
-	public static AbstractThreadedExecution<Void> toExecution(Runnable task) {
-		return new AbstractThreadedExecution<Void>() {
+	public static ScheduledExecutorService getExecutor() {
+		return EXECUTOR;
+	}
+	
+	public static CompletableFutureAsyncExecution<Void> runAsync(CheckedRunnable task) {
+		return new CompletableFutureAsyncExecution<Void>() {
 			@Override
-			protected Void executeWork() throws InterruptedException, CancellationException, Exception {
-				task.run();
-				return null;
+			protected CompletableFuture<? extends Void> startExecution() {
+				UncheckedRunnable urunnable = UncheckedRunnable.sneakyThrow(task);
+				return CompletableFuture.runAsync(urunnable);
+			}
+		};
+	}
+	public static CompletableFutureAsyncExecution<Void> runAsync(CheckedRunnable task, Executor exector) {
+		return new CompletableFutureAsyncExecution<Void>() {
+			@Override
+			protected CompletableFuture<? extends Void> startExecution() {
+				return CompletableFuture.runAsync(UncheckedRunnable.sneakyThrow(task), exector);
 			}
 		};
 	}
 	
-	public static <T> AbstractThreadedExecution<T> toExecution(Supplier<T> task) {
-		return new AbstractThreadedExecution<T>() {
+	public static <T> CompletableFutureAsyncExecution<T> supplyAsync(Supplier<? extends T> supplier) {
+		return new CompletableFutureAsyncExecution<T>() {
 			@Override
-			protected T executeWork() throws InterruptedException, CancellationException, Exception {
-				return task.get();
+			protected CompletableFuture<? extends T> startExecution() {
+				return CompletableFuture.supplyAsync(supplier);
 			}
 		};
 	}
-	
-	public static <T> AbstractThreadedExecution<T> toExecution(CheckedSupplier<T> task) {
-		return new AbstractThreadedExecution<T>() {
+	public static <T> CompletableFutureAsyncExecution<T> supplyAsync(Supplier<? extends T> supplier,
+																		Executor exector) {
+		return new CompletableFutureAsyncExecution<T>() {
 			@Override
-			protected T executeWork() throws InterruptedException, CancellationException, Exception {
-				try {
-					return task.get();
-				}
-				catch ( Throwable e ) {
-					throw Throwables.toException(e);
-				}
-			}
-		};
-	}
-	
-	public static <T> AbstractThreadedExecution<T> toExecution(Callable<T> task) {
-		return new AbstractThreadedExecution<T>() {
-			@Override
-			protected T executeWork() throws InterruptedException, CancellationException, Exception {
-				return task.call();
+			protected CompletableFuture<? extends T> startExecution() {
+				return CompletableFuture.supplyAsync(supplier, exector);
 			}
 		};
 	}
@@ -81,17 +85,23 @@ public class Executions {
 	}
 	
 	static class FlatMapChainExecution<T,S> extends EventDrivenExecution<S> {
-		FlatMapChainExecution(EventDrivenExecution<? extends T> leader,
-							Function<AsyncResult<? extends T>,Execution<? extends S>> chain) {
+		FlatMapChainExecution(Execution<T> leader,
+							Function<AsyncResult<T>, Execution<S>> chain) {
 			leader.whenStarted(this::notifyStarted);
 			leader.whenFinished(ret -> {
-				Execution<S> follower = Execution.narrow(chain.apply(ret));
+				Execution<S> follower = chain.apply(ret);
 				follower.whenStarted(this::notifyStarted)
 						.whenFinished(ret2 -> ret2.ifCompleted(this::notifyCompleted)
 													.ifFailed(this::notifyFailed)
 													.ifCancelled(this::notifyCancelled));
-				if ( !follower.isStarted() && follower instanceof StartableExecution ) {
-					((StartableExecution<S>)follower).start();
+				if ( !follower.isStarted() ) {
+					if ( follower instanceof StartableExecution ) {
+						((StartableExecution<S>)follower).start();
+					}
+					else {
+						throw new IllegalStateException(
+										String.format("follower has not been started: %s", follower));
+					}
 				}
 			});
 		}
@@ -129,147 +139,11 @@ public class Executions {
 					.ifCancelled(this::notifyCancelled)
 		);}
 	}
-
-	static class FailedExecution<T> extends EventDrivenExecution<T> {
-		FailedExecution(Throwable cause) {
-			notifyFailed(cause);
-		}
-	}
-	static class CancelledExecution<T> extends EventDrivenExecution<T> {
-		CancelledExecution() {
-			notifyCancelled();
-		}
-	}
 	
-/*
-	private static class SupplyingExecution<T> implements StartableExecution<T> {
-		private final Supplier<Execution<T>> m_fact;
-		
-		private final Guard m_guard = Guard.create();
-		@GuardedBy("m_guard") private Execution<T> m_exec;
-		@GuardedBy("m_guard") private boolean m_cancelled = false;
-		@GuardedBy("m_guard") private List<Runnable> m_pendingStartListeners = new ArrayList<>();
-		@GuardedBy("m_guard") private List<Consumer<Result<T>>> m_pendingFinishListeners = new ArrayList<>();
-		
-		private SupplyingExecution(Supplier<Execution<T>> fact) {
-			m_fact = fact;
-		}
+	private static final ScheduledExecutorService createDefaultExecutor() {
+        int availableCores = Runtime.getRuntime().availableProcessors();
+        int numberOfThreads = Math.max(availableCores - 1, 1); // Adjust as needed
 
-		@Override
-		public void start() {
-			m_guard.lock();
-			try {
-				if ( m_exec != null ) {
-					throw new IllegalStateException("already started: async=" + m_exec);
-				}
-				
-				m_exec = m_fact.get();
-			}
-			finally {
-				m_guard.unlock();
-			}
-		}
-
-		@Override
-		public boolean cancel(boolean mayInterruptIfRunning) {
-			return _get(() -> m_cancelled = true,
-						exec -> {
-							boolean cancelled = exec.cancel(mayInterruptIfRunning);
-							return m_guard.get(() -> m_cancelled = cancelled);
-						});
-		}
-
-		@Override
-		public State getState() {
-			return _get(() -> (m_cancelled) ? State.CANCELLED : State.NOT_STARTED,
-						Execution::getState);
-		}
-
-		@Override
-		public T get() throws InterruptedException, ExecutionException, CancellationException {
-			Execution<T> exec = m_guard.awaitUntilAndGet(() -> m_exec == null, () -> m_exec);
-			return exec.get();
-		}
-
-		@Override
-		public T get(Date due) throws InterruptedException, ExecutionException,
-									TimeoutException, CancellationException {
-			return m_guard.awaitUntilAndGet(() -> m_exec == null, () -> m_exec, due).get();
-		}
-
-		@Override
-		public FOption<Result<T>> pollResult() {
-			return _get(FOption::empty, Execution::pollResult);
-		}
-
-		@Override
-		public Result<T> waitForResult() throws InterruptedException {
-			return null;
-		}
-
-		@Override
-		public Result<T> waitForResult(Date due) throws InterruptedException, TimeoutException {
-			return null;
-		}
-
-		@Override
-		public void waitForStarted() throws InterruptedException {
-			m_guard.awaitUntilAndGet(() -> m_exec == null, () -> m_exec).waitForStarted();
-		}
-
-		@Override
-		public boolean waitForStarted(Date due) throws InterruptedException {
-			try {
-				return m_guard.awaitUntilAndGet(() -> m_exec == null, () -> m_exec, due)
-								.waitForStarted(due);
-			}
-			catch ( TimeoutException e ) {
-				return false;
-			}
-		}
-
-		@Override
-		public void waitForDone() throws InterruptedException {
-			waitForStarted();
-			m_guard.get(() -> m_exec).waitForDone();
-		}
-
-		@Override
-		public boolean waitForDone(Date due) throws InterruptedException {
-			if ( !waitForStarted(due) ) {
-				return false;
-			}
-			return m_guard.get(() -> m_exec).waitForDone(due);
-		}
-
-		@Override
-		public Execution<T> whenStarted(Runnable listener) {
-			return null;
-		}
-
-		@Override
-		public Execution<T> whenFinished(Consumer<Result<T>> listener) {
-			return null;
-		}
-		
-		private <S> S _get(Supplier<S> notStartedSupplier,
-							Function<Execution<T>,S> startedSupplier) {
-			Execution<T> exec = null;
-			m_guard.lock();
-			try {
-				if ( m_exec != null ) {
-					exec = m_exec;
-				}
-				else {
-					return notStartedSupplier.get();
-				}
-			}
-			finally {
-				m_guard.unlock();
-			}
-			
-			return startedSupplier.apply(exec);
-		}
+        return Executors.newScheduledThreadPool(numberOfThreads);
 	}
-*/
 }

@@ -18,6 +18,10 @@ public class UncheckedRunnable implements Runnable {
 		m_checked = checked;
 		m_handler = handler;
 	}
+	
+	public FailureHandler<Void> getFailureHandler() {
+		return m_handler;
+	}
 
 	@Override
 	public void run() {

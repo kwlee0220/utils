@@ -5,8 +5,8 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
+import utils.async.EventDrivenExecution;
 import utils.async.StartableExecution;
 import utils.func.Try;
 
@@ -25,8 +25,8 @@ import utils.func.Try;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-class BackgroundedAsyncExecution<T> extends AbstractAsyncExecution<T>
-									implements CancellableWork {
+class BackgroundedAsyncExecution<T> extends EventDrivenExecution<T>
+									implements StartableExecution<T>, CancellableWork {
 	private static final Logger s_logger = LoggerFactory.getLogger(BackgroundedAsyncExecution.class);
 	
 	private final StartableExecution<T> m_fgAsync;

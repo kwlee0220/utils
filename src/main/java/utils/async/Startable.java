@@ -1,0 +1,21 @@
+package utils.async;
+
+
+/**
+ * 
+ * @author Kang-Woo Lee (ETRI)
+ */
+public interface Startable {
+	/**
+	 * 작업을 시작시킨다.
+	 * <p>
+	 * 본 메소드은 시작된 작업이 종료되기 전에 반환될 수 있다.
+	 */
+	public void start();
+	
+	public static void startIfStartable(Object obj) {
+		if ( obj instanceof Startable ) {
+			((Startable)obj).start();
+		}
+	}
+}

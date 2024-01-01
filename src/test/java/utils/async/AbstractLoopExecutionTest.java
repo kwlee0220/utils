@@ -35,10 +35,10 @@ public class AbstractLoopExecutionTest {
 		Assert.assertEquals(false, exec.isDone());
 		
 		AsyncResult<Integer> result;
-		result = exec.poll(100, TimeUnit.MILLISECONDS);
+		result = exec.waitForDone(100, TimeUnit.MILLISECONDS);
 		Assert.assertEquals(true, result.isRunning());
 		
-		result = exec.poll(1, TimeUnit.SECONDS);
+		result = exec.waitForDone(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isCompleted());
 		Assert.assertEquals(5, (int)result.get());
 	}
@@ -48,7 +48,7 @@ public class AbstractLoopExecutionTest {
 		StartableExecution<Integer> exec = new TestExecution1(5000);
 		
 		exec.start();
-		Assert.assertEquals(true, exec.poll(100, TimeUnit.MILLISECONDS).isRunning());
+		Assert.assertEquals(true, exec.waitForDone(100, TimeUnit.MILLISECONDS).isRunning());
 		
 		boolean done;
 		done = exec.cancel(true);
@@ -67,7 +67,7 @@ public class AbstractLoopExecutionTest {
 		Assert.assertEquals(true, exec.isStarted());
 		Assert.assertEquals(false, exec.isDone());
 		
-		result = exec.poll(1, TimeUnit.SECONDS);
+		result = exec.waitForDone(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isCancelled());
 	}
 	
@@ -79,7 +79,7 @@ public class AbstractLoopExecutionTest {
 		
 		exec.start();
 		
-		result = exec.poll(1, TimeUnit.SECONDS);
+		result = exec.waitForDone(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isFailed());
 		Assert.assertEquals("test", result.getCause().getMessage());
 	}
@@ -92,7 +92,7 @@ public class AbstractLoopExecutionTest {
 		
 		exec.start();
 		
-		result = exec.poll(1, TimeUnit.SECONDS);
+		result = exec.waitForDone(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isFailed());
 		Assert.assertEquals("test", result.getCause().getMessage());
 	}

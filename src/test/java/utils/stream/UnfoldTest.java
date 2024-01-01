@@ -15,10 +15,9 @@ import utils.func.Tuple;
 public class UnfoldTest {
 	@Test
 	public void test0() throws Exception {
+		FOption<String> r;
 		FStream<String> stream = FStream.unfold(0, i -> Tuple.of(i+1, ""+i))
 										.take(3);
-		
-		FOption<String> r;
 		
 		r = stream.next();
 		Assert.assertEquals(true, r.isPresent());
@@ -62,11 +61,11 @@ public class UnfoldTest {
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test2() throws Exception {
-		FStream<Integer> stream = FStream.unfold(0, null);
+		FStream.unfold(0, null);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
 	public void test3() throws Exception {
-		FStream<String> stream = FStream.unfold((Integer)null, i -> Tuple.of(i+1, ""+i));
+		FStream.unfold((Integer)null, i -> Tuple.of(i+1, ""+i));
 	}
 }

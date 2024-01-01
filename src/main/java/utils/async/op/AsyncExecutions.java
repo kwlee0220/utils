@@ -3,7 +3,6 @@ package utils.async.op;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -12,10 +11,14 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+
 import utils.async.AbstractAsyncExecution;
-import utils.async.AbstractThreadedExecution;
-import utils.async.FutureBasedAsyncExecution;
+import utils.async.Executions;
 import utils.async.StartableExecution;
+import utils.func.Lazy;
 import utils.stream.FStream;
 
 /**
@@ -25,43 +28,18 @@ import utils.stream.FStream;
 public class AsyncExecutions {
 	static final Logger s_logger = LoggerFactory.getLogger(AsyncExecutions.class);
 	
+	private static final ListeningScheduledExecutorService SCHEDULER
+						= Lazy.wrap(AsyncExecutions::createScheduler, ListeningScheduledExecutorService.class);
+	
 	private AsyncExecutions() {
 		throw new AssertionError("Should not be called: class=" + AsyncExecutions.class);
 	}
 	
-	public static <T> StartableExecution<T> from(Callable<T> work) {
-		return new AbstractThreadedExecution<T>() {
-			@Override
-			protected T executeWork() throws Exception {
-				return work.call();
-			}
-		};
+	public static ListeningScheduledExecutorService getScheduler() {
+		return SCHEDULER;
 	}
 	
-	public static <T> StartableExecution<T> idle(T result, long delay, TimeUnit unit,
-												ScheduledExecutorService scheduler) {
-		return new FutureBasedAsyncExecution<T>() {
-			@Override
-			protected Future<? extends T> getFuture() {
-				return scheduler.schedule(() -> {
-					if ( notifyCompleted(result) ) {
-						return result;
-					}
-					if ( notifyCancelled() ) {
-						return null;
-					}
-					return null;
-				}, delay, unit);
-			}
-		};
-	}
-	
-	public static StartableExecution<Void> idle(long delay, TimeUnit unit,
-											ScheduledExecutorService scheduler) {
-		return AsyncExecutions.<Void>idle(null, delay, unit, scheduler);
-	}
-	
-	public static <T> StartableExecution<T> nop(T result) {
+	public static <T> AbstractAsyncExecution<T> nop(T result) {
 		return new AbstractAsyncExecution<T>() {
 			@Override
 			public void start() {
@@ -77,12 +55,11 @@ public class AsyncExecutions {
 			}
 		};
 	}
-	
-	public static StartableExecution<Void> nop() {
+	public static AbstractAsyncExecution<Void> nop() {
 		return nop(null);
 	}
 	
-	public static <T> StartableExecution<T> failure(Throwable cause) {
+	public static <T> AbstractAsyncExecution<T> throwAsync(Throwable cause) {
 		return new AbstractAsyncExecution<T>() {
 			@Override
 			public void start() {
@@ -94,7 +71,7 @@ public class AsyncExecutions {
 		};
 	}
 	
-	public static <T> StartableExecution<T> cancelled() {
+	public static <T> AbstractAsyncExecution<T> cancelAsync() {
 		return new AbstractAsyncExecution<T>() {
 			@Override
 			public void start() {
@@ -102,6 +79,25 @@ public class AsyncExecutions {
 				CompletableFuture.runAsync(this::notifyCancelled);
 			}
 		};
+	}
+	
+	public static <T> StartableExecution<T> idle(T result, long delay, TimeUnit unit) {
+		Callable<T> act = new Callable<T>() {
+			@Override
+			public T call() throws Exception {
+				return result;
+			}
+		};
+		return new ListenableFutureAsyncExecution<T>() {
+			@Override
+			protected ListenableFuture<? extends T> startExecution() {
+				ListeningScheduledExecutorService scheduler = SCHEDULER;
+				return scheduler.schedule(act, delay, unit);
+			}
+		};
+	}
+	public static <T> StartableExecution<T> idle(long delay, TimeUnit unit) {
+		return idle(null, delay, unit);
 	}
 
 	public static <T> SequentialAsyncExecution<T> sequential(
@@ -143,5 +139,9 @@ public class AsyncExecutions {
 	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<StartableExecution<S>> seq,
 														T init, BiFunction<T,S,T> folder) {
 		return new FoldedAsyncExecution<>(seq, () -> init, folder);
+	}
+
+	private static ListeningScheduledExecutorService createScheduler() {
+		return MoreExecutors.listeningDecorator(Executions.getExecutor());
 	}
 }

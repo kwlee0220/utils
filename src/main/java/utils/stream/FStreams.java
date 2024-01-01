@@ -20,6 +20,7 @@ import utils.func.CheckedFunctionX;
 import utils.func.FOption;
 import utils.func.FailureCase;
 import utils.func.FailureHandler;
+import utils.func.Try;
 import utils.func.Tuple;
 import utils.io.IOUtils;
 
@@ -444,10 +445,10 @@ public class FStreams {
 		}
 	}
 	
-	static class FilteredMapStream<S,T> extends SingleSourceStream<S,T> {
+	static class FlatMapFOption<S,T> extends SingleSourceStream<S,T> {
 		private final Function<? super S,FOption<T>> m_mapper;
 		
-		FilteredMapStream(FStream<S> base, Function<? super S, FOption<T>> mapper) {
+		FlatMapFOption(FStream<S> base, Function<? super S, FOption<T>> mapper) {
 			super(base);
 			checkNotNullArgument(mapper, "mapper is null");
 			
@@ -461,6 +462,30 @@ public class FStreams {
 				FOption<T> mapped = m_mapper.apply(next.getUnchecked());
 				if ( mapped.isPresent() ) {
 					return mapped;
+				}
+			}
+			
+			return FOption.empty();
+		}
+	}
+	
+	static class FlatMapTry<S,T> extends SingleSourceStream<S,T> {
+		private final Function<? super S,Try<T>> m_mapper;
+		
+		FlatMapTry(FStream<S> base, Function<? super S, Try<T>> mapper) {
+			super(base);
+			checkNotNullArgument(mapper, "mapper is null");
+			
+			m_mapper = mapper;
+		}
+
+		@Override
+		public FOption<T> next() {
+			FOption<S> next;
+			while ( (next = m_src.next()).isPresent() ) {
+				Try<T> mapped = m_mapper.apply(next.getUnchecked());
+				if ( mapped.isSuccess() ) {
+					return FOption.of(mapped.getUnchecked());
 				}
 			}
 			

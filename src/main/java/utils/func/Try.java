@@ -113,6 +113,8 @@ public interface Try<T> extends FStreamable<T> {
 	 */
 	public T getOrNull();
 	
+	public T getUnchecked();
+	
 	/**
 	 * 작업 수행 결과를 반환한다.
 	 * <p>
@@ -175,6 +177,10 @@ public interface Try<T> extends FStreamable<T> {
 
 		@Override
 		public T get() {
+			return m_value;
+		}
+		
+		public T getUnchecked() {
 			return m_value;
 		}
 
@@ -274,7 +280,12 @@ public interface Try<T> extends FStreamable<T> {
 
 		@Override
 		public T get() {
-			return Throwables.sneakyThrow(m_cause);
+			Throwables.sneakyThrow(m_cause);
+			throw new AssertionError();
+		}
+		
+		public T getUnchecked() {
+			throw Throwables.toRuntimeException(m_cause);
 		}
 
 		@Override

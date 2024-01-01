@@ -4,13 +4,12 @@ package utils.async;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static utils.async.op.AsyncExecutions.cancelled;
-import static utils.async.op.AsyncExecutions.failure;
 import static utils.async.op.AsyncExecutions.idle;
 
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.junit.Assert;
@@ -20,6 +19,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import utils.async.op.AsyncExecutions;
 import utils.async.op.SequentialAsyncExecution;
 import utils.stream.FStream;
 
@@ -46,10 +46,10 @@ public class SequentialAsyncTest {
 		ScheduledExecutorService executors = Executors.newScheduledThreadPool(4);
 		
 		m_execList = FStream.range(0, 5)
-							.map(idx -> idle(idx, 100, MILLISECONDS, executors))
+							.map(idx -> idle(idx, 100, MILLISECONDS))
 							.toList();
-		m_failed = failure(m_error);
-		m_cancelled = cancelled();
+		m_failed = AsyncExecutions.throwAsync(m_error);
+		m_cancelled = AsyncExecutions.cancelAsync();
 		
 		m_gen = FStream.from(m_execList);
 		m_gen2 = FStream.concat(m_gen, m_failed);
@@ -69,7 +69,7 @@ public class SequentialAsyncTest {
 		StartableExecution<?> elm = exec.getCurrentExecution();
 		Assert.assertEquals(true, elm.isStarted());
 		
-		exec.pollInfinite();
+		exec.waitForDone();
 		Assert.assertEquals(4, (int)exec.get());
 
 		MILLISECONDS.sleep(50);
@@ -84,7 +84,7 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.pollInfinite();
+		exec.waitForDone();
 		
 		// finish_listener가 호출될 때까지 일정시간동안 대기한다.
 		MILLISECONDS.sleep(50);
@@ -97,7 +97,7 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		boolean wasRunning = exec.poll(250, MILLISECONDS).isRunning();
+		boolean wasRunning = exec.waitForDone(250, TimeUnit.MILLISECONDS).isRunning();
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
 		
@@ -113,7 +113,7 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.pollInfinite();
+		exec.waitForDone();
 		MILLISECONDS.sleep(50);
 
 		Assert.assertEquals(true, m_failed.isFailed());
@@ -130,7 +130,7 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.pollInfinite();
+		exec.waitForDone();
 		MILLISECONDS.sleep(50);
 
 		Assert.assertEquals(true, m_cancelled.isCancelled());

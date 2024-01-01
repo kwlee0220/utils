@@ -6,12 +6,13 @@ import org.junit.Before;
 import org.junit.Test;
 
 import utils.func.FOption;
+import utils.func.Try;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class FilteredMapTest {
+public class FlatMapTry {
 	@Before
 	public void setUp() {
 	}
@@ -19,7 +20,7 @@ public class FilteredMapTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<Integer> stream = FStream.range(0, 5)
-										.filterMap(v -> (v%2==0) ? FOption.empty() : FOption.of(-v));
+										.flatMapTry(v -> (v%2==0) ? Try.failure(new Exception()) : Try.success(-v));
 		
 		FOption<Integer> r;
 		
@@ -41,7 +42,7 @@ public class FilteredMapTest {
 	@Test
 	public void test1() throws Exception {
 		FStream<Integer> stream = FStream.empty();
-		stream = stream.filterMap(v -> (v%2==0) ? FOption.empty() : FOption.of(-v));
+		stream = stream.flatMapTry(v -> (v%2==0) ? Try.failure(new Exception()) : Try.success(-v));
 		
 		FOption<Integer> r;
 		

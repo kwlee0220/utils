@@ -124,7 +124,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@Override
 	public T get() throws InterruptedException, ExecutionException, CancellationException {
 		try {
-			return pollInfinite().get();
+			return waitForDone().get();
 		}
 		catch ( TimeoutException neverHappens ) {
 			throw new AssertionError("Should not be here: " + getClass().getName() + "#get()");
@@ -134,7 +134,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@Override
 	public T get(Date due) throws InterruptedException, ExecutionException,
 													TimeoutException, CancellationException {
-		return poll(due).get();
+		return waitForDone(due).get();
 	}
 	
 	@Override
@@ -153,7 +153,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public AsyncResult<T> poll(Date due) throws InterruptedException {
+	public AsyncResult<T> waitForDone(Date due) throws InterruptedException {
 		try {
 			return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_result, due);
 		}
@@ -163,7 +163,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public AsyncResult<T> pollInfinite() throws InterruptedException {
+	public AsyncResult<T> waitForDone() throws InterruptedException {
 		return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_result);
 	}
 
@@ -450,11 +450,6 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	
 	public <R> R getInAsyncExecutionGuard(Supplier<R> supplier) {
 		return m_aopGuard.get(supplier);
-	}
-	
-	public <S> EventDrivenExecution<S> flatMap(
-									Function<AsyncResult<? extends T>,Execution<? extends S>> mapper) {
-		return new Executions.FlatMapChainExecution<>(this, mapper);
 	}
 	
 	public <S> EventDrivenExecution<S> flatMapOnCompleted(
