@@ -185,12 +185,15 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		
 		return (FStream<T>)stream;
 	}
-	
+
+	public static IntFStream range(int start) {
+		return new IntFStream.RangedStream(start, FOption.empty(), false);
+	}
 	public static IntFStream range(int start, int end) {
-		return new IntFStream.RangedStream(start, end, false);
+		return new IntFStream.RangedStream(start, FOption.of(end), false);
 	}
 	public static IntFStream rangeClosed(int start, int end) {
-		return new IntFStream.RangedStream(start, end, true);
+		return new IntFStream.RangedStream(start, FOption.of(end), true);
 	}
 	
 	public static <T> FStream<T> repeat(T value) {
@@ -903,16 +906,20 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 
 	public default FStream<Tuple<T,Integer>> zipWithIndex(int start) {
-		return zipWith(range(start, Integer.MAX_VALUE));
+		return zipWith(FStream.range(start));
 	}
 	public default FStream<Tuple<T,Integer>> zipWithIndex() {
 		return zipWithIndex(0);
 	}
-	
+
 	public default <S> FStream<Tuple<T,S>> zipWith(FStream<? extends S> other) {
+		return zipWith(other, false);
+	}
+	
+	public default <S> FStream<Tuple<T,S>> zipWith(FStream<? extends S> other, boolean longest) {
 		checkNotNullArgument(other, "zip FStream is null");
 		
-		return new ZippedFStream<>(this, other);
+		return new ZippedFStream<>(this, other, longest);
 	}
 	
 	/**
