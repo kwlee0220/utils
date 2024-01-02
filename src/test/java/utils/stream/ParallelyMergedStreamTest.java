@@ -30,11 +30,9 @@ public class ParallelyMergedStreamTest {
 		
 		int i =0;
 		while ( (r = stream.next()).isPresent() ) {
-			System.out.println(r.get());
 			++i;
 			if ( i == 10 ) {
 				stream.close();
-				System.out.println("-------- DONE ---------");
 			}
 		}
 		

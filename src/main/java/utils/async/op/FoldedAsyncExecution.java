@@ -10,8 +10,8 @@ import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.LoggerFactory;
 
 import utils.async.AbstractAsyncExecution;
-import utils.async.CancellableWork;
 import utils.async.AsyncResult;
+import utils.async.CancellableWork;
 import utils.async.StartableExecution;
 import utils.stream.FStream;
 

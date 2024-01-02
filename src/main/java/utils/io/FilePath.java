@@ -180,7 +180,7 @@ public interface FilePath {
 			= UncheckedFunction.sneakyThrow(fp ->  fp.isDirectory() ? fp.walkTree(true) : FStream.of(fp));
 		FStream<FilePath> descendents = streamChildFilePaths().flatMap(walkDown);
 		if ( includeCurrent ) {
-			return FStream.concat(FStream.of(this), descendents);
+			return FStream.of(this).concatWith(descendents);
 		}
 		else {
 			return descendents;

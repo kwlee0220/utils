@@ -207,7 +207,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 	}
 
 	@Override
-	public boolean supply(T value) throws ThreadInterruptedException {
+	public boolean supply(T value) throws IllegalStateException, ThreadInterruptedException {
 		m_lock.lock();
 		try {
 			while ( true ) {
@@ -238,7 +238,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 	}
 
 	@Override
-	public boolean supply(T value, long timeout, TimeUnit tu) throws ThreadInterruptedException {
+	public boolean supply(T value, long timeout, TimeUnit tu) throws IllegalStateException, ThreadInterruptedException {
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		
 		m_lock.lock();

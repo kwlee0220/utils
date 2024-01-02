@@ -24,8 +24,11 @@ public interface Suppliable<T> {
 	 * @param data	제공할 데이터
 	 * @return	데이터 제공 성공 여부.
 	 * @throws ThreadInterruptedException	 쓰레드 대기 중 강제로 중단된 경우.
+	 * @throws IllegalStateException	데이터를 받을 수 있는 상태가 아니어서, 앞으로도
+	 * 									데이터를 제공할 수 있을 수 없는 경우.
+	 * 									예를들어 Suppliable이 이미 종료된 경우를 생각할 수 있다.
 	 */
-	public boolean supply(T data);
+	public boolean supply(T data) throws IllegalStateException, ThreadInterruptedException;
 	
 	/**
 	 * 데이터를 일정시간 내로 제공한다.
@@ -43,9 +46,12 @@ public interface Suppliable<T> {
 	 * @param tu		제한시간 단위
 	 * @return	제한시간 내 데이터 제공 성공 여부.
 	 * @throws	ThreadInterruptedException	 쓰레드 대기 중 강제로 중단된 경우.
+	 * @throws IllegalStateException	데이터를 받을 수 있는 상태가 아니어서, 앞으로도
+	 * 									데이터를 제공할 수 있을 수 없는 경우.
+	 * 									예를들어 Suppliable이 이미 종료된 경우를 생각할 수 있다.
 	 */
 	public boolean supply(T data, long timeout, TimeUnit tu)
-		throws ThreadInterruptedException;
+		throws IllegalStateException, ThreadInterruptedException;
 	
 	/**
 	 * 데이터 제공을 종료시킨다.

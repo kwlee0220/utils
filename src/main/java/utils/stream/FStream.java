@@ -859,6 +859,13 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new ZippedFStream<>(this, other);
 	}
 	
+	/**
+	 * 인자로 주어진 배열에 포함된 iterable들을 차례대로 순환하는 스트림을 반환한다.
+	 * 
+	 * @param <T>	스트림의 원소 타입
+	 * @param iterables	스트림을 구성할 iterable들의 배열.
+	 * @return	{@code FStream} 객체.
+	 */
 	@SafeVarargs
 	public static <T> FStream<T> concat(Iterable<? extends T>... iterables) {
 		checkNotNullArgument(iterables, "source iterables");
@@ -882,19 +889,25 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	/**
 	 * 현 스트림에 주어진 스트림을 연결하여 하나의 스트림 객체를 생성한다.
 	 * 
-	 * @param tail	본 스트림에 뒤에 붙일 스트림 객체.
+	 * @param follower	본 스트림에 뒤에 붙일 스트림 객체.
 	 * @return	{@code FStream} 객체.
 	 */
-	public default FStream<T> concatWith(FStream<? extends T> tail) {
-		checkNotNullArgument(tail, "tail is null");
+	public default FStream<T> concatWith(FStream<? extends T> follower) {
+		checkNotNullArgument(follower, "follower is null");
 		
-		return concat(FStream.of(this, tail));
+		return concat(FStream.of(this, follower));
 	}
-	
-	public default FStream<T> concatWith(List<? extends T> tailList) {
-		checkNotNullArgument(tailList, "tailList is null");
+
+	/**
+	 * 현 스트림에 주어진 스트림을 연결하여 하나의 스트림 객체를 생성한다.
+	 * 
+	 * @param follower	본 스트림에 뒤에 붙일 스트림 객체.
+	 * @return	{@code FStream} 객체.
+	 */
+	public default FStream<T> concatWith(Iterable<? extends T> follower) {
+		checkNotNullArgument(follower, "follower is null");
 		
-		return concat(FStream.of(this, FStream.from(tailList)));
+		return concat(FStream.of(this, FStream.from(follower)));
 	}
 	
 	/**
@@ -907,21 +920,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(tail, "tail is null");
 		
 		return concatWith(FStream.of(tail));
-	}
-	
-	public static <T> FStream<T> concat(FStream<? extends T> head,
-										FStream<? extends T> tail) {
-		checkNotNullArgument(head, "head is null");
-		checkNotNullArgument(tail, "tail is null");
-		
-		return concat(FStream.of(head, tail));
-	}
-	
-	public static <T> FStream<T> concat(FStream<? extends T> head, T tail) {
-		checkNotNullArgument(head, "head is null");
-		checkNotNullArgument(tail, "tail is null");
-		
-		return concat(head, FStream.of(tail));
 	}
 	
 	public default FStream<T> sample(double ratio) {

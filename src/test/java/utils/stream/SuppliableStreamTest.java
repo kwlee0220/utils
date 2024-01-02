@@ -13,6 +13,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import utils.Holder;
 import utils.StopWatch;
 import utils.func.FOption;
 import utils.func.Try;
@@ -214,22 +215,48 @@ public class SuppliableStreamTest {
 	@Test
 	public void test9() throws Exception {
 		FOption<Integer> r;
+		Holder<Integer> state = Holder.of(0);
 
 		CompletableFuture.runAsync(() -> {
 			try {
-				m_stream.next();
-				m_stream.next();
+				FOption<Integer>ret;
+				
+				ret = m_stream.next();
+				Assert.assertEquals(1, (int)ret.get());
+				Assert.assertTrue(1 <= (int)state.get());
+				
+				ret = m_stream.next();
+				Assert.assertEquals(2, (int)ret.get());
+				Assert.assertEquals(2, (int)state.get());
+
 				m_stream.close();
+				synchronized ( state ) {
+					state.set(3);
+					state.notifyAll();
+				}
 			}
-			catch ( Exception e ) {
+			catch ( Throwable e ) {
 				e.printStackTrace();
 			}
 		});
 
+		Assert.assertEquals(0, (int)state.get());
+		state.set(1);
 		m_stream.supply(1);
+
+		state.set(2);
 		m_stream.supply(2);
-		Thread.sleep(100);
-		Assert.assertEquals(false, m_stream.supply(3));
+		
+		synchronized ( state ) {
+			while ( state.get() == 2 ) {
+				state.wait(1000);
+			}
+		}
+		try {
+			m_stream.supply(3);
+			Assert.fail("Should not be called");
+		}
+		catch ( IllegalStateException expected ) { }
 	}
 
 	@Test

@@ -52,8 +52,8 @@ public class SequentialAsyncTest {
 		m_cancelled = AsyncExecutions.cancelAsync();
 		
 		m_gen = FStream.from(m_execList);
-		m_gen2 = FStream.concat(m_gen, m_failed);
-		m_gen3 = FStream.concat(m_gen, m_cancelled);
+		m_gen2 = m_gen.concatWith(m_failed);
+		m_gen3 = m_gen.concatWith(m_cancelled);
 	}
 	
 	@Test

@@ -31,7 +31,7 @@ public class MinMaxTest {
 	public void test1S() throws Exception {
 		FStream<Integer> stream = FStream.of();
 		
-		Assert.assertEquals(null, stream.max());
+		Assert.assertTrue(stream.max().isAbsent());
 	}
 	@Test
 	public void test1M() throws Exception {
@@ -77,7 +77,7 @@ public class MinMaxTest {
 	public void test4S() throws Exception {
 		FStream<Integer> stream = FStream.of();
 		
-		Assert.assertEquals(null, stream.max());
+		Assert.assertTrue(stream.max().isAbsent());
 	}
 	@Test
 	public void test4M() throws Exception {
@@ -106,7 +106,7 @@ public class MinMaxTest {
 	public void test11S() throws Exception {
 		FStream<Integer> stream = FStream.of();
 		
-		Assert.assertEquals(null, stream.min());
+		Assert.assertTrue(stream.min().isAbsent());
 	}
 	@Test
 	public void test11M() throws Exception {

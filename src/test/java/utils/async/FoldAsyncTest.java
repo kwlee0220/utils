@@ -36,8 +36,8 @@ public class FoldAsyncTest {
 	public void setup() {
 		m_gen = FStream.range(0, 5)
 						.map(idx -> AsyncExecutions.idle(idx, 100, MILLISECONDS));
-		m_gen2 = FStream.concat(m_gen, AsyncExecutions.throwAsync(m_error));
-		m_gen3 = FStream.concat(m_gen, AsyncExecutions.cancelAsync());
+		m_gen2 = m_gen.concatWith(AsyncExecutions.throwAsync(m_error));
+		m_gen3 = m_gen.concatWith(AsyncExecutions.cancelAsync());
 	}
 	
 	@Test
