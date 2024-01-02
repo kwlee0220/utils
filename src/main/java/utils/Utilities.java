@@ -83,6 +83,10 @@ public class Utilities {
 		}
 	}
 	
+	public static void checkArgument(boolean pred) {
+		checkArgument(pred, "invalid argument");
+	}
+	
 	public static void checkArgument(boolean pred, String msg) {
 		if ( !pred ) {
 			throw new IllegalArgumentException(msg);

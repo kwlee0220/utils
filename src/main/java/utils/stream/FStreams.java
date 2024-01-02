@@ -2,6 +2,8 @@ package utils.stream;
 
 import static utils.Utilities.checkNotNullArgument;
 
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -526,6 +528,31 @@ public class FStreams {
 			}
 			
 			return FOption.empty();
+		}
+	}
+	
+	static class IteratorFactoryFStream<T> extends AbstractFStream<T> {
+		private final Supplier<? extends Iterator<? extends T>> m_fact;
+		private Iterator<? extends T> m_cursor;
+		
+		IteratorFactoryFStream(Supplier<? extends Iterator<? extends T>> fact) {
+			m_fact = fact;
+			m_cursor = Collections.emptyIterator();
+		}
+		
+		@Override
+		protected void closeInGuard() throws Exception { }
+
+		@Override
+		public FOption<T> next() {
+			while ( true ) {
+				if ( !m_cursor.hasNext() ) {
+					m_cursor = m_fact.get();
+					assert m_cursor.hasNext();
+				}
+				
+				return FOption.of(m_cursor.next());
+			}
 		}
 	}
 }

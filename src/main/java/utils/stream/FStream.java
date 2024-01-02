@@ -45,6 +45,7 @@ import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.FlatMapFOption;
 import utils.stream.FStreams.FlatMapTry;
+import utils.stream.FStreams.IteratorFactoryFStream;
 import utils.stream.FStreams.MapOrHandleStream;
 import utils.stream.FStreams.MapOrThrowStream;
 import utils.stream.FStreams.MapToBooleanStream;
@@ -166,6 +167,11 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		
 		return from(stream.iterator());
 	}
+	public static <T> FStream<T> from(Supplier<? extends Iterator<? extends T>> iterFact) {
+		checkNotNullArgument(iterFact, "IteratorFactory is null");
+		
+		return new IteratorFactoryFStream<>(iterFact);
+	}
 	
 	/**
 	 * '? extends T' 타입 원소의 스트림에서 'T' 타입 원소의 스트림으로 변환시킨다.
@@ -180,34 +186,25 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return (FStream<T>)stream;
 	}
 	
-	/**
-	 * 주어진 길이의 버퍼를 사용하는 {@link SuppliableFStream} 객체를 생성한다.
-	 * 
-	 * @param <T>	생성된 스트림 데이터의 타입
-	 * @param length	생성될 {@link SuppliableFStream}가 내부적으로 사용할 버퍼 길이.
-	 * @return SuppliableFStream 객체
-	 */
-	public static <T> SuppliableFStream<T> pipe(int length) {
-		checkArgument(length > 0, "length > 0: but=" + length);
-		
-		return new SuppliableFStream<>(length);
-	}
-	
-	/**
-	 * 무한 길이의 버퍼를 사용하는 {@link SuppliableFStream} 객체를 생성한다.
-	 * 
-	 * @param <T>	생성된 스트림 데이터의 타입
-	 * @return SuppliableFStream 객체
-	 */
-	public static <T> SuppliableFStream<T> pipe() {
-		return new SuppliableFStream<>();
-	}
-	
 	public static IntFStream range(int start, int end) {
 		return new IntFStream.RangedStream(start, end, false);
 	}
 	public static IntFStream rangeClosed(int start, int end) {
 		return new IntFStream.RangedStream(start, end, true);
+	}
+	
+	public static <T> FStream<T> repeat(T value) {
+		checkNotNullArgument(value, "repeat value");
+		return generate(value, (v) -> v);
+	}
+	public static <T> FStream<T> repeat(T value, int count) {
+		checkNotNullArgument(value, "repeat value");
+		checkArgument(count >= 1, "count should be larger or equal to 1");
+		return generate(value, (v) -> v).take(count);
+	}
+	
+	public static <T> FStream<T> cycle(Iterable<T> values) {
+		return new IteratorFactoryFStream<>(() -> values.iterator());
 	}
 	
 	/**
@@ -247,6 +244,29 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(inc, "next value generator is null");
 		
 		return new FStreams.GeneratedStream<>(init, inc);
+	}
+	
+	/**
+	 * 주어진 길이의 버퍼를 사용하는 {@link SuppliableFStream} 객체를 생성한다.
+	 * 
+	 * @param <T>	생성된 스트림 데이터의 타입
+	 * @param length	생성될 {@link SuppliableFStream}가 내부적으로 사용할 버퍼 길이.
+	 * @return SuppliableFStream 객체
+	 */
+	public static <T> SuppliableFStream<T> pipe(int length) {
+		checkArgument(length > 0, "length > 0: but=" + length);
+		
+		return new SuppliableFStream<>(length);
+	}
+	
+	/**
+	 * 무한 길이의 버퍼를 사용하는 {@link SuppliableFStream} 객체를 생성한다.
+	 * 
+	 * @param <T>	생성된 스트림 데이터의 타입
+	 * @return SuppliableFStream 객체
+	 */
+	public static <T> SuppliableFStream<T> pipe() {
+		return new SuppliableFStream<>();
 	}
 	
 	/**
@@ -555,6 +575,42 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 				return FOption.of(m_tail.remove(0));
 			}
 		};
+	}
+
+	public default FStream<T> slice(int stop) {
+		return slice(FOption.empty(), FOption.of(stop), FOption.empty());
+	}
+	public default FStream<T> slice(int start, int stop) {
+		return slice(FOption.of(start), FOption.of(stop), FOption.empty());
+	}
+	public default FStream<T> slice(int start, int stop, int step) {
+		return slice(FOption.of(start), FOption.of(stop), FOption.of(step));
+	}
+	public default FStream<T> slice(FOption<Integer> ostart, FOption<Integer> ostop, FOption<Integer> ostep) {
+		checkArgument(!(ostart.isAbsent() && ostop.isAbsent() && ostep.isAbsent()));
+		
+		FStream<Tuple<T,Integer>> stream = this.zipWithIndex();
+		
+		if ( ostart.isPresent() ) {
+			int start = ostart.get();
+			checkArgument(start >= 0, "start >= 0, but " + start);
+			stream = stream.dropWhile(t -> t._2 < ostart.get());
+		}
+		
+		if ( ostep.isPresent() ) {
+			int start = ostart.getOrElse(0);
+			int step = ostep.get();
+			stream = stream.filter(t -> (t._2 - start) % step == 0);
+		}
+		
+		if ( ostop.isPresent() ) {
+			int stop = ostop.get();
+			int start = ostart.getOrElse(0);
+			checkArgument(start <= stop, "start <= stop, but stop=" + stop);
+			stream = stream.takeWhile(t -> t._2 <= stop);
+		}
+		
+		return stream.map(t -> t._1);
 	}
 	
 	/**

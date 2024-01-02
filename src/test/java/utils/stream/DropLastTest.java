@@ -12,7 +12,7 @@ import utils.func.FOption;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class DropLast {
+public class DropLastTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
