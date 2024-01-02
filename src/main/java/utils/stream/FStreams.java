@@ -4,6 +4,7 @@ import static utils.Utilities.checkNotNullArgument;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -13,6 +14,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import utils.Throwables;
@@ -552,6 +554,44 @@ public class FStreams {
 				}
 				
 				return FOption.of(m_cursor.next());
+			}
+		}
+	}
+	
+	static class SplitFStream<T> extends AbstractFStream<List<T>> {
+		private final FStream<T> m_src;
+		private final Predicate<? super T> m_delimiter;
+		private boolean m_eos = false;
+		
+		SplitFStream(FStream<T> src, Predicate<? super T> delimiter) {
+			checkNotNullArgument(delimiter, "predicate is null");
+			m_src = src;
+			m_delimiter = delimiter;
+		}
+		
+		@Override
+		protected void closeInGuard() throws Exception { }
+
+		@Override
+		public FOption<List<T>> next() {
+			if ( m_eos ) {
+				return FOption.empty();
+			}
+			
+			List<T> buffer = Lists.newArrayList();
+			while ( true ) {
+				FOption<T> onext = m_src.next();
+				if ( onext.isAbsent() ) {
+					m_eos = true;
+					return FOption.of(buffer);
+				}
+				
+				T next = onext.get();
+				boolean isDelim = m_delimiter.test(next);
+				if ( isDelim ) {
+					return FOption.of(buffer);
+				}
+				buffer.add(next);
 			}
 		}
 	}

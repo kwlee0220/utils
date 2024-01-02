@@ -19,7 +19,6 @@ import utils.Throwables;
 import utils.func.CheckedSupplier;
 
 
-
 /**
  *
  * @author Kang-Woo Lee

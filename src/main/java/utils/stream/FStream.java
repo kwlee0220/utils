@@ -57,6 +57,7 @@ import utils.stream.FStreams.MappedStream;
 import utils.stream.FStreams.PeekedStream;
 import utils.stream.FStreams.SelectiveMapStream;
 import utils.stream.FStreams.SingleSourceStream;
+import utils.stream.FStreams.SplitFStream;
 import utils.stream.KVFStreams.FStreamAdaptor;
 
 
@@ -618,8 +619,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	
 	/**
 	 * 스트림에서 주어진 조건식({@code pred})을 만족하지 않은 데이터가 출현하기 직전까지의
-	 * 데이터를 반환하는 스트림을 생성한다. 이때 조건을 만족하지 않게된 데이터는
-	 * 결과 스트림에 포함되지 않는다.
+	 * 데이터를 반환하는 스트림을 생성한다. 조건을 만족하지 않게된 데이터 이후의
+	 * 모든 데이터는 무시된다.
 	 * 
 	 * @param pred	조건식 객체
 	 * @return	스트림 객체.
@@ -799,6 +800,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new BufferedStream<>(this, count, skip);
 	}
 	
+	public default FStream<List<T>> split(Predicate<? super T> delimiter) {
+		checkNotNullArgument(delimiter, "delimiter is null");
+		
+		return new SplitFStream<>(this, delimiter);
+	}
+	
 	public default <S> S foldLeft(S accum, BiFunction<? super S,? super T,? extends S> folder) {
 		checkNotNullArgument(folder, "folder is null");
 		
@@ -816,7 +823,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default <S> S foldLeft(S accum, S stopper,
-								BiFunction<? super S,? super T,? extends S> folder) {
+									BiFunction<? super S,? super T,? extends S> folder) {
 		checkNotNullArgument(accum, "accum is null");
 		checkNotNullArgument(folder, "folder is null");
 		
