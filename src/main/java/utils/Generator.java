@@ -21,7 +21,7 @@ public abstract class Generator<T> extends SuppliableFStream<T> implements Check
 	 * 
 	 * Generator 객체가 생성되면 내부적으로 데이터를 생성하는 thread가 시작되어
 	 * abstract method인 {@link #run()}을 수행시킨다.
-	 * 생성된 generator는 내부적으로 길이 {@code length}의 버퍼를 갖는다.
+	 * 생성된 generator는 내부적으로 길이 {@code length}의 버퍼를 통해 스트림에 데이터를 제공한다.
 	 *
 	 * @param length	버퍼 길이. 버퍼 길이는 0보다 커야한다.
 	 */
@@ -41,8 +41,9 @@ public abstract class Generator<T> extends SuppliableFStream<T> implements Check
 	 * 생성된 generator는 내부적으로 길이 {@code length}의 버퍼를 갖는다.
 	 *
 	 * @param length	버퍼 길이. 버퍼 길이는 0보다 커야한다.
+	 * @param executor	내부 쓰레드가 사용한 {@link Executor} 객체.
 	 */
-	public Generator(@Nonnull Executor exector, int length) {
+	public Generator(int length, @Nonnull Executor exector) {
 		super(length);
 		checkNotNullArgument(exector);
 		checkArgument(length > 0, "Buffer length should be larger than zero.");
@@ -55,7 +56,7 @@ public abstract class Generator<T> extends SuppliableFStream<T> implements Check
 	 * 
 	 * @param value		생성한 데이터.
 	 */
-	public final void yield(@Nonnull T value) {
+	public final void yield(T value) {
 		checkNotNullArgument(value);
 		
 		supply(value);

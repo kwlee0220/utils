@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import utils.CSV;
+import utils.Suppliable;
 import utils.Utilities;
 import utils.func.CheckedConsumer;
 import utils.func.CheckedConsumerX;
@@ -45,6 +46,7 @@ import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.FlatMapFOption;
 import utils.stream.FStreams.FlatMapTry;
+import utils.stream.FStreams.GeneratedStream;
 import utils.stream.FStreams.IteratorFactoryFStream;
 import utils.stream.FStreams.MapOrHandleStream;
 import utils.stream.FStreams.MapOrThrowStream;
@@ -247,7 +249,17 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(init, "initial value is null");
 		checkNotNullArgument(inc, "next value generator is null");
 		
-		return new FStreams.GeneratedStream<>(init, inc);
+		return new GeneratedStream<>(init, inc);
+	}
+	
+	public static <T> FStream<T> generate(CheckedConsumer<Suppliable<T>> generator, int length) {
+		return new GeneratorBasedFStream<>(generator, length);
+	}
+	public static <T> FStream<T> generate(Consumer<Suppliable<T>> generator, int length) {
+		checkNotNullArgument(generator, "generator is null");
+
+		CheckedConsumer<Suppliable<T>> cgenerator = CheckedConsumer.fromConsumer(generator);
+		return generate(cgenerator, length);
 	}
 	
 	/**

@@ -1,5 +1,6 @@
 package utils.func;
 
+import java.util.function.Consumer;
 
 /**
  * 
@@ -17,5 +18,14 @@ public interface CheckedConsumer<T> {
 		catch ( Throwable e ) {
 			return Try.failure(e);
 		}
+	}
+	
+	public static <T> CheckedConsumer<T> fromConsumer(final Consumer<T> consumer) {
+		return new CheckedConsumer<T>() {
+			@Override
+			public void accept(T data) {
+				consumer.accept(data);
+			}
+		};
 	}
 }

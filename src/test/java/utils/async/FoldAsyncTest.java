@@ -63,6 +63,7 @@ public class FoldAsyncTest {
 		
 		exec.start();
 		exec.waitForDone();
+		MILLISECONDS.sleep(100);
 		verify(m_doneListener, times(1)).accept(AsyncResult.completed(Integer.valueOf(10)));
 	}
 
