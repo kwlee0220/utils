@@ -28,7 +28,7 @@ import utils.Utilities;
 public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	private static final Logger s_logger = LoggerFactory.getLogger(EventDrivenExecution.class);
 	
-	private long m_timeoutMillis = TimeUnit.SECONDS.toMillis(3);	// 3 seconds
+	private long m_cancelTimeoutMillis = TimeUnit.SECONDS.toMillis(3);	// 3 seconds
 	protected final Guard m_aopGuard = Guard.create();
 	@GuardedBy("m_aopGuard") private AsyncState m_aopState = AsyncState.NOT_STARTED;
 	@GuardedBy("m_aopGuard") private AsyncResult<T> m_result;		// may null
@@ -44,8 +44,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		return m_aopGuard.get(() -> m_aopState);
 	}
 	
-	public void setTimeout(long timeout, TimeUnit unit) {
-		m_timeoutMillis = unit.toMillis(timeout);
+	public void setCancelTimeout(long timeout, TimeUnit unit) {
+		m_cancelTimeoutMillis = unit.toMillis(timeout);
 	}
 	
 	public void complete(T result) {
@@ -54,7 +54,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 
 	@Override
 	public boolean cancel(boolean mayInterruptIfRunning) {
-		Date due = new Date(System.currentTimeMillis() + m_timeoutMillis);
+		Date due = new Date(System.currentTimeMillis() + m_cancelTimeoutMillis);
 		
 		m_aopGuard.lock();
 		try {
@@ -299,7 +299,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     	try {
     		// 시작 중인 상태이면, cancel 작업이 inconsistent한 상태를 볼 수 있기 때문에,
     		// 일단 start작업이 완료될 때까지 대기한다.
-    		Date due = new Date(System.currentTimeMillis() + m_timeoutMillis);
+    		Date due = new Date(System.currentTimeMillis() + m_cancelTimeoutMillis);
 			while ( m_aopState == AsyncState.STARTING ) {
 				try {
 					if ( !m_aopGuard.awaitUntil(due) ) {
@@ -338,7 +338,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     	try {
     		// 시작 중인 상태이면, cancel 작업이 inconsistent한 상태를 볼 수 있기 때문에,
     		// 일단 start작업이 완료될 때까지 대기한다.
-    		Date due = new Date(System.currentTimeMillis() + m_timeoutMillis);
+    		Date due = new Date(System.currentTimeMillis() + m_cancelTimeoutMillis);
     		try {
 				while ( m_aopState == AsyncState.STARTING ) {
 					if ( !m_aopGuard.awaitUntil(due) ) {

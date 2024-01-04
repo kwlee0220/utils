@@ -29,6 +29,8 @@ public interface Execution<T> extends Future<T> {
 		public void onCancelled();
 	}
 	
+	public static final Timer s_timer = new Timer();
+	
 	/**
 	 * 연산 수행을 중단시킨다.
 	 * <p>
@@ -289,6 +291,10 @@ public interface Execution<T> extends Future<T> {
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
     public boolean waitForStarted(Date due) throws InterruptedException;
+    
+    public default void setTimeout(long timeout, TimeUnit unit) {
+    	s_timer.setTimer(this, timeout, unit);
+    }
 	
 	public default <S> EventDrivenExecution<S> map(Function<AsyncResult<? extends T>,? extends S> mapper) {
 		return new Executions.MapChainExecution<>(this, mapper);

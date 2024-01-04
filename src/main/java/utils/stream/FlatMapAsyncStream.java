@@ -17,7 +17,7 @@ import utils.stream.FStreams.AbstractFStream;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-class AsyncFlatMapStream<S,T> extends AbstractFStream<Try<T>> {
+class FlatMapAsyncStream<S,T> extends AbstractFStream<Try<T>> {
 	private final FStream<S> m_src;
 	private final Function<? super S, ? extends FStream<? extends T>> m_mapper;
 	private final int m_workerCount;
@@ -27,7 +27,7 @@ class AsyncFlatMapStream<S,T> extends AbstractFStream<Try<T>> {
 	private boolean m_started = false;
 	private int m_workerRemains;
 	
-	AsyncFlatMapStream(FStream<S> src, Function<? super S, ? extends FStream<? extends T>> mapper,
+	FlatMapAsyncStream(FStream<S> src, Function<? super S, ? extends FStream<? extends T>> mapper,
 						FOption<Integer> workerCount,
 						FOption<Executor> executor) {
 		checkNotNullArgument(mapper, "mapper is null");
@@ -43,6 +43,7 @@ class AsyncFlatMapStream<S,T> extends AbstractFStream<Try<T>> {
 	@Override
 	protected void closeInGuard() throws Exception {
 		m_guard.run(() -> Unchecked.runOrIgnore(m_outChannel::close));
+		Unchecked.runOrIgnore(m_src::close);
 	}
 	
 	private void start() {

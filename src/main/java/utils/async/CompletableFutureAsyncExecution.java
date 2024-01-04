@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 
 import utils.Throwables;
 
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -53,6 +54,16 @@ abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExecution<T
 		}
 		else {
 			return true;
+		}
+	}
+	
+	@Override
+	public String toString() {
+		if ( m_future == null ) {
+			return String.format("un-assigned");
+		}
+		else {
+			return "" + m_future;
 		}
 	}
 }

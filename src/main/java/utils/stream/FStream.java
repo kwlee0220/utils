@@ -13,6 +13,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -22,6 +23,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+
+import org.checkerframework.checker.units.qual.K;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -60,6 +63,8 @@ import utils.stream.FStreams.PeekedStream;
 import utils.stream.FStreams.SelectiveMapStream;
 import utils.stream.FStreams.SingleSourceStream;
 import utils.stream.FStreams.SplitFStream;
+import utils.stream.FStreams.UniqueFStream;
+import utils.stream.FStreams.UniqueKeyFStream;
 import utils.stream.KVFStreams.FStreamAdaptor;
 
 
@@ -759,6 +764,24 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		
 		return mergeParallel(map(t -> FStream.lazy(() -> mapper.apply(t))), parallelLevel);
 	}
+
+	public default <S> FStream<Try<S>> mapAsync(Function<? super T,? extends S> mapper, int workerCount) {
+		return new MapAsyncStream<>(this, mapper, FOption.of(workerCount), FOption.empty());
+	}
+	public default <S> FStream<Try<S>> mapAsync(Function<? super T,? extends S> mapper,
+												FOption<Integer> workerCount, FOption<Executor> executor) {
+		return new MapAsyncStream<>(this, mapper, workerCount, executor);
+	}
+
+	public default <S> FStream<Try<S>>
+	flatMapAsync(Function<? super T, ? extends FStream<? extends S>> mapper, int workerCount) {
+		return new FlatMapAsyncStream<>(this, mapper, FOption.of(workerCount), FOption.empty());
+	}
+	public default <S> FStream<Try<S>>
+	flatMapAsync(Function<? super T, ? extends FStream<? extends S>> mapper,
+				FOption<Integer> workerCount, FOption<Executor> executor) {
+		return new FlatMapAsyncStream<>(this, mapper, workerCount, executor);
+	}
 	
 	public default <V> FStream<V> cast(Class<? extends V> cls) {
 		checkNotNullArgument(cls, "target class is null");
@@ -1429,11 +1452,22 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default FStream<T> distinct() {
-		return FStream.from(toCollection(Sets.newHashSet()));
+		Set<T> keys = Sets.newHashSet();
+		return filter(keys::add);
 	}
 	
 	public default <K> FStream<T> distinct(Function<T,K> keyer) {
-		return new FStreams.DistinctStream<>(this, keyer);
+		Set<K> keys = Sets.newHashSet();
+		return this.map(v -> Tuple.of(keyer.apply(v), v))
+					.filter(t -> keys.add(t._1))
+					.map(t -> t._2);
+	}
+	
+	public default FStream<T> unique() {
+		return new UniqueFStream<>(this);
+	}
+	public default <K> FStream<T> unique(Function<? super T,? extends K> keyer) {
+		return new UniqueKeyFStream<>(this, keyer);
 	}
 	
 	public default PrefetchStream<T> prefetched(int count) {
@@ -1500,21 +1534,5 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(mapper, "mapper is null");
 
 		return new FStreamAdaptor<>(map(mapper));
-	}
-
-	public default <S> FStream<Try<S>> mapAsync(Function<? super T,? extends S> mapper, int workerCount) {
-		return new AsyncMapStream<>(this, mapper, FOption.of(workerCount), FOption.empty());
-	}
-	public default <S> FStream<Try<S>> mapAsync(Function<? super T,? extends S> mapper,
-											FOption<Integer> workerCount, FOption<Executor> executor) {
-		return new AsyncMapStream<>(this, mapper, workerCount, executor);
-	}
-
-	public default <S> FStream<Try<S>> flatMapAsync(Function<? super T, ? extends FStream<? extends S>> mapper, int workerCount) {
-		return new AsyncFlatMapStream<>(this, mapper, FOption.of(workerCount), FOption.empty());
-	}
-	public default <S> FStream<Try<S>> flatMapAsync(Function<? super T, ? extends FStream<? extends S>> mapper,
-											FOption<Integer> workerCount, FOption<Executor> executor) {
-		return new AsyncFlatMapStream<>(this, mapper, workerCount, executor);
 	}
 }

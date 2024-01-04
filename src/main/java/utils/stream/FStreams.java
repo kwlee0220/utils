@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -15,7 +14,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 import utils.Throwables;
 import utils.async.ThreadInterruptedException;
@@ -26,6 +24,7 @@ import utils.func.FailureCase;
 import utils.func.FailureHandler;
 import utils.func.Try;
 import utils.func.Tuple;
+import utils.func.Unchecked;
 import utils.io.IOUtils;
 
 /**
@@ -86,7 +85,7 @@ public class FStreams {
 		
 		@Override
 		protected void closeInGuard() throws Exception {
-			m_src.close();
+			Unchecked.runOrIgnore(m_src::close);
 		}
 	}
 	
@@ -386,6 +385,65 @@ public class FStreams {
 		}
 	}
 	
+	static class UniqueFStream<T> extends AbstractFStream<T> {
+		private final FStream<T> m_src;
+		private T m_last = null;
+		
+		UniqueFStream(FStream<T> base) {
+			m_src = base;
+		}
+
+		@Override
+		protected void closeInGuard() throws Exception {
+			Unchecked.runOrIgnore(m_src::close);
+		}
+
+		@Override
+		public FOption<T> next() {
+			FOption<T> onext;
+			while ( (onext = m_src.next()).isPresent() ) {
+				T next = onext.get();
+				if ( m_last == null || !m_last.equals(next) ) {
+					m_last = next;
+					return FOption.of(m_last);
+				}
+			}
+			
+			return FOption.empty();
+		}
+	}
+	
+	static class UniqueKeyFStream<T,K> extends AbstractFStream<T> {
+		private final FStream<T> m_src;
+		private final Function<? super T, ? extends K> m_keyer;
+		private K m_last = null;
+		
+		UniqueKeyFStream(FStream<T> base, Function<? super T, ? extends K> keyer) {
+			m_src = base;
+			m_keyer = keyer;
+		}
+
+		@Override
+		protected void closeInGuard() throws Exception {
+			Unchecked.runOrIgnore(m_src::close);
+		}
+
+		@Override
+		public FOption<T> next() {
+			FOption<T> onext;
+			while ( (onext = m_src.next()).isPresent() ) {
+				T next = onext.get();
+				K key = m_keyer.apply(next);
+				if ( m_last == null || !m_last.equals(key) ) {
+					m_last = key;
+					return FOption.of(next);
+				}
+			}
+			
+			return FOption.empty();
+		}
+	}
+	
 	static class LazyStream<T> implements FStream<T> {
 		private final Supplier<FStream<T>> m_supplier;
 		private FStream<T> m_strm = null;
@@ -416,36 +474,6 @@ public class FStreams {
 			}
 			
 			return m_strm.next();
-		}
-	}
-	
-	static class DistinctStream<T,K> implements FStream<T> {
-		private final FStream<T> m_src;
-		private final Function<T,K> m_keyer;
-		private final Set<K> m_keys = Sets.newHashSet();
-		
-		DistinctStream(FStream<T> src, Function<T,K> keyer) {
-			m_src = src;
-			m_keyer = keyer;
-		}
-
-		@Override
-		public void close() throws Exception {
-			m_src.close();
-		}
-
-		@Override
-		public FOption<T> next() {
-			FOption<T> onext;
-			while ( (onext = m_src.next()).isPresent() ) {
-				T value = onext.getUnchecked();
-				K key = m_keyer.apply(value);
-				if ( m_keys.add(key) ) {
-					return onext;
-				}
-			}
-			
-			return onext;
 		}
 	}
 	
@@ -513,7 +541,7 @@ public class FStreams {
 
 		@Override
 		protected void closeInGuard() throws Exception {
-			m_src.close();
+			Unchecked.runOrIgnore(m_src::close);
 		}
 
 		@Override
@@ -570,7 +598,9 @@ public class FStreams {
 		}
 		
 		@Override
-		protected void closeInGuard() throws Exception { }
+		protected void closeInGuard() throws Exception {
+			Unchecked.runOrIgnore(m_src::close);
+		}
 
 		@Override
 		public FOption<List<T>> next() {
