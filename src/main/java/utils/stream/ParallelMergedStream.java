@@ -56,7 +56,7 @@ class ParallelMergedStream<T> implements FStream<T> {
 		}
 		Try.run(() -> {
 			for ( Harvester harvester: harvesters ) {
-				harvester.waitForDone(100, TimeUnit.MILLISECONDS);
+				harvester.waitForFinished(100, TimeUnit.MILLISECONDS);
 			}
 		});
 		m_guard.run(m_runningHarvesters::clear);

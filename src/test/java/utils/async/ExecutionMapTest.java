@@ -56,7 +56,7 @@ public class ExecutionMapTest {
 		sleep(100);
 		assertTrue(m_leader.isFailed());
 		assertTrue(exec.isFailed());
-		assertEquals(s_cause, exec.waitForDone().getCause());
+		assertEquals(s_cause, exec.waitForFinished().getCause());
 	}
 
 	@Test

@@ -69,7 +69,7 @@ public class SequentialAsyncTest {
 		StartableExecution<?> elm = exec.getCurrentExecution();
 		Assert.assertEquals(true, elm.isStarted());
 		
-		exec.waitForDone();
+		exec.waitForFinished();
 		Assert.assertEquals(4, (int)exec.get());
 
 		MILLISECONDS.sleep(50);
@@ -84,7 +84,7 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.waitForFinished();
 		
 		// finish_listener가 호출될 때까지 일정시간동안 대기한다.
 		MILLISECONDS.sleep(50);
@@ -97,7 +97,7 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		boolean wasRunning = exec.waitForDone(250, TimeUnit.MILLISECONDS).isRunning();
+		boolean wasRunning = exec.waitForFinished(250, TimeUnit.MILLISECONDS).isRunning();
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
 		
@@ -113,7 +113,7 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.waitForFinished();
 		MILLISECONDS.sleep(50);
 
 		Assert.assertEquals(true, m_failed.isFailed());
@@ -130,7 +130,7 @@ public class SequentialAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.waitForFinished();
 		MILLISECONDS.sleep(50);
 
 		Assert.assertEquals(true, m_cancelled.isCancelled());

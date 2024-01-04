@@ -320,7 +320,7 @@ public class ExecutionsTest {
 		long started = System.currentTimeMillis();
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());
-		exec.waitForDone();
+		exec.waitForFinished();
 		
 		Assert.assertEquals(true, exec.isCompleted());
 		Assert.assertEquals(null, exec.get());

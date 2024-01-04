@@ -285,7 +285,7 @@ public class ExecutionFlatMapTest {
 		assertTrue(m_follower.notifyFailed(m_cause));
 		sleep(100);
 		assertTrue(exec.isFailed());
-		assertEquals(m_cause, exec.waitForDone().getCause());
+		assertEquals(m_cause, exec.waitForFinished().getCause());
 	}
 
 	@Test

@@ -57,7 +57,7 @@ public class TimerTest {
 		StartableExecution<String> taskA = create("a", 1000000, true);
 		
 		m_timer.setTimer(taskA, 300, TimeUnit.MILLISECONDS);
-		taskA.waitForDone();
+		taskA.waitForFinished();
 		Assert.assertEquals(true, taskA.isCancelled());
 	}
 	
@@ -68,7 +68,7 @@ public class TimerTest {
 		
 		m_timer.setTimer(taskA, 500, TimeUnit.MILLISECONDS);
 		m_timer.setTimer(taskB, 100, TimeUnit.MILLISECONDS);
-		taskB.waitForDone();
+		taskB.waitForFinished();
 		Assert.assertEquals(true, taskA.isRunning());
 		Assert.assertEquals(true, taskB.isCancelled());
 		
@@ -85,7 +85,7 @@ public class TimerTest {
 		m_timer.setTimer(taskA, 400, TimeUnit.MILLISECONDS);
 		m_timer.setTimer(taskB, 100, TimeUnit.MILLISECONDS);
 		m_timer.setTimer(taskC, 700, TimeUnit.MILLISECONDS);
-		taskA.waitForDone();
+		taskA.waitForFinished();
 		
 		Assert.assertEquals(true, taskA.isCancelled());
 		Assert.assertEquals(true, taskB.isCancelled());
@@ -102,16 +102,16 @@ public class TimerTest {
 		taskB.setTimeout(400, TimeUnit.MILLISECONDS);
 		taskC.setTimeout(100, TimeUnit.MILLISECONDS);
 		
-		taskC.waitForDone();
+		taskC.waitForFinished();
 		Assert.assertEquals(true, taskA.isRunning());
 		Assert.assertEquals(true, taskB.isRunning());
 		Assert.assertEquals(true, taskC.isCancelled());
 		
-		taskB.waitForDone();
+		taskB.waitForFinished();
 		Assert.assertEquals(true, taskA.isRunning());
 		Assert.assertEquals(true, taskB.isCancelled());
 		
-		taskA.waitForDone();
+		taskA.waitForFinished();
 		Assert.assertEquals(true, taskA.isCancelled());
 	}
 }

@@ -45,7 +45,7 @@ public class TimedAsyncTest {
 		Assert.assertEquals(true, exec.isStarted());
 		Assert.assertEquals(true, target.isStarted());
 		
-		exec.waitForDone();
+		exec.waitForFinished();
 		Thread.sleep(30);
 		Assert.assertEquals(true, exec.isCompleted());
 		Assert.assertEquals(true, target.isCompleted());
@@ -58,7 +58,7 @@ public class TimedAsyncTest {
 		TimedAsyncExecution<String> exec = AsyncExecutions.timed(target, 300, MILLISECONDS, m_scheduler);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.waitForFinished();
 		
 		Thread.sleep(30);
 		Assert.assertEquals(true, exec.isCancelled());
@@ -100,7 +100,7 @@ public class TimedAsyncTest {
 		TimedAsyncExecution<String> exec = AsyncExecutions.timed(target, 500, MILLISECONDS, m_scheduler);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.waitForFinished();
 		Thread.sleep(30);
 		
 		Assert.assertEquals(true, exec.isFailed());

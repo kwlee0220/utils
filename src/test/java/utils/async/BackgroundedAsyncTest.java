@@ -45,7 +45,7 @@ public class BackgroundedAsyncTest {
 		Assert.assertEquals(true, fg.isStarted());
 		Assert.assertEquals(true, bg.isStarted());
 		
-		fg.waitForDone();
+		fg.waitForFinished();
 		Thread.sleep(100);
 		Assert.assertEquals(true, exec.isCompleted());
 		Assert.assertEquals(true, fg.isCompleted());
@@ -81,7 +81,7 @@ public class BackgroundedAsyncTest {
 		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
-		exec.waitForDone();
+		exec.waitForFinished();
 		
 		Assert.assertEquals(true, exec.isFailed());
 		Assert.assertEquals(true, fg.isFailed());
@@ -97,7 +97,7 @@ public class BackgroundedAsyncTest {
 		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
-		bg.waitForDone();
+		bg.waitForFinished();
 		Thread.sleep(30);
 		
 		Assert.assertEquals(true, exec.isRunning());

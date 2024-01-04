@@ -41,7 +41,7 @@ public interface Execution<T> extends Future<T> {
 	 * 반환 값이 {@code true}인 경우는 중단 요청이 접수되어 중단 작업이 시작된 것을 의미한다.
 	 * 물론, 이때도 중단이 반드시 성공하는 것을 의미하지 않는다.
 	 * 
-	 * 작업 중단을 확인하기 위해서는 {@link #waitForDone()}이나 {@link #waitForDone(long, TimeUnit)}
+	 * 작업 중단을 확인하기 위해서는 {@link #waitForFinished()}이나 {@link #waitForFinished(long, TimeUnit)}
 	 * 메소드를 사용하여 최종적으로 확인할 수 있다.
 	 * 
 	 * @param mayInterruptIfRunning	 이미 동적 중인 경우에도 cancel할지 여부
@@ -113,10 +113,13 @@ public interface Execution<T> extends Future<T> {
 	 * 
 	 * @return	연산 종료 여부.
 	 */
-	public default boolean isDone() {
+	public default boolean isFinished() {
 		AsyncState state = getState();
 		return state == AsyncState.COMPLETED || state == AsyncState.FAILED
 			|| state == AsyncState.CANCELLED;
+	}
+	public default boolean isDone() {
+		return isFinished();
 	}
 	
 	/**
@@ -166,7 +169,7 @@ public interface Execution<T> extends Future<T> {
     @Override
     public default T get(long timeout, TimeUnit unit)
     	throws InterruptedException, ExecutionException, TimeoutException, CancellationException {
-    	return waitForDone(timeout, unit).get();
+    	return waitForFinished(timeout, unit).get();
     }
 	
 	/**
@@ -193,7 +196,7 @@ public interface Execution<T> extends Future<T> {
 	 */
     public default T get(Date due) throws InterruptedException, ExecutionException,
 											TimeoutException, CancellationException {
-		return waitForDone(due).get();
+		return waitForFinished(due).get();
     }
     
     public default T getUnchecked() {
@@ -228,7 +231,7 @@ public interface Execution<T> extends Future<T> {
 	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-    public AsyncResult<T> waitForDone(Date due) throws InterruptedException;
+    public AsyncResult<T> waitForFinished(Date due) throws InterruptedException;
 	
 	/**
 	 * 본 작업이 종료될 때까지 주어진 기간 동안 기다려 그 결과를 반환한다.
@@ -242,9 +245,9 @@ public interface Execution<T> extends Future<T> {
 	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-    public default AsyncResult<T> waitForDone(long timeout, TimeUnit unit) throws InterruptedException {
+    public default AsyncResult<T> waitForFinished(long timeout, TimeUnit unit) throws InterruptedException {
     	Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
-    	return waitForDone(due);
+    	return waitForFinished(due);
     }
 
 	/**
@@ -256,7 +259,7 @@ public interface Execution<T> extends Future<T> {
 	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환된다.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-    public AsyncResult<T> waitForDone() throws InterruptedException;
+    public AsyncResult<T> waitForFinished() throws InterruptedException;
     
 	/**
 	 * 비동기 작업이 시작될 때까지 대기한다.

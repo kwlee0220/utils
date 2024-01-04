@@ -124,7 +124,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@Override
 	public T get() throws InterruptedException, ExecutionException, CancellationException {
 		try {
-			return waitForDone().get();
+			return waitForFinished().get();
 		}
 		catch ( TimeoutException neverHappens ) {
 			throw new AssertionError("Should not be here: " + getClass().getName() + "#get()");
@@ -134,7 +134,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@Override
 	public T get(Date due) throws InterruptedException, ExecutionException,
 													TimeoutException, CancellationException {
-		return waitForDone(due).get();
+		return waitForFinished(due).get();
 	}
 	
 	@Override
@@ -153,7 +153,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public AsyncResult<T> waitForDone(Date due) throws InterruptedException {
+	public AsyncResult<T> waitForFinished(Date due) throws InterruptedException {
 		try {
 			return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_result, due);
 		}
@@ -163,7 +163,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public AsyncResult<T> waitForDone() throws InterruptedException {
+	public AsyncResult<T> waitForFinished() throws InterruptedException {
 		return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_result);
 	}
 

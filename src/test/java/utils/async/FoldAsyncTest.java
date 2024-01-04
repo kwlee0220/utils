@@ -52,7 +52,7 @@ public class FoldAsyncTest {
 		MILLISECONDS.sleep(50);
 		Assert.assertEquals(true, exec.isStarted());
 		
-		exec.waitForDone();
+		exec.waitForFinished();
 		Assert.assertEquals(10, (int)exec.get());
 	}
 	
@@ -62,7 +62,7 @@ public class FoldAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.waitForFinished();
 		MILLISECONDS.sleep(100);
 		verify(m_doneListener, times(1)).accept(AsyncResult.completed(Integer.valueOf(10)));
 	}
@@ -73,7 +73,7 @@ public class FoldAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		Assert.assertEquals(true, exec.waitForDone(230, TimeUnit.MILLISECONDS).isRunning());
+		Assert.assertEquals(true, exec.waitForFinished(230, TimeUnit.MILLISECONDS).isRunning());
 		
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
@@ -86,7 +86,7 @@ public class FoldAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.waitForFinished();
 		
 		Assert.assertEquals(true, exec.isFailed());
 		Assert.assertEquals(m_error, exec.poll().getCause());
@@ -100,7 +100,7 @@ public class FoldAsyncTest {
 		exec.whenFinished(m_doneListener);
 		
 		exec.start();
-		exec.waitForDone();
+		exec.waitForFinished();
 		
 		Assert.assertEquals(true, exec.isCancelled());
 		MILLISECONDS.sleep(50);
