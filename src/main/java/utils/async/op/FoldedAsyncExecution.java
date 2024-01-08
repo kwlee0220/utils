@@ -10,9 +10,9 @@ import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.LoggerFactory;
 
 import utils.async.AbstractAsyncExecution;
-import utils.async.AsyncResult;
 import utils.async.CancellableWork;
 import utils.async.StartableExecution;
+import utils.func.Result;
 import utils.stream.FStream;
 
 
@@ -75,7 +75,7 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<T>
 		m_accum = m_initSupplier.get();
 		
 		// 첫번째 element를 시작시키기 위해 가상의 이전 element AsyncExecution이 종료된 효과를 발생시킨다.
-		runInAsyncExecutionGuard(() -> onFinishedInGuard(AsyncResult.completed(null)));
+		runInAsyncExecutionGuard(() -> onFinishedInGuard(Result.success(null)));
 	}
 
 	@Override
@@ -93,8 +93,8 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<T>
 		return String.format("FoldExecution[current=%s]", m_cursor);
 	}
 	
-	private void onFinishedInGuard(AsyncResult<? extends S> result) {
-		if ( result.isCompleted() ) {
+	private void onFinishedInGuard(Result<? extends S> result) {
+		if ( result.isSuccessful() ) {
 			// m_sequence가 empty인 경우 notifyStarting() 만 호출된 상태이기 때문에
 			// 먼저강제로 notifyStarted()를 호출해준다.
 			if ( m_cursor == null ) {
@@ -113,7 +113,7 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<T>
 						}
 						else {
 							m_cursor = next;
-							next.whenFinished(this::onFinishedInGuard);
+							next.whenFinishedAsync(this::onFinishedInGuard);
 							next.start();
 						}
 					})
@@ -128,7 +128,7 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<T>
 						}
 					});
 		}
-		else if ( result.isCancelled() ) {
+		else if ( result.isNone() ) {
 			notifyCancelled();
 		}
 		else if ( result.isFailed() ) {

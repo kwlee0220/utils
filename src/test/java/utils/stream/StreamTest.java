@@ -40,7 +40,7 @@ public class StreamTest {
 		}
 	}
 
-	@Test
+	@Test(expected=IllegalStateException.class)
 	public void test2() throws Exception {
 		FStream<String> strm = FStream.range(0, 10).mapToObj(idx -> "" + idx);
 		
@@ -48,9 +48,6 @@ public class StreamTest {
 		Assert.assertEquals("1", strm.next().get());
 		
 		strm.close();
-		Assert.assertTrue(strm.next().isAbsent());
-		
-		strm.close();
-		Assert.assertTrue(strm.next().isAbsent());
+		strm.next();
 	}
 }

@@ -60,7 +60,7 @@ public abstract class AsyncResult<T> {
 		throw new IllegalStateException("not completed state");
 	}
 	
-	public Throwable getCause() {
+	public Throwable getFailureCause() {
 		throw new IllegalStateException("not FAILED state: state=" + getState());
 	}
 	
@@ -199,7 +199,7 @@ public abstract class AsyncResult<T> {
 		}
 
 		@Override
-		public Throwable getCause() {
+		public Throwable getFailureCause() {
 			return m_cause;
 		}
 
@@ -312,7 +312,7 @@ public abstract class AsyncResult<T> {
 		}
 
 		@Override
-		public Throwable getCause() {
+		public Throwable getFailureCause() {
 			return new TimeoutException();
 		}
 

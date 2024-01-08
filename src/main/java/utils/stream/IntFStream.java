@@ -10,6 +10,7 @@ import com.google.common.primitives.Ints;
 import utils.Utilities;
 import utils.func.FOption;
 import utils.func.Tuple;
+import utils.stream.FStreams.AbstractFStream;
 
 /**
  * 
@@ -56,40 +57,29 @@ public interface IntFStream extends FStream<Integer> {
 		return Ints.toArray(toList());
 	}
 	
-	static class RangedStream implements IntFStream {
+	static class RangedStream extends AbstractFStream<Integer> implements IntFStream {
 		private int m_next;
-		private final FOption<Integer> m_end;
-		private final boolean m_endInclusive;
-		private volatile boolean m_closed = false;
+		private final int m_end;
 		
-		RangedStream(int start, FOption<Integer> end, boolean endInclusive) {
-			Preconditions.checkArgument(end.isAbsent() || start <= end.get(),
-										String.format("invalid range: start=%d end=%s",
-														start, end.map(v -> ""+v).getOrElse("?")));	
+		RangedStream(int start, int end) {
+			Preconditions.checkArgument(start <= end,
+										String.format("invalid range: start=%d end=%s", start, end));	
 			
 			m_next = start;
 			m_end = end;
-			m_endInclusive = endInclusive;
 		}
 
 		@Override
-		public void close() throws Exception {
-			m_closed = true;
-		}
+		protected void closeInGuard() throws Exception { }
 
 		@Override
-		public FOption<Integer> next() {
-			if ( m_closed ) {
+		protected FOption<Integer> nextInGuard() {
+			if ( m_next < m_end ) {
+				return FOption.of(m_next++);
+			}
+			else {
 				return FOption.empty();
 			}
-			if ( m_end.isAbsent() || m_next < m_end.get() ) {
-				return FOption.of(m_next++);
-			}
-			else if ( m_next == m_end.get() && m_endInclusive ) {
-				return FOption.of(m_next++);
-			}
-			
-			return FOption.empty();
 		}
 	}
 	

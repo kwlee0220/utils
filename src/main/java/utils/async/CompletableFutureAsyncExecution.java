@@ -12,7 +12,7 @@ import utils.Throwables;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExecution<T>
+public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExecution<T>
 											implements StartableExecution<T>, CancellableWork {
 	private volatile CompletableFuture<? extends T> m_future;
 	
@@ -60,7 +60,7 @@ abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExecution<T
 	@Override
 	public String toString() {
 		if ( m_future == null ) {
-			return String.format("un-assigned");
+			return String.format("not-started");
 		}
 		else {
 			return "" + m_future;

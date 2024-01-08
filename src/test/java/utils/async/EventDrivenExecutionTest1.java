@@ -38,7 +38,7 @@ public class EventDrivenExecutionTest1 {
 		m_exec = new EventDrivenExecution<>();
 		m_exec.notifyStarting();
 		
-		m_exec.whenStarted(m_startListener);
+		m_exec.whenStartedAsync(m_startListener);
 		m_exec.whenCompleted(m_completeListener);
 		m_exec.whenCancelled(m_cancelListener);
 		m_exec.whenFailed(m_failureListener);

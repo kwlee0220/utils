@@ -90,7 +90,7 @@ public class ExecutionsTest {
 	@Test
 	public void testRunAsync01() throws Exception {
 		CompletableFutureAsyncExecution<Void> exec = Executions.runAsync(TASK_COMPLETE);
-		exec.whenStarted(() -> m_started = true);
+		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
 		exec.whenCancelled(() -> { m_finished = true; m_cancelled = true; });
@@ -113,7 +113,7 @@ public class ExecutionsTest {
 	@Test
 	public void testRunAsync02() throws Exception {
 		CompletableFutureAsyncExecution<Void> exec = Executions.runAsync(TASK_FAILED);
-		exec.whenStarted(() -> m_started = true);
+		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
 		exec.whenCancelled(() -> { m_finished = true; m_cancelled = true; });
@@ -140,7 +140,7 @@ public class ExecutionsTest {
 	@Test
 	public void testRunAsync03() throws Exception {
 		CompletableFutureAsyncExecution<Void> exec = Executions.runAsync(TASK_CANCEL);
-		exec.whenStarted(() -> m_started = true);
+		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
 		exec.whenCancelled(() -> { m_finished = true; m_cancelled = true; });
@@ -167,7 +167,7 @@ public class ExecutionsTest {
 	@Test
 	public void testRunAsync04() throws Exception {
 		CompletableFutureAsyncExecution<Void> exec = Executions.runAsync(TASK_COMPLETE);
-		exec.whenStarted(() -> m_started = true);
+		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
 		exec.whenCancelled(() -> { m_finished = true; m_cancelled = true; });
@@ -196,7 +196,7 @@ public class ExecutionsTest {
 	@Test
 	public void testSupplyAsync01() throws Exception {
 		CompletableFutureAsyncExecution<String> exec = Executions.supplyAsync(SUPPLY_COMPLETE);
-		exec.whenStarted(() -> m_started = true);
+		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
 		exec.whenCancelled(() -> { m_finished = true; m_cancelled = true; });
@@ -219,7 +219,7 @@ public class ExecutionsTest {
 	@Test
 	public void testSupplyAsync02() throws Exception {
 		CompletableFutureAsyncExecution<String> exec = Executions.supplyAsync(SUPPLY_FAIL);
-		exec.whenStarted(() -> m_started = true);
+		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
 		exec.whenCancelled(() -> { m_finished = true; m_cancelled = true; });
@@ -246,7 +246,7 @@ public class ExecutionsTest {
 	@Test
 	public void testSupplyAsync03() throws Exception {
 		CompletableFutureAsyncExecution<String> exec = Executions.supplyAsync(SUPPLY_CANCEL);
-		exec.whenStarted(() -> m_started = true);
+		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
 		exec.whenCancelled(() -> { m_finished = true; m_cancelled = true; });
@@ -273,7 +273,7 @@ public class ExecutionsTest {
 	@Test
 	public void testSupplyAsync04() throws Exception {
 		CompletableFutureAsyncExecution<String> exec = Executions.supplyAsync(SUPPLY_CANCEL);
-		exec.whenStarted(() -> m_started = true);
+		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
 		exec.whenCancelled(() -> { m_finished = true; m_cancelled = true; });

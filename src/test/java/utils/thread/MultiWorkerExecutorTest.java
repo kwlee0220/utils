@@ -64,7 +64,7 @@ public class MultiWorkerExecutorTest {
 		Try<Integer> trial;
 		
 		trial = m_executor.next().get();
-		Assert.assertTrue(trial.isFailure());
+		Assert.assertTrue(trial.isFailed());
 		Assert.assertEquals(IllegalStateException.class, trial.getCause().getClass());
 		
 		trial = m_executor.next().get();

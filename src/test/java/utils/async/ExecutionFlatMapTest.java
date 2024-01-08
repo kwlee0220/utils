@@ -12,6 +12,8 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import utils.func.Result;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -31,7 +33,7 @@ public class ExecutionFlatMapTest {
 	public void setup() {
 		m_leader = new EventDrivenExecution<>();
 		
-		m_leader.whenStarted(m_startListener);
+		m_leader.whenStartedAsync(m_startListener);
 		m_leader.whenCompleted(m_completeListener);
 		m_leader.whenCancelled(m_cancelListener);
 		m_leader.whenFailed(m_failureListener);
@@ -285,7 +287,7 @@ public class ExecutionFlatMapTest {
 		assertTrue(m_follower.notifyFailed(m_cause));
 		sleep(100);
 		assertTrue(exec.isFailed());
-		assertEquals(m_cause, exec.waitForFinished().getCause());
+		assertEquals(m_cause, exec.waitForFinished().getFailureCause());
 	}
 
 	@Test
@@ -307,9 +309,9 @@ public class ExecutionFlatMapTest {
 		assertTrue(exec.isCancelled());
 	}
 	
-	private StartableExecution<Integer> startCount(AsyncResult<String> r) {
+	private StartableExecution<Integer> startCount(Result<String> r) {
 		StartableExecution<Integer> exec = Executions.supplyAsync(() -> {
-			if ( r.isCompleted() ) {
+			if ( r.isSuccessful() ) {
 				String output = r.getUnchecked();
 				sleep(1000);
 				
@@ -319,7 +321,7 @@ public class ExecutionFlatMapTest {
 				sleep(1000);
 				return -1;
 			}
-			else if ( r.isCancelled() ) {
+			else if ( r.isNone() ) {
 				sleep(1000);
 				return 0;
 			}
@@ -457,9 +459,9 @@ public class ExecutionFlatMapTest {
 		}
 	}
 	
-	private StartableExecution<Integer> nameLength(AsyncResult<Person> r) {
+	private StartableExecution<Integer> nameLength(Result<Person> r) {
 		StartableExecution<Integer> exec = Executions.supplyAsync(() -> {
-			if ( r.isCompleted() ) {
+			if ( r.isSuccessful() ) {
 				Person p = r.getUnchecked();
 				sleep(1000);
 				
@@ -469,7 +471,7 @@ public class ExecutionFlatMapTest {
 				sleep(1000);
 				return -1;
 			}
-			else if ( r.isCancelled() ) {
+			else if ( r.isNone() ) {
 				sleep(1000);
 				return 0;
 			}

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 
 import utils.LoggerSettable;
+import utils.func.Result;
 
 
 
@@ -95,7 +96,7 @@ class SingleBufferExecutor implements LoggerSettable {
 		m_logger = logger != null ? logger : s_logger;
 	}
 	
-	private void onDone(AsyncResult<?> result) {
+	private void onDone(Result<?> result) {
 		m_lock.lock();
 		try {
 			m_running = null;
@@ -111,7 +112,7 @@ class SingleBufferExecutor implements LoggerSettable {
 	}
 	
 	private void startInGuard(StartableExecution<?> exec) {
-		exec.whenFinished(this::onDone);
+		exec.whenFinishedAsync(this::onDone);
 		exec.start();
 		m_running = exec;
 	}

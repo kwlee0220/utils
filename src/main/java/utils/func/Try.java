@@ -91,8 +91,8 @@ public interface Try<T> extends FStreamable<T> {
 		};
 	}
 	
-	public boolean isSuccess();
-	public boolean isFailure();
+	public boolean isSuccessful();
+	public boolean isFailed();
 	public Throwable getCause();
 	
 	/**
@@ -151,8 +151,8 @@ public interface Try<T> extends FStreamable<T> {
 	
 	public <S> Try<S> flatMap(Function<? super T, Try<? extends S>> mapper);
 	
-	public Try<T> onSuccess(Consumer<? super T> action);
-	public Try<T> onFailure(Consumer<Throwable> handler);
+	public Try<T> ifSuccessful(Consumer<? super T> action);
+	public Try<T> ifFailed(Consumer<Throwable> handler);
 	
 	public Try<T> recover(Function<Throwable,Try<? extends T>> recovery);
 	
@@ -166,12 +166,12 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
-		public boolean isSuccess() {
+		public boolean isSuccessful() {
 			return true;
 		}
 
 		@Override
-		public boolean isFailure() {
+		public boolean isFailed() {
 			return false;
 		}
 
@@ -230,13 +230,13 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
-		public Try<T> onSuccess(Consumer<? super T> action) {
+		public Try<T> ifSuccessful(Consumer<? super T> action) {
 			action.accept(m_value);
 			return this;
 		}
 
 		@Override
-		public Try<T> onFailure(Consumer<Throwable> handler) {
+		public Try<T> ifFailed(Consumer<Throwable> handler) {
 			return this;
 		}
 
@@ -269,12 +269,12 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
-		public boolean isSuccess() {
+		public boolean isSuccessful() {
 			return false;
 		}
 
 		@Override
-		public boolean isFailure() {
+		public boolean isFailed() {
 			return true;
 		}
 
@@ -329,12 +329,12 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
-		public Try<T> onSuccess(Consumer<? super T> action) { 
+		public Try<T> ifSuccessful(Consumer<? super T> action) { 
 			return this;
 		}
 
 		@Override
-		public Try<T> onFailure(Consumer<Throwable> handler) {
+		public Try<T> ifFailed(Consumer<Throwable> handler) {
 			handler.accept(m_cause);
 			return this;
 		}

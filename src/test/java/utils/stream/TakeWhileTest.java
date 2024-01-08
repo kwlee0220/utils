@@ -13,64 +13,35 @@ import utils.func.FOption;
  * @author Kang-Woo Lee (ETRI)
  */
 public class TakeWhileTest {
+	private String toString(FStream<Integer> strm) {
+		return strm.map(v -> "" + v).join("");
+	}
+	
 	@Test
 	public void test0() throws Exception {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream = stream.takeWhile(i -> i <= 3);
+		String ret;
 		
-		FOption<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		ret = toString(stream.takeWhile(i -> i <= 3));
+		Assert.assertEquals("12", ret);
 	}
 	
 	@Test
 	public void test1() throws Exception {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream = stream.takeWhile(i -> i <= 5);
+		String ret;
 		
-		FOption<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(4), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		ret = toString(stream.takeWhile(i -> i <= 5));
+		Assert.assertEquals("1241", ret);
 	}
 	
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream = stream.takeWhile(i -> i <= 0);
+		String ret;
 		
-		FOption<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		ret = toString(stream.takeWhile(i -> i <= 0));
+		Assert.assertEquals("", ret);
 	}
 	
 	@Test

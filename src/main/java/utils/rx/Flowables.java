@@ -154,14 +154,14 @@ public class Flowables {
 				emitter.setCancellable(() -> m_exec.cancel(true));
 			}
 			
-			m_exec.whenStarted(() -> {
+			m_exec.whenStartedAsync(() -> {
 				if ( !emitter.isCancelled() ) {
 					emitter.onNext(new ExecutionProgress.Started<>());
 				}
 			});
-			m_exec.whenFinished(r -> {
+			m_exec.whenFinishedAsync(r -> {
 				if ( !emitter.isCancelled() ) {
-					if ( r.isCompleted() ) {
+					if ( r.isSuccessful() ) {
 						emitter.onNext(new ExecutionProgress.Completed<T>(r.getOrNull()));
 						emitter.onComplete();
 					}
@@ -169,7 +169,7 @@ public class Flowables {
 						emitter.onNext(new ExecutionProgress.Failed<>(r.getCause()));
 						emitter.onError(r.getCause());
 					}
-					else if ( r.isCancelled() ) {
+					else if ( r.isNone() ) {
 						emitter.onNext(new ExecutionProgress.Cancelled<>());
 						emitter.onComplete();
 					}

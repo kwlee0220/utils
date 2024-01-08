@@ -28,14 +28,14 @@ class ExecutionProgressReport<T> implements ObservableOnSubscribe<ExecutionProgr
 			emitter.setCancellable(() -> m_exec.cancel(true));
 		}
 		
-		m_exec.whenStarted(() -> {
+		m_exec.whenStartedAsync(() -> {
 			if ( !emitter.isDisposed() ) {
 				emitter.onNext(new ExecutionProgress.Started<>());
 			}
 		});
-		m_exec.whenFinished(r -> {
+		m_exec.whenFinishedAsync(r -> {
 			if ( !emitter.isDisposed() ) {
-				if ( r.isCompleted() ) {
+				if ( r.isSuccessful() ) {
 					emitter.onNext(new ExecutionProgress.Completed<T>(r.getOrNull()));
 					emitter.onComplete();
 				}
@@ -43,7 +43,7 @@ class ExecutionProgressReport<T> implements ObservableOnSubscribe<ExecutionProgr
 					emitter.onNext(new ExecutionProgress.Failed<>(r.getCause()));
 					emitter.onError(r.getCause());
 				}
-				else if ( r.isCancelled() ) {
+				else if ( r.isNone() ) {
 					emitter.onNext(new ExecutionProgress.Cancelled<>());
 					emitter.onComplete();
 				}

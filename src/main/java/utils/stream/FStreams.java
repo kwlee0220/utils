@@ -2,11 +2,9 @@ package utils.stream;
 
 import static utils.Utilities.checkNotNullArgument;
 
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -16,12 +14,9 @@ import java.util.function.Supplier;
 import com.google.common.collect.Lists;
 
 import utils.Throwables;
-import utils.async.ThreadInterruptedException;
 import utils.func.CheckedFunction;
 import utils.func.CheckedFunctionX;
 import utils.func.FOption;
-import utils.func.FailureCase;
-import utils.func.FailureHandler;
 import utils.func.Try;
 import utils.func.Tuple;
 import utils.func.Unchecked;
@@ -51,16 +46,36 @@ public class FStreams {
 	}
 	
 	public static abstract class AbstractFStream<T> implements FStream<T> {
-		protected boolean m_closed = false;
+		private boolean m_closed = false;
+		private boolean m_eos = false;
+		private boolean m_initialized = false;
 		
 		abstract protected void closeInGuard() throws Exception;
+		abstract protected FOption<T> nextInGuard();
+		protected void initialize() { }
 
 		@Override
-		public void close() throws Exception {
+		public final void close() throws Exception {
 			if ( !m_closed ) {
 				m_closed = true;
+				m_eos = true;
 				closeInGuard();
 			}
+		}
+
+		@Override
+		public FOption<T> next() {
+			checkNotClosed();
+
+			if ( m_eos ) {
+				return FOption.empty();
+			}
+			if ( !m_initialized ) {
+				initialize();
+				m_initialized = true;
+			}
+			
+			return nextInGuard().ifAbsent(() -> m_eos = true);
 		}
 		
 		public boolean isClosed() {
@@ -72,10 +87,20 @@ public class FStreams {
 				throw new IllegalStateException("already closed: " + this);
 			}
 		}
+		
+		protected void markEndOfStream() {
+			m_eos = true;
+		}
+		
+		public boolean isEndOfStream() {
+			return m_eos;
+		}
 	}
 	
 	static abstract class SingleSourceStream<S,T> extends AbstractFStream<T> {
-		protected final FStream<S> m_src;
+		private final FStream<S> m_src;
+		
+		abstract protected FOption<T> getNext(FStream<S> src);
 		
 		protected SingleSourceStream(FStream<S> src) {
 			checkNotNullArgument(src, "source FStream");
@@ -87,49 +112,61 @@ public class FStreams {
 		protected void closeInGuard() throws Exception {
 			Unchecked.runOrIgnore(m_src::close);
 		}
+		
+		@Override
+		protected final FOption<T> nextInGuard() {
+			return getNext(m_src);
+		}
 	}
 	
-	static class MappedStream<S,T> extends SingleSourceStream<S,T> {
-		private final Function<? super S,? extends T> m_mapper;
+	static class IterableFStream<T> extends AbstractFStream<T> {
+		private final Iterable<? extends T> m_iterable;
+		private Iterator<? extends T> m_iter;
 		
-		MappedStream(FStream<S> base, Function<? super S,? extends T> mapper) {
-			super(base);
-			checkNotNullArgument(mapper, "mapper is null");
-			
-			m_mapper = mapper;
+		IterableFStream(Iterable<? extends T> iterable) {
+			m_iterable = iterable;
 		}
 
 		@Override
-		public FOption<T> next() {
-			return (!isClosed()) ? m_src.next().map(m_mapper) : FOption.empty();
+		protected void closeInGuard() throws Exception { }
+
+		@Override
+		protected void initialize() {
+			m_iter = m_iterable.iterator();
+		}
+
+		@Override
+		protected FOption<T> nextInGuard() {
+			if ( m_iter.hasNext() ) {
+				return FOption.of(m_iter.next());
+			}
+			else {
+				return FOption.empty();
+			}
 		}
 	}
 	
-	static class MapOrHandleStream<T,R> extends SingleSourceStream<T,R> {
+	static class TryMapStream<T,R> extends SingleSourceStream<T,Try<R>> {
 		private final CheckedFunction<? super T,? extends R> m_mapper;
-		private final FailureHandler<? super T> m_handler;
 		
-		MapOrHandleStream(FStream<T> base, CheckedFunction<? super T,? extends R> mapper,
-					FailureHandler<? super T> handler) {
+		TryMapStream(FStream<T> base, CheckedFunction<? super T,? extends R> mapper) {
 			super(base);
 			
 			checkNotNullArgument(mapper, "mapper is null");
-			checkNotNullArgument(handler, "FailureHandler is null");
 			
 			m_mapper = mapper;
-			m_handler = handler;
 		}
 
 		@Override
-		public FOption<R> next() {
+		public FOption<Try<R>> getNext(FStream<T> src) {
 			FOption<T> onext;
-			while ( (onext = m_src.next()).isPresent() ) {
+			while ( (onext = src.next()).isPresent() ) {
 				T next = onext.getUnchecked();
 				try {
-					return FOption.of(m_mapper.apply(next));
+					return FOption.of(Try.success(m_mapper.apply(next)));
 				}
 				catch ( Throwable e ) {
-					m_handler.handle(new FailureCase<>(next, e));
+					return FOption.of(Try.failure(e));
 				}
 			}
 			
@@ -149,9 +186,9 @@ public class FStreams {
 		}
 
 		@Override
-		public FOption<R> next() {
+		public FOption<R> getNext(FStream<T> src) {
 			FOption<T> onext;
-			while ( (onext = m_src.next()).isPresent() ) {
+			while ( (onext = src.next()).isPresent() ) {
 				try {
 					T next = onext.getUnchecked();
 					return FOption.of(m_mapper.apply(next));
@@ -163,6 +200,22 @@ public class FStreams {
 			}
 			
 			return FOption.empty();
+		}
+	}
+	
+	static class MappedStream<S,T> extends SingleSourceStream<S,T> {
+		private final Function<? super S,? extends T> m_mapper;
+		
+		MappedStream(FStream<S> base, Function<? super S,? extends T> mapper) {
+			super(base);
+			checkNotNullArgument(mapper, "mapper is null");
+			
+			m_mapper = mapper;
+		}
+
+		@Override
+		protected FOption<T> getNext(FStream<S> src) {
+			return src.next().map(m_mapper);
 		}
 	}
 	
@@ -206,8 +259,8 @@ public class FStreams {
 		}
 
 		@Override
-		public FOption<T> next() {
-			return m_src.next().ifPresent(m_effect);
+		public FOption<T> getNext(FStream<T> src) {
+			return src.next().ifPresent(m_effect);
 		}
 		
 		@Override
@@ -226,50 +279,78 @@ public class FStreams {
 		}
 
 		@Override
-		public FOption<T> next() {
+		public FOption<T> getNext(FStream<T> src) {
 			if ( m_current == null ) {	// 첫번째 call인 경우.
-				m_current = m_src.next();
+				m_current = src.next();
 			}
 			else {
-				m_current = m_src.next()
+				m_current = src.next()
 								.map(v -> m_combine.apply(m_current.getUnchecked(), v));
 			}
 			return m_current;
 		}
 	}
+	
+	static class FoldLeftLeakFStream<S,T> extends SingleSourceStream<T,T> {
+		private S m_state;
+		private T m_last = null;
+		private final BiFunction<? super S,? super T,? extends Tuple<S,T>> m_combine;
+		
+		FoldLeftLeakFStream(FStream<T> src, S initial,
+							BiFunction<? super S,? super T,? extends Tuple<S,T>> combine) {
+			super(src);
+			
+			m_state = initial;
+			m_combine = combine;
+		}
 
-	static class GeneratedStream<T> implements FStream<T> {
+		@Override
+		protected FOption<T> getNext(FStream<T> src) {
+			if ( m_last == null ) {	// 첫번째 call인 경우.
+				return src.next()
+							.ifPresent(s -> m_last = s);
+			}
+			else {
+				return src.next()
+							.map(v -> m_combine.apply(m_state, m_last))
+							.ifPresent(t -> {
+								m_state = t._1;
+								m_last = t._2;
+							})
+							.map(t -> t._2);
+				
+			}
+		}
+	}
+
+	static class GeneratedStream<T> extends AbstractFStream<T> {
 		private final Function<? super T,? extends T> m_inc;
-		private T m_next;
-		private volatile boolean m_closed = false;
+		private T m_last;
+		private boolean m_first = true;
 		
 		GeneratedStream(T init, Function<? super T,? extends T> inc) {
-			m_next = init;
+			m_last = init;
 			m_inc = inc;
 		}
 
 		@Override
-		public void close() throws Exception {
-			m_closed = true;
-		}
+		protected void closeInGuard() throws Exception { }
 
 		@Override
-		public FOption<T> next() {
-			if ( m_closed ) {
-				return FOption.empty();
+		public FOption<T> nextInGuard() {
+			if ( m_first ) {
+				m_first = false;
 			}
-			
-			T next = m_next;
-			m_next = m_inc.apply(next);
-			
-			return FOption.of(next);
+			else {
+				m_last = m_inc.apply(m_last);
+			}
+			return FOption.of(m_last);
 		}
 	}
 	
-	static class UnfoldStream<S,T> implements FStream<T> {
+	static class UnfoldStream<S,T> extends AbstractFStream<T> {
 		private final Function<? super S,Tuple<? extends S,? extends T>> m_gen;
 		private S m_state;
-		private boolean m_closed = false;
 		
 		UnfoldStream(S init, Function<? super S,Tuple<? extends S,? extends T>> gen) {
 			m_state = init;
@@ -277,18 +358,12 @@ public class FStreams {
 		}
 
 		@Override
-		public void close() throws Exception {
-			m_closed = true;
-			
+		protected void closeInGuard() throws Exception {
 			IOUtils.closeQuietly(m_state);
 		}
 
 		@Override
-		public FOption<T> next() {
-			if ( m_closed ) {
-				return FOption.empty();
-			}
-			
+		public FOption<T> nextInGuard() {
 			Tuple<? extends S,? extends T> unfolded = m_gen.apply(m_state);
 			if ( unfolded != null ) {
 				m_state = unfolded._1;
@@ -326,40 +401,6 @@ public class FStreams {
 			}
 		}
 	}
-
-	static class DelayedStream<T> implements FStream<T> {
-		private final FStream<T> m_src;
-		private final long m_delay;
-		private final TimeUnit m_tu;
-		
-		DelayedStream(FStream<T> src, long delay, TimeUnit tu) {
-			m_src = src;
-			m_delay = delay;
-			m_tu = tu;
-		}
-
-		@Override
-		public void close() throws Exception {
-			m_src.close();
-		}
-
-		@Override
-		public FOption<T> next() {
-			while ( true ) {
-				FOption<T> next = m_src.next();
-				if ( next.isPresent() ) {
-					try {
-						m_tu.sleep(m_delay);
-					}
-					catch ( InterruptedException e ) {
-						throw new ThreadInterruptedException();
-					}
-				}
-				
-				return next;
-			}
-		}
-	}
 	
 	static final class CloserAttachedStream<T> implements FStream<T> {
 		private final FStream<T> m_base;
@@ -385,23 +426,17 @@ public class FStreams {
 		}
 	}
 	
-	static class UniqueFStream<T> extends AbstractFStream<T> {
-		private final FStream<T> m_src;
+	static class UniqueFStream<T> extends SingleSourceStream<T,T> {
 		private T m_last = null;
 		
 		UniqueFStream(FStream<T> base) {
-			m_src = base;
+			super(base);
 		}
 
 		@Override
-		protected void closeInGuard() throws Exception {
-			Unchecked.runOrIgnore(m_src::close);
-		}
-
-		@Override
-		public FOption<T> next() {
+		public FOption<T> getNext(FStream<T> src) {
 			FOption<T> onext;
-			while ( (onext = m_src.next()).isPresent() ) {
+			while ( (onext = src.next()).isPresent() ) {
 				T next = onext.get();
 				if ( m_last == null || !m_last.equals(next) ) {
 					m_last = next;
@@ -413,25 +448,20 @@ public class FStreams {
 		}
 	}
 	
-	static class UniqueKeyFStream<T,K> extends AbstractFStream<T> {
-		private final FStream<T> m_src;
+	static class UniqueKeyFStream<T,K> extends SingleSourceStream<T,T> {
 		private final Function<? super T, ? extends K> m_keyer;
 		private K m_last = null;
 		
 		UniqueKeyFStream(FStream<T> base, Function<? super T, ? extends K> keyer) {
-			m_src = base;
+			super(base);
+			
 			m_keyer = keyer;
 		}
 
 		@Override
-		protected void closeInGuard() throws Exception {
-			Unchecked.runOrIgnore(m_src::close);
-		}
-
-		@Override
-		public FOption<T> next() {
+		public FOption<T> getNext(FStream<T> src) {
 			FOption<T> onext;
-			while ( (onext = m_src.next()).isPresent() ) {
+			while ( (onext = src.next()).isPresent() ) {
 				T next = onext.get();
 				K key = m_keyer.apply(next);
 				if ( m_last == null || !m_last.equals(key) ) {
@@ -477,30 +507,6 @@ public class FStreams {
 		}
 	}
 	
-	static class FlatMapFOption<S,T> extends SingleSourceStream<S,T> {
-		private final Function<? super S,FOption<T>> m_mapper;
-		
-		FlatMapFOption(FStream<S> base, Function<? super S, FOption<T>> mapper) {
-			super(base);
-			checkNotNullArgument(mapper, "mapper is null");
-			
-			m_mapper = mapper;
-		}
-
-		@Override
-		public FOption<T> next() {
-			FOption<S> next;
-			while ( (next = m_src.next()).isPresent() ) {
-				FOption<T> mapped = m_mapper.apply(next.getUnchecked());
-				if ( mapped.isPresent() ) {
-					return mapped;
-				}
-			}
-			
-			return FOption.empty();
-		}
-	}
-	
 	static class FlatMapTry<S,T> extends SingleSourceStream<S,T> {
 		private final Function<? super S,Try<T>> m_mapper;
 		
@@ -512,11 +518,11 @@ public class FStreams {
 		}
 
 		@Override
-		public FOption<T> next() {
+		public FOption<T> getNext(FStream<S> src) {
 			FOption<S> next;
-			while ( (next = m_src.next()).isPresent() ) {
+			while ( (next = src.next()).isPresent() ) {
 				Try<T> mapped = m_mapper.apply(next.getUnchecked());
-				if ( mapped.isSuccess() ) {
+				if ( mapped.isSuccessful() ) {
 					return FOption.of(mapped.getUnchecked());
 				}
 			}
@@ -525,29 +531,25 @@ public class FStreams {
 		}
 	}
 	
-	static class SelectiveMapStream<T> extends AbstractFStream<T> {
-		private final FStream<T> m_src;
-		private final Predicate<T> m_pred;
-		private final Function<T,T> m_mapper;
+	static class SelectiveMapStream<T> extends SingleSourceStream<T,T> {
+		private final Predicate<? super T> m_pred;
+		private final Function<? super T,? extends T> m_mapper;
 		
-		SelectiveMapStream(FStream<T> src, Predicate<T> pred, Function<T,T> mapper) {
+		SelectiveMapStream(FStream<T> src, Predicate<? super T> pred,
+							Function<? super T,? extends T> mapper) {
+			super(src);
+			
 			checkNotNullArgument(pred, "predicate is null");
 			checkNotNullArgument(mapper, "mapper is null");
 
-			m_src = src;
 			m_pred = pred;
 			m_mapper = mapper;
 		}
 
 		@Override
-		protected void closeInGuard() throws Exception {
-			Unchecked.runOrIgnore(m_src::close);
-		}
-
-		@Override
-		public FOption<T> next() {
+		public FOption<T> getNext(FStream<T> src) {
 			FOption<T> next;
-			while ( (next = m_src.next()).isPresent() ) {
+			while ( (next = src.next()).isPresent() ) {
 				T obj = next.getUnchecked();
 				if ( m_pred.test(obj) ) {
 					return FOption.of(m_mapper.apply(obj));
@@ -561,58 +563,23 @@ public class FStreams {
 		}
 	}
 	
-	static class IteratorFactoryFStream<T> extends AbstractFStream<T> {
-		private final Supplier<? extends Iterator<? extends T>> m_fact;
-		private Iterator<? extends T> m_cursor;
-		
-		IteratorFactoryFStream(Supplier<? extends Iterator<? extends T>> fact) {
-			m_fact = fact;
-			m_cursor = Collections.emptyIterator();
-		}
-		
-		@Override
-		protected void closeInGuard() throws Exception { }
-
-		@Override
-		public FOption<T> next() {
-			while ( true ) {
-				if ( !m_cursor.hasNext() ) {
-					m_cursor = m_fact.get();
-					assert m_cursor.hasNext();
-				}
-				
-				return FOption.of(m_cursor.next());
-			}
-		}
-	}
-	
-	static class SplitFStream<T> extends AbstractFStream<List<T>> {
-		private final FStream<T> m_src;
+	static class SplitFStream<T> extends SingleSourceStream<T,List<T>> {
 		private final Predicate<? super T> m_delimiter;
-		private boolean m_eos = false;
 		
 		SplitFStream(FStream<T> src, Predicate<? super T> delimiter) {
+			super(src);
+			
 			checkNotNullArgument(delimiter, "predicate is null");
-			m_src = src;
 			m_delimiter = delimiter;
-		}
-		
-		@Override
-		protected void closeInGuard() throws Exception {
-			Unchecked.runOrIgnore(m_src::close);
 		}
 
 		@Override
-		public FOption<List<T>> next() {
-			if ( m_eos ) {
-				return FOption.empty();
-			}
-			
+		public FOption<List<T>> getNext(FStream<T> src) {
 			List<T> buffer = Lists.newArrayList();
 			while ( true ) {
-				FOption<T> onext = m_src.next();
+				FOption<T> onext = src.next();
 				if ( onext.isAbsent() ) {
-					m_eos = true;
+					markEndOfStream();
 					return FOption.of(buffer);
 				}
 				
@@ -623,6 +590,34 @@ public class FStreams {
 				}
 				buffer.add(next);
 			}
+		}
+	}
+	
+	static class FlatMapDataSupplier<S,T> extends AbstractFStream<T> {
+		private final S m_input;
+		private final Function<? super S, ? extends FStream<T>> m_mapper;
+		private FStream<T> m_outStream;
+		
+		FlatMapDataSupplier(S input, Function<? super S, ? extends FStream<T>> mapper) {
+			m_input = input;
+			m_mapper = mapper;
+		}
+		
+		@Override
+		protected void initialize() {
+			m_outStream = m_mapper.apply(m_input);
+		}
+
+		@Override
+		protected void closeInGuard() throws Exception {
+			if ( m_outStream != null ) {
+				m_outStream.close();
+			}
+		}
+
+		@Override
+		protected FOption<T> nextInGuard() {
+			return m_outStream.next();
 		}
 	}
 }

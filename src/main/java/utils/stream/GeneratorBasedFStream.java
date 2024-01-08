@@ -1,11 +1,11 @@
 package utils.stream;
 
 import static utils.Utilities.checkArgument;
+import static utils.Utilities.checkNotNullArgument;
 
 import java.util.concurrent.CancellationException;
 
 import utils.Suppliable;
-import utils.func.CheckedConsumer;
 import utils.func.FOption;
 import utils.stream.FStreams.AbstractFStream;
 
@@ -15,11 +15,12 @@ import utils.stream.FStreams.AbstractFStream;
  * @author Kang-Woo Lee (ETRI)
  */
 class GeneratorBasedFStream<T> extends AbstractFStream<T> {
-	private final CheckedConsumer<Suppliable<T>> m_dataGenerator;
+	private final DataGenerator<T> m_dataGenerator;
 	private final SuppliableFStream<T> m_channel;
 	private Thread m_generatorThread;
 	
-	GeneratorBasedFStream(CheckedConsumer<Suppliable<T>> dataGenerator, int length) {
+	GeneratorBasedFStream(DataGenerator<T> dataGenerator, int length) {
+		checkNotNullArgument(dataGenerator, "generator is null");
 		checkArgument(length > 0, "Buffer length should be larger than zero.");
 		
 		m_dataGenerator = dataGenerator;
@@ -33,7 +34,7 @@ class GeneratorBasedFStream<T> extends AbstractFStream<T> {
 	}
 
 	@Override
-	public FOption<T> next() {
+	public FOption<T> nextInGuard() {
 		if ( m_generatorThread == null ) {
 			m_generatorThread = new Thread(new DataGeneratingWorker<>(m_dataGenerator, m_channel), "generator");
 			m_generatorThread.start();
@@ -43,18 +44,18 @@ class GeneratorBasedFStream<T> extends AbstractFStream<T> {
 	}
 	
 	private static class DataGeneratingWorker<T> implements Runnable {
-		private final CheckedConsumer<Suppliable<T>> m_worker;
+		private final DataGenerator<T> m_dataGenerator;
 		private final Suppliable<T> m_outChannel;
 		
-		DataGeneratingWorker(CheckedConsumer<Suppliable<T>> worker, Suppliable<T> channel) {
-			m_worker = worker;
+		DataGeneratingWorker(DataGenerator<T> dataGenerator, Suppliable<T> channel) {
+			m_dataGenerator = dataGenerator;
 			m_outChannel = channel;
 		}
 		
 		@Override
 		public void run() {
 			try {
-				m_worker.accept(m_outChannel);
+				m_dataGenerator.generate(m_outChannel);
 				m_outChannel.endOfSupply();
 			}
 			catch ( InterruptedException | CancellationException expected ) {

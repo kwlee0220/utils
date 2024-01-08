@@ -17,7 +17,7 @@ public class ZipWithTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<String> stream1 = FStream.from(Arrays.asList("a","b", "c", "d"));
-		FStream<Integer> stream2 = FStream.range(0);
+		FStream<Integer> stream2 = FStream.generate(0, FStream::INC);
 		FStream<Tuple<Integer,String>> stream = stream2.zipWith(stream1);
 		
 		FOption<Tuple<Integer,String>> r;

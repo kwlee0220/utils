@@ -11,7 +11,7 @@ import utils.func.FOption;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class FlatMapFOption {
+public class FlatMapFOptionTest {
 	@Before
 	public void setUp() {
 	}

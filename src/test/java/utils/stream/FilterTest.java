@@ -1,6 +1,8 @@
 package utils.stream;
 
 
+import java.util.function.Predicate;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -75,8 +77,8 @@ public class FilterTest {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.filter(null);
 	}
-	
-	@Test
+
+	@Test(expected=IllegalStateException.class)
 	public void test6() throws Exception {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5));
 		stream = stream.filter(i -> i < 3);
@@ -88,11 +90,25 @@ public class FilterTest {
 		Assert.assertEquals(Integer.valueOf(1), r.get());
 		
 		stream.close();
-		
-		try {
-			r = stream.next();
-			Assert.assertEquals(true, r.isAbsent());
-		}
-		catch ( IllegalArgumentException expected ) { }
+		r = stream.next();
+	}
+	
+	static class Parent {
+		private String m_a;
+		Parent(String a) { m_a = a; }
+	}
+	
+	static class Child extends Parent {
+		private int m_b;
+		Child(String a, int b) { super(a); m_b = b; }
+	}
+	
+	@Test
+	public void test10() throws Exception {
+		Predicate<Parent> pred = (Parent o) -> o.m_a.length() >= 2;
+		FStream<Child> childStream = FStream.of(new Child("a", 1), new Child("aa", 2), new Child("aaa", 3));
+		int[] array = childStream.filter(pred).map(c -> c.m_b).toIntFStream().toArray();
+		Assert.assertEquals(2, array.length);
+		Assert.assertArrayEquals(new int[]{2, 3}, array);
 	}
 }

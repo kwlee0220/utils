@@ -76,8 +76,8 @@ public class AsyncsTest {
 
 		AsyncResult<Void> result = task.waitForFinished();
 		Assert.assertEquals(true, result.isFailed());
-		Assert.assertEquals(IllegalStateException.class, result.getCause().getClass());
-		Assert.assertEquals("aaa", result.getCause().getMessage());
+		Assert.assertEquals(IllegalStateException.class, result.getFailureCause().getClass());
+		Assert.assertEquals("aaa", result.getFailureCause().getMessage());
 		Thread.sleep(100);
 		Assert.assertEquals(true, m_done);
 	}
@@ -132,8 +132,8 @@ public class AsyncsTest {
 
 		AsyncResult<Void> result = task.waitForFinished();
 		Assert.assertEquals(true, result.isFailed());
-		Assert.assertEquals(IllegalStateException.class, result.getCause().getClass());
-		Assert.assertEquals("aaa", result.getCause().getMessage());
+		Assert.assertEquals(IllegalStateException.class, result.getFailureCause().getClass());
+		Assert.assertEquals("aaa", result.getFailureCause().getMessage());
 		Thread.sleep(100);
 		Assert.assertEquals(true, m_done);
 	}
@@ -163,7 +163,7 @@ public class AsyncsTest {
 		public boolean cancelWork() {
 			return m_guard.get(() -> {
 				m_thread.ifPresent(Thread::interrupt);
-				return Try.run(() -> waitForFinished()).isSuccess();
+				return Try.run(() -> waitForFinished()).isSuccessful();
 			});
 		}
 	}
@@ -196,7 +196,7 @@ public class AsyncsTest {
 
 		@Override
 		public boolean cancelWork() {
-			return Try.run(() -> waitForFinished()).isSuccess();
+			return Try.run(() -> waitForFinished()).isSuccessful();
 		}
 	}
 }

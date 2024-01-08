@@ -1,6 +1,7 @@
 package utils.async.op;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import utils.async.CancellableWork;
 import utils.async.EventDrivenExecution;
 import utils.async.StartableExecution;
+import utils.func.Result;
 import utils.func.Try;
 
 
@@ -43,8 +45,8 @@ class BackgroundedAsyncExecution<T> extends EventDrivenExecution<T>
 		Objects.requireNonNull(bgAsync, "background AsyncExecution");
 
 		m_fgAsync = fgAsync;
-		m_fgAsync.whenStarted(this::notifyStarted);
-		m_fgAsync.whenFinished(m_fgListener);
+		m_fgAsync.whenStartedAsync(this::notifyStarted);
+		m_fgAsync.whenFinishedAsync(m_fgListener);
 		m_bgAsync = bgAsync;
 		
 		setLogger(s_logger);
@@ -63,7 +65,7 @@ class BackgroundedAsyncExecution<T> extends EventDrivenExecution<T>
 		notifyStarting();
 		
 		Try.run(m_bgAsync::start)
-			.onFailure(e -> s_logger.warn("failed to start background exec=" + m_bgAsync
+			.ifFailed(e -> s_logger.warn("failed to start background exec=" + m_bgAsync
 										+ ", cause=" + e));
 		m_fgAsync.start();
 	}
@@ -74,23 +76,23 @@ class BackgroundedAsyncExecution<T> extends EventDrivenExecution<T>
 		return m_fgAsync.cancel(true);
 	}
 	
-	private final FinishListener<T> m_fgListener = new FinishListener<T>() {
+	private final Consumer<Result<T>> m_fgListener = new Consumer<Result<T>>() {
 		@Override
-		public void onCompleted(T result) {
+		public void accept(Result<T> result) {
+			// 일단 먼저 background 작업을 취소시킨다.
+			// 이미 종료된 경우에는 취소가 무시되기 때문에 background 작업의 상태와 무관하게
+			// 취소 작업을 수행해도 문제가 없다.
 			Try.run(() -> m_bgAsync.cancel(true));
-			notifyCompleted(result);
-		}
-
-		@Override
-		public void onFailed(Throwable cause) {
-			Try.run(() -> m_bgAsync.cancel(true));
-			notifyFailed(cause);
-		}
-
-		@Override
-		public void onCancelled() {
-			Try.run(() -> m_bgAsync.cancel(true));
-			notifyCancelled();
+			
+			if ( result.isSuccessful() ) {
+				notifyCompleted(result.getUnchecked());
+			}
+			else if ( result.isFailed() ) {
+				notifyFailed(result.getCause());
+			}
+			else if ( result.isNone() ) {
+				notifyCancelled();
+			}
 		}
 	};
 }

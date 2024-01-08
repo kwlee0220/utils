@@ -34,10 +34,12 @@ public class EventDrivenExecution0Test {
 	@Before
 	public void setup() {
 		m_exec = new EventDrivenExecution<>();
-		m_exec.whenStarted(m_startListener);
-		m_exec.whenCompleted(m_completeListener);
-		m_exec.whenCancelled(m_cancelListener);
-		m_exec.whenFailed(m_failureListener);
+		m_exec.whenStartedAsync(m_startListener);
+		m_exec.whenFinishedAsync(ret -> {
+			ret.ifSuccessful(m_completeListener)
+				.ifFailed(m_failureListener)
+				.ifNone(m_cancelListener);
+		});
 	}
 	
 	@Test

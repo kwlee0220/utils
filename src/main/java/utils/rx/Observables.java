@@ -120,15 +120,15 @@ public class Observables {
 	
 	public static Completable fromVoidExecution(Execution<Void> exec) {
 		return Completable.create(emitter -> {
-			exec.whenFinished(r -> {
+			exec.whenFinishedAsync(r -> {
 				if ( !emitter.isDisposed() ) {
-					if ( r.isCompleted() ) {
+					if ( r.isSuccessful() ) {
 						emitter.onComplete();
 					}
 					else if ( r.isFailed() ) {
 						emitter.onError(r.getCause());
 					}
-					else if ( r.isCancelled() ) {
+					else if ( r.isNone() ) {
 						emitter.onError(new CancellationException());
 					}
 				}

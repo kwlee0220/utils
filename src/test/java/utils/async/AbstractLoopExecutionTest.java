@@ -81,7 +81,7 @@ public class AbstractLoopExecutionTest {
 		
 		result = exec.waitForFinished(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isFailed());
-		Assert.assertEquals("test", result.getCause().getMessage());
+		Assert.assertEquals("test", result.getFailureCause().getMessage());
 	}
 	
 	@Test
@@ -94,7 +94,7 @@ public class AbstractLoopExecutionTest {
 		
 		result = exec.waitForFinished(1, TimeUnit.SECONDS);
 		Assert.assertEquals(true, result.isFailed());
-		Assert.assertEquals("test", result.getCause().getMessage());
+		Assert.assertEquals("test", result.getFailureCause().getMessage());
 	}
 	
 	private static class TestExecution1 extends AbstractLoopExecution<Integer> {

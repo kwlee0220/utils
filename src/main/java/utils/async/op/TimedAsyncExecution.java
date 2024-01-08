@@ -118,10 +118,10 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 			return;
 		}
 		
-		m_target.whenStarted(this::onTargetStarted);
-		m_target.whenFinished(r -> r.ifCompleted(this::notifyCompleted)
-								.ifFailed(this::notifyFailed)
-								.ifCancelled(this::onTargetCancelled));
+		m_target.whenStartedAsync(this::onTargetStarted);
+		m_target.whenFinishedAsync(r -> r.ifSuccessful(this::notifyCompleted)
+									.ifFailed(this::notifyFailed)
+									.ifNone(this::onTargetCancelled));
 		m_guard.run(() -> m_istate = STATE_IDLE);
 		
 		m_target.start();

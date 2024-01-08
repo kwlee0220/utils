@@ -15,6 +15,8 @@ import utils.async.AsyncResult.Completed;
 import utils.async.AsyncResult.Failed;
 import utils.async.AsyncResult.Running;
 import utils.async.Executions.FlatMapChainExecution;
+import utils.async.Executions.MapChainExecution;
+import utils.func.Result;
 
 
 /**
@@ -295,58 +297,62 @@ public interface Execution<T> extends Future<T> {
 	 */
     public boolean waitForStarted(Date due) throws InterruptedException;
     
+    /**
+     * 주어진 작업에 제한시간을 설정한다.
+     * 
+     * 제한 시간이 설정되면, 설정된 기한 내에 작업이 완료되지 않으면 수행이 cancel된다.
+     * 
+     * @param timeout	제한 시간.
+     * @param unit		제한 시간의 단위.
+     */
     public default void setTimeout(long timeout, TimeUnit unit) {
     	s_timer.setTimer(this, timeout, unit);
     }
-	
-	public default <S> EventDrivenExecution<S> map(Function<AsyncResult<? extends T>,? extends S> mapper) {
-		return new Executions.MapChainExecution<>(this, mapper);
-	}
     
-    public default <S> Execution<S> mapOnCompleted(Function<? super T,? extends S> mapper) {
-    	return new Executions.MapCompleteChainExecution<>(this, mapper);
+    public default <S> Execution<S> map(Function<? super T,? extends S> mapper) {
+    	return new MapChainExecution<>(this, mapper);
     }
 	
-	public default <S> Execution<S> flatMap(Function<AsyncResult<T>, Execution<S>> chain) {
+	public default <S> Execution<S> flatMap(Function<? super Result<T>, ? extends Execution<S>> chain) {
 		return new FlatMapChainExecution<>(this, chain);
 	}
 
 	public Execution<T> whenStarted(Runnable listener);
-	public Execution<T> whenFinished(Consumer<AsyncResult<T>> resultConsumer);
-	
-	public default void whenFinished(FinishListener<T> listener) {
-		whenFinished(r -> r.ifCompleted(listener::onCompleted)
-							.ifCancelled(listener::onCancelled)
-							.ifFailed(listener::onFailed));
-	}
+	public Execution<T> whenStartedAsync(Runnable listener);
+
+	public Execution<T> whenFinished(Consumer<Result<T>> handler);
+	public Execution<T> whenFinishedAsync(Consumer<Result<T>> handler);
 	
 	public default void whenCompleted(Consumer<T> handler) {
 		Objects.requireNonNull(handler, "handler is null");
-		
-		whenFinished(new FinishListener<T>() {
-			@Override public void onCompleted(T result) { handler.accept(result); }
-			@Override public void onFailed(Throwable cause) { }
-			@Override public void onCancelled() { }
+
+		whenFinishedAsync(new Consumer<Result<T>>() {
+			@Override
+			public void accept(Result<T> tried) {
+				tried.ifSuccessful(handler);
+			}
 		});
 	}
 	
 	public default void whenFailed(Consumer<Throwable> handler) {
 		Objects.requireNonNull(handler, "handler is null");
-		
-		whenFinished(new FinishListener<T>() {
-			@Override public void onCompleted(T result) { }
-			@Override public void onFailed(Throwable cause) { handler.accept(cause); }
-			@Override public void onCancelled() { }
+
+		whenFinishedAsync(new Consumer<Result<T>>() {
+			@Override
+			public void accept(Result<T> result) {
+				result.ifFailed(handler);
+			}
 		});
 	}
 	
 	public default void whenCancelled(Runnable handler) {
 		Objects.requireNonNull(handler, "handler is null");
 		
-		whenFinished(new FinishListener<T>() {
-			@Override public void onCompleted(T result) { }
-			@Override public void onFailed(Throwable cause) { }
-			@Override public void onCancelled() { handler.run(); }
+		whenFinishedAsync(new Consumer<Result<T>>() {
+			@Override
+			public void accept(Result<T> result) {
+				result.ifNone(handler);
+			}
 		});
 	}
 	

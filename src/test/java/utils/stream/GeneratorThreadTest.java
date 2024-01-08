@@ -2,7 +2,6 @@ package utils.stream;
 
 
 import java.util.concurrent.CancellationException;
-import java.util.function.Consumer;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -12,8 +11,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import utils.Holder;
 import utils.Suppliable;
-import utils.func.CheckedConsumer;
-import utils.func.FOption;
 
 /**
  * 
@@ -27,9 +24,9 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test00() throws Exception {
-		Consumer<Suppliable<String>> generator = new Consumer<Suppliable<String>>() {
+		DataGenerator<String> generator = new DataGenerator<String>() {
 			@Override
-			public void accept(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
 				channel.supply("b");
 				channel.supply("c");
@@ -44,9 +41,9 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test01() throws Exception {
-		Consumer<Suppliable<String>> generator = new Consumer<Suppliable<String>>() {
+		DataGenerator<String> generator = new DataGenerator<String>() {
 			@Override
-			public void accept(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
 				channel.supply("b");
 				channel.supply("c");
@@ -61,9 +58,9 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test10() throws Exception {
-		Consumer<Suppliable<String>> generator = new Consumer<Suppliable<String>>() {
+		DataGenerator<String> generator = new DataGenerator<String>() {
 			@Override
-			public void accept(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
 				channel.supply("b");
 				channel.supply("c");
@@ -77,9 +74,9 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test11() throws Exception {
-		CheckedConsumer<Suppliable<String>> generator = new CheckedConsumer<Suppliable<String>>() {
+		DataGenerator<String> generator = new DataGenerator<String>() {
 			@Override
-			public void accept(Suppliable<String> channel) throws InterruptedException {
+			public void generate(Suppliable<String> channel) throws InterruptedException {
 				channel.supply("a");
 				channel.supply("b");
 				throw new InterruptedException();
@@ -93,9 +90,9 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test12() throws Exception {
-		Consumer<Suppliable<String>> generator = new Consumer<Suppliable<String>>() {
+		DataGenerator<String> generator = new DataGenerator<String>() {
 			@Override
-			public void accept(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
 				channel.supply("b");
 				throw new CancellationException();
@@ -109,9 +106,9 @@ public class GeneratorThreadTest {
 
 	@Test(expected=RuntimeException.class)
 	public void test13() throws Exception {
-		Consumer<Suppliable<String>> generator = new Consumer<Suppliable<String>>() {
+		DataGenerator<String> generator = new DataGenerator<String>() {
 			@Override
-			public void accept(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
 				channel.supply("b");
 				throw new RuntimeException();
@@ -124,37 +121,13 @@ public class GeneratorThreadTest {
 	}
 
 	@Test
-	public void test20() throws Exception {
-		CheckedConsumer<Suppliable<String>> generator = new CheckedConsumer<Suppliable<String>>() {
-			@Override
-			public void accept(Suppliable<String> channel) throws InterruptedException {
-				channel.supply("a");
-				channel.supply("b");
-				Thread.sleep(500);
-				Assert.fail("should not be here.");
-			}
-		};
-		FStream<String> stream = FStream.generate(generator, 5);
-		
-		FOption<String> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals("a", r.get());
-		
-		stream.close();
-		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
-	}
-
-	@Test
 	public void test30() throws Exception {
 		Holder<Integer> state = Holder.of(0);
 		
 		long started = System.currentTimeMillis();
-		CheckedConsumer<Suppliable<String>> generator = new CheckedConsumer<Suppliable<String>>() {
+		DataGenerator<String> generator = new DataGenerator<String>() {
 			@Override
-			public void accept(Suppliable<String> channel) throws InterruptedException {
+			public void generate(Suppliable<String> channel) throws InterruptedException {
 				Thread.sleep(200);
 				state.set(1);
 				channel.supply("a");
@@ -185,15 +158,15 @@ public class GeneratorThreadTest {
 
 	@Test(expected=IllegalArgumentException.class)
 	public void test90() throws Exception {
-		Consumer<Suppliable<String>> generator = null;
+		DataGenerator<String> generator = null;
 		FStream.generate(generator, 1);
 	}
 
 	@Test(expected=IllegalArgumentException.class)
 	public void test91() throws Exception {
-		Consumer<Suppliable<String>> generator = new Consumer<Suppliable<String>>() {
+		DataGenerator<String> generator = new DataGenerator<String>() {
 			@Override
-			public void accept(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
 				channel.supply("b");
 				channel.supply("c");

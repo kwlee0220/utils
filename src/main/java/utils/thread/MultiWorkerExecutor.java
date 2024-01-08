@@ -39,7 +39,7 @@ public class MultiWorkerExecutor<T> extends AbstractFStream<Try<T>> {
 	protected void closeInGuard() throws Exception { }
 
 	@Override
-	public FOption<Try<T>> next() {
+	public FOption<Try<T>> nextInGuard() {
 		if ( isClosed() ) {
 			return FOption.empty();
 		}

@@ -246,7 +246,8 @@ public class Funcs {
 	 * @param pred	삭제 조건.
 	 * @return		삭제된 {@link Map.Entry} 객체들.
 	 */
-	public static <K,V> List<KeyValue<K,V>> removeIf(Map<K,V> map, BiPredicate<? super K, ? super V> pred) {
+	public static <K,V>
+	List<KeyValue<K,V>> removeIf(Map<K,V> map, BiPredicate<? super K, ? super V> pred) {
 		List<KeyValue<K,V>> removeds = Lists.newArrayList();
 		
 		Iterator<Map.Entry<K, V>> iter = map.entrySet().iterator();

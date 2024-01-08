@@ -1,4 +1,4 @@
-package utils;
+package utils.stream;
 
 import static utils.Utilities.checkArgument;
 import static utils.Utilities.checkNotNullArgument;
@@ -8,7 +8,6 @@ import java.util.concurrent.Executor;
 import javax.annotation.Nonnull;
 
 import utils.func.CheckedRunnable;
-import utils.stream.SuppliableFStream;
 
 
 /**

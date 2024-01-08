@@ -37,7 +37,7 @@ public class JdbcRowSource<T> {
 	}
 	
 	private static CheckedFunction<ResultSet, List<Object>> deserializeAsObjectList() {
-		return rs -> FStream.rangeClosed(1, rs.getMetaData().getColumnCount())
+		return rs -> FStream.range(1, rs.getMetaData().getColumnCount()+1)
 							.mapOrThrow(idx -> rs.getObject(idx))
 							.toList();
 	}
@@ -132,7 +132,7 @@ public class JdbcRowSource<T> {
 		}
 		
 		@Override
-		public FOption<T> next() {
+		public FOption<T> nextInGuard() {
 			try {
 				if ( m_rs == null ) {
 					if ( m_conn == null ) {

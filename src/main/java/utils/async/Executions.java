@@ -7,8 +7,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import javax.annotation.Nullable;
+
 import utils.func.CheckedRunnable;
 import utils.func.Lazy;
+import utils.func.Result;
 import utils.func.UncheckedRunnable;
 
 /**
@@ -28,37 +31,32 @@ public class Executions {
 	}
 	
 	public static CompletableFutureAsyncExecution<Void> runAsync(CheckedRunnable task) {
-		return new CompletableFutureAsyncExecution<Void>() {
-			@Override
-			protected CompletableFuture<? extends Void> startExecution() {
-				UncheckedRunnable urunnable = UncheckedRunnable.sneakyThrow(task);
-				return CompletableFuture.runAsync(urunnable);
-			}
-		};
+		return runAsync(task, null);
 	}
 	public static CompletableFutureAsyncExecution<Void> runAsync(CheckedRunnable task, Executor exector) {
 		return new CompletableFutureAsyncExecution<Void>() {
 			@Override
 			protected CompletableFuture<? extends Void> startExecution() {
-				return CompletableFuture.runAsync(UncheckedRunnable.sneakyThrow(task), exector);
+				if ( exector != null ) {
+					return CompletableFuture.runAsync(UncheckedRunnable.sneakyThrow(task), exector);
+				}
+				else {
+					return CompletableFuture.runAsync(UncheckedRunnable.sneakyThrow(task));
+				}
 			}
 		};
 	}
 	
 	public static <T> CompletableFutureAsyncExecution<T> supplyAsync(Supplier<? extends T> supplier) {
-		return new CompletableFutureAsyncExecution<T>() {
-			@Override
-			protected CompletableFuture<? extends T> startExecution() {
-				return CompletableFuture.supplyAsync(supplier);
-			}
-		};
+		return supplyAsync(supplier, null);
 	}
 	public static <T> CompletableFutureAsyncExecution<T> supplyAsync(Supplier<? extends T> supplier,
-																		Executor exector) {
+																		@Nullable Executor exector) {
 		return new CompletableFutureAsyncExecution<T>() {
 			@Override
 			protected CompletableFuture<? extends T> startExecution() {
-				return CompletableFuture.supplyAsync(supplier, exector);
+				return (exector != null) ? CompletableFuture.supplyAsync(supplier, exector)
+											:  CompletableFuture.supplyAsync(supplier);
 			}
 		};
 	}
@@ -66,34 +64,34 @@ public class Executions {
 	static class FlatMapCompleteChainExecution<T,S> extends EventDrivenExecution<S> {
 		FlatMapCompleteChainExecution(EventDrivenExecution<? extends T> leader,
 									Function<? super T,Execution<? extends S>> chain) {
-			leader.whenStarted(this::notifyStarted);
-			leader.whenFinished(ret ->
-				ret.ifCompleted(v -> {
+			leader.whenStartedAsync(this::notifyStarted);
+			leader.whenFinishedAsync(ret ->
+				ret.ifSuccessful(v -> {
 						Execution<S> follower = Execution.narrow(chain.apply(v));
-						follower.whenStarted(this::notifyStarted)
-								.whenFinished(ret2 -> ret2.ifCompleted(this::notifyCompleted)
-														.ifFailed(this::notifyFailed)
-														.ifCancelled(this::notifyCancelled));
+						follower.whenStartedAsync(this::notifyStarted)
+								.whenFinishedAsync(ret2 -> ret2.ifSuccessful(this::notifyCompleted)
+															.ifFailed(this::notifyFailed)
+															.ifNone(this::notifyCancelled));
 						if ( !follower.isStarted() && follower instanceof StartableExecution ) {
 							((StartableExecution<S>)follower).start();
 						}
 					})
 					.ifFailed(this::notifyFailed)
-					.ifCancelled(this::notifyCancelled)
+					.ifNone(this::notifyCancelled)
 			);
 		}
 	}
 	
 	static class FlatMapChainExecution<T,S> extends EventDrivenExecution<S> {
 		FlatMapChainExecution(Execution<T> leader,
-							Function<AsyncResult<T>, Execution<S>> chain) {
+							Function<? super Result<T>, ? extends Execution<S>> chain) {
 			leader.whenStarted(this::notifyStarted);
 			leader.whenFinished(ret -> {
 				Execution<S> follower = chain.apply(ret);
 				follower.whenStarted(this::notifyStarted)
-						.whenFinished(ret2 -> ret2.ifCompleted(this::notifyCompleted)
+						.whenFinished(ret2 -> ret2.ifSuccessful(this::notifyCompleted)
 													.ifFailed(this::notifyFailed)
-													.ifCancelled(this::notifyCancelled));
+													.ifNone(this::notifyCancelled));
 				if ( !follower.isStarted() ) {
 					if ( follower instanceof StartableExecution ) {
 						((StartableExecution<S>)follower).start();
@@ -109,25 +107,10 @@ public class Executions {
 	
 	static class MapChainExecution<T,S> extends EventDrivenExecution<S> {
 		MapChainExecution(Execution<? extends T> leader,
-							Function<AsyncResult<? extends T>,? extends S> chain) {
-			leader.whenStarted(this::notifyStarted);
-			leader.whenFinished(ret -> {
-				try {
-					notifyCompleted(chain.apply(ret));
-				}
-				catch ( Throwable e ) {
-					notifyFailed(e);
-				}
-			});
-		}
-	}
-	
-	static class MapCompleteChainExecution<T,S> extends EventDrivenExecution<S> {
-		MapCompleteChainExecution(Execution<? extends T> leader,
 									Function<? super T,? extends S> chain) {
 			leader.whenStarted(this::notifyStarted);
 			leader.whenFinished(ret ->
-				ret.ifCompleted(v -> {
+				ret.ifSuccessful(v -> {
 						try {
 							notifyCompleted(chain.apply(v));
 						}
@@ -136,7 +119,7 @@ public class Executions {
 						}
 					})
 					.ifFailed(this::notifyFailed)
-					.ifCancelled(this::notifyCancelled)
+					.ifNone(this::notifyCancelled)
 		);}
 	}
 	

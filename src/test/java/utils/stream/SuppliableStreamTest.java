@@ -45,7 +45,7 @@ public class SuppliableStreamTest {
 		FOption<Try<Integer>> r;
 		
 		r = m_stream.next(1, TimeUnit.SECONDS);
-		Assert.assertTrue(r.get().isFailure());
+		Assert.assertTrue(r.get().isFailed());
 		Assert.assertEquals(TimeoutException.class, r.get().getCause().getClass());
 	}
 
@@ -64,7 +64,7 @@ public class SuppliableStreamTest {
 		});
 
 		r = m_stream.next(200, TimeUnit.MILLISECONDS);
-		Assert.assertTrue(r.get().isFailure());
+		Assert.assertTrue(r.get().isFailed());
 		Assert.assertEquals(TimeoutException.class, r.get().getCause().getClass());
 	}
 	

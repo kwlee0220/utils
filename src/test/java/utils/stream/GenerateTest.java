@@ -1,8 +1,6 @@
 package utils.stream;
 
 
-import static org.hamcrest.Matchers.is;
-
 import java.util.function.Function;
 
 import org.junit.Assert;
@@ -17,13 +15,13 @@ import utils.func.FOption;
 public class GenerateTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream = FStream.generate(0, i -> i+1).take(3);
+		FStream<Integer> stream = FStream.generate(0, FStream::INC).take(3);
 		
 		FOption<Integer> r;
 		
 		r = stream.next();
 		Assert.assertEquals(true, r.isPresent());
-		Assert.assertThat(r.get(), is(Integer.valueOf(0)));
+		Assert.assertEquals(Integer.valueOf(0), r.get());
 		
 		r = stream.next();
 		Assert.assertEquals(true, r.isPresent());

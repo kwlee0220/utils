@@ -29,14 +29,14 @@ public class TryTest {
 		Supplier<Try<Void>> ret0 = Try.lift(cr0);
 		Assert.assertEquals(INIT, m_result);
 		
-		Assert.assertEquals(true, ret0.get().isSuccess());
+		Assert.assertEquals(true, ret0.get().isSuccessful());
 		Assert.assertEquals(null, ret0.get().get());
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
 		Supplier<Try<Void>> ret1 = Try.lift(cr1);
 		Assert.assertEquals(INIT, m_result);
-		Assert.assertEquals(true, ret1.get().isFailure());
+		Assert.assertEquals(true, ret1.get().isFailed());
 		Assert.assertEquals(IOException.class, ret1.get().getCause().getClass());
 		Assert.assertEquals(FAILED, m_result);
 	}
@@ -50,11 +50,11 @@ public class TryTest {
 		};
 
 		m_result = INIT;
-		Assert.assertEquals(true, Try.lift(cr0).get().isSuccess());
+		Assert.assertEquals(true, Try.lift(cr0).get().isSuccessful());
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
-		Assert.assertEquals(true, Try.lift(cr1).get().isFailure());
+		Assert.assertEquals(true, Try.lift(cr1).get().isFailed());
 		Assert.assertEquals(FAILED, m_result);
 	}
 	
@@ -68,13 +68,13 @@ public class TryTest {
 
 		m_result = INIT;
 		Try<Void> ret0 = Try.lift(cr0).get();
-		Assert.assertEquals(true, ret0.isSuccess());
+		Assert.assertEquals(true, ret0.isSuccessful());
 		Assert.assertNull(ret0.get());
 		Assert.assertEquals(COMPLETED, m_result);
 
 		m_result = INIT;
 		Try<Void> ret1 = Try.lift(cr1).get();
-		Assert.assertEquals(true, ret1.isFailure());
+		Assert.assertEquals(true, ret1.isFailed());
 		Assert.assertEquals(IOException.class, ret1.getCause().getClass());
 		Assert.assertEquals(FAILED, m_result);
 	}
@@ -91,7 +91,7 @@ public class TryTest {
 		Supplier<Try<String>> ret0 = Try.lift(cr0);
 		Assert.assertEquals(INIT, m_result);
 		
-		Assert.assertEquals(true, ret0.get().isSuccess());
+		Assert.assertEquals(true, ret0.get().isSuccessful());
 		Assert.assertEquals(COMPLETED, ret0.get().get());
 		Assert.assertEquals(COMPLETED, m_result);
 		
@@ -99,7 +99,7 @@ public class TryTest {
 		Supplier<Try<String>> ret1 = Try.lift(cr1);
 		Assert.assertEquals(INIT, m_result);
 		
-		Assert.assertEquals(true, ret1.get().isFailure());
+		Assert.assertEquals(true, ret1.get().isFailed());
 		Assert.assertEquals(IOException.class, ret1.get().getCause().getClass());
 		Assert.assertEquals(FAILED, m_result);
 	}
@@ -114,13 +114,13 @@ public class TryTest {
 		
 		m_result = INIT;
 		Try<String> ret0 = Try.lift(cr0).get();
-		Assert.assertEquals(true, ret0.isSuccess());
+		Assert.assertEquals(true, ret0.isSuccessful());
 		Assert.assertEquals(COMPLETED, ret0.get());
 		Assert.assertEquals(COMPLETED, m_result);
 		
 		m_result = INIT;
 		Try<String> ret1 = Try.lift(cr1).get();
-		Assert.assertEquals(true, ret1.isFailure());
+		Assert.assertEquals(true, ret1.isFailed());
 		Assert.assertEquals(IOException.class, ret1.getCause().getClass());
 		Assert.assertEquals(FAILED, m_result);
 		

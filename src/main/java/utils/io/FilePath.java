@@ -145,7 +145,11 @@ public interface FilePath {
 	public long getLength() throws IOException;
 	
 	public default long getTotalLength() throws IOException {
-		return walkRegularFileTree().mapOrIgnore(FilePath::getLength).mapToLong(v -> v).sum();
+		return walkRegularFileTree()
+					.tryMap(FilePath::getLength)
+					.flatMapTry(v -> v)
+					.mapToLong(v -> v)
+					.sum();
 	}
 	
 	/**

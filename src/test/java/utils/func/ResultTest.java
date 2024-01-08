@@ -22,14 +22,14 @@ public class ResultTest {
 
 	@Test
 	public void testIs() throws Exception {
-		Assert.assertEquals(true, R1.isSuccess());
-		Assert.assertEquals(false, R1.isFailure());
+		Assert.assertEquals(true, R1.isSuccessful());
+		Assert.assertEquals(false, R1.isFailed());
 		Assert.assertEquals(false, R1.isNone());
-		Assert.assertEquals(false, R2.isSuccess());
-		Assert.assertEquals(false, R2.isFailure());
+		Assert.assertEquals(false, R2.isSuccessful());
+		Assert.assertEquals(false, R2.isFailed());
 		Assert.assertEquals(true, R2.isNone());
-		Assert.assertEquals(false, R3.isSuccess());
-		Assert.assertEquals(true, R3.isFailure());
+		Assert.assertEquals(false, R3.isSuccessful());
+		Assert.assertEquals(true, R3.isFailed());
 		Assert.assertEquals(false, R3.isNone());
 	}
 	
@@ -46,13 +46,14 @@ public class ResultTest {
 			Assert.fail("Exception 'IOException' is expected");
 		}
 		catch ( Exception expected ) {
-			Assert.assertEquals(IOException.class, expected.getClass());
+			Assert.assertEquals(ExecutionException.class, expected.getClass());
+			Assert.assertEquals(IOException.class, expected.getCause().getClass());
 		}
 		try {
 			R4.get();
-			Assert.fail("Exception 'IllegalStateException' is expected");
+			Assert.fail("Exception 'ExecutionException' is expected");
 		}
-		catch ( IllegalArgumentException expected ) { }
+		catch ( ExecutionException expected ) { }
 	}
 	
 	@Test
@@ -126,6 +127,6 @@ public class ResultTest {
 		Assert.assertEquals("a", R1.filter(s -> s.length() == 1).get());
 		Assert.assertEquals(true, R1.filter(s -> s.length() == 2).isNone());
 		Assert.assertEquals(true, R2.filter(s -> s.length() == 1).isNone());
-		Assert.assertEquals(true, R3.filter(s -> s.length() == 1).isFailure());
+		Assert.assertEquals(true, R3.filter(s -> s.length() == 1).isFailed());
 	}
 }

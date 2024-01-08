@@ -32,7 +32,7 @@ public class EventDrivenExecution6Test {
 		m_exec.notifyStarted();
 		m_exec.notifyFailed(m_cause);
 		
-		m_exec.whenStarted(m_startListener);
+		m_exec.whenStartedAsync(m_startListener);
 		m_exec.whenCompleted(m_completeListener);
 		m_exec.whenCancelled(m_cancelListener);
 		m_exec.whenFailed(m_failureListener);

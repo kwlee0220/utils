@@ -34,15 +34,11 @@ class BufferedStream<T> extends SingleSourceStream<T,List<T>> {
 	}
 
 	@Override
-	public FOption<List<T>> next() {
-		if ( isClosed() ) {
-			return FOption.empty();
-		}
-		
+	protected FOption<List<T>> getNext(FStream<T> src) {
 		if ( m_buffer.size() > 0 ) {
-			drain();
+			drain(src);
 		}
-		fill();
+		fill(src);
 		
 		if ( m_buffer.size() > 0 ) {
 			return FOption.of(Lists.newArrayList(m_buffer));
@@ -52,20 +48,20 @@ class BufferedStream<T> extends SingleSourceStream<T,List<T>> {
 		}
 	}
 	
-	private void drain() {
+	private void drain(FStream<T> src) {
 		for ( int i =0; i < m_skip; ++i ) {
 			if ( m_buffer.size() > 0 ) {
 				m_buffer.remove(0);
 			}
-			else if ( m_src.next().isAbsent() ) {
+			else if ( src.next().isAbsent() ) {
 				break;
 			}
 		}
 	}
 	
-	private void fill() {
+	private void fill(FStream<T> src) {
 		while ( !m_endOfSource && m_buffer.size() < m_count ) {
-			FOption<T> next = m_src.next();
+			FOption<T> next = src.next();
 			if ( next.isPresent() ) {
 				m_buffer.add(next.get());
 			}

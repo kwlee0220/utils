@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 
 import java.util.function.Consumer;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,9 +35,8 @@ public class EventDrivenExecution2Test {
 	@Before
 	public void setup() {
 		m_exec = new EventDrivenExecution<>();
-		m_exec.notifyStarted();
 		
-		m_exec.whenStarted(m_startListener);
+		m_exec.whenStartedAsync(m_startListener);
 		m_exec.whenCompleted(m_completeListener);
 		m_exec.whenCancelled(m_cancelListener);
 		m_exec.whenFailed(m_failureListener);
@@ -44,16 +44,17 @@ public class EventDrivenExecution2Test {
 
 	@Test
 	public void test_RUNNING_01() throws Exception {
+		m_exec.notifyStarted();
 		boolean ret = m_exec.notifyStarting();
-		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(AsyncState.RUNNING));
+		Assert.assertEquals(false, ret);
+		Assert.assertEquals(AsyncState.RUNNING, m_exec.getState());
 	}
 
 	@Test
 	public void test_RUNNING_02() throws Exception {
 		boolean ret = m_exec.notifyStarted();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.RUNNING));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.RUNNING, m_exec.getState());
 		
 		verify(m_startListener, times(1)).run();
 		verify(m_completeListener, never()).accept(anyString());
@@ -63,6 +64,7 @@ public class EventDrivenExecution2Test {
 	
 	@Test
 	public void test_RUNNING_03() throws Exception {
+		m_exec.notifyStarted();
 		boolean ret = m_exec.notifyCancelling();
 		assertThat(ret, is(true));
 		assertThat(m_exec.getState(), is(AsyncState.CANCELLING));
@@ -76,6 +78,7 @@ public class EventDrivenExecution2Test {
 	
 	@Test
 	public void test_RUNNING_04() throws Exception {
+		m_exec.notifyStarted();
 		boolean ret = m_exec.notifyCancelled();
 		assertThat(ret, is(true));
 		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
@@ -89,6 +92,7 @@ public class EventDrivenExecution2Test {
 
 	@Test
 	public void test_RUNNING_05() throws Exception {
+		m_exec.notifyStarted();
 		m_exec.notifyCompleted("ok");
 		assertThat(m_exec.getState(), is(AsyncState.COMPLETED));
 		
@@ -101,6 +105,7 @@ public class EventDrivenExecution2Test {
 
 	@Test
 	public void test_RUNNING_06() throws Exception {
+		m_exec.notifyStarted();
 		boolean ret = m_exec.notifyFailed(m_cause);
 		assertThat(ret, is(true));
 		assertThat(m_exec.getState(), is(AsyncState.FAILED));

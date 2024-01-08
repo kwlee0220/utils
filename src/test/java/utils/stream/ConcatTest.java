@@ -1,6 +1,8 @@
 package utils.stream;
 
 
+import java.util.List;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -28,100 +30,44 @@ public class ConcatTest {
 		m_strm2 = FStream.of(3, 4);
 	}
 	
+	private String toString(FStream<Integer> strm) {
+		return strm.map(v -> "" + v).join("");
+	}
+	
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream1 = FStream.from(Lists.newArrayList(1, 2, 4));
-		FStream<Integer> stream2 = FStream.from(Lists.newArrayList(5, 3, 2));
-		FStream<Integer> stream = stream1.concatWith(stream2);
+		FStream<Integer> stream1 = FStream.of(1, 2, 4);
+		FStream<Integer> stream2 = FStream.of(5, 3, 2);
+		String ret = toString(stream1.concatWith(stream2));
 		
-		FOption<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(4), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(5), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(3), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals("124532", ret);
 	}
 	
 	@Test
 	public void test1() throws Exception {
-		FStream<Integer> stream1 = FStream.from(Lists.newArrayList(1, 2, 4));
-		FStream<Integer> stream2 = FStream.from(Lists.newArrayList());
-		FStream<Integer> stream = stream1.concatWith(stream2);
-
-		FOption<Integer> r;
+		FStream<Integer> stream1 = FStream.of(1, 2, 4);
+		FStream<Integer> stream2 = FStream.of();
+		String ret = toString(stream1.concatWith(stream2));
 		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(4), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals("124", ret);
 	}
 	
 	@Test
 	public void test2() throws Exception {
-		FStream<Integer> stream1 = FStream.empty();
-		FStream<Integer> stream2 = FStream.from(Lists.newArrayList(5, 3, 2));
-		FStream<Integer> stream = stream1.concatWith(stream2);
-
-		FOption<Integer> r;
+		FStream<Integer> stream1 = FStream.of(1, 2, 4);
+		FStream<Integer> stream2 = FStream.empty();
+		String ret = toString(stream2.concatWith(stream1));
 		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(5), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(3), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals("124", ret);
 	}
 	
 	@Test
-	public void test3() throws Exception {
+	public void test4() throws Exception {
 		FStream<Integer> stream1 = FStream.empty();
 		FStream<Integer> stream2 = FStream.from(Lists.newArrayList());
-		FStream<Integer> stream = stream1.concatWith(stream2);
+		String ret = toString(stream2.concatWith(stream1));
 
-		FOption<Integer> r;
-		
-		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assert.assertEquals("", ret);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -168,5 +114,41 @@ public class ConcatTest {
 		r = dstream.next();
 		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Double.valueOf(1d), r.get());
+	}
+	
+	@Test
+	public void test9() throws Exception {
+		List<String> list1 = Lists.newArrayList("a", "b");
+		List<String> list2 = Lists.newArrayList("c");
+		List<String> list3 = Lists.newArrayList();
+		List<String> list4 = Lists.newArrayList("d", "e");
+		
+		String ret;
+		ret = FStream.concat().join("");
+		Assert.assertEquals("", ret);
+		
+		ret = FStream.concat(list1).join("");
+		Assert.assertEquals("ab", ret);
+		
+		ret = FStream.concat(list1, list2).join("");
+		Assert.assertEquals("abc", ret);
+		
+		ret = FStream.concat(list1, list2, list3).join("");
+		Assert.assertEquals("abc", ret);
+		
+		ret = FStream.concat(list1, list2, list3, list4).join("");
+		Assert.assertEquals("abcde", ret);
+	}
+	
+	@Test
+	public void test10() throws Exception {
+		List<String> list1 = Lists.newArrayList("a", "b", "d");
+		
+		String ret;
+		ret = FStream.from(list1).concatWith("d").join("");
+		Assert.assertEquals("abdd", ret);
+		
+		ret = FStream.empty().concatWith("d").join("");
+		Assert.assertEquals("d", ret);
 	}
 }

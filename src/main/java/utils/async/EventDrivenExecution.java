@@ -20,6 +20,10 @@ import com.google.common.collect.Lists;
 
 import utils.LoggerSettable;
 import utils.Utilities;
+import utils.func.Result;
+import utils.func.Tuple;
+import utils.stream.FStream;
+
 
 /**
  * 
@@ -31,10 +35,10 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	private long m_cancelTimeoutMillis = TimeUnit.SECONDS.toMillis(3);	// 3 seconds
 	protected final Guard m_aopGuard = Guard.create();
 	@GuardedBy("m_aopGuard") private AsyncState m_aopState = AsyncState.NOT_STARTED;
-	@GuardedBy("m_aopGuard") private AsyncResult<T> m_result;		// may null
-	@GuardedBy("m_aopGuard") private final List<Runnable> m_startListeners
+	@GuardedBy("m_aopGuard") private AsyncResult<T> m_asyncResult;		// may null
+	@GuardedBy("m_aopGuard") private final List<Tuple<Runnable,Boolean>> m_startListeners
 													= Lists.newCopyOnWriteArrayList();
-	@GuardedBy("m_aopGuard") private final List<Consumer<AsyncResult<T>>> m_finishListeners
+	@GuardedBy("m_aopGuard") private final List<Tuple<Consumer<Result<T>>,Boolean>> m_finishListeners
 													= Lists.newCopyOnWriteArrayList();
 	
 	private Logger m_logger = s_logger;
@@ -149,13 +153,13 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 
 	@Override
 	public AsyncResult<T> poll() {
-		return m_aopGuard.get(() -> isDoneInGuard() ? m_result : AsyncResult.running());
+		return m_aopGuard.get(() -> isDoneInGuard() ? m_asyncResult : AsyncResult.running());
 	}
 
 	@Override
 	public AsyncResult<T> waitForFinished(Date due) throws InterruptedException {
 		try {
-			return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_result, due);
+			return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_asyncResult, due);
 		}
 		catch ( TimeoutException e ) {
 			return AsyncResult.running();
@@ -164,7 +168,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 
 	@Override
 	public AsyncResult<T> waitForFinished() throws InterruptedException {
-		return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_result);
+		return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_asyncResult);
 	}
 
 	@Override
@@ -239,7 +243,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			switch ( m_aopState ) {
 				case RUNNING:
 				case CANCELLING:
-					m_result = AsyncResult.completed(result);
+					m_asyncResult = AsyncResult.completed(result);
 					m_aopState = AsyncState.COMPLETED;
 					m_aopGuard.signalAll();
 					getLogger().debug("completed: {}, result={}", this, result);
@@ -271,7 +275,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case STARTING:		// start 과정에서 오류가 발생된 경우.
 				case RUNNING:
 				case CANCELLING:
-					m_result = AsyncResult.failed(cause);
+					m_asyncResult = AsyncResult.failed(cause);
 			    	m_aopState = AsyncState.FAILED;
 			    	m_aopGuard.signalAll();
 					getLogger().info("failed: {}, cause={}", this, cause.toString());
@@ -354,7 +358,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case CANCELLING:
 				case RUNNING:
 				case NOT_STARTED:
-					m_result = AsyncResult.cancelled();
+					m_asyncResult = AsyncResult.cancelled();
 					m_aopState = AsyncState.CANCELLED;
 					m_aopGuard.signalAll();
 					getLogger().info("cancelled: {}", this);
@@ -375,9 +379,41 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     		m_aopGuard.unlock();
     	}
     }
+	
+	public Result<T> getResult() {
+		switch ( m_asyncResult.getState() ) {
+			case COMPLETED:
+				return Result.success(m_asyncResult.getUnchecked());
+			case FAILED:
+				return Result.failure(m_asyncResult.getFailureCause());
+			case CANCELLED:
+				return Result.none();
+			default:
+				throw new IllegalStateException("invalid execution state: " + m_asyncResult.getState());
+		}
+	}
 
 	@Override
 	public Execution<T> whenStarted(Runnable listener) {
+		return _whenStarted(listener, false);
+	}
+	
+	@Override
+	public Execution<T> whenStartedAsync(Runnable listener) {
+		return _whenStarted(listener, true);
+	}
+
+	@Override
+	public Execution<T> whenFinished(Consumer<Result<T>> handler) {
+		return _whenFinished(handler, false);
+	}
+	
+	@Override
+	public Execution<T> whenFinishedAsync(Consumer<Result<T>> handler) {
+		return _whenFinished(handler, true);
+	}
+
+	private Execution<T> _whenStarted(Runnable listener, boolean runAsync) {
 		Utilities.checkNotNullArgument(listener);
 		
 		m_aopGuard.lock();
@@ -385,7 +421,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			switch ( m_aopState ) {
 				case NOT_STARTED:
 				case STARTING:
-					m_startListeners.add(listener);
+					m_startListeners.add(Tuple.of(listener, runAsync));
 					break;
 				default:
 					// 이미 시작된 경우에는 바로 listener를 구동시킨다.
@@ -400,18 +436,17 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     	}
 	}
 
-	@Override
-	public Execution<T> whenFinished(Consumer<AsyncResult<T>> resultConsumer) {
-		Utilities.checkNotNullArgument(resultConsumer);
+	private Execution<T> _whenFinished(Consumer<Result<T>> handler, boolean runAsync) {
+		Utilities.checkNotNullArgument(handler);
 		
 		m_aopGuard.lock();
     	try {
     		// 이미 종료된 경우에는 바로 수행시킨다.
     		if ( isDoneInGuard() ) {
-    			CompletableFuture.runAsync(() -> resultConsumer.accept(m_result));
+    			notifyFinishListenersInGuard();
     		}
     		else {
-				m_finishListeners.add(resultConsumer);
+				m_finishListeners.add(Tuple.of(handler, runAsync));
     		}
 			
 			return this;
@@ -422,10 +457,12 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 	
 	public void dependsOn(Execution<?> exec, T result) {
-		exec.whenStarted(this::notifyStarted);
-		exec.whenCompleted(r -> this.notifyCompleted(result));
-		exec.whenFailed(this::notifyFailed);
-		exec.whenCancelled(this::notifyCancelled);
+		exec.whenStartedAsync(this::notifyStarted);
+		exec.whenFinishedAsync(ret -> {
+			ret.ifSuccessful(r -> this.notifyCompleted(result))
+				.ifFailed(this::notifyFailed)
+				.ifNone(this::notifyCancelled);
+		});
 	}
 	
 	public final void checkCancelled() {
@@ -459,15 +496,34 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	
 	private void notifyStartListeners() {
 		m_aopGuard.run(() -> {
-			if ( m_startListeners.size() > 0 ) {
-				CompletableFuture.runAsync(() -> m_startListeners.forEach(Runnable::run));
+			FStream.from(m_startListeners)
+					.filterNot(t -> t._2)
+					.forEach(t -> t._1.run());
+			
+			List<Runnable> asyncListeners = FStream.from(m_startListeners)
+													.filter(t -> t._2)
+													.map(t -> t._1)
+													.toList();
+			if ( asyncListeners.size() > 0 ) {
+				CompletableFuture.runAsync(() -> asyncListeners.forEach(Runnable::run));
 			}
 		});
 	}
 	
 	private void notifyFinishListenersInGuard() {
-		List<Consumer<AsyncResult<T>>> listeners = Lists.newArrayList(m_finishListeners);
-		CompletableFuture.runAsync(() -> listeners.forEach(c -> c.accept(m_result)));
+		final Result<T> result = getResult();
+		
+		FStream.from(m_finishListeners)
+					.filterNot(t -> t._2)
+					.forEach(t -> t._1.accept(result));
+		
+		List<Consumer<Result<T>>> asyncHandler = FStream.from(m_finishListeners)
+														.filter(t -> t._2)
+														.map(t -> t._1)
+														.toList();
+		if ( asyncHandler.size() > 0 ) {
+			CompletableFuture.runAsync(() -> asyncHandler.forEach(c -> c.accept(result)));
+		}
 	}
 	
 	private static boolean isFinished(AsyncState state) {

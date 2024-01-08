@@ -128,8 +128,8 @@ public class TakeTest {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.take(-1);
 	}
-	
-	@Test
+
+	@Test(expected=IllegalStateException.class)
 	public void test6() throws Exception {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		stream = stream.take(10);

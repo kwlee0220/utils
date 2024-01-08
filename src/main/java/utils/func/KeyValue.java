@@ -49,7 +49,7 @@ public final class KeyValue<K,V> {
 		return mapper.apply(m_key, m_value);
 	}
 	
-	public <S> KeyValue<S,V> mapKey(BiFunction<? super K,? super V,? extends S> mapper) {
+	public <S extends Comparable<S>> KeyValue<S,V> mapKey(BiFunction<? super K,? super V,? extends S> mapper) {
 		return new KeyValue<>(mapper.apply(m_key, m_value), m_value);
 	}
 	

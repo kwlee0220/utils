@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import utils.async.op.AsyncExecutions;
+import utils.func.Result;
 import utils.stream.FStream;
 
 
@@ -30,7 +31,7 @@ public class FoldAsyncTest {
 	private FStream<StartableExecution<Integer>> m_gen3;
 	private final Exception m_error = new Exception();
 	
-	@Mock Consumer<AsyncResult<Integer>> m_doneListener;
+	@Mock Consumer<Result<Integer>> m_doneListener;
 	
 	@Before
 	public void setup() {
@@ -59,51 +60,51 @@ public class FoldAsyncTest {
 	@Test
 	public void test02() throws Exception {
 		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
-		exec.whenFinished(m_doneListener);
+		exec.whenFinishedAsync(m_doneListener);
 		
 		exec.start();
 		exec.waitForFinished();
 		MILLISECONDS.sleep(100);
-		verify(m_doneListener, times(1)).accept(AsyncResult.completed(Integer.valueOf(10)));
+		verify(m_doneListener, times(1)).accept(Result.success(Integer.valueOf(10)));
 	}
 
 	@Test
 	public void test03() throws Exception {
 		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
-		exec.whenFinished(m_doneListener);
+		exec.whenFinishedAsync(m_doneListener);
 		
 		exec.start();
 		Assert.assertEquals(true, exec.waitForFinished(230, TimeUnit.MILLISECONDS).isRunning());
 		
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
-		verify(m_doneListener, times(1)).accept(AsyncResult.cancelled());
+		verify(m_doneListener, times(1)).accept(Result.none());
 	}
 
 	@Test
 	public void test04() throws Exception {
 		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen2, 0, (a,n) -> a+n);
-		exec.whenFinished(m_doneListener);
+		exec.whenFinishedAsync(m_doneListener);
 		
 		exec.start();
 		exec.waitForFinished();
 		
 		Assert.assertEquals(true, exec.isFailed());
-		Assert.assertEquals(m_error, exec.poll().getCause());
+		Assert.assertEquals(m_error, exec.poll().getFailureCause());
 		MILLISECONDS.sleep(50);
-		verify(m_doneListener, times(1)).accept(AsyncResult.failed(m_error));
+		verify(m_doneListener, times(1)).accept(Result.failure(m_error));
 	}
 	
 	@Test
 	public void test05() throws Exception {
 		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen3, 0, (a,n) -> a+n);
-		exec.whenFinished(m_doneListener);
+		exec.whenFinishedAsync(m_doneListener);
 		
 		exec.start();
 		exec.waitForFinished();
 		
 		Assert.assertEquals(true, exec.isCancelled());
 		MILLISECONDS.sleep(50);
-		verify(m_doneListener, times(1)).accept(AsyncResult.cancelled());
+		verify(m_doneListener, times(1)).accept(Result.none());
 	}
 }
