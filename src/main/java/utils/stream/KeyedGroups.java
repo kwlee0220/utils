@@ -155,11 +155,11 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	
 	public <K2> KeyedGroups<K2,V> mapKey(BiFunction<? super K,List<V>,? extends K2> mapper) {
 		return stream().mapKey(mapper)
-						.foldLeft(create(), (groups,kv) -> groups.addAll(kv.key(), kv.value()));
+						.fold(create(), (groups,kv) -> groups.addAll(kv.key(), kv.value()));
 	}
 	
 	public <V2> KeyedGroups<K,V2> mapValue(BiFunction<? super K,? super V,? extends V2> mapper) {
-		return stream().foldLeft(create(), (groups,kv) -> {
+		return stream().fold(create(), (groups,kv) -> {
 			K key = kv.key();
 			Function<? super V,? extends V2> curried = v -> mapper.apply(key, v);
 			return groups.put(key, FStream.from(kv.value())
@@ -169,7 +169,7 @@ public class KeyedGroups<K,V> implements Iterable<KeyValue<K,List<V>>> {
 	}
 	
 	public <V2> KeyedGroups<K,V2> mapValueList(BiFunction<? super K,? super List<V>,? extends List<V2>> mapper) {
-		return stream().foldLeft(create(), (groups,kv) -> {
+		return stream().fold(create(), (groups,kv) -> {
 			K key = kv.key();
 			Function<List<V>,List<V2>> curried = v -> mapper.apply(key, v);
 			return groups.put(key, curried.apply(kv.value()));

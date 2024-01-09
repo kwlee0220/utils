@@ -55,7 +55,7 @@ public class Utilities {
 
 	public static <T> int hashCode(FStream<T> strm) {
 		return strm.map(v -> v.hashCode())
-					.foldLeft(1, (accum,code) -> 31 * accum + code);
+					.fold(1, (accum,code) -> 31 * accum + code);
 	}
 	
 	public static File getCurrentWorkingDir() {

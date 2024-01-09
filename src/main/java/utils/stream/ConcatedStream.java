@@ -11,10 +11,10 @@ import utils.func.Try;
  * @author Kang-Woo Lee (ETRI)
  */
 class ConcatedStream<T> implements FStream<T> {
-	private final FStream<? extends FStream<? extends T>> m_fact;
+	private final FStream<FStream<T>> m_fact;
 	@Nullable private FStream<T> m_current = FStream.empty();	// null이면 end-of-stream됨을 의미함.
 	
-	ConcatedStream(FStream<? extends FStream<? extends T>> fact) {
+	ConcatedStream(FStream<FStream<T>> fact) {
 		Utilities.checkNotNullArgument(fact, "fact is null");
 		
 		m_fact = fact;
@@ -29,6 +29,9 @@ class ConcatedStream<T> implements FStream<T> {
 		
 		m_fact.close();
 	}
+	
+	static class A { }
+	static class B extends A { }
 
 	@Override
 	public FOption<T> next() {
@@ -43,13 +46,13 @@ class ConcatedStream<T> implements FStream<T> {
 			}
 			Try.run(m_current::close);
 			
-			FOption<? extends FStream<? extends T>> nextStream = m_fact.next();
+			FOption<FStream<T>> nextStream = m_fact.next();
 			if ( nextStream.isAbsent() ) {
 				m_current = null;
 				return FOption.empty();
 			}
 			
-			m_current = FStream.narrow(nextStream.get());
+			m_current = nextStream.get();
 		}
 	}
 }

@@ -437,7 +437,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		if ( flag ) {
-			return narrow(mapper.apply(this));
+			return mapper.apply(this);
 		}
 		else {
 			return this;
@@ -522,7 +522,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param mapper	매핑 함수.
 	 * @return	결과 스트림.
 	 */
-	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<? extends V>> mapper) {
+	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<V>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return concat(map(mapper));
@@ -775,6 +775,23 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			}
 		};
 	}
+
+	public default FStream<Tuple<T,Integer>> zipWithIndex(int start) {
+		return zipWith(FStream.generate(start, FStream::INC));
+	}
+	public default FStream<Tuple<T,Integer>> zipWithIndex() {
+		return zipWithIndex(0);
+	}
+
+	public default <S> FStream<Tuple<T,S>> zipWith(FStream<S> other) {
+		return zipWith(other, false);
+	}
+	
+	public default <S> FStream<Tuple<T,S>> zipWith(FStream<S> other, boolean longest) {
+		checkNotNullArgument(other, "zip FStream is null");
+		
+		return new ZippedFStream<>(this, other, longest);
+	}
 	
 	/**
 	 * 인자로 주어진 배열에 포함된 iterable들을 차례대로 순환하는 스트림을 반환한다.
@@ -791,7 +808,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 
 	@SafeVarargs
-	public static <T> FStream<T> concat(FStream<? extends T>... streams) {
+	public static <T> FStream<T> concat(FStream<T>... streams) {
 		checkNotNullArgument(streams, "source streams");
 		return concat(FStream.of(streams));
 	}
@@ -803,7 +820,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param fact	스트림의 스트림 객체.
 	 * @return	{@code FStream} 객체.
 	 */
-	public static <T> FStream<T> concat(FStream<? extends FStream<? extends T>> fact) {
+	public static <T> FStream<T> concat(FStream<FStream<T>> fact) {
 		checkNotNullArgument(fact, "source FStream factory");
 		
 		return new ConcatedStream<>(fact);
@@ -815,7 +832,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param follower	본 스트림에 뒤에 붙일 스트림 객체.
 	 * @return	{@code FStream} 객체.
 	 */
-	public default FStream<T> concatWith(FStream<? extends T> follower) {
+	public default FStream<T> concatWith(FStream<T> follower) {
 		checkNotNullArgument(follower, "follower is null");
 		
 		return concat(FStream.of(this, follower));
@@ -853,6 +870,131 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public static <T> FStream<T> mergeParallel(FStream<? extends FStream<? extends T>> inputStreamFact,
 												int workerCount, @Nullable Executor exector) {
 		return new MergeParallelFStream<>(inputStreamFact, workerCount, exector);
+	}
+	
+	public default FStream<T> reduceLeak(BiFunction<? super T,? super T,? extends T> combiner) {
+		checkNotNullArgument(combiner, "combiner is null");
+		
+		return new ScannedStream<>(this, combiner);
+	}
+	
+	public default T reduce(BiFunction<? super T,? super T,? extends T> reducer) {
+		checkNotNullArgument(reducer, "reducer is null");
+		
+		FOption<T> initial = next();
+		if ( initial.isAbsent() ) {
+			throw new IllegalStateException("FStream is empty");
+		}
+		
+		return fold(initial.get(), (a,t) -> reducer.apply(a, t));
+	}
+	
+	public default <S> FStream<T> foldLeak(S accum,
+											BiFunction<? super S,? super T,? extends Tuple<S,T>> folder) {
+		checkNotNullArgument(folder, "folder is null");
+		
+		return new FoldLeftLeakFStream<S,T>(this, accum, folder);
+	}
+	
+	public default <S> S fold(S accum, BiFunction<? super S,? super T,? extends S> folder) {
+		checkNotNullArgument(folder, "folder is null");
+		
+		try {
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				accum = folder.apply(accum, next.getUnchecked());
+			}
+			
+			return accum;
+		}
+		finally {
+			closeQuietly();
+		}
+	}
+	
+	public default <S> S fold(S accum, S stopper, BiFunction<? super S,? super T,? extends S> folder) {
+		checkNotNullArgument(accum, "accum is null");
+		checkNotNullArgument(folder, "folder is null");
+		
+		try {
+			if ( accum.equals(stopper) ) {
+				return accum;
+			}
+			
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				accum = folder.apply(accum, next.get());
+				if ( accum.equals(stopper) ) {
+					return accum;
+				}
+			}
+			
+			return accum;
+		}
+		finally {
+			closeQuietly();
+		}
+	}
+	
+	public default <S> S collect(S accum, BiConsumer<? super S,? super T> collect) {
+		checkNotNullArgument(accum, "accum is null");
+		checkNotNullArgument(collect, "collect is null");
+		
+		try {
+			FOption<T> next;
+			while ( (next = next()).isPresent() ) {
+				collect.accept(accum, next.get());
+			}
+			
+			return accum;
+		}
+		finally {
+			closeQuietly();
+		}
+	}
+	
+	/**
+	 * 주어진 키에 해당하는 데이터별로 reduce작업을 수행한다.
+	 * <p>
+	 * 수행된 결과는 key별로 {@link Map}에 저장되어 반환된다.
+	 * 
+	 * @param <K>	{@code keyer}를 통해 생성되는 키 타입 클래스.
+	 * @param keyer	입력 데이터에서 키를 뽑아내는 함수.
+	 * @param reducer	reduce 함수.
+	 * @return	키 별로 reduce된 결과를 담은 Map 객체.
+	 */
+	public default <K> Map<K,T> reduceByKey(Function<? super T,? extends K> keyer,
+											BiFunction<? super T,? super T,? extends T> reducer) {
+		checkNotNullArgument(keyer, "keyer is null");
+		checkNotNullArgument(reducer, "reducer is null");
+		
+		return collect(Maps.newHashMap(), (accums,v) ->
+			accums.compute(keyer.apply(v), (k,old) -> (old != null) ? reducer.apply(old, v) : v));
+	}
+	
+	public default <K,S> Map<K,S> foldByKey(Function<? super T,? extends K> keyer,
+											Function<? super K,? extends S> accumInitializer,
+											BiFunction<? super S,? super T,? extends S> folder) {
+		Map<K,S> accumMap = Maps.newHashMap();
+		return collect(accumMap,
+						(accums,v) -> accums.compute(keyer.apply(v),
+													(k,accum) -> {
+														if ( accum != null ) {
+															accum = accumInitializer.apply(k);
+														}
+														return folder.apply(accum, v);
+													})
+		);
+	}
+	
+	public default <K,S> Map<K,S> collectByKey(Function<? super T,? extends K> keyer,
+												Function<? super K,? extends S> initState,
+												BiConsumer<? super S,? super T> collector) {
+		return collect(Maps.newHashMap(),
+						(accums,v) -> {
+							S accum = accums.computeIfAbsent(keyer.apply(v), initState);
+							collector.accept(accum, v);
+						});
 	}
 	
 	
@@ -1085,7 +1227,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default <C extends Collection<? super T>> C toCollection(C coll) {
-		return collectLeft(coll, (l,t) -> l.add(t));
+		return collect(coll, (l,t) -> l.add(t));
 	}
 	
 	public default ArrayList<T> toList() {
@@ -1099,7 +1241,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default <K,V> Map<K,V> toMap(Map<K,V> map,
 										Function<? super T,? extends K> toKey,
 										Function<? super T,? extends V> toValue) {
-		return collectLeft(map, (m,kv) -> m.put(toKey.apply(kv), toValue.apply(kv)));
+		return collect(map, (m,kv) -> m.put(toKey.apply(kv), toValue.apply(kv)));
 	}
 	
 	public default <K,V> Map<K,V> toMap(Function<? super T,? extends K> toKey,
@@ -1133,18 +1275,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	
 	
 	
-	/**
-	 * '? extends T' 타입 원소의 스트림에서 'T' 타입 원소의 스트림으로 변환시킨다.
-	 * 
-	 * @param <T>	생성된 스트림 데이터의 타입
-	 * @param stream	source FStream
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T> FStream<T> narrow(FStream<? extends T> stream) {
-		checkNotNullArgument(stream, "stream is null");
-		
-		return (FStream<T>)stream;
-	}
 	
 	public default <V> FStream<V> cast(Class<? extends V> cls) {
 		checkNotNullArgument(cls, "target class is null");
@@ -1198,140 +1328,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new SplitFStream<>(this, delimiter);
 	}
 	
-	public default FStream<T> reduceLeak(BiFunction<? super T,? super T,? extends T> combiner) {
-		checkNotNullArgument(combiner, "combiner is null");
-		
-		return new ScannedStream<>(this, combiner);
-	}
-	
-	public default T reduce(BiFunction<? super T,? super T,? extends T> reducer) {
-		checkNotNullArgument(reducer, "reducer is null");
-		
-		FOption<T> initial = next();
-		if ( initial.isAbsent() ) {
-			throw new IllegalStateException("FStream is empty");
-		}
-		
-		return foldLeft(initial.get(), (a,t) -> reducer.apply(a, t));
-	}
-	
-	public default <S> FStream<T> foldLeftLeak(S accum,
-											BiFunction<? super S,? super T,? extends Tuple<S,T>> folder) {
-		checkNotNullArgument(folder, "folder is null");
-		
-		return new FoldLeftLeakFStream<S,T>(this, accum, folder);
-	}
-	
-	public default <S> S foldLeft(S accum, BiFunction<? super S,? super T,? extends S> folder) {
-		checkNotNullArgument(folder, "folder is null");
-		
-		try {
-			FOption<T> next;
-			while ( (next = next()).isPresent() ) {
-				accum = folder.apply(accum, next.getUnchecked());
-			}
-			
-			return accum;
-		}
-		finally {
-			closeQuietly();
-		}
-	}
-	
-	public default <S> S foldLeft(S accum, S stopper,
-									BiFunction<? super S,? super T,? extends S> folder) {
-		checkNotNullArgument(accum, "accum is null");
-		checkNotNullArgument(folder, "folder is null");
-		
-		try {
-			if ( accum.equals(stopper) ) {
-				return accum;
-			}
-			
-			FOption<T> next;
-			while ( (next = next()).isPresent() ) {
-				accum = folder.apply(accum, next.get());
-				if ( accum.equals(stopper) ) {
-					return accum;
-				}
-			}
-			
-			return accum;
-		}
-		finally {
-			closeQuietly();
-		}
-	}
-	
-	/**
-	 * 주어진 키에 해당하는 데이터별로 reduce작업을 수행한다.
-	 * <p>
-	 * 수행된 결과는 key별로 {@link Map}에 저장되어 반환된다.
-	 * 
-	 * @param <K>	{@code keyer}를 통해 생성되는 키 타입 클래스.
-	 * @param keyer	입력 데이터에서 키를 뽑아내는 함수.
-	 * @param reducer	reduce 함수.
-	 * @return	키 별로 reduce된 결과를 담은 Map 객체.
-	 */
-	public default <K> Map<K,T> reduceByKey(Function<? super T,? extends K> keyer,
-											BiFunction<? super T,? super T,? extends T> reducer) {
-		checkNotNullArgument(keyer, "keyer is null");
-		checkNotNullArgument(reducer, "reducer is null");
-		
-		return collectLeft(Maps.newHashMap(), (accums,v) ->
-			accums.compute(keyer.apply(v), (k,old) -> (old != null) ? reducer.apply(old, v) : v));
-	}
-	
-	public default <K,S> Map<K,S> foldLeftByKey(Function<? super T,? extends K> keyer,
-												Function<? super K,? extends S> accumInitializer,
-												BiFunction<? super S,? super T,? extends S> folder) {
-		return collectLeft(Maps.newHashMap(),
-						(accums,v) -> accums.compute(keyer.apply(v),
-													(k,accum) -> {
-														if ( accum != null ) {
-															accum = accumInitializer.apply(k);
-														}
-														return folder.apply(accum, v);
-													})
-		);
-	}
-	
-	public default <S> S collectLeft(S accum, BiConsumer<? super S,? super T> collect) {
-		checkNotNullArgument(accum, "accum is null");
-		checkNotNullArgument(collect, "collect is null");
-		
-		try {
-			FOption<T> next;
-			while ( (next = next()).isPresent() ) {
-				collect.accept(accum, next.get());
-			}
-			
-			return accum;
-		}
-		finally {
-			closeQuietly();
-		}
-	}
-	
 	public default <S> S foldRight(S accum, BiFunction<? super T,? super S,? extends S> folder) {
 		return FLists.foldRight(toList(), accum, folder);
-	}
-
-	public default FStream<Tuple<T,Integer>> zipWithIndex(int start) {
-		return zipWith(FStream.generate(start, FStream::INC));
-	}
-	public default FStream<Tuple<T,Integer>> zipWithIndex() {
-		return zipWithIndex(0);
-	}
-
-	public default <S> FStream<Tuple<T,S>> zipWith(FStream<? extends S> other) {
-		return zipWith(other, false);
-	}
-	
-	public default <S> FStream<Tuple<T,S>> zipWith(FStream<? extends S> other, boolean longest) {
-		checkNotNullArgument(other, "zip FStream is null");
-		
-		return new ZippedFStream<>(this, other, longest);
 	}
 	
 	
@@ -1390,36 +1388,14 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new FStreamAdaptor<>(map(mapper));
 	}
 	
-	public default <K> FStream<KeyedFStream<K,T>> groupBy(Function<? super T,? extends K> grouper) {
-		return new GroupByStream<>(this, grouper);
-	}
-	
 	public default <K> KeyedGroups<K,T> groupByKey(Function<? super T,? extends K> keyer) {
-		return collectLeft(KeyedGroups.create(), (g,t) -> g.add(keyer.apply(t), t));
+		return collect(KeyedGroups.create(), (g,t) -> g.add(keyer.apply(t), t));
 	}
 	
 	public default <K,V> KeyedGroups<K,V> groupByKey(Function<? super T,? extends K> keySelector,
 												Function<? super T,? extends V> valueSelector) {
-		return collectLeft(KeyedGroups.create(),
+		return collect(KeyedGroups.create(),
 							(g,t) -> g.add(keySelector.apply(t), valueSelector.apply(t)));
-	}
-	
-	public default <K extends Comparable<K>,V>
-	KeyedGroups<K,V> groupByKeyValue(Function<? super T,KeyValue<K,V>> selector) {
-		return collectLeft(KeyedGroups.create(),
-							(groups,t) -> {
-								KeyValue<K,V> kv = selector.apply(t);
-								groups.add(kv.key(), kv.value());
-							});
-	}
-	
-	public default <K,V> KeyedGroups<K,V> multiGroupBy(Function<? super T,FStream<K>> keysSelector,
-													Function<? super T,FStream<V>> valuesSelector) {
-		return flatMap(t -> keysSelector.apply(t).map(k -> Tuple.of(k,t)))
-				.collectLeft(KeyedGroups.create(), (groups,t) -> {
-					valuesSelector.apply(t._2)
-								.forEach(v -> groups.add(t._1,v));
-				});
 	}
 	
 	public default FStream<T> sort(Comparator<? super T> cmp) {
@@ -1622,7 +1598,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	
 	public default String join(String delim, String begin, String end) {
 		return zipWithIndex()
-				.foldLeft(new StringBuilder(begin),
+				.fold(new StringBuilder(begin),
 							(b,t) -> (t._2 > 0) ? b.append(delim).append(t._1.toString())
 												: b.append(t._1.toString()))
 					.append(end)

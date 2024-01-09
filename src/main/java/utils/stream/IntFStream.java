@@ -43,11 +43,11 @@ public interface IntFStream extends FStream<Integer> {
 	}
 	
 	public default long sum() {
-		return foldLeft(0L, (s,v) -> s+v);
+		return fold(0L, (s,v) -> s+v);
 	}
 	
 	public default FOption<Double> average() {
-		Tuple<Long,Long> state = foldLeft(Tuple.of(0L,0L),
+		Tuple<Long,Long> state = fold(Tuple.of(0L,0L),
 											(a,v) -> Tuple.of(a._1 + v, a._2 + 1));
 		return (state._2 > 0) ? FOption.of(state._1 / (double)state._2)
 								: FOption.empty();

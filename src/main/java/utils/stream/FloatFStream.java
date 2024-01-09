@@ -46,7 +46,7 @@ public interface FloatFStream extends FStream<Float> {
 	}
 	
 	public default FOption<Float> average() {
-		Tuple<Double,Long> state = foldLeft(Tuple.of(0d,0L),
+		Tuple<Double,Long> state = fold(Tuple.of(0d,0L),
 											(a,v) -> Tuple.of(a._1 + v, a._2 + 1));
 		return (state._2 > 0) ? FOption.of(state._1 / state._2).map(Double::floatValue)
 								: FOption.empty();

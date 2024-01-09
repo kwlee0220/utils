@@ -114,7 +114,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return downcast(map(kv -> KeyValue.of(kv.key(), mapper.apply(kv.value()))));
 	}
 	
-	public default <T> FStream<T> flatMap(BiFunction<? super K,? super V,FStream<? extends T>> mapper) {
+	public default <T> FStream<T> flatMap(BiFunction<? super K,? super V,FStream<T>> mapper) {
 		Utilities.checkNotNullArgument(mapper, "mapper is null");
 		
 		return flatMap(kv -> mapper.apply(kv.key(), kv.value()));
@@ -145,7 +145,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 	
 	public default KeyedGroups<K,V> groupBy() {
-		return foldLeft(KeyedGroups.create(), (groups,kv) -> groups.add(kv.key(), kv.value()));
+		return fold(KeyedGroups.create(), (groups,kv) -> groups.add(kv.key(), kv.value()));
 	}
 	
 	public default KVFStream<K,List<V>> findBiggestGroupWithinWindow(int windowSize) {
@@ -191,7 +191,7 @@ public interface KVFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 	
 	public default <T extends Map<K,V>> T toMap(T map) {
-		return collectLeft(map, (accum,kv) -> accum.put(kv.key(), kv.value()));
+		return collect(map, (accum,kv) -> accum.put(kv.key(), kv.value()));
 	}
 	
 	public default HashMap<K,V> toMap() {
