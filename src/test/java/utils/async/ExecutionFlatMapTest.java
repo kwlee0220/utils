@@ -343,20 +343,19 @@ public class ExecutionFlatMapTest {
 		assertEquals(AsyncState.NOT_STARTED, comp.getState());
 		
 		ret = m_leader.notifyStarted();
-		sleep(1000);
+		sleep(200);
 		assertEquals(true, ret);
 		assertEquals(AsyncState.RUNNING, comp.getState());
 		assertEquals(AsyncState.NOT_STARTED, follower.getState());
 		
 		follower.notifyStarted();
 		ret = m_leader.notifyCompleted("abc");
-		sleep(1000);
+		sleep(100);
 		assertEquals(true, ret);
 		assertEquals(AsyncState.COMPLETED, m_leader.getState());
 		assertEquals(AsyncState.RUNNING, follower.getState());
 		
 		ret = follower.notifyCompleted(3);
-		sleep(100);
 		assertEquals(true, ret);
 		assertEquals(AsyncState.COMPLETED, comp.getState());
 	}

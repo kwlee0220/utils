@@ -29,7 +29,7 @@ public class StreamTest {
 	@Test(timeout = 1000)
 	public void test1() throws Exception {
 		Stream<Integer> jstrm = Stream.iterate(0, seed -> {
-			try { Thread.sleep(100); } catch ( InterruptedException e ) { }
+			try { Thread.sleep(50); } catch ( InterruptedException e ) { }
 			return seed + 1;
 		});
 		FStream<Integer> strm = FStream.from(jstrm);

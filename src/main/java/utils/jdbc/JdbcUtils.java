@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.stream.Stream;
 
+import net.sf.cglib.proxy.MethodProxy;
 import utils.CallHandler;
 import utils.ProxyUtils;
 import utils.Utilities;
@@ -13,8 +14,6 @@ import utils.func.CheckedFunctionX;
 import utils.func.Try;
 import utils.io.IOUtils;
 import utils.stream.FStream;
-
-import net.sf.cglib.proxy.MethodProxy;
 
 
 /**
@@ -58,6 +57,6 @@ public class JdbcUtils {
 			}
 		};
 		
-		return ProxyUtils.replaceAction(rset.getClass().getClassLoader(), rset, replacer);
+		return (ResultSet)ProxyUtils.replaceAction(rset.getClass().getClassLoader(), rset, replacer);
 	}
 }

@@ -23,7 +23,6 @@ public class ConcatTest {
 	FStream<Integer> m_strm1;
 	FStream<Integer> m_strm2;
 	
-	@SuppressWarnings("unchecked")
 	@Before
 	public void setup() {
 		m_strm1 = FStream.of(1, 2);
@@ -74,7 +73,7 @@ public class ConcatTest {
 	public void test5() throws Exception {
 		FStream<Integer> stream1 = FStream.from(Lists.newArrayList(1, 2, 4));
 		FStream<Integer> stream2 = null;
-		FStream<Integer> stream = stream1.concatWith(stream2);
+		stream1.concatWith(stream2);
 	}
 	
 	@Test

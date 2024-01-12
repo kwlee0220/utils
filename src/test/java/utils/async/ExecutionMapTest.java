@@ -1,13 +1,12 @@
 package utils.async;
 
 
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.function.Function;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -54,7 +53,7 @@ public class ExecutionMapTest {
 	@Test
 	public void test02() throws Exception {
 		Execution<Integer> exec = m_leader.map(new Action());
-		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
@@ -70,7 +69,7 @@ public class ExecutionMapTest {
 	@Test
 	public void test03() throws Exception {
 		Execution<Integer> exec = m_leader.map(new Action());
-		assertThat(exec.getState(), is(AsyncState.NOT_STARTED));
+		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
@@ -80,13 +79,6 @@ public class ExecutionMapTest {
 		sleep(100);
 		assertTrue(m_leader.isCancelled());
 		assertTrue(exec.isCancelled());
-	}
-	
-	private static class FailureAction implements Function<String,Integer> {
-		@Override
-		public Integer apply(String str) {
-			throw s_cause;
-		}
 	}
 	
 	private void sleep(long millis) {

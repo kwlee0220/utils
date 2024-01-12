@@ -159,7 +159,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	}
 	
 	private void onTargetCancelled() {
-		int istate = m_guard.get(() -> {
+		m_guard.get(() -> {
 			if ( m_istate == STATE_RUNNING ) {
 				m_istate = STATE_TARGET_CANCEL;
 			}

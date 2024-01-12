@@ -7,8 +7,6 @@ import static org.mockito.Mockito.verify;
 import static utils.async.op.AsyncExecutions.idle;
 
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -44,8 +42,6 @@ public class SequentialAsyncTest {
 	
 	@Before
 	public void setup() {
-		ScheduledExecutorService executors = Executors.newScheduledThreadPool(4);
-		
 		m_execList = FStream.range(0, 5)
 							.map(idx -> idle(idx, 100, MILLISECONDS))
 							.toList();

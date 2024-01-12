@@ -1,8 +1,6 @@
 package utils.async;
 
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.After;
@@ -21,9 +19,6 @@ import utils.func.Unchecked;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class TimerTest {
-	private final ScheduledExecutorService m_scheduler = Executors.newScheduledThreadPool(4);
-	private final Exception m_error = new Exception();
-	
 	Timer m_timer;
 	
 	@Before

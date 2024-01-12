@@ -1,8 +1,6 @@
 package utils.async;
 
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -22,7 +20,6 @@ import utils.async.op.AsyncExecutions;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class BackgroundedAsyncTest {
-	private final ScheduledExecutorService m_scheduler = Executors.newScheduledThreadPool(4);
 	private final Exception m_error = new Exception();
 	
 	@Mock Consumer<AsyncResult<Integer>> m_doneListener;

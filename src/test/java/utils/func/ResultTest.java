@@ -86,7 +86,6 @@ public class ResultTest {
 	}
 	@Test
 	public void testGetOrElseThrow2() throws Exception {
-		IllegalStateException ex = new IllegalStateException();
 		Function<Throwable,ExecutionException> prvd = (exc) -> new ExecutionException(exc);
 		
 		try {

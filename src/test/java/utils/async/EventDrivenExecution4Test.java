@@ -1,8 +1,6 @@
 package utils.async;
 
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -11,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import java.util.function.Consumer;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,21 +45,21 @@ public class EventDrivenExecution4Test {
 	@Test
 	public void test_CANCELLING_01() throws Exception {
 		boolean ret = m_exec.notifyStarting();
-		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(AsyncState.CANCELLING));
+		Assert.assertEquals(false, ret);
+		Assert.assertEquals(AsyncState.CANCELLING, m_exec.getState());
 	}
 
 	@Test
 	public void test_CANCELLING_02() throws Exception {
 		boolean ret = m_exec.notifyStarted();
-		assertThat(ret, is(false));
+		Assert.assertEquals(false, ret);
 	}
 
 	@Test
 	public void test_CANCELLING_03() throws Exception {
 		boolean ret = m_exec.notifyCancelling();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.CANCELLING));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.CANCELLING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -72,8 +71,8 @@ public class EventDrivenExecution4Test {
 	@Test
 	public void test_CANCELLING_04() throws Exception {
 		boolean ret = m_exec.notifyCancelled();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.CANCELLED, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -85,15 +84,15 @@ public class EventDrivenExecution4Test {
 	@Test
 	public void test_CANCELLING_05() throws Exception {
 		boolean ret = m_exec.notifyCompleted("ok");
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.COMPLETED));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.COMPLETED, m_exec.getState());
 	}
 
 	@Test
 	public void test_CANCELLING_06() throws Exception {
 		boolean ret = m_exec.notifyFailed(m_cause);
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.FAILED));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.FAILED, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();

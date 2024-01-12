@@ -35,12 +35,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
+import net.sf.cglib.proxy.MethodProxy;
 import utils.func.KeyValue;
 import utils.func.Try;
 import utils.func.Tuple;
 import utils.stream.FStream;
-
-import net.sf.cglib.proxy.MethodProxy;
 
 /**
  *
@@ -341,6 +340,7 @@ public class Utilities {
 		ctor.setAccessible(true);
 		return (T)ctor.newInstance(new Object[0]);
 	}
+	@SuppressWarnings("unchecked")
 	public static <T> T callPrivateConstructor(Class<T> cls, String arg)
 		throws NoSuchMethodException, SecurityException, InstantiationException,
 			IllegalAccessException, IllegalArgumentException, InvocationTargetException {
@@ -420,6 +420,7 @@ public class Utilities {
 		return null;
 	}
 	
+	@SafeVarargs
 	public static <T> T[] concat(T[] first, T... second) {
 		@SuppressWarnings("unchecked")
 		T[] expanded = (T[])Array.newInstance(second[0].getClass(), first.length + second.length);

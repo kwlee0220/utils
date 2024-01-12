@@ -33,6 +33,7 @@ import utils.Initializable;
  * @author Kang-Woo Lee (ETRI)
  */
 public class JFrameConvas implements ImageView, Initializable {
+	@SuppressWarnings("unused")
 	private static final Logger s_logger = LoggerFactory.getLogger("VIEWER");
 	private static final String DEFAULT_TITLE = "Image View";
 	

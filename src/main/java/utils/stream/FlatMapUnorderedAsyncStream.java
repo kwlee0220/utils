@@ -76,32 +76,4 @@ class FlatMapUnorderedAsyncStream<S,T> extends AbstractFStream<T> {
 			m_guard.unlock();
 		}
 	}
-	
-	private static class FlatMapDataSupplier<S,T> extends AbstractFStream<T> {
-		private final S m_input;
-		private final Function<? super S, ? extends FStream<T>> m_mapper;
-		private FStream<T> m_outStream;
-		
-		FlatMapDataSupplier(S input, Function<? super S, ? extends FStream<T>> mapper) {
-			m_input = input;
-			m_mapper = mapper;
-		}
-		
-		@Override
-		protected void initialize() {
-			m_outStream = m_mapper.apply(m_input);
-		}
-
-		@Override
-		protected void closeInGuard() throws Exception {
-			if ( m_outStream != null ) {
-				m_outStream.close();
-			}
-		}
-
-		@Override
-		protected FOption<T> nextInGuard() {
-			return m_outStream.next();
-		}
-	}
 }

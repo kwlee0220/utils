@@ -1,8 +1,6 @@
 package utils.async;
 
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -11,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import java.util.function.Consumer;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -45,8 +44,8 @@ public class EventDrivenExecution0Test {
 	@Test
 	public void test_NOT_STARTED_01() throws Exception {
 		boolean ret = m_exec.notifyStarting();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.STARTING));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.STARTING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();
@@ -57,8 +56,8 @@ public class EventDrivenExecution0Test {
 	@Test
 	public void test_NOT_STARTED_02() throws Exception {
 		boolean ret = m_exec.notifyStarted();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.RUNNING));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.RUNNING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -70,8 +69,8 @@ public class EventDrivenExecution0Test {
 	@Test
 	public void test_NOT_STARTED_03() throws Exception {
 		boolean ret = m_exec.notifyCancelling();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.CANCELLING));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.CANCELLING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();
@@ -83,8 +82,8 @@ public class EventDrivenExecution0Test {
 	@Test
 	public void test_NOT_STARTED_04() throws Exception {
 		boolean ret = m_exec.notifyCancelled();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.CANCELLED, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();

@@ -99,6 +99,7 @@ public interface XmlSerializable {
 	 * @param topElm	변환시킬 XML 문서의 최상위 FluentElement
 	 * @return	'topElm' 에 해당하는 객체
 	 */
+	@SuppressWarnings("unchecked")
 	public static Object loadXmlSerializable(FluentElement topElm) {
 		String clsName = topElm.attr("class")
 								.getOrThrow(()->new XmlSerializationException(

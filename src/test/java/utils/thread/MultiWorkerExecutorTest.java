@@ -60,7 +60,6 @@ public class MultiWorkerExecutorTest {
 		Thread.sleep(200);
 		m_executor.submit(() -> { MILLISECONDS.sleep(100); return 2; });
 		
-		FOption<Try<Integer>> ret;
 		Try<Integer> trial;
 		
 		trial = m_executor.next().get();

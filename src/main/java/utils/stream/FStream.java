@@ -1451,7 +1451,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
     public default FStream<T> takeTopK(int k) {
         return new TopKPickedFStream<>(this, k, (t1,t2) -> ((Comparable)t1).compareTo(t2));
     }
-    public default FStream<T> takeTopK(int k, boolean reverse) {
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+	public default FStream<T> takeTopK(int k, boolean reverse) {
     	Comparator<? super T> cmptor = (reverse)
     									? (t1,t2) -> ((Comparable)t2).compareTo(t1)
     									: (t1,t2) -> ((Comparable)t1).compareTo(t2); 

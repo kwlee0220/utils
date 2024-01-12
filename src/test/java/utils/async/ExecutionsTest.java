@@ -28,7 +28,6 @@ public class ExecutionsTest {
 	private boolean m_completed;
 	private boolean m_failed;
 	private boolean m_cancelled;
-	private String m_state;
 	private Object m_result;
 	private Throwable m_cause;
 	
@@ -39,7 +38,6 @@ public class ExecutionsTest {
 		m_completed = false;
 		m_failed = false;
 		m_cancelled = false;
-		m_state = "not_started";
 		m_result = null;
 		m_cause = null;
 	}
@@ -107,7 +105,7 @@ public class ExecutionsTest {
 		Unchecked.runOrRTE(() -> Thread.sleep(700));
 		Assert.assertEquals(true, exec.isCompleted() && exec.isDone());
 		Assert.assertTrue(m_finished && m_completed);
-		Assert.assertEquals(null, exec.get());
+		Assert.assertEquals(m_result, exec.get());
 	}
 	
 	@Test
@@ -134,7 +132,10 @@ public class ExecutionsTest {
 			exec.get();
 			Assert.fail();
 		}
-		catch ( ExecutionException expected ) { }
+		catch ( ExecutionException expected ) {
+			Assert.assertTrue(expected.getCause() instanceof IllegalStateException);
+			Assert.assertTrue(m_cause instanceof IllegalStateException);
+		}
 	}
 	
 	@Test

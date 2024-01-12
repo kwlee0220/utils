@@ -1,8 +1,6 @@
 package utils.stream;
 
 
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -87,7 +85,7 @@ public class SuppliableStreamTest {
 		watch.stop();
 		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(1), r.get());
-		Assert.assertThat(watch.getElapsedInMillis(), greaterThanOrEqualTo(300L));
+		Assert.assertTrue(watch.getElapsedInMillis() >= 300L);
 	}
 	
 	@Test
@@ -135,7 +133,7 @@ public class SuppliableStreamTest {
 		watch.stop();
 		Assert.assertEquals(true, r.isPresent());
 		Assert.assertEquals(Integer.valueOf(2), r.get());
-		Assert.assertThat(watch.getElapsedInMillis(), greaterThanOrEqualTo(300L));
+		Assert.assertTrue(watch.getElapsedInMillis() >= 300L);
 	}
 	
 	@Test
@@ -161,7 +159,7 @@ public class SuppliableStreamTest {
 		r = m_stream.next();
 		watch.stop();
 		Assert.assertEquals(true, r.isAbsent());
-		Assert.assertThat(watch.getElapsedInMillis(), greaterThanOrEqualTo(300L));
+		Assert.assertTrue(watch.getElapsedInMillis() >= 300L);
 	}
 
 	@Test(expected=RuntimeException.class)
@@ -208,13 +206,12 @@ public class SuppliableStreamTest {
 		}
 		catch ( Exception e ) {
 			watch.stop();
-			Assert.assertThat(watch.getElapsedInMillis(), greaterThanOrEqualTo(300L));
+			Assert.assertTrue(watch.getElapsedInMillis() >= 300L);
 		}
 	}
 
 	@Test
 	public void test9() throws Exception {
-		FOption<Integer> r;
 		Holder<Integer> state = Holder.of(0);
 
 		CompletableFuture.runAsync(() -> {
@@ -261,8 +258,6 @@ public class SuppliableStreamTest {
 
 	@Test
 	public void test10() throws Exception {
-		FOption<Integer> r;
-
 		CompletableFuture.runAsync(() -> {
 			try {
 				m_stream.next();
@@ -283,7 +278,7 @@ public class SuppliableStreamTest {
 		}
 		catch ( Exception e ) {
 			watch.stop();
-			Assert.assertThat(watch.getElapsedInMillis(), greaterThanOrEqualTo(300L));
+			Assert.assertTrue(watch.getElapsedInMillis() >= 300L);
 			Assert.assertTrue(e instanceof IllegalStateException);
 		}
 	}

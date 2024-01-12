@@ -1,11 +1,9 @@
 package utils.async;
 
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-
 import java.util.function.Consumer;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,41 +39,41 @@ public class EventDrivenExecution6Test {
 	@Test
 	public void test_FAILED_01() throws Exception {
 		boolean ret = m_exec.notifyStarting();
-		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(AsyncState.FAILED));
+		Assert.assertEquals(false, ret);
+		Assert.assertEquals(AsyncState.FAILED, m_exec.getState());
 	}
 
 	@Test
 	public void test_FAILED_02() throws Exception {
 		boolean ret = m_exec.notifyStarted();
-		assertThat(ret, is(false));
+		Assert.assertEquals(false, ret);
 	}
 
 	@Test
 	public void test_FAILED_03() throws Exception {
 		boolean ret = m_exec.notifyCancelling();
-		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(AsyncState.FAILED));
+		Assert.assertEquals(false, ret);
+		Assert.assertEquals(AsyncState.FAILED, m_exec.getState());
 	}
 
 	@Test
 	public void test_FAILED_04() throws Exception {
 		boolean ret = m_exec.notifyCancelled();
-		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(AsyncState.FAILED));
+		Assert.assertEquals(false, ret);
+		Assert.assertEquals(AsyncState.FAILED, m_exec.getState());
 	}
 
 	@Test
 	public void test_FAILED_05() throws Exception {
 		boolean ret = m_exec.notifyCompleted("ok");
-		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(AsyncState.FAILED));
+		Assert.assertEquals(false, ret);
+		Assert.assertEquals(AsyncState.FAILED, m_exec.getState());
 	}
 
 	@Test
 	public void test_FAILED_06() throws Exception {
 		boolean ret = m_exec.notifyFailed(m_cause);
-		assertThat(ret, is(false));
-		assertThat(m_exec.getState(), is(AsyncState.FAILED));
+		Assert.assertEquals(false, ret);
+		Assert.assertEquals(AsyncState.FAILED, m_exec.getState());
 	}
 }

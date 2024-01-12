@@ -41,7 +41,7 @@ public final class Indexed<T> {
 			return false;
 		}
 		
-		Indexed<T> other = (Indexed)obj;
+		Indexed<?> other = (Indexed<?>)obj;
 		return m_index == other.m_index && m_data.equals(other.m_data);
 	}
 	

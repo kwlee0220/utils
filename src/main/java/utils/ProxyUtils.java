@@ -26,6 +26,7 @@ public final class ProxyUtils {
 		throw new AssertionError("Should not be invoked!!: class=" + ProxyUtils.class.getName());
 	}
 
+	@SafeVarargs
 	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(ClassLoader loader, T obj, CallHandler<T>... handlers) {
 		checkNotNullArgument(loader, "ClassLoader is null");

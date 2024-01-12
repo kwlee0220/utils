@@ -73,6 +73,7 @@ public final class Tuple<T1,T2> implements Serializable, Comparable<Tuple<T1,T2>
 		return Objects.hash(_1, _2);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public int compareTo(Tuple<T1, T2> other) {
 		int cmp = ((Comparable<T1>)_1).compareTo(other._1);

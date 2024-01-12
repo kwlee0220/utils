@@ -5,7 +5,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 
 import org.junit.Assert;
@@ -14,8 +13,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-
-import utils.func.Try;
 
 
 /**
@@ -26,17 +23,6 @@ import utils.func.Try;
 public class DependOnTest {
 	private EventDrivenExecution<String> m_exec;
 	private EventDrivenExecution<String> m_dep = new EventDrivenExecution<>();
-	private final Consumer<Try<String>> m_handler = new Consumer<Try<String>>() {
-		@Override
-		public void accept(Try<String> res) {
-			res.ifSuccessful(m_onCompleted)
-				.ifFailed(ex -> {
-					if ( ex instanceof CancellationException ) {
-						m_onCancelled.run();
-					}
-				});
-		}
-	};
 	@Mock Runnable m_onStarted;
 	@Mock Runnable m_onCancelled;
 	@Mock Consumer<String> m_onCompleted;

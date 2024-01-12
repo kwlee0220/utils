@@ -71,13 +71,11 @@ public class FlatMapTest {
 		strmList.add(FStream.from(Lists.newArrayList(0, 1, 2)));
 		
 		FStream<Integer> strm = FStream.of(0);
-		FStream<Integer> stream = strm.flatMap(null);
+		strm.flatMap(null);
 	}
 	
 	@Test
 	public void test4() throws Exception {
-		List<FStream<Integer>> strmList = Lists.newArrayList();
-		
 		FStream<Integer> strm = FStream.of(0, 1, 2, 3);
 		FStream<Integer> stream = strm.flatMapNullable(i -> i % 2 == 0 ? i : null);
 		

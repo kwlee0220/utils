@@ -1,8 +1,6 @@
 package utils.async;
 
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -12,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,8 +47,8 @@ public class EventDrivenExecutionTest1 {
 	@Test
 	public void test_STARTING_01() throws Exception {
 		boolean ret = m_exec.notifyStarting();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.STARTING));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.STARTING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();
@@ -61,8 +60,8 @@ public class EventDrivenExecutionTest1 {
 	@Test
 	public void test_STARTING_02() throws Exception {
 		boolean ret = m_exec.notifyStarted();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.RUNNING));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.RUNNING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -73,21 +72,21 @@ public class EventDrivenExecutionTest1 {
 
 	@Test
 	public void test_STARTING_03() throws Exception {
-		assertThat(m_exec.getState(), is(AsyncState.STARTING));
+		Assert.assertEquals(AsyncState.STARTING, m_exec.getState());
 		
 		CompletableFuture.runAsync(() -> {
 			try {
 				Thread.sleep(500);
-				assertThat(m_tag, is(0));
+				Assert.assertEquals(0, m_tag);
 				m_tag = 1;
 				m_exec.notifyStarted();
 			}
 			catch ( InterruptedException e ) { }
 		});
-		assertThat(m_tag, is(0));
-		assertThat(m_exec.notifyCancelling(), is(true));
-		assertThat(m_tag, is(1));
-		assertThat(m_exec.getState(), is(AsyncState.CANCELLING));
+		Assert.assertEquals(0, m_tag);
+		Assert.assertEquals(true, m_exec.notifyCancelling());
+		Assert.assertEquals(1, m_tag);
+		Assert.assertEquals(AsyncState.CANCELLING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -100,16 +99,16 @@ public class EventDrivenExecutionTest1 {
 		CompletableFuture.runAsync(() -> {
 			try {
 				Thread.sleep(500);
-				assertThat(m_tag, is(0));
+				Assert.assertEquals(0, m_tag);
 				m_tag = 1;
 				m_exec.notifyStarted();
 			}
 			catch ( InterruptedException e ) { }
 		});
-		assertThat(m_tag, is(0));
-		assertThat(m_exec.notifyCancelled(), is(true));
-		assertThat(m_tag, is(1));
-		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
+		Assert.assertEquals(0, m_tag);
+		Assert.assertEquals(true, m_exec.notifyCancelled());
+		Assert.assertEquals(1, m_tag);
+		Assert.assertEquals(AsyncState.CANCELLED, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -125,8 +124,8 @@ public class EventDrivenExecutionTest1 {
 	@Test
 	public void test_STARTING_06() throws Exception {
 		boolean ret = m_exec.notifyFailed(m_cause);
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.FAILED));
+		Assert.assertEquals(true, ret);
+		Assert.assertEquals(AsyncState.FAILED, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();

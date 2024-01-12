@@ -1,8 +1,7 @@
 package utils.async;
 
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -66,8 +65,8 @@ public class EventDrivenExecution2Test {
 	public void test_RUNNING_03() throws Exception {
 		m_exec.notifyStarted();
 		boolean ret = m_exec.notifyCancelling();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.CANCELLING));
+		assertEquals(true, ret);
+		assertEquals(AsyncState.CANCELLING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -80,8 +79,8 @@ public class EventDrivenExecution2Test {
 	public void test_RUNNING_04() throws Exception {
 		m_exec.notifyStarted();
 		boolean ret = m_exec.notifyCancelled();
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.CANCELLED));
+		assertEquals(true, ret);
+		assertEquals(AsyncState.CANCELLED, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -94,7 +93,7 @@ public class EventDrivenExecution2Test {
 	public void test_RUNNING_05() throws Exception {
 		m_exec.notifyStarted();
 		m_exec.notifyCompleted("ok");
-		assertThat(m_exec.getState(), is(AsyncState.COMPLETED));
+		assertEquals(AsyncState.COMPLETED, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -107,8 +106,8 @@ public class EventDrivenExecution2Test {
 	public void test_RUNNING_06() throws Exception {
 		m_exec.notifyStarted();
 		boolean ret = m_exec.notifyFailed(m_cause);
-		assertThat(ret, is(true));
-		assertThat(m_exec.getState(), is(AsyncState.FAILED));
+		assertEquals(true, ret);
+		assertEquals(AsyncState.FAILED, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
