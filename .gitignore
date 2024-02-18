@@ -19,4 +19,3 @@ hs_err_pid*
 /.gradle/
 /.settings/
 /bin/
-/test_classes/
