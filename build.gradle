@@ -1,4 +1,7 @@
-apply plugin: 'java-library'
+plugins {
+	id 'java-library'
+	id 'eclipse'
+}
 
 group = 'etri'
 version = '24.01.17'
@@ -11,8 +14,8 @@ ext {
 	slf4j_version = '1.7.32'
 	guava_version = '30.1.1-jre'
 	rxjava3_version = '3.1.8'
-	picocli_version = '3.9.6'
-//	picocli_version = '4.6.2'
+//	picocli_version = '3.9.6'
+	picocli_version = '4.6.2'
 	
 	cglib_version = '3.3.0'
 	commons_io_version = '2.11.0'
@@ -41,7 +44,6 @@ dependencies {
 	
 	testImplementation "junit:junit:${junit_version}"
 	testImplementation "org.mockito:mockito-core:${mockito_version}"
-	testImplementation "org.hamcrest:hamcrest-all:${hamcrest_version}"
 }
 
 task sourceJar(type: Jar) {
@@ -65,52 +67,3 @@ artifacts {
 	archives javadocJar
 }
 
-apply plugin: 'maven-publish'
-publishing {
-	publications {
-		commonGrpc(MavenPublication) {
-			from components.java
-			
-			artifact sourceJar
-			artifact javadocJar
-		}
-	}
-}
-
-apply plugin: 'eclipse'
-eclipse {
-	classpath {
-		file {
-			withXml {
-				def node = it.asNode()
-				node.appendNode('classpathentry', [kind: 'output', path: 'classes'])
-			}
-			
-			whenMerged { cp ->
-				Map entryByPath = cp.entries.groupBy { entry -> entry.path }
-				entryByPath.each { key, values ->
-					if ( values.size() > 1 ) {
-            			def entry = values.first()
-            			if ( entry.kind == 'src' ) {
-            				entry.includes = []
-            				entry.excludes = []
-            			}
-            			int index = cp.entries.indexOf entry
-            			cp.entries.removeAll values
-            			cp.entries.add index, entry
-					}
-				}
-				cp.entries.each { entry ->
-					if ( entry.kind == 'src' && entry.hasProperty('output') ) {
-						if ( entry.path.startsWith("src/test/") ) {
-							entry.output = 'test_classes'
-						}
-						else {
-							entry.output = 'classes'
-						}
-					}
-				}
-			}
-		}
-	}
-}
