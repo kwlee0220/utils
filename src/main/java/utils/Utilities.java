@@ -4,7 +4,6 @@ import java.io.File;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -35,9 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
-import net.sf.cglib.proxy.MethodProxy;
 import utils.func.KeyValue;
-import utils.func.Try;
 import utils.func.Tuple;
 import utils.stream.FStream;
 
@@ -61,7 +58,7 @@ public class Utilities {
 		return new File(System.getProperty("user.dir"));
 	}
 	
-	public static File getHomeDir() {
+	public static File getUserHomeDir() {
 		return new File(System.getProperty("user.home"));
 	}
 	
@@ -349,29 +346,29 @@ public class Utilities {
 		return (T)ctor.newInstance(arg);
 	}
 	
-	public static <T extends AutoCloseable> T attachCloser(T object, Consumer<T> closer) {
-		return ProxyUtils.replaceAction(object, new CloseAttacher<T>(closer));
-	}
-	private static class CloseAttacher<T extends AutoCloseable> implements CallHandler<T> {
-		private final Consumer<T> m_closer;
-		
-		CloseAttacher(Consumer<T> closer) {
-			m_closer = closer;
-		}
-		
-		@Override
-		public boolean test(Method method) {
-			return method.getName().equals("close") && method.getParameterTypes().length == 0;
-		}
-
-		@Override
-		public Object intercept(T baseObject, Method method, Object[] args, MethodProxy proxy)
-				throws Throwable {
-			Try.run(() -> m_closer.accept(baseObject));
-			return proxy.invokeSuper(baseObject, new Object[0]);
-		}
-		
-	}
+//	public static <T extends AutoCloseable> T attachCloser(T object, Consumer<T> closer) {
+//		return ProxyUtils.replaceAction(object, new CloseAttacher<T>(closer));
+//	}
+//	private static class CloseAttacher<T extends AutoCloseable> implements CallHandler<T> {
+//		private final Consumer<T> m_closer;
+//		
+//		CloseAttacher(Consumer<T> closer) {
+//			m_closer = closer;
+//		}
+//		
+//		@Override
+//		public boolean test(Method method) {
+//			return method.getName().equals("close") && method.getParameterTypes().length == 0;
+//		}
+//
+//		@Override
+//		public Object intercept(T baseObject, Method method, Object[] args, MethodProxy proxy)
+//				throws Throwable {
+//			Try.run(() -> m_closer.accept(baseObject));
+//			return proxy.invokeSuper(baseObject, new Object[0]);
+//		}
+//		
+//	}
 	
 	public static <T> Iterable<T> toIterable(Iterator<T> iter) {
 		return () -> iter;

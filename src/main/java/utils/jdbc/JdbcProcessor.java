@@ -50,6 +50,69 @@ public class JdbcProcessor implements Serializable {
 	@Nullable private File m_jarFile;
 	@Nullable private ClassLoader m_cloader;
 	
+	public static class Configuration {
+		private String m_system;
+		private String m_host;
+		private int m_port;
+		private String m_user;
+		private String m_password;
+		private String m_database;
+		
+		public String getSystem() {
+			return m_system;
+		}
+		public void setSystem(String system) {
+			m_system = system;
+		}
+		
+		public String getHost() {
+			return m_host;
+		}
+		public void setHost(String host) {
+			m_host = host;
+		}
+		
+		public int getPort() {
+			return m_port;
+		}
+		public void setPort(int port) {
+			m_port = port;
+		}
+		
+		public String getUser() {
+			return m_user;
+		}
+		public void setUser(String user) {
+			m_user = user;
+		}
+		
+		public String getPassword() {
+			return m_password;
+		}
+		public void setPassword(String passwd) {
+			m_password = passwd;
+		}
+		
+		public String getDatabase() {
+			return m_database;
+		}
+		public void setDatabase(String database) {
+			m_database = database;
+		}
+	}
+	
+	public static JdbcProcessor create(Configuration configs) {
+		JdbcConnectInfo connInfo = getJdbcConnectInfo(configs.getSystem());
+		
+		Map<String,String> values = Maps.newHashMap();
+		values.put("host", configs.getHost());
+		values.put("port", Integer.toString(configs.getPort()));
+		values.put("dbname", configs.getDatabase());
+		String jdbcUrl = new StringSubstitutor(values).replace(connInfo.m_urlFormat);
+		
+		return new JdbcProcessor(jdbcUrl, configs.getUser(), configs.getPassword(), connInfo.m_driverClassName);
+	}
+	
 	public static JdbcProcessor create(String system, String host, int port, String user, String passwd,
 										String dbName) {
 		JdbcConnectInfo connInfo = getJdbcConnectInfo(system);
@@ -228,9 +291,14 @@ public class JdbcProcessor implements Serializable {
 	 * @return	질의 결과 객체.
 	 * @throws SQLException	질의 처리 중 예외가 발생된 경
 	 */
-	public ResultSet executeQuery(String sql) throws SQLException {
+	public ResultSet executeQuery(String sql, boolean autoClose) throws SQLException {
 		ResultSet rs = connect().createStatement().executeQuery(sql);
-		return JdbcUtils.bindToConnection(rs);
+		if ( autoClose ) {
+			return JdbcUtils.bindToConnection(rs);
+		}
+		else {
+			return rs;
+		}
 	}
 	
 	public ResultSet executeQuery(String sql,

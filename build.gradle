@@ -6,12 +6,12 @@ plugins {
 group = 'etri'
 version = '24.01.17'
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
+sourceCompatibility = '11'
+targetCompatibility = '11'
 [compileJava,compileTestJava]*.options*.encoding = 'UTF-8'
 
 ext {
-	slf4j_version = '1.7.32'
+	logback_version = '1.3.14'
 	guava_version = '30.1.1-jre'
 	rxjava3_version = '3.1.8'
 //	picocli_version = '3.9.6'
@@ -31,7 +31,9 @@ repositories {
 }
 
 dependencies {
-	api "org.slf4j:slf4j-api:${slf4j_version}"
+	// Logback with SLF4j
+	implementation "ch.qos.logback:logback-classic:${logback_version}"
+	
 	api "com.google.guava:guava:${guava_version}"
 	api "io.reactivex.rxjava3:rxjava:${rxjava3_version}"
 	
@@ -67,3 +69,39 @@ artifacts {
 	archives javadocJar
 }
 
+eclipse {
+	classpath {
+		file {
+			withXml {
+				def node = it.asNode()
+				node.appendNode('classpathentry', [kind: 'output', path: 'build/classes'])
+			}
+			
+			whenMerged { cp ->
+				Map entryByPath = cp.entries.groupBy { entry -> entry.path }
+				entryByPath.each { key, values ->
+					if ( values.size() > 1 ) {
+            			def entry = values.first()
+            			if ( entry.kind == 'src' ) {
+            				entry.includes = []
+            				entry.excludes = []
+            			}
+            			int index = cp.entries.indexOf entry
+            			cp.entries.removeAll values
+            			cp.entries.add index, entry
+					}
+				}
+				cp.entries.each { entry ->
+					if ( entry.kind == 'src' && entry.hasProperty('output') ) {
+						if ( entry.path.contains('/test/') ) {
+							entry.output = 'build/test_classes'
+						}
+						else {
+							entry.output = 'build/classes'
+						}
+					}
+				}
+			}
+		}
+	}
+}

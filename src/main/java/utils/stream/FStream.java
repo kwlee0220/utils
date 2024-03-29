@@ -388,7 +388,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 				FOption<T> next;
 				while ( (next = src.next()).isPresent() ) {
 					try {
-						FOption.of(mapper.apply(next.getUnchecked()));
+						return FOption.of(mapper.apply(next.getUnchecked()));
 					}
 					catch ( Throwable ignored ) { }
 				}
@@ -526,6 +526,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(mapper, "mapper is null");
 		
 		return concat(map(mapper));
+	}
+	
+	public default <V> FStream<V> flatMapIterable(Function<? super T, ? extends Iterable<V>> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		return flatMap(mapper.andThen(arr -> FStream.from(arr)));
+	}
+	
+	public default <V> FStream<V> flatMapArray(Function<? super T,V[]> mapper) {
+		checkNotNullArgument(mapper, "mapper is null");
+		return flatMap(mapper.andThen(arr -> FStream.of(arr)));
 	}
 	
 	/**

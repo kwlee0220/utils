@@ -28,7 +28,7 @@ public final class ProxyUtils {
 
 	@SafeVarargs
 	@SuppressWarnings("unchecked")
-	public static <T> T replaceAction(ClassLoader loader, T obj, CallHandler<T>... handlers) {
+	public static <T> T replaceAction(ClassLoader loader, T obj, CallHandler... handlers) {
 		checkNotNullArgument(loader, "ClassLoader is null");
 		checkNotNullArgument(obj, "target object is null");
 		checkNotNullArgument(handlers, "CallHandler is null");
@@ -48,7 +48,7 @@ public final class ProxyUtils {
 			Enhancer enhancer = new Enhancer();
 			enhancer.setClassLoader(loader);
 			enhancer.setInterfaces(intfcs);
-			enhancer.setCallbackFilter(new CallFilter<>(handlers));
+			enhancer.setCallbackFilter(new CallFilter(handlers));
 			enhancer.setCallbacks(callbacks);
 			return (T)enhancer.create();
 		}
@@ -62,7 +62,7 @@ public final class ProxyUtils {
 
 	@SafeVarargs
 	@SuppressWarnings("unchecked")
-	public static <T> T replaceAction(T obj, CallHandler<T>... handlers) {
+	public static <T> T replaceAction(T obj, CallHandler... handlers) {
 		checkNotNullArgument(obj, "target object is null");
 		checkNotNullArgument(handlers, "CallHandler is null");
 		checkArgument(handlers.length > 0, "Zero CallHandler" );
@@ -80,7 +80,7 @@ public final class ProxyUtils {
 		try {
 			Enhancer enhancer = new Enhancer();
 			enhancer.setInterfaces(intfcs);
-			enhancer.setCallbackFilter(new CallFilter<>(handlers));
+			enhancer.setCallbackFilter(new CallFilter(handlers));
 			enhancer.setCallbacks(callbacks);
 			return (T)enhancer.create();
 		}
@@ -94,7 +94,7 @@ public final class ProxyUtils {
 
 	@SafeVarargs
 	@SuppressWarnings("unchecked")
-	public static <T> T replaceAction(T obj, Class<?>[] extraIntfcs, CallHandler<T>... handlers) {
+	public static <T> T replaceAction(T obj, Class<?>[] extraIntfcs, CallHandler... handlers) {
 		checkNotNullArgument(obj, "target object is null");
 		checkNotNullArgument(handlers, "CallHandler is null");
 		checkArgument(handlers.length > 0, "Zero CallHandler" );
@@ -112,7 +112,39 @@ public final class ProxyUtils {
 		try {
 			Enhancer enhancer = new Enhancer();
 			enhancer.setInterfaces(intfcs);
-			enhancer.setCallbackFilter(new CallFilter<>(handlers));
+			enhancer.setCallbackFilter(new CallFilter(handlers));
+			enhancer.setCallbacks(callbacks);
+			return (T)enhancer.create();
+		}
+		catch ( CodeGenerationException e ) {
+			Throwable cause = Throwables.unwrapThrowable(e.getCause());
+			Throwables.sneakyThrow(cause);
+			
+			throw new AssertionError("should not be here");
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T buildObject(Object base, Class<?>[] extraIntfcs, CallHandler[] handlers,
+									Class<T> outIntfc) {
+		checkNotNullArgument(base, "target object is null");
+		checkNotNullArgument(handlers, "CallHandler is null");
+		checkArgument(handlers.length > 0, "Zero CallHandler" );
+		
+		Callback[] callbacks = new Callback[handlers.length+1];
+		for ( int i =0; i < handlers.length; ++i ) {
+			callbacks[i+1] = handlers[i];
+		}
+		callbacks[0] = new NoOpHandler<>(base);
+		
+		Set<Class<?>> intfcSet = Sets.newHashSet(Utilities.getInterfaceAllRecusively(base.getClass()));
+		intfcSet.addAll(Arrays.asList(extraIntfcs));
+		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
+		
+		try {
+			Enhancer enhancer = new Enhancer();
+			enhancer.setInterfaces(intfcs);
+			enhancer.setCallbackFilter(new CallFilter(handlers));
 			enhancer.setCallbacks(callbacks);
 			return (T)enhancer.create();
 		}
@@ -165,10 +197,10 @@ public final class ProxyUtils {
 		}
 	}
 				
-	private static class CallFilter<T> implements CallbackFilter {
-		private final CallHandler<T>[] m_handlers;
+	private static class CallFilter implements CallbackFilter {
+		private final CallHandler[] m_handlers;
 		
-		CallFilter(CallHandler<T>[] handlers) {
+		CallFilter(CallHandler[] handlers) {
 			m_handlers = handlers;
 		}
 		
@@ -199,18 +231,16 @@ public final class ProxyUtils {
 	}
 	
 	private static class Interceptor<T> implements MethodInterceptor {
-		private T m_object;
-		private CallHandler<T> m_interceptor;
+		private CallHandler m_interceptor;
 		
-		Interceptor(T object, CallHandler<T> interceptor) {
-			m_object = object;
+		Interceptor(T object, CallHandler interceptor) {
 			m_interceptor = interceptor;
 		}
 
 		@Override
 		public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
 			throws Throwable {
-			return m_interceptor.intercept(m_object, method, args, proxy);
+			return m_interceptor.intercept(obj, method, args, proxy);
 		}
 	}
 	

@@ -6,7 +6,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.stream.Stream;
 
-import net.sf.cglib.proxy.MethodProxy;
 import utils.CallHandler;
 import utils.ProxyUtils;
 import utils.Utilities;
@@ -14,6 +13,8 @@ import utils.func.CheckedFunctionX;
 import utils.func.Try;
 import utils.io.IOUtils;
 import utils.stream.FStream;
+
+import net.sf.cglib.proxy.MethodProxy;
 
 
 /**
@@ -38,7 +39,7 @@ public class JdbcUtils {
 	}
 
 	public static ResultSet bindToConnection(ResultSet rset) {
-		CallHandler<ResultSet> replacer = new CallHandler<ResultSet>() {
+		CallHandler replacer = new CallHandler() {
 			@Override
 			public boolean test(Method method) {
 				return method.getName().equals("close")
@@ -46,8 +47,9 @@ public class JdbcUtils {
 			}
 			
 			@Override
-			public Object intercept(ResultSet rs, Method method, Object[] args, MethodProxy proxy)
+			public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
 				throws Throwable {
+				ResultSet rs = (ResultSet)obj;
 				Connection conn = rs.getStatement().getConnection();
 
 				Try.run(() -> proxy.invoke(rs, args));

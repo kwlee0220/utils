@@ -2,23 +2,14 @@ package utils.fostore;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 
-import javax.tools.FileObject;
 
 /**
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public interface FileObjectHandler<K,T> {
-	/**
-	 * 주어진 파일에 해당하는 파일 객체{@link FileObject}를 생성한다.
-	 * 
-	 * @param file	대상 파일
-	 * @return	해당 파일 객체.
-	 * @throws IOException 파일 객체 생성 중 오류가 발생된 경우일
-	 */
-	public T readFileObject(File file) throws IOException;
-	
+public interface FileObjectHandler<K,T> extends FileObjectReader<K,T> {
 	/**
 	 * 주어진 파일 객체의 내용을 파일에 저장시킨다.
 	 * 
@@ -26,7 +17,7 @@ public interface FileObjectHandler<K,T> {
 	 * @param file	저장할 파일
 	 * @throws IOException 파일 객체 생성 중 오류가 발생된 경우일
 	 */
-	public void writeFileObject(T obj, File file) throws IOException;
+	public void writeFileObject(T obj, File file) throws IOException, ExecutionException;
 	
 	/**
 	 * 주어진 식별자에 해당하는 파일 객체가 저장된 파일을 반환한다.
