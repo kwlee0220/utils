@@ -65,7 +65,7 @@ public class Funcs {
 	 * @param iterable	목록 리스트.
 	 * @return	첫번째 목록. 리스트가 빈 경우에는 {@code null}이 반환된다.
 	 */
-	public static <T> T getFirst(Iterable<T> iterable) {
+	public static <T> T getFirstOrNull(Iterable<T> iterable) {
 		Iterator<T> iter = iterable.iterator();
 		return iter.hasNext() ? iter.next() : null;
 	}

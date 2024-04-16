@@ -41,7 +41,6 @@ import utils.func.FOption;
 import utils.func.KeyValue;
 import utils.func.Try;
 import utils.func.Tuple;
-import utils.func.Unchecked;
 import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.FlatMapDataSupplier;
@@ -1072,7 +1071,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		FOption<T> next;
 		while ( (next = next()).isPresent() ) {
 			T input = next.getUnchecked();
-			Unchecked.runOrIgnore(() -> effect.accept(input));
+			Try.run(() -> effect.accept(input));
 		}
 	}
 	

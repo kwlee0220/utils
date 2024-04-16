@@ -35,6 +35,7 @@ public class Timer {
 						.maximumSize(64)
 						.create();
 		m_schedulerThread = new Thread(m_scheduler);
+		m_schedulerThread.setDaemon(true);
 		m_schedulerThread.start();
 	}
 	

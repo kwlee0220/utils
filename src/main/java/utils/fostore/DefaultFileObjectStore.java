@@ -25,7 +25,6 @@ import utils.stream.FStream;
  * @author Kang-Woo Lee (ETRI)
  */
 public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
-	@SuppressWarnings("unused")
     private static final Logger s_logger = LoggerFactory.getLogger(DefaultFileObjectStore.class);
     
 	private final File m_rootDir;
@@ -116,6 +115,9 @@ public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
 
     	File file = m_handler.toFile(key);
     	if ( file.exists() ) {
+    		if ( s_logger.isInfoEnabled() ) {
+    			s_logger.info("FileObject insertion failed because same file is already exist: path=" + file.getAbsolutePath());
+    		}
 			return Optional.empty();
     	}
     	else {

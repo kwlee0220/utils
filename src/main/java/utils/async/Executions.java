@@ -10,7 +10,6 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 import utils.func.CheckedRunnable;
-import utils.func.Lazy;
 import utils.func.Result;
 import utils.func.UncheckedRunnable;
 
@@ -19,8 +18,9 @@ import utils.func.UncheckedRunnable;
  * @author Kang-Woo Lee (ETRI)
  */
 public class Executions {
-	private static final ScheduledExecutorService EXECUTOR
-					= Lazy.wrap(Executions::createDefaultExecutor, ScheduledExecutorService.class);
+//	private static final ScheduledExecutorService EXECUTOR
+//					= Lazy.wrap(Executions::createDefaultExecutor, ScheduledExecutorService.class);
+	private static final ScheduledExecutorService EXECUTOR = Executions.createDefaultExecutor();
 	
 	private Executions() {
 		throw new AssertionError("Should not be called: class=" + getClass());
@@ -34,7 +34,7 @@ public class Executions {
 		return runAsync(task, null);
 	}
 	public static CompletableFutureAsyncExecution<Void> runAsync(CheckedRunnable task, Executor exector) {
-		return new CompletableFutureAsyncExecution<Void>() {
+		CompletableFutureAsyncExecution<Void> exec = new CompletableFutureAsyncExecution<Void>() {
 			@Override
 			protected CompletableFuture<? extends Void> startExecution() {
 				if ( exector != null ) {
@@ -45,6 +45,8 @@ public class Executions {
 				}
 			}
 		};
+		exec.start();
+		return exec;
 	}
 	
 	public static <T> CompletableFutureAsyncExecution<T> supplyAsync(Supplier<? extends T> supplier) {
@@ -123,7 +125,7 @@ public class Executions {
 		);}
 	}
 	
-	private static final ScheduledExecutorService createDefaultExecutor() {
+	private static ScheduledExecutorService createDefaultExecutor() {
         int availableCores = Runtime.getRuntime().availableProcessors();
         int numberOfThreads = Math.max(availableCores - 1, 1); // Adjust as needed
 

@@ -158,7 +158,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return this;
 	}
 	
-	public <X extends Throwable> FOption<T> ifPresentOrThrow(@Nonnull CheckedConsumerX<? super T,X> effect) throws X {
+	public <X extends Throwable> FOption<T> ifPresentOrThrow(CheckedConsumerX<? super T,X> effect) throws X {
 		checkNotNullArgument(effect, "present consumer is null");
 		
 		if ( m_present ) {
