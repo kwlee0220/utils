@@ -216,7 +216,9 @@ public class JdbcProcessor implements Serializable {
 		
 		try {
 			if ( m_cloader != null ) {
-				Driver driver = (Driver)Class.forName(m_driverClsName, true, m_cloader).newInstance();
+				Driver driver = (Driver)Class.forName(m_driverClsName, true, m_cloader)
+												.getDeclaredConstructor()
+												.newInstance();
 				DriverManager.registerDriver(new DriverDelegate(driver));
 			}
 			else {
