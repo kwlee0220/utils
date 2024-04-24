@@ -29,7 +29,7 @@ import com.google.common.collect.Maps;
 import utils.CSV;
 import utils.Throwables;
 import utils.func.CheckedConsumerX;
-import utils.func.CheckedFunction;
+import utils.func.CheckedFunctionX;
 import utils.func.FOption;
 import utils.stream.FStream;
 import utils.stream.KVFStream;
@@ -246,7 +246,7 @@ public class JdbcProcessor implements Serializable {
 			
 			while ( rs.next() ) {
 				String name = rs.getString("TABLE_NAME");
-				if ( tableName.equals(name) ) {
+				if ( tableName.equalsIgnoreCase(name) ) {
 					return true;
 				}
 			}
@@ -308,11 +308,18 @@ public class JdbcProcessor implements Serializable {
 		return JdbcUtils.bindToConnection(stmt.executeQuery(sql));
 	}
 	
-	public <T> FStream<T> streamQuery(String sql, CheckedFunction<ResultSet, T> deserializer) {
+	public <T> FStream<T> streamQuery(String sql, CheckedFunctionX<ResultSet, T, SQLException> deserializer) {
 		return JdbcRowSource.select(deserializer)
 							.from(this)
 							.executeQuery(sql)
 							.fstream();
+	}
+	
+	public <T> FOption<T> getFirstQuery(String sql, CheckedFunctionX<ResultSet, T, SQLException> deserializer) {
+		return JdbcRowSource.select(deserializer)
+							.from(this)
+							.executeQuery(sql)
+							.first();
 	}
 	
 	public int executeUpdate(String sql) throws SQLException {
