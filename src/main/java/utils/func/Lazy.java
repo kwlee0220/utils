@@ -51,6 +51,10 @@ public class Lazy<T> {
 		m_loaded.ifPresent(job);
 	}
 	
+	public synchronized <X extends Throwable> void ifLoadedOrThrow(CheckedConsumerX<? super T,X> job) throws X {
+		m_loaded.ifPresentOrThrow(job);
+	}
+	
 	public synchronized T get() {
 		if ( m_loaded.isAbsent() ) {
 			m_loaded = FOption.of(m_supplier.get());
