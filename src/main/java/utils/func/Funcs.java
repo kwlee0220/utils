@@ -50,12 +50,11 @@ public class Funcs {
 	 * @param pred	검색 조건
 	 * @return	조건을 만족하는 목록. 만일 조건을 만족하는 것이 없는 경우에는 {@code null}.
 	 */
-	public static <T> Indexed<T> findFirstIndexed(Iterable<T> list, Predicate<? super T> pred) {
+	public static <T> FOption<Indexed<T>> findFirstIndexed(Iterable<T> list, Predicate<? super T> pred) {
 		return FStream.from(list)
 						.zipWithIndex()
 						.map(t -> Indexed.with(t._1, t._2))
-						.findFirst(idxed -> pred.test(idxed.value()))
-						.getOrNull();
+						.findFirst(idxed -> pred.test(idxed.value()));
 	}
 
 	/**
