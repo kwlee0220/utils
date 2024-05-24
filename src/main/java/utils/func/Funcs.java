@@ -37,7 +37,7 @@ public class Funcs {
 	 * @param pred	검색 조건
 	 * @return	조건을 만족하는 목록. 만일 조건을 만족하는 것이 없는 경우에는 {@code null}.
 	 */
-	public static <T> T findFirst(Iterable<T> coll, Predicate<? super T> pred) {
+	public static <T> T findFirstOrNull(Iterable<T> coll, Predicate<? super T> pred) {
 		return FStream.from(coll).findFirst(pred).getOrNull();
 	}
 
@@ -385,6 +385,11 @@ public class Funcs {
 		}
 		
 		return Tuple.of(trueCollection, falseCollection);
+	}
+	
+	public static <L,R,K> FStream<Tuple<List<L>,List<R>>>
+	outerJoin(Iterable<L> left, Iterable<R> right, Function<L,K> leftKeyer, Function<R,K> rightKeyer) {
+		return FStream.from(left).outerJoin(FStream.from(right), leftKeyer, rightKeyer);
 	}
 	
 	
