@@ -881,6 +881,11 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new MergeParallelFStream<>(inputStreamFact, workerCount, exector);
 	}
 	
+	public default <K,R> FStream<Tuple<List<T>,List<R>>>
+	outerJoin(FStream<R> right, Function<T,K> leftKeyer, Function<R,K> rightKeyer) {
+		return new OuterJoinedFStream<>(this, right, leftKeyer, rightKeyer);
+	}
+	
 	public default FStream<T> reduceLeak(BiFunction<? super T,? super T,? extends T> combiner) {
 		checkNotNullArgument(combiner, "combiner is null");
 		
