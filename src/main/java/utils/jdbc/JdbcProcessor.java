@@ -467,6 +467,8 @@ public class JdbcProcessor implements Serializable {
 													"com.mysql.jdbc.Driver"));
 		JDBC_URLS.put("postgresql", new JdbcConnectInfo("jdbc:postgresql://${host}:${port}/${dbname}",
 														"org.postgresql.Driver"));
+		JDBC_URLS.put("mariadb", new JdbcConnectInfo("jdbc:mariadb://${host}:${port}/${dbname}",
+														"org.mariadb.jdbc.Driver"));
 		JDBC_URLS.put("kairos", new JdbcConnectInfo("jdbc:kairos://${host}:${port}/${dbname}",
 													"kr.co.realtimetech.kairos.jdbc.kairosDriver"));
 		JDBC_URLS.put("h2_remote", new JdbcConnectInfo("jdbc:h2:tcp://${host}:${port}/${dbname}", "org.h2.Driver"));
