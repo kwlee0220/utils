@@ -12,6 +12,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -140,16 +141,20 @@ public class Funcs {
 	 *
 	 * @param <T>
 	 * @param list		Iterable 객체.
-	 * @param pred		목록의 대체 여부를 판달할 Predicate 객체.
+	 * @param pred		목록의 대체 여부를 판단할 {@link Predicate} 객체.
 	 * @param supplier	대체할 새 객체를 제공할 Supplier 객체
-	 * @return	대체되기 이전 목록. 대체된 목록이 없었던 경우에는 {@code null}이 반환됨.
+	 * @return	대체된 원소의 이전 값. 대체된 원소가 없었던 경우에는 {@code null}이 반환됨.
 	 */
 	public static <T> T replaceFirst(List<T> list, Predicate<? super T> pred,
-										Function<? super T, ? extends T> updater) {
+										Function<? super T, ? extends T> newValueGenerator) {
+		Preconditions.checkArgument(list != null, "List was null");
+		Preconditions.checkArgument(pred != null, "Predicate was null");
+		Preconditions.checkArgument(pred != null, "Predicate was null");
+		
 		for ( int i =0; i < list.size(); ++i ) {
 			T v = list.get(i);
 			if ( pred.test(v) ) {
-				list.set(i, updater.apply(v));
+				list.set(i, newValueGenerator.apply(v));
 				return v;
 			}
 		}
@@ -162,9 +167,9 @@ public class Funcs {
 	 *
 	 * @param <T>
 	 * @param list		Iterable 객체.
-	 * @param pred		목록의 대체 여부를 판달할 Predicate 객체.
+	 * @param pred		목록의 대체 여부를 판단할 {@link Predicate} 객체.
 	 * @param supplier	대체할 새 객체.
-	 * @return	대체되기 이전 목록. 대체된 목록이 없었던 경우에는 {@code null}이 반환됨.
+	 * @return	대체된 원소의 이전 값. 대체된 원소가 없었던 경우에는 {@code null}이 반환됨.
 	 */
 	public static <T> T replaceFirst(List<T> list, Predicate<? super T> pred, T newVal) {
 		for ( int i =0; i < list.size(); ++i ) {
@@ -176,6 +181,30 @@ public class Funcs {
 		}
 
 		return null;
+	}
+	
+	/**
+	 * 목록에 포함된 원소들 중에서 주어진 조건 (pred)를 만족하는 첫번째 원소를 주어진
+	 * 새 원소를 대체시킨다. 만일 조건을 만족하는 원소가 없는 경우는 새 원소를 추가시킨다.
+	 * <p>
+	 * 새 원소는 조건을 만족하는 원소를 인자로 하는 {@link Function}의 결과 값을 통해 생성된다.
+	 * 만일 조건을 만족하는 원소가 없는 경우에는 {@code null}을 인자로하는 {@link Function}의
+	 * 결과 값을 사용한다.
+	 * 
+	 * @param <T>
+	 * @param list	목록 객체.
+	 * @param pred	대체 대상을 판단할 {@link Predicate} 객체.
+	 * @param newValueGenerator	대체(추가)할 새 값을 생성하기 위한 함수 객체.
+	 * @return	대체된 원소의 이전 값. 대체된 원소가 없어 값이 추가된 경우에는 {@code null}이 반환됨.
+	 */
+	public static <T> T replaceOrInsertFirst(List<T> list, Predicate<? super T> pred,
+												Function<? super T, ? extends T> newValueGenerator) {
+		T old = replaceFirst(list, pred, newValueGenerator);
+		if ( old == null ) {
+			list.add(newValueGenerator.apply(null));
+		}
+		
+		return old;
 	}
 	
 	public static <T> T removeFirst(Iterable<T> iterable) {
