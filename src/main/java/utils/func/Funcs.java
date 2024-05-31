@@ -97,6 +97,10 @@ public class Funcs {
 		return !FStream.from(iterable).exists(v -> !pred.test(v));
 	}
 	
+	public static <T> List<T> slice(Iterable<T> iterable, Slice slice) {
+		return FStream.from(iterable).slice(slice).toList();
+	}
+	
 	public static <T> List<T> filter(Iterable<T> list, Predicate<? super T> pred) {
 		return FStream.from(list).filter(pred).toList();
 	}

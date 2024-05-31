@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -39,8 +40,10 @@ import utils.func.ComparableKeyValue;
 import utils.func.FLists;
 import utils.func.FOption;
 import utils.func.KeyValue;
+import utils.func.Slice;
 import utils.func.Try;
 import utils.func.Tuple;
+import utils.func.Tuple3;
 import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.FlatMapDataSupplier;
@@ -800,6 +803,29 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		checkNotNullArgument(other, "zip FStream is null");
 		
 		return new ZippedFStream<>(this, other, longest);
+	}
+	
+	public default FStream<T> slice(Slice slice) {
+		Preconditions.checkArgument(slice != null, "Slice was null");
+		
+		FStream<Tuple<T,Integer>> stream0 = this.zipWithIndex();
+		if ( slice.start() != null && slice.start() > 0 ) {
+			stream0 = stream0.drop(slice.start());
+		}
+		if ( slice.end() == null && slice.step() == null ) {
+			return stream0.map(t -> t._1);
+		}
+		
+		FStream<Tuple3<T,Integer,Integer>> stream = stream0.zipWithIndex()
+															.map(t -> Tuple.of(t._1._1, t._1._2, t._2));
+		if ( slice.end() != null ) {
+			stream = stream.takeWhile(t -> t._2 < slice.end());
+		}
+		if ( slice.step() != null ) {
+			stream = stream.filter(t -> t._3 % slice.step() == 0);
+		}
+		
+		return stream.map(t -> t._1);
 	}
 	
 	/**
