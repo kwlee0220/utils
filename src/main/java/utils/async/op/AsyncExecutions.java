@@ -15,9 +15,12 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import utils.Throwables;
 import utils.async.AbstractAsyncExecution;
 import utils.async.Executions;
 import utils.async.StartableExecution;
+import utils.func.CheckedRunnable;
+import utils.func.CheckedSupplier;
 import utils.func.Lazy;
 import utils.stream.FStream;
 
@@ -28,15 +31,15 @@ import utils.stream.FStream;
 public class AsyncExecutions {
 	static final Logger s_logger = LoggerFactory.getLogger(AsyncExecutions.class);
 	
-	private static final ListeningScheduledExecutorService SCHEDULER
-						= Lazy.wrap(AsyncExecutions::createScheduler, ListeningScheduledExecutorService.class);
+	private static final Lazy<ListeningScheduledExecutorService> SCHEDULER
+																= Lazy.of(AsyncExecutions::createScheduler);
 	
 	private AsyncExecutions() {
 		throw new AssertionError("Should not be called: class=" + AsyncExecutions.class);
 	}
 	
 	public static ListeningScheduledExecutorService getScheduler() {
-		return SCHEDULER;
+		return SCHEDULER.get();
 	}
 	
 	public static <T> AbstractAsyncExecution<T> nop(T result) {
@@ -91,7 +94,7 @@ public class AsyncExecutions {
 		return new ListenableFutureAsyncExecution<T>() {
 			@Override
 			protected ListenableFuture<? extends T> startExecution() {
-				ListeningScheduledExecutorService scheduler = SCHEDULER;
+				ListeningScheduledExecutorService scheduler = SCHEDULER.get();
 				return scheduler.schedule(act, delay, unit);
 			}
 		};
@@ -99,7 +102,50 @@ public class AsyncExecutions {
 	public static <T> StartableExecution<T> idle(long delay, TimeUnit unit) {
 		return idle(null, delay, unit);
 	}
-
+	
+	public static <T> StartableExecution<T> delayed(CheckedSupplier<T> supplier, long delay, TimeUnit unit) {
+		Callable<T> act = new Callable<T>() {
+			@Override
+			public T call() throws Exception {
+				try {
+					return supplier.get();
+				}
+				catch ( Throwable e ) {
+					throw Throwables.toException(e);
+				}
+			}
+		};
+		return new ListenableFutureAsyncExecution<T>() {
+			@Override
+			protected ListenableFuture<? extends T> startExecution() {
+				ListeningScheduledExecutorService scheduler = SCHEDULER.get();
+				return scheduler.schedule(act, delay, unit);
+			}
+		};
+	}
+	
+	public static StartableExecution<Void> delayed(CheckedRunnable handle, long delay, TimeUnit unit) {
+		Callable<Void> act = new Callable<>() {
+			@Override
+			public Void call() throws Exception {
+				try {
+					handle.run();
+					return null;
+				}
+				catch ( Throwable e ) {
+					throw Throwables.toException(e);
+				}
+			}
+		};
+		return new ListenableFutureAsyncExecution<Void>() {
+			@Override
+			protected ListenableFuture<Void> startExecution() {
+				ListeningScheduledExecutorService scheduler = SCHEDULER.get();
+				return scheduler.schedule(act, delay, unit);
+			}
+		};
+	}
+	
 	public static <T> SequentialAsyncExecution<T> sequential(
 												FStream<StartableExecution<?>> sequence) {
 		return new SequentialAsyncExecution<>(sequence);
@@ -129,6 +175,10 @@ public class AsyncExecutions {
 												TimeUnit unit, ScheduledExecutorService scheduler) {
 		return new TimedAsyncExecution<>(target, timeout, unit, scheduler);
 	}
+	public static <T> TimedAsyncExecution<T> timed(StartableExecution<T> target, long timeout,
+													TimeUnit unit) {
+		return new TimedAsyncExecution<>(target, timeout, unit, SCHEDULER.get());
+	}
 
 	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<StartableExecution<S>> seq,
 														Supplier<? extends T> initSupplier,
@@ -141,7 +191,7 @@ public class AsyncExecutions {
 		return new FoldedAsyncExecution<>(seq, () -> init, folder);
 	}
 
-	private static ListeningScheduledExecutorService createScheduler() {
+	public static ListeningScheduledExecutorService createScheduler() {
 		return MoreExecutors.listeningDecorator(Executions.getExecutor());
 	}
 }

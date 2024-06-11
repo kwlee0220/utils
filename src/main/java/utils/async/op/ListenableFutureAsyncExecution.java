@@ -20,8 +20,8 @@ import utils.async.StartableExecution;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-abstract class ListenableFutureAsyncExecution<T> extends EventDrivenExecution<T>
-											implements StartableExecution<T>, CancellableWork {
+public abstract class ListenableFutureAsyncExecution<T> extends EventDrivenExecution<T>
+														implements StartableExecution<T>, CancellableWork {
 	private volatile ListenableFuture<? extends T> m_future;
 	
 	protected abstract ListenableFuture<? extends T> startExecution();
