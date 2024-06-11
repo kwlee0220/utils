@@ -7,6 +7,7 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.attribute.FileTime;
 
 import utils.stream.FStream;
 
@@ -48,5 +49,18 @@ public class FileUtils {
 		}
 		
 		throw new IllegalArgumentException("cannot find the executable file: " + execName);
+	}
+	
+	public static void touch(File file, boolean updateLastModified) throws IOException {
+		if ( !file.exists() ) {
+			file.createNewFile();
+		}
+		else {
+			long now = System.currentTimeMillis();
+			Files.setAttribute(file.toPath(), "lastAccessTime", FileTime.fromMillis(now));
+			if ( updateLastModified ) {
+				file.setLastModified(now);
+			}
+		}
 	}
 }
