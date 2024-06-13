@@ -21,6 +21,10 @@ public class FileUtils {
 		throw new AssertionError("Should not be called: class=" + FileUtils.class.getName());
 	}
 	
+	public static File getWorkingDirectory() {
+		return new File("").getAbsoluteFile();
+	}
+	
 	public static FStream<File> walk(File start, String glob) throws IOException {
 		return walk(start.toPath(), glob).map(Path::toFile);
 	}
