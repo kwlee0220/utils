@@ -22,53 +22,37 @@ import utils.func.CheckedSupplier;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class Polling implements CheckedRunnable, LoggerSettable {
-	private final Logger s_logger = LoggerFactory.getLogger(Polling.class);
+public class StateChangePoller implements CheckedRunnable, LoggerSettable {
+	private final Logger s_logger = LoggerFactory.getLogger(StateChangePoller.class);
 	
-	private CheckedSupplier<Boolean> m_endOfPollingPredicate;
+	private CheckedSupplier<Boolean> m_stayPredicate;
 	private Duration m_pollInterval;
 	private Optional<Duration> m_timeout = Optional.empty();
 	private Logger m_logger;
 	
-	public Polling() {
-		m_logger = s_logger;
-	}
-	
-	private Polling(Builder builder) {
-		m_endOfPollingPredicate = builder.m_predicate;
+	private StateChangePoller(Builder builder) {
+		m_stayPredicate = builder.m_stayPredicate;
 		m_pollInterval = builder.m_pollInterval;
 		m_timeout = builder.m_timeout;
 		
 		m_logger = s_logger;
 	}
 	
-	public CheckedSupplier<Boolean> getEndOfPollingPredicate() {
-		return m_endOfPollingPredicate;
-	}
-	
 	public void setEndOfPollingPredicate(CheckedSupplier<Boolean> pred) {
-		m_endOfPollingPredicate = pred;
+		m_stayPredicate = pred;
 	}
 	
 	public Duration getPollingInterval() {
 		return m_pollInterval;
 	}
 	
-	public void setPollingInterval(Duration interval) {
-		m_pollInterval = interval;
-	}
-	
 	public Optional<Duration> getTimeout() {
 		return m_timeout;
-	}
-	
-	public void setTimeout(@Nullable Duration timeout) {
-		m_timeout = (timeout != null) ? Optional.of(timeout) : Optional.empty();
 	}
 
 	@Override
 	public void run() throws TimeoutException, InterruptedException, ExecutionException {
-		Preconditions.checkState(m_endOfPollingPredicate != null, "Poller is not set");
+		Preconditions.checkState(m_stayPredicate != null, "Poller is not set");
 		Preconditions.checkState(m_pollInterval != null, "Sample interval is not set");
 		
 		Instant started = Instant.now();
@@ -78,7 +62,7 @@ public class Polling implements CheckedRunnable, LoggerSettable {
 			}
 			
 			try {
-				boolean endOfPolling = m_endOfPollingPredicate.get();
+				boolean endOfPolling = !m_stayPredicate.get();
 				if ( endOfPolling ) {
 					if ( getLogger().isInfoEnabled() ) {
 						getLogger().info("polling has finished");
@@ -112,35 +96,38 @@ public class Polling implements CheckedRunnable, LoggerSettable {
 	public void setLogger(Logger logger) {
 		m_logger = (logger != null) ? logger : s_logger;
 	}
-	
-	public static Builder builder() {
-		return new Builder();
+
+	public static Builder pollWhile(CheckedSupplier<Boolean> cond) {
+		return new Builder(cond);
 	}
+	public static Builder pollUntil(CheckedSupplier<Boolean> cond) {
+		return new Builder(() -> !cond.get());
+	}
+	
 	public static class Builder {
-		private CheckedSupplier<Boolean> m_predicate;
+		private CheckedSupplier<Boolean> m_stayPredicate;
 		private Duration m_pollInterval;
 		private Optional<Duration> m_timeout = Optional.empty();
 		
-		public Polling build() {
-			return new Polling(this);
-		}
-
-		public Builder setEndOfPollingPredicate(CheckedSupplier<Boolean> predicate) {
-			m_predicate = predicate;
-			return this;
+		private Builder(CheckedSupplier<Boolean> predicate) {
+			m_stayPredicate = predicate;
 		}
 		
-		public Builder setPollingInterval(Duration interval) {
+		public StateChangePoller build() {
+			return new StateChangePoller(this);
+		}
+		
+		public Builder interval(Duration interval) {
 			m_pollInterval = interval;
 			return this;
 		}
 		
-		public Builder setTimeout(@Nullable Duration timeout) {
+		public Builder timeout(@Nullable Duration timeout) {
 			m_timeout = (timeout != null) ? Optional.of(timeout) : Optional.empty();
 			return this;
 		}
 		
-		public Builder setTimeout(Optional<Duration> timeout) {
+		public Builder timeout(Optional<Duration> timeout) {
 			m_timeout = timeout;
 			return this;
 		}
