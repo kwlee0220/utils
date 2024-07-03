@@ -26,6 +26,16 @@ public interface Try<T> extends FStreamable<T> {
     public static <T> Try<T> narrow(Try<? extends T> t) {
         return (Try<T>) t;
     }
+    
+    public static <T> Try<Void> accept(CheckedConsumer<T> consumer, T input) {
+		try {
+			consumer.accept(input);
+			return success(null);
+		}
+		catch ( Throwable e ) {
+			return failure(e);
+		}
+    }
 	
 	public static <T> Try<T> get(CheckedSupplier<T> supplier) {
 		try {
