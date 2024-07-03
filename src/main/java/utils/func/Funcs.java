@@ -38,8 +38,8 @@ public class Funcs {
 	 * @param pred	검색 조건
 	 * @return	조건을 만족하는 목록. 만일 조건을 만족하는 것이 없는 경우에는 {@code null}.
 	 */
-	public static <T> T findFirstOrNull(Iterable<T> coll, Predicate<? super T> pred) {
-		return FStream.from(coll).findFirst(pred).getOrNull();
+	public static <T> FOption<T> findFirst(Iterable<T> coll, Predicate<? super T> pred) {
+		return FStream.from(coll).findFirst(pred);
 	}
 
 	/**
@@ -56,6 +56,18 @@ public class Funcs {
 						.zipWithIndex()
 						.map(t -> Indexed.with(t._1, t._2))
 						.findFirst(idxed -> pred.test(idxed.value()));
+	}
+
+	/**
+	 * 주어진 목록들 중에서 첫번재 목록을 반환한다.
+	 *
+	 * @param <T>
+	 * @param iterable	목록 리스트.
+	 * @return	첫번째 목록. 리스트가 빈 경우에는 {@code FOption.empty()}이 반환된다.
+	 */
+	public static <T> FOption<T> getFirst(Iterable<T> iterable) {
+		Iterator<T> iter = iterable.iterator();
+		return iter.hasNext() ? FOption.of(iter.next()) : FOption.empty();
 	}
 
 	/**
