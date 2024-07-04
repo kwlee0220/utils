@@ -442,40 +442,40 @@ public class Funcs {
 	
 
 	
-	public static <T> T asNonNull(T obj, T nullCaseValue) {
+	public static <T> T toNonNull(T obj, T nullCaseValue) {
 		return (obj != null) ? obj : nullCaseValue;
 	}
-	public static <T> T asNonNull(T obj, Supplier<? extends T> nullValueSupplier) {
+	public static <T> T toNonNull(T obj, Supplier<? extends T> nullValueSupplier) {
 		return (obj != null) ? obj : nullValueSupplier.get();
 	}
 	
-	public static <T> void runIf(boolean flag, Runnable work) {
+	public static <T> void runIf(Runnable work, boolean flag) {
 		if ( flag ) {
 			work.run();
 		}
 	}
-	public static <T> void runIfNotNull(Object obj, Runnable work) {
+	public static <T> void runIfNotNull(Runnable work, Object obj) {
 		if ( obj != null ) {
 			work.run();
 		}
 	}
 	
-	public static <T> void acceptIfNotNull(T obj, Consumer<T> consumer) {
+	public static <T> void consumeIfNotNull(Consumer<T> consumer, T obj) {
 		if ( obj != null ) {
 			consumer.accept(obj);
 		}
 	}
 	
-	public static <T,S> S applyIfNotNull(T obj, Function<T,S> func, S elsePart) {
+	public static <T,S> S applyIfNotNull(Function<T,S> func, T obj) {
+		return applyIfNotNull(func, obj, null);
+	}
+	
+	public static <T,S> S applyIfNotNull(Function<T,S> func, T obj, S elsePart) {
 		if ( obj != null ) {
 			return func.apply(obj);
 		}
 		else {
 			return elsePart;
 		}
-	}
-	
-	public static <T,S> S applyIfNotNull(T obj, Function<T,S> func) {
-		return applyIfNotNull(obj, func, null);
 	}
 }
