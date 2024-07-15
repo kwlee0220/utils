@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import utils.CSV;
+import utils.Indexed;
 import utils.Suppliable;
 import utils.Utilities;
 import utils.func.CheckedConsumer;
@@ -788,36 +789,48 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		};
 	}
 
-	public default FStream<Tuple<T,Integer>> zipWithIndex(int start) {
-		return zipWith(FStream.generate(start, FStream::INC));
+	public default FStream<Indexed<T>> zipWithIndex(int start) {
+		return zipWith(FStream.generate(start, FStream::INC), Indexed::with);
 	}
-	public default FStream<Tuple<T,Integer>> zipWithIndex() {
+	public default FStream<Indexed<T>> zipWithIndex() {
 		return zipWithIndex(0);
 	}
 
 	public default <S> FStream<Tuple<T,S>> zipWith(FStream<S> other) {
 		return zipWith(other, false);
 	}
+	public default <S,Z> FStream<Z> zipWith(FStream<S> other, BiFunction<T,S,Z> zipper) {
+		return zipWith(other, zipper, false);
+	}
 	
 	public default <S> FStream<Tuple<T,S>> zipWith(FStream<S> other, boolean longest) {
 		checkNotNullArgument(other, "zip FStream is null");
 		
-		return new ZippedFStream<>(this, other, longest);
+		return zipWith(other, (t,s) -> Tuple.of(t,s), longest);
+	}
+	public default <S,Z> FStream<Z> zipWith(FStream<S> other, BiFunction<T,S,Z> zipper,
+														boolean longest) {
+		Preconditions.checkNotNull(other);
+		Preconditions.checkNotNull(zipper);
+		
+		return new ZippedFStream<>(this, other, zipper, longest);
 	}
 	
 	public default FStream<T> slice(Slice slice) {
 		Preconditions.checkArgument(slice != null, "Slice was null");
 		
-		FStream<Tuple<T,Integer>> stream0 = this.zipWithIndex();
+		FStream<Indexed<T>> stream0 = this.zipWithIndex();
 		if ( slice.start() != null && slice.start() > 0 ) {
 			stream0 = stream0.drop(slice.start());
 		}
 		if ( slice.end() == null && slice.step() == null ) {
-			return stream0.map(t -> t._1);
+			return stream0.map(t -> t.value());
 		}
 		
 		FStream<Tuple3<T,Integer,Integer>> stream = stream0.zipWithIndex()
-															.map(t -> Tuple.of(t._1._1, t._1._2, t._2));
+															.map(t -> Tuple.of(t.value().value(),
+																				t.value().index(),
+																				t.index()));
 		if ( slice.end() != null ) {
 			stream = stream.takeWhile(t -> t._2 < slice.end());
 		}
@@ -1645,8 +1658,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default String join(String delim, String begin, String end) {
 		return zipWithIndex()
 				.fold(new StringBuilder(begin),
-							(b,t) -> (t._2 > 0) ? b.append(delim).append(t._1.toString())
-												: b.append(t._1.toString()))
+							(b,t) -> (t.index() > 0) ? b.append(delim).append(t.value().toString())
+													: b.append(t.value().toString()))
 					.append(end)
 					.toString();
 	}

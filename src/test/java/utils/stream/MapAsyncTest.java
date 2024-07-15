@@ -143,7 +143,7 @@ public class MapAsyncTest {
 		
 		int[] result = FStream.of(100L, 200L, 300L, 400L, 500L, 600L, 700L)
 								.zipWithIndex()
-								.mapAsync(t -> sleepAndReturn(t._2, t._1), options)
+								.mapAsync(t -> sleepAndReturn(t.index(), t.value()), options)
 								.peek(t -> Assert.assertTrue(t.isSuccessful()))
 								.flatMapTry(t -> t)
 								.mapToInt(v -> v)
@@ -158,7 +158,7 @@ public class MapAsyncTest {
 		
 		int[] result = FStream.of(700L, 600L, 500L, 400L, 300L, 200L, 100L, 0L)
 								.zipWithIndex()
-								.mapAsync(t -> sleepAndReturn(t._2, t._1), options)
+								.mapAsync(t -> sleepAndReturn(t.index(), t.value()), options)
 								.peek(t -> Assert.assertTrue(t.isSuccessful()))
 								.flatMapTry(t -> t)
 								.mapToInt(v -> v)
@@ -173,7 +173,7 @@ public class MapAsyncTest {
 		
 		int[] result = FStream.<Long>of()
 								.zipWithIndex()
-								.mapAsync(t -> sleepAndReturn(t._2, t._1), options)
+								.mapAsync(t -> sleepAndReturn(t.index(), t.value()), options)
 								.peek(t -> Assert.assertTrue(t.isSuccessful()))
 								.flatMapTry(t -> t)
 								.mapToInt(v -> v)

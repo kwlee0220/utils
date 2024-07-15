@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
@@ -54,7 +55,7 @@ public class Funcs {
 	public static <T> FOption<Indexed<T>> findFirstIndexed(Iterable<T> list, Predicate<? super T> pred) {
 		return FStream.from(list)
 						.zipWithIndex()
-						.map(t -> Indexed.with(t._1, t._2))
+						.map(t -> Indexed.with(t.value(), t.index()))
 						.findFirst(idxed -> pred.test(idxed.value()));
 	}
 
@@ -443,10 +444,10 @@ public class Funcs {
 
 	
 	public static <T> T toNonNull(T obj, T nullCaseValue) {
-		return (obj != null) ? obj : nullCaseValue;
+		return Objects.nonNull(obj) ? obj : nullCaseValue;
 	}
 	public static <T> T toNonNull(T obj, Supplier<? extends T> nullValueSupplier) {
-		return (obj != null) ? obj : nullValueSupplier.get();
+		return Objects.nonNull(obj) ? obj : nullValueSupplier.get();
 	}
 	
 	public static <T> void runIf(Runnable work, boolean flag) {
@@ -454,24 +455,24 @@ public class Funcs {
 			work.run();
 		}
 	}
-	public static <T> void runIfNotNull(Runnable work, Object obj) {
-		if ( obj != null ) {
+	public static <T> void runIfNonNull(Object obj, Runnable work) {
+		if ( Objects.nonNull(obj) ) {
 			work.run();
 		}
 	}
 	
-	public static <T> void consumeIfNotNull(Consumer<T> consumer, T obj) {
-		if ( obj != null ) {
+	public static <T> void acceptIfNonNull(T obj, Consumer<T> consumer) {
+		if ( Objects.nonNull(obj) ) {
 			consumer.accept(obj);
 		}
 	}
 	
-	public static <T,S> S applyIfNotNull(Function<T,S> func, T obj) {
-		return applyIfNotNull(func, obj, null);
+	public static <T,S> S applyIfNonNull(Function<T,S> func, T obj) {
+		return applyIfNonNull(func, obj, null);
 	}
 	
-	public static <T,S> S applyIfNotNull(Function<T,S> func, T obj, S elsePart) {
-		if ( obj != null ) {
+	public static <T,S> S applyIfNonNull(Function<T,S> func, T obj, S elsePart) {
+		if ( Objects.nonNull(obj) ) {
 			return func.apply(obj);
 		}
 		else {
