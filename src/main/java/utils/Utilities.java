@@ -29,6 +29,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.apache.commons.text.StringSubstitutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -465,6 +466,10 @@ public class Utilities {
 		else {
 			return Tuple.of(str.substring(0, idx), str.substring(idx+1));
 		}
+	}
+	
+	public static String substributeString(String template, Map<String,String> mappings) {
+		return new StringSubstitutor(mappings).replace(template);
 	}
 	
 	public static final boolean matchWithLike(String str, String likeExpr) {

@@ -467,7 +467,7 @@ public class Funcs {
 		}
 	}
 	
-	public static <T,S> S applyIfNonNull(Function<T,S> func, T obj) {
+	public static <T,S> S applyIfNonNull(T obj, Function<T,S> func) {
 		return applyIfNonNull(func, obj, null);
 	}
 	
