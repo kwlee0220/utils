@@ -1,9 +1,9 @@
 package utils.async;
 
 
+import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.junit.Assert;
@@ -314,7 +314,7 @@ public class ExecutionsTest {
 	
 	@Test
 	public void testIdle01() throws Exception {
-		StartableExecution<Void> exec = AsyncExecutions.idle(300, TimeUnit.MILLISECONDS);
+		StartableExecution<Void> exec = AsyncExecutions.idle(Duration.ofMillis(300));
 		
 		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
@@ -330,7 +330,7 @@ public class ExecutionsTest {
 	
 	@Test
 	public void testIdle02() throws Exception {
-		StartableExecution<Void> exec = AsyncExecutions.idle(300, TimeUnit.MILLISECONDS);
+		StartableExecution<Void> exec = AsyncExecutions.idle(Duration.ofMillis(300));
 		
 		exec.start();
 		Assert.assertEquals(true, exec.isStarted());

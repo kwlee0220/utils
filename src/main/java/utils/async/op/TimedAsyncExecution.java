@@ -1,6 +1,7 @@
 package utils.async.op;
 
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -65,8 +66,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	private static final int STATE_TARGET_CANCEL = 4;	// Target AsyncExecution 수준에서 cancel되는 상태.
 
 	private final StartableExecution<T> m_target;
-	private final long m_timeout;
-	private final TimeUnit m_unit;
+	private final Duration m_timeout;
 	private final ScheduledExecutorService m_scheduler;
 	private volatile Future<?> m_future;
 
@@ -81,17 +81,13 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	 * @throws IllegalArgumentException	{@literal aop}, <code>executor</code>가 <code>null</code>인 경우거나
 	 * 								{@literal timeout}이 음수이거나 0인 경우.
 	 */
-	TimedAsyncExecution(StartableExecution<T> aexec, long timeout, TimeUnit unit,
-						ScheduledExecutorService scheduler) {
+	TimedAsyncExecution(StartableExecution<T> aexec, Duration timeout, ScheduledExecutorService scheduler) {
 		Objects.requireNonNull(aexec, "AsyncExecution");
-		Objects.requireNonNull(unit, "TimeUnit");
+		Objects.requireNonNull(timeout, "TimeUnit");
 		Objects.requireNonNull(scheduler, "ScheduledExecutorService");
-		Preconditions.checkArgument(timeout >= 0,
-								"timeout should be greater than zero: timeout=" + timeout);
 
 		m_target = aexec;
 		m_timeout = timeout;
-		m_unit = unit;
 		m_scheduler = scheduler;
 	}
 	
@@ -99,7 +95,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 		return m_target;
 	}
 
-	public final long getTimeout() {
+	public final Duration getTimeout() {
 		return m_timeout;
 	}
 	
@@ -153,7 +149,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	}
 	
 	private void onTargetStarted() {
-		m_future = m_scheduler.schedule(this::onTimeout, m_timeout, m_unit);
+		m_future = m_scheduler.schedule(this::onTimeout, m_timeout.toMillis(), TimeUnit.MILLISECONDS);
 		m_guard.runAndSignalAll(() -> m_istate = STATE_RUNNING);
 		notifyStarted();
 	}

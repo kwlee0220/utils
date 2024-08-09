@@ -1,10 +1,10 @@
 package utils.async.op;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -23,6 +23,7 @@ import utils.func.CheckedRunnable;
 import utils.func.CheckedSupplier;
 import utils.func.Lazy;
 import utils.stream.FStream;
+
 
 /**
  * 
@@ -84,7 +85,7 @@ public class AsyncExecutions {
 		};
 	}
 	
-	public static <T> StartableExecution<T> idle(T result, long delay, TimeUnit unit) {
+	public static <T> StartableExecution<T> idle(T result, Duration timeout) {
 		Callable<T> act = new Callable<T>() {
 			@Override
 			public T call() throws Exception {
@@ -95,15 +96,15 @@ public class AsyncExecutions {
 			@Override
 			protected ListenableFuture<? extends T> startExecution() {
 				ListeningScheduledExecutorService scheduler = SCHEDULER.get();
-				return scheduler.schedule(act, delay, unit);
+				return scheduler.schedule(act, timeout);
 			}
 		};
 	}
-	public static <T> StartableExecution<T> idle(long delay, TimeUnit unit) {
-		return idle(null, delay, unit);
+	public static <T> StartableExecution<T> idle(Duration timeout) {
+		return idle(null, timeout);
 	}
 	
-	public static <T> StartableExecution<T> delayed(CheckedSupplier<T> supplier, long delay, TimeUnit unit) {
+	public static <T> StartableExecution<T> delayed(CheckedSupplier<T> supplier, Duration delay) {
 		Callable<T> act = new Callable<T>() {
 			@Override
 			public T call() throws Exception {
@@ -119,12 +120,12 @@ public class AsyncExecutions {
 			@Override
 			protected ListenableFuture<? extends T> startExecution() {
 				ListeningScheduledExecutorService scheduler = SCHEDULER.get();
-				return scheduler.schedule(act, delay, unit);
+				return scheduler.schedule(act, delay);
 			}
 		};
 	}
 	
-	public static StartableExecution<Void> delayed(CheckedRunnable handle, long delay, TimeUnit unit) {
+	public static StartableExecution<Void> delayed(CheckedRunnable handle, Duration delay) {
 		Callable<Void> act = new Callable<>() {
 			@Override
 			public Void call() throws Exception {
@@ -141,7 +142,7 @@ public class AsyncExecutions {
 			@Override
 			protected ListenableFuture<Void> startExecution() {
 				ListeningScheduledExecutorService scheduler = SCHEDULER.get();
-				return scheduler.schedule(act, delay, unit);
+				return scheduler.schedule(act, delay);
 			}
 		};
 	}
@@ -171,13 +172,12 @@ public class AsyncExecutions {
 		return new BackgroundedAsyncExecution<>(fg, bg);
 	}
 
-	public static <T> TimedAsyncExecution<T> timed(StartableExecution<T> target, long timeout,
-												TimeUnit unit, ScheduledExecutorService scheduler) {
-		return new TimedAsyncExecution<>(target, timeout, unit, scheduler);
+	public static <T> TimedAsyncExecution<T> timed(StartableExecution<T> target, Duration timeout,
+												ScheduledExecutorService scheduler) {
+		return new TimedAsyncExecution<>(target, timeout, scheduler);
 	}
-	public static <T> TimedAsyncExecution<T> timed(StartableExecution<T> target, long timeout,
-													TimeUnit unit) {
-		return new TimedAsyncExecution<>(target, timeout, unit, SCHEDULER.get());
+	public static <T> TimedAsyncExecution<T> timed(StartableExecution<T> target, Duration timeout) {
+		return new TimedAsyncExecution<>(target, timeout, SCHEDULER.get());
 	}
 
 	public static <T,S> FoldedAsyncExecution<T,S> fold(FStream<StartableExecution<S>> seq,

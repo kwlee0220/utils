@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -36,7 +37,7 @@ public class FoldAsyncTest {
 	@Before
 	public void setup() {
 		m_gen = FStream.range(0, 5)
-						.map(idx -> AsyncExecutions.idle(idx, 100, MILLISECONDS));
+						.map(idx -> AsyncExecutions.idle(idx, Duration.ofMillis(100)));
 		m_gen2 = m_gen.concatWith(AsyncExecutions.throwAsync(m_error));
 		m_gen3 = m_gen.concatWith(AsyncExecutions.cancelAsync());
 	}

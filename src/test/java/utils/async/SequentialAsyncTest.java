@@ -6,6 +6,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static utils.async.op.AsyncExecutions.idle;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -43,7 +44,7 @@ public class SequentialAsyncTest {
 	@Before
 	public void setup() {
 		m_execList = FStream.range(0, 5)
-							.map(idx -> idle(idx, 100, MILLISECONDS))
+							.map(idx -> idle(idx, Duration.ofMillis(100)))
 							.toList();
 		m_failed = AsyncExecutions.throwAsync(m_error);
 		m_cancelled = AsyncExecutions.cancelAsync();

@@ -1,7 +1,7 @@
 package utils.async;
 
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 import java.util.function.Consumer;
 
 import org.junit.Assert;
@@ -30,8 +30,8 @@ public class BackgroundedAsyncTest {
 	
 	@Test
 	public void test01() throws Exception {
-		StartableExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS);
-		StartableExecution<?> bg = AsyncExecutions.idle(50, TimeUnit.SECONDS);
+		StartableExecution<String> fg = AsyncExecutions.idle("done", Duration.ofMillis(300));
+		StartableExecution<?> bg = AsyncExecutions.idle(Duration.ofSeconds(50));
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
 		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
@@ -51,8 +51,8 @@ public class BackgroundedAsyncTest {
 	
 	@Test
 	public void test02() throws Exception {
-		StartableExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS);
-		StartableExecution<?> bg = AsyncExecutions.idle(null, 10, TimeUnit.SECONDS);
+		StartableExecution<String> fg = AsyncExecutions.idle("done", Duration.ofMillis(300));
+		StartableExecution<?> bg = AsyncExecutions.idle(null, Duration.ofSeconds(10));
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
 		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
@@ -70,9 +70,9 @@ public class BackgroundedAsyncTest {
 	
 	@Test
 	public void test03() throws Exception {
-		StartableExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS);
+		StartableExecution<String> fg = AsyncExecutions.idle("done", Duration.ofMillis(300));
 		fg = AsyncExecutions.sequential(fg, AsyncExecutions.throwAsync(m_error));
-		StartableExecution<?> bg = AsyncExecutions.idle(10, TimeUnit.SECONDS);
+		StartableExecution<?> bg = AsyncExecutions.idle(Duration.ofSeconds(10));
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
 		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
@@ -87,7 +87,7 @@ public class BackgroundedAsyncTest {
 	
 	@Test
 	public void test04() throws Exception {
-		StartableExecution<String> fg = AsyncExecutions.idle("done", 300, TimeUnit.MILLISECONDS);
+		StartableExecution<String> fg = AsyncExecutions.idle("done", Duration.ofMillis(300));
 		StartableExecution<?> bg = AsyncExecutions.throwAsync(m_error);
 		StartableExecution<String> exec = AsyncExecutions.backgrounded(fg, bg);
 		
