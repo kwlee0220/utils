@@ -2,6 +2,7 @@ package utils.func;
 
 import java.io.Serializable;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -55,6 +56,11 @@ public final class Either<T1,T2> implements Serializable {
 		return m_left.map(leftMapper)
 					.orElse(() -> m_right.map(rightMapper))
 					.get();
+	}
+	
+	public void forEach(Consumer<T1> leftConsumer, Consumer<T2> rightConsumer) {
+		m_left.ifPresent(leftConsumer);
+		m_right.ifPresent(rightConsumer);
 	}
 	
 	@Override
