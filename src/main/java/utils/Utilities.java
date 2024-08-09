@@ -4,11 +4,6 @@ import java.io.File;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -22,8 +17,6 @@ import java.util.Spliterators;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -36,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Sets;
 
 import utils.func.KeyValue;
-import utils.func.Tuple;
 import utils.stream.FStream;
 
 /**
@@ -65,19 +57,6 @@ public class Utilities {
 	
 	public static String getLineSeparator() {
 		return LINE_SEPARATOR;
-	}
-
-	public static CompletableFuture<Void> runAsync(Runnable task) {
-		return CompletableFuture.runAsync(task);
-	}
-
-	public static CompletableFuture<Void> runAsync(Executor executor, Runnable task) {
-		if ( executor != null ) {
-			return CompletableFuture.runAsync(task, executor);
-		}
-		else {
-			return CompletableFuture.runAsync(task);
-		}
 	}
 	
 	public static void checkArgument(boolean pred) {
@@ -225,21 +204,6 @@ public class Utilities {
 		return StreamSupport.stream(Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED), false);
 	}
 
-	public static <T,U> U mapIfNotNull(T value, Function<? super T,? extends U> func) {
-		if ( value != null ) {
-			return func.apply(value);
-		}
-		else {
-			return null;
-		}
-	}
-
-	public static <T> void ifNotNull(T value, Consumer<? super T> consumer) {
-		if ( value != null ) {
-			consumer.accept(value);
-		}
-	}
-
 /*
 	public static Class<?>[] extendInterfaces(Class<?> base, Class<?>... addons) {
 		Set<Class<?>> intfcSet = getInterfaceAllRecusively(base);
@@ -318,18 +282,6 @@ public class Utilities {
     	}
     }
 	
-	public static long toUTCEpocMillis(LocalDateTime ldt) {
-		return ldt.atZone(ZoneOffset.UTC).toInstant().toEpochMilli();
-	}
-	
-	public static ZonedDateTime fromUTCEpocMillis(long millis) {
-		return Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC);
-	}
-	
-	public static LocalDateTime toLocalDateTime(long utcEpoc) {
-		return Instant.ofEpochMilli(utcEpoc).atZone(ZoneId.systemDefault()).toLocalDateTime();
-	}
-	
 	@SuppressWarnings("unchecked")
 	public static <T> T callPrivateConstructor(Class<T> cls)
 		throws NoSuchMethodException, SecurityException, InstantiationException,
@@ -345,34 +297,6 @@ public class Utilities {
 		Constructor<?> ctor = cls.getDeclaredConstructor(new Class[] {String.class});
 		ctor.setAccessible(true);
 		return (T)ctor.newInstance(arg);
-	}
-	
-//	public static <T extends AutoCloseable> T attachCloser(T object, Consumer<T> closer) {
-//		return ProxyUtils.replaceAction(object, new CloseAttacher<T>(closer));
-//	}
-//	private static class CloseAttacher<T extends AutoCloseable> implements CallHandler<T> {
-//		private final Consumer<T> m_closer;
-//		
-//		CloseAttacher(Consumer<T> closer) {
-//			m_closer = closer;
-//		}
-//		
-//		@Override
-//		public boolean test(Method method) {
-//			return method.getName().equals("close") && method.getParameterTypes().length == 0;
-//		}
-//
-//		@Override
-//		public Object intercept(T baseObject, Method method, Object[] args, MethodProxy proxy)
-//				throws Throwable {
-//			Try.run(() -> m_closer.accept(baseObject));
-//			return proxy.invokeSuper(baseObject, new Object[0]);
-//		}
-//		
-//	}
-	
-	public static <T> Iterable<T> toIterable(Iterator<T> iter) {
-		return () -> iter;
 	}
 	
 	public static <T> List<T> shuffle(List<T> list) {
@@ -458,26 +382,8 @@ public class Utilities {
 		return arr2;
 	}
 	
-	public static Tuple<String,String> split(String str, char delim) {
-		int idx = str.indexOf(delim);
-		if ( idx < 0 ) {
-			return Tuple.of(str, null);
-		}
-		else {
-			return Tuple.of(str.substring(0, idx), str.substring(idx+1));
-		}
-	}
-	
 	public static String substributeString(String template, Map<String,String> mappings) {
 		return new StringSubstitutor(mappings).replace(template);
-	}
-	
-	public static final boolean matchWithLike(String str, String likeExpr) {
-		String regExpr = likeExpr.toLowerCase()
-								.replace(".", "\\.")
-								.replace("?", ".")
-								.replace("%", ".*");
-		return str.toLowerCase().matches(regExpr);
 	}
 
 //	private static final Pattern KV_PAT = Pattern.compile("(\\w+)=\"*((?<=\")[^\"]+(?=\")|([^\\s]+))\"*");
