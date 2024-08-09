@@ -4,11 +4,14 @@ plugins {
 }
 
 group = 'etri'
-version = '24.01.17'
+version = '24.08.09'
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_11
 	targetCompatibility = JavaVersion.VERSION_11
+	
+	withSourcesJar()
+	withJavadocJar()
 }
 [compileJava,compileTestJava]*.options*.encoding = 'UTF-8'
 
@@ -64,10 +67,12 @@ javadoc {
 	options.links("https://docs.oracle.com/javase/8/docs/api/")
 	options.links("https://google.github.io/guava/releases/23.0/api/docs/")
 	options.links("http://reactivex.io/RxJava/javadoc/")
+	
+	options.addStringOption('Xdoclint:none', '-quiet')
 }
-task javadocJar(type: Jar) {
-	from javadoc.destinationDir
-}
+//task javadocJar(type: Jar) {
+//	from javadoc.destinationDir
+//}
 
 artifacts {
 	archives sourceJar

@@ -42,12 +42,12 @@ public abstract class Generator<T> extends SuppliableFStream<T> implements Check
 	 * @param length	버퍼 길이. 버퍼 길이는 0보다 커야한다.
 	 * @param executor	내부 쓰레드가 사용한 {@link Executor} 객체.
 	 */
-	public Generator(int length, @Nonnull Executor exector) {
+	public Generator(int length, @Nonnull Executor executor) {
 		super(length);
-		checkNotNullArgument(exector);
+		checkNotNullArgument(executor);
 		checkArgument(length > 0, "Buffer length should be larger than zero.");
 		
-		exector.execute(m_wrapper);
+		executor.execute(m_wrapper);
 	}
 	
 	/**

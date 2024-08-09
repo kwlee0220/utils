@@ -1,6 +1,5 @@
 package utils.xml;
 
-import java.security.cert.PKIXRevocationChecker.Option;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -66,7 +65,7 @@ public interface FluentElement extends FluentNode {
 	 * 
 	 * @param name	대상 속성 이름
 	 * @return	속성 이름에 해당하는 값. 만일 속성 이름에 해당하는 속성이 정의되지 않는 경우는
-	 * 			{@link Option#none()}
+	 * 			{@link FOption#empty()}
 	 */
 	public FOption<String> attr(String name);
 	

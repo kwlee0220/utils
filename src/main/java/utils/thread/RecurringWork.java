@@ -2,7 +2,6 @@ package utils.thread;
 
 /**
  * <code>RecurringWork</code>는 주기적으로 반복되는 작업의 인터페이스를 정의한다.
- * <p>
  * 
  * @author Kang-Woo Lee
  * @see RecurringSchedule

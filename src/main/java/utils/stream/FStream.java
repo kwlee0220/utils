@@ -332,7 +332,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	/**
 	 * 본 스트림에서 주어진 조건을 만족하는 데이터로만 구성된 스트림을 생성한다.
 	 * 
-	 * @param <T>	생성된 스트림 데이터의 타입
 	 * @param pred	조건 객체
 	 * @return FStream 객체
 	 */
@@ -472,7 +471,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 스트림 데이터에 대해 매핑 함수를 병렬로 적용하기 때문에 함수의 수행 시간이 다른 경우
 	 * 출력 스트림에서의 결과 값 순서는 바뀔 수 있다.
 	 * 만일 입력 데이터 순서와 출력 데이터 순서를 맞추려면
-	 * {@link FStream#mapAsync(Function, AsyncExecutionOptions) 함수를 사용하되, 입력 인자로
+	 * {@link FStream#mapAsync(Function, AsyncExecutionOptions)} 함수를 사용하되, 입력 인자로
 	 * {@link AsyncExecutionOptions#setKeepOrder(boolean)}를 활용할 수 있다.
 	 * 또한 입력 데이터에 대한 함수 적용은 각각 별도의 쓰레드에 의해 수행되고 동시 실행되는
 	 * 쓰레드의 수는 시스템 내부 default 값을 사용한다.
@@ -562,7 +561,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 *  {@code mapper}에 각 데이터를 적용할 때 {@link FOption#empty()}인 경우 filter-out되고,
 	 *  그렇지 않은 경우는 적용 결과에 {@link FOption#get()}를 적용한 값으로 변환시킨다.
 	 *
-	 * @param <S>		맵 적용 결과 타입.
+	 * @param <R>		맵 적용 결과 타입.
 	 * @param mapper	스트림의 각 데이터에 적용할 맵퍼 객체
 	 * @return	맵퍼가 적용된 스트림 객체
 	 */
@@ -916,8 +915,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return	{@code FStream} 객체.
 	 */
 	public static <T> FStream<T> mergeParallel(FStream<? extends FStream<? extends T>> inputStreamFact,
-												int workerCount, @Nullable Executor exector) {
-		return new MergeParallelFStream<>(inputStreamFact, workerCount, exector);
+												int workerCount, @Nullable Executor executor) {
+		return new MergeParallelFStream<>(inputStreamFact, workerCount, executor);
 	}
 	
 	public default <K,R> FStream<Tuple<T,R>>

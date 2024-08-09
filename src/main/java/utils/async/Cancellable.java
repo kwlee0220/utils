@@ -17,7 +17,8 @@ public interface Cancellable {
 	 * 반환 값이 {@code true}인 경우는 중단 요청이 접수되어 중단 작업이 시작된 것을 의미한다.
 	 * 물론, 이때도 중단이 반드시 성공하는 것을 의미하지 않는다.
 	 * 
-	 * 작업 중단을 확인하기 위해서는 {@link #waitForFinished()}이나 {@link #waitForFinished(long, TimeUnit)}
+	 * 작업 중단을 확인하기 위해서는 {@link Execution#waitForFinished()}이나
+	 * {@link Execution#waitForFinished(long, TimeUnit)}
 	 * 메소드를 사용하여 최종적으로 확인할 수 있다.
 	 * 
 	 * @return	중단 요청의 접수 여부.

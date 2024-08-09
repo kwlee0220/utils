@@ -85,7 +85,7 @@ public class Funcs {
 	 * 주어진 목록들 중에서 마지막 목록을 반환한다.
 	 *
 	 * @param <T>
-	 * @param iterable	목록 리스트.
+	 * @param list	목록 리스트.
 	 * @return	마지막 목록. 리스트가 빈 경우에는 {@code null}이 반환된다.
 	 */
 	public static <T> T getLast(Iterable<T> list) {
@@ -157,7 +157,7 @@ public class Funcs {
 	 * @param <T>
 	 * @param list		Iterable 객체.
 	 * @param pred		목록의 대체 여부를 판단할 {@link Predicate} 객체.
-	 * @param supplier	대체할 새 객체를 제공할 Supplier 객체
+	 * @param newValueGenerator	대체할 새 객체를 제공할 Supplier 객체
 	 * @return	대체된 원소의 이전 값. 대체된 원소가 없었던 경우에는 {@code null}이 반환됨.
 	 */
 	public static <T> T replaceFirst(List<T> list, Predicate<? super T> pred,
@@ -183,7 +183,7 @@ public class Funcs {
 	 * @param <T>
 	 * @param list		Iterable 객체.
 	 * @param pred		목록의 대체 여부를 판단할 {@link Predicate} 객체.
-	 * @param supplier	대체할 새 객체.
+	 * @param newVal	대체할 새 객체.
 	 * @return	대체된 원소의 이전 값. 대체된 원소가 없었던 경우에는 {@code null}이 반환됨.
 	 */
 	public static <T> T replaceFirst(List<T> list, Predicate<? super T> pred, T newVal) {
@@ -309,7 +309,7 @@ public class Funcs {
 	 * 주어진 목록들 중에서 주어진 조건을 만족하는 모든 element를 주어진 consumer를 통해 apply를 호출한다.
 	 *
 	 * @param <T>
-	 * @param iterable	Iterable 객체.
+	 * @param list	Iterable 객체.
 	 * @param pred	Element의 apply 여부를 판달할 Predicate 객체.
 	 * @param consumer	consumer 객체.
 	 * @return	apply된 객체 갯수.
