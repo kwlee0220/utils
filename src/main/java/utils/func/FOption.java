@@ -222,6 +222,28 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
+
+	public static <T,S> S map(T nullable, Function<T,S> func) {
+		return FOption.map(nullable, func, (S)null);
+	}
+
+	public static <T,S> S map(T nullable, Function<T,S> func, S elsePart) {
+		if ( nullable != null ) {
+			return func.apply(nullable);
+		}
+		else {
+			return elsePart;
+		}
+	}
+
+	public static <T,S> S map(T nullable, Function<T,S> func, Supplier<? extends S> elsePart) {
+		if ( nullable != null ) {
+			return func.apply(nullable);
+		}
+		else {
+			return elsePart.get();
+		}
+	}
 	
 	/**
 	 * 데이터가 존재하는 경우 주어진 mapper ({@link CheckedFunction})를 적용시킨다.
@@ -408,36 +430,6 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		}
 		else {
 			return m_value.equals(other.m_value);
-		}
-	}
-
-	public static <T> T get(T nullable, Supplier<? extends T> nullValueSupplier) {
-		return Objects.nonNull(nullable) ? nullable : nullValueSupplier.get();
-	}
-
-	public static <T> T get(T nullable, T nullCaseValue) {
-		return Objects.nonNull(nullable) ? nullable : nullCaseValue;
-	}
-
-	public static <T,S> S map(T nullable, Function<T,S> func) {
-		return FOption.map(nullable, func, (S)null);
-	}
-
-	public static <T,S> S map(T nullable, Function<T,S> func, S elsePart) {
-		if ( Objects.nonNull(nullable) ) {
-			return func.apply(nullable);
-		}
-		else {
-			return elsePart;
-		}
-	}
-
-	public static <T,S> S map(T nullable, Function<T,S> func, Supplier<? extends S> elsePart) {
-		if ( Objects.nonNull(nullable) ) {
-			return func.apply(nullable);
-		}
-		else {
-			return elsePart.get();
 		}
 	}
 
