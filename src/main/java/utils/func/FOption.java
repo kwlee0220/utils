@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -407,6 +408,48 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		}
 		else {
 			return m_value.equals(other.m_value);
+		}
+	}
+
+	public static <T> T get(T nullable, Supplier<? extends T> nullValueSupplier) {
+		return Objects.nonNull(nullable) ? nullable : nullValueSupplier.get();
+	}
+
+	public static <T> T get(T nullable, T nullCaseValue) {
+		return Objects.nonNull(nullable) ? nullable : nullCaseValue;
+	}
+
+	public static <T,S> S map(T nullable, Function<T,S> func) {
+		return FOption.map(nullable, func, (S)null);
+	}
+
+	public static <T,S> S map(T nullable, Function<T,S> func, S elsePart) {
+		if ( Objects.nonNull(nullable) ) {
+			return func.apply(nullable);
+		}
+		else {
+			return elsePart;
+		}
+	}
+
+	public static <T,S> S map(T nullable, Function<T,S> func, Supplier<? extends S> elsePart) {
+		if ( Objects.nonNull(nullable) ) {
+			return func.apply(nullable);
+		}
+		else {
+			return elsePart.get();
+		}
+	}
+
+	public static <T> void run(Object nullable, Runnable work) {
+		if ( Objects.nonNull(nullable) ) {
+			work.run();
+		}
+	}
+
+	public static <T> void accept(T nullable, Consumer<T> consumer) {
+		if ( Objects.nonNull(nullable) ) {
+			consumer.accept(nullable);
 		}
 	}
 }

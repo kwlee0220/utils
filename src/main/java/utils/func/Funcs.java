@@ -4,14 +4,12 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -436,47 +434,5 @@ public class Funcs {
 	public static <L,R,K> FStream<Tuple<List<L>,List<R>>>
 	outerJoin(Iterable<L> left, Iterable<R> right, Function<L,K> leftKeyer, Function<R,K> rightKeyer) {
 		return FStream.from(left).outerJoin(FStream.from(right), leftKeyer, rightKeyer);
-	}
-	
-	
-	
-	
-
-	
-	public static <T> T toNonNull(T obj, T nullCaseValue) {
-		return Objects.nonNull(obj) ? obj : nullCaseValue;
-	}
-	public static <T> T toNonNull(T obj, Supplier<? extends T> nullValueSupplier) {
-		return Objects.nonNull(obj) ? obj : nullValueSupplier.get();
-	}
-	
-	public static <T> void runIf(Runnable work, boolean flag) {
-		if ( flag ) {
-			work.run();
-		}
-	}
-	public static <T> void runIfNonNull(Object obj, Runnable work) {
-		if ( Objects.nonNull(obj) ) {
-			work.run();
-		}
-	}
-	
-	public static <T> void acceptIfNonNull(T obj, Consumer<T> consumer) {
-		if ( Objects.nonNull(obj) ) {
-			consumer.accept(obj);
-		}
-	}
-	
-	public static <T,S> S applyIfNonNull(T obj, Function<T,S> func) {
-		return applyIfNonNull(func, obj, null);
-	}
-	
-	public static <T,S> S applyIfNonNull(Function<T,S> func, T obj, S elsePart) {
-		if ( Objects.nonNull(obj) ) {
-			return func.apply(obj);
-		}
-		else {
-			return elsePart;
-		}
 	}
 }
