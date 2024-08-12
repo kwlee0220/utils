@@ -58,10 +58,6 @@ dependencies {
 	testImplementation "org.mockito:mockito-core:${mockito_version}"
 }
 
-task sourceJar(type: Jar) {
-	from sourceSets.main.allSource
-}
-
 javadoc {
 	options.encoding = 'UTF-8'
 	options.links("https://docs.oracle.com/javase/8/docs/api/")
@@ -74,10 +70,10 @@ javadoc {
 //	from javadoc.destinationDir
 //}
 
-artifacts {
-	archives sourceJar
-	archives javadocJar
-}
+//artifacts {
+//	archives sourceJar
+//	archives javadocJar
+//}
 
 eclipse {
 	classpath {

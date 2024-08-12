@@ -37,7 +37,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 */
 	protected abstract T executeWork() throws InterruptedException, CancellationException, Exception;
 	
-	public final T run() throws CancellationException, Exception {
+	public final T run() throws CancellationException, InterruptedException, Exception {
 		notifyStarted();
 		
 		// 작업을 수행한다.

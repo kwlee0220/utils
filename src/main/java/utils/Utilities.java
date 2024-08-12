@@ -14,8 +14,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -280,6 +278,30 @@ public class Utilities {
     	if ( obj != null && logger != null && obj instanceof LoggerSettable ) {
     		((LoggerSettable)obj).setLogger(logger);
     	}
+    }
+    
+    @SuppressWarnings("unchecked")
+	public static <T> T newInstance(String clsName, Class<T> typeCls) {
+		try {
+			Class<?> cls = Class.forName(clsName);
+			if ( typeCls.isAssignableFrom(cls) ) {
+				return (T)newInstance(cls);
+			}
+		}
+		catch ( Exception e ) {
+			throw new InternalException("Failed to create an instance of class: " + clsName + ", cause" + e);
+		}
+		
+		throw new IllegalArgumentException("Incompatible class-type name: " + clsName);
+    }
+    
+    public static <T> T newInstance(Class<? extends T> cls) {
+		try {
+			return cls.getDeclaredConstructor().newInstance();
+		}
+		catch ( Exception e ) {
+			throw new InternalException("Failed to create an instance of class: " + cls + ", cause" + e);
+		}
     }
 	
 	@SuppressWarnings("unchecked")

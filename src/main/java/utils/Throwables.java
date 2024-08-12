@@ -67,9 +67,9 @@ public class Throwables {
 	}
 	
 	public static <T extends Throwable> void throwIfInstanceOf(Throwable e,
-															Class<T> thrCls) throws T {
-		if ( thrCls.isInstance(e) ) {
-			throw thrCls.cast(e);
+															Class<T> thrClas) throws T {
+		if ( thrClas.isInstance(e) ) {
+			throw thrClas.cast(e);
 		}
 	}
 }
