@@ -21,6 +21,7 @@ ext {
 	rxjava3_version = '3.1.8'
 //	picocli_version = '3.9.6'
 	picocli_version = '4.6.2'
+	jackson_version = '2.17.2'
 	
 	cglib_version = '3.3.0'
 	commons_io_version = '2.11.0'
@@ -46,6 +47,10 @@ dependencies {
 	
 	// command line parser
 	implementation "info.picocli:picocli:${picocli_version}"
+
+	// jackson json parser
+	implementation "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
+	implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
 	
 	implementation "commons-io:commons-io:${commons_io_version}"
 	implementation "org.apache.commons:commons-text:${commons_text_version}"
