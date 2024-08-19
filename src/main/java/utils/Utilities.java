@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
+import utils.func.FOption;
 import utils.func.KeyValue;
 import utils.stream.FStream;
 
@@ -45,12 +46,48 @@ public class Utilities {
 					.fold(1, (accum,code) -> 31 * accum + code);
 	}
 	
+	/**
+	 * 현재 작업 디렉토리 파일 객체를 반환한다.
+	 * 
+	 * @return	파일 객체.
+	 */
 	public static File getCurrentWorkingDir() {
 		return new File(System.getProperty("user.dir"));
 	}
 	
+	/**
+	 * 사용자 홈 디렉토리 파일 객체를 반환한다.
+	 * 
+	 * @return	파일 객체
+	 */
 	public static File getUserHomeDir() {
 		return new File(System.getProperty("user.home"));
+	}
+	
+	/**
+	 * 주어진 환경 변수에 이름에 기술된 파일 객체를 반환한다.
+	 * <p>
+	 * 만일 환경 변수에 지정된 경로의 파일이 존재하지 않는 경우에는 {@link FOption#empty()}가 반환된다.
+	 * 
+	 * @param	envVarName	환경 변수 이름
+	 * @return	{@link FOption} 객체.
+	 */
+	public static FOption<File> getEnvironmentVariableFile(String envVarName) {
+		String path = System.getenv(envVarName);
+		if ( path != null ) {
+			File file = new File(path);
+			if ( file.canRead() && file.isFile() ) {
+				return FOption.of(file);
+			}
+			else {
+				String msg = String.format("EnvironmentVariable does not have a valid file: %s='%s'",
+											envVarName, path);
+				throw new IllegalArgumentException(msg);
+			}
+		}
+		else {
+			return FOption.empty();
+		}
 	}
 	
 	public static String getLineSeparator() {
@@ -144,27 +181,6 @@ public class Utilities {
 			throw new IllegalStateException(msg.get());
 		}
 	}
-
-//	public static CompletableFuture<Void> runAsync(Runnable task, Executor executor) {
-//		if ( executor != null ) {
-//			return CompletableFuture.runAsync(task, executor);
-//		}
-//		else {
-//			return CompletableFuture.runAsync(task);
-//		}
-//	}
-//
-//	public static CompletableFuture<Void> runAsync(Runnable task) {
-//		return CompletableFuture.runAsync(task);
-//	}
-//
-//	public static CompletableFuture<Void> runCheckedAsync(CheckedRunnable task, Executor executor) {
-//		return runAsync(Unchecked.toRunnableIE(task), executor);
-//	}
-//
-//	public static CompletableFuture<Void> runCheckedAsync(CheckedRunnable task) {
-//		return runAsync(Unchecked.toRunnableIE(task));
-//	}
 	
 	public static boolean timedWaitMillis(Condition cond, Predicate<Void> exitPred, long maxMillis)
 		throws InterruptedException {
@@ -201,65 +217,6 @@ public class Utilities {
 	public static <T> Stream<T> stream(Iterator<T> it) {
 		return StreamSupport.stream(Spliterators.spliteratorUnknownSize(it, Spliterator.ORDERED), false);
 	}
-
-/*
-	public static Class<?>[] extendInterfaces(Class<?> base, Class<?>... addons) {
-		Set<Class<?>> intfcSet = getInterfaceAllRecusively(base);
-		intfcSet.addAll(Arrays.asList(addons));
-
-		return intfcSet.toArray(new Class<?>[intfcSet.size()]);
-	}
-	
-	public static Class<?>[] concatClasses(Class<?>[] left, Class<?>... right) {
-		if ( left == null || right == null ) {
-			throw new IllegalArgumentException("argument was null");
-		}
-
-		Set<Class<?>> typeSet = new HashSet<Class<?>>();
-		typeSet.addAll(Arrays.asList(left));
-		typeSet.addAll(Arrays.asList(right));
-
-		return typeSet.toArray(new Class[typeSet.size()]);
-	}
-
-	public static Class<?>[] concatClassesLE(Class<?>[] left, Class<?>[] right) {
-		Class<?>[] concatenated = new Class[left.length + right.length];
-		System.arraycopy(left, 0, concatenated, 0, left.length);
-		System.arraycopy(right, 0, concatenated, left.length, right.length);
-
-		return concatenated;
-	}
-
-	public static Class<?>[] concatClasses(Class<?>[] left, Class<?> right) {
-		for ( Class<?> cls: left ) {
-			if ( cls.equals(right) ) {
-				return left;
-			}
-		}
-
-		Class<?>[] concatenated = new Class[left.length + 1];
-		System.arraycopy(left, 0, concatenated, 0, left.length);
-		concatenated[left.length] = right;
-
-		return concatenated;
-	}
-
-	public static Class<?>[] concatClassesLE(Class<?>[] left, Class<?> right) {
-		Class<?>[] concatenated = new Class[left.length + 1];
-		System.arraycopy(left, 0, concatenated, 0, left.length);
-		concatenated[left.length] = right;
-
-		return concatenated;
-	}
-
-	public static Class<?>[] concatClassesLE(Collection<Class<?>> left, Class<?>... right) {
-		Class<?>[] concatenated = new Class[left.size() + right.length];
-		left.toArray(concatenated);
-		System.arraycopy(right, 0, concatenated, left.size(), right.length);
-
-		return concatenated;
-	}
-*/
 	
 	public static Logger getAndAppendLoggerName(Object obj, String suffix) {
     	if ( obj instanceof LoggerSettable ) {
