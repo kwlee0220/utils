@@ -24,13 +24,12 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 			throw new IllegalStateException("cannot start because invalid state: state=" + getState());
 		}
 		
-		Runnable work = () -> loop();
 		Executor exector = getExecutor();
 		if ( exector != null ) {
-			exector.execute(work);
+			exector.execute(this::loop);
 		}
 		else {
-			Thread thread = new Thread(work);
+			Thread thread = new Thread(this::loop);
 			thread.start();
 		}
 	}
