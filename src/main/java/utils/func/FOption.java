@@ -433,7 +433,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		}
 	}
 
-	public static <T> void run(Object nullable, Runnable work) {
+	public static void run(Object nullable, Runnable work) {
 		if ( Objects.nonNull(nullable) ) {
 			work.run();
 		}
