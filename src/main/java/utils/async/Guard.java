@@ -95,6 +95,16 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	public <X extends Throwable> void runOrThrow(CheckedRunnableX<X> work) throws X {
+		m_lock.lock();
+		try {
+			work.run();
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
 	public void runAndSignalAll(Runnable work) {
 		m_lock.lock();
 		try {
@@ -106,10 +116,11 @@ public class Guard implements Serializable {
 		}
 	}
 	
-	public <X extends Throwable> void runOrThrow(CheckedRunnableX<X> work) throws X {
+	public <X extends Throwable> void runAnSignalAllOrThrow(CheckedRunnableX<X> work) throws X {
 		m_lock.lock();
 		try {
 			work.run();
+			m_cond.signalAll();
 		}
 		finally {
 			m_lock.unlock();
