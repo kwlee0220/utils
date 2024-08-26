@@ -252,6 +252,16 @@ public class Utilities {
 		throw new IllegalArgumentException("Incompatible class-type name: " + clsName);
     }
     
+	public static Object newInstance(String clsName) {
+		try {
+			Class<?> cls = Class.forName(clsName);
+			return newInstance(cls);
+		}
+		catch ( Exception e ) {
+			throw new InternalException("Failed to create an instance of class: " + clsName + ", cause" + e);
+		}
+    }
+    
     public static <T> T newInstance(Class<? extends T> cls) {
 		try {
 			return cls.getDeclaredConstructor().newInstance();
