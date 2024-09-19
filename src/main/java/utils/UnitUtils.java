@@ -167,6 +167,9 @@ public class UnitUtils {
 	public static Duration parseDuration(String durStr) {
 		long millis = -1;
 		
+		if ( durStr.startsWith("PT") ) {
+			return Duration.parse(durStr);
+		}
 	    if ( durStr.endsWith("ms") ) {
 	    	millis = Long.parseLong(durStr.substring(0, durStr.length()-2));
 	    }
