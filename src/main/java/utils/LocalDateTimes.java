@@ -22,6 +22,10 @@ public class LocalDateTimes {
         return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
 	}
 	
+	public static Instant toInstant(LocalDateTime ldt) {
+		return ldt.atZone(ZoneOffset.systemDefault()).toInstant();
+	}
+	
 	public static long toEpochMillis(LocalDateTime ldt) {
 		return ldt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
 	}
