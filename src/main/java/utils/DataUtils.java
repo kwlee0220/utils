@@ -1,5 +1,6 @@
 package utils;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -204,6 +205,25 @@ public class DataUtils {
 	
 	public static boolean asBoolean(Object obj) {
 		return asBoolean(obj, false);
+	}
+	
+	public static Instant asInstant(Object obj) {
+		if ( obj instanceof String ) {
+			String str = (String)obj;
+			if ( str.indexOf('Z') >= 0 ) {
+				return Instant.parse(str);
+			}
+			else {
+				LocalDateTime ldt = LocalDateTime.parse(str);
+				return LocalDateTimes.toInstant(ldt);
+			}
+		}
+		else if ( obj instanceof Instant ) {
+			return (Instant)obj;
+		}
+		else {
+			throw new IllegalArgumentException("Not Instant object: obj=" + obj);
+		}
 	}
 	
 	public static LocalDateTime asDatetime(Object obj) {
