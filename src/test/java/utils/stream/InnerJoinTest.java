@@ -9,7 +9,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import utils.func.KeyValue;
+import utils.KeyValue;
 import utils.func.Tuple;
 
 /**

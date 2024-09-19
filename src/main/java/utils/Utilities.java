@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Sets;
 
 import utils.func.FOption;
-import utils.func.KeyValue;
 import utils.stream.FStream;
 
 /**
@@ -389,5 +388,9 @@ public class Utilities {
 					.map(String::trim)
 					.map(KeyValue::parse)
 					.toMap(KeyValue::key, KeyValue::value);
+	}
+	
+	public static boolean isWindowsOS() {
+		return System.getProperty("os.name").toLowerCase().contains("win");
 	}
 }

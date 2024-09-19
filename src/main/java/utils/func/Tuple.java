@@ -3,6 +3,8 @@ package utils.func;
 import java.io.Serializable;
 import java.util.Objects;
 
+import utils.KeyValue;
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)

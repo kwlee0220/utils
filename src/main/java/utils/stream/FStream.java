@@ -31,6 +31,7 @@ import com.google.common.collect.Sets;
 
 import utils.CSV;
 import utils.Indexed;
+import utils.KeyValue;
 import utils.Suppliable;
 import utils.Utilities;
 import utils.func.CheckedConsumer;
@@ -40,7 +41,6 @@ import utils.func.CheckedFunctionX;
 import utils.func.ComparableKeyValue;
 import utils.func.FLists;
 import utils.func.FOption;
-import utils.func.KeyValue;
 import utils.func.Slice;
 import utils.func.Try;
 import utils.func.Tuple;
