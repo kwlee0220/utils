@@ -19,11 +19,10 @@ import utils.func.Result;
 /**
  * * <code>SingleBufferConsumerThread</code>는 길이 1의 데이터 버퍼를 사용하는
  * 데이터 소비자 쓰레드를 지원하기 위한 추상 클래스이다.
- * 길이 1의 버퍼를 사용하기 때문에 복수 개의 데이타가 추가되는 경우 가장 마직막으로
+ * 길이 1의 버퍼를 사용하기 때문에 복수 개의 데이타가 추가되는 경우 가장 마지막으로
  * 추가된 데이타만 유지된다.
  * <p>
- * <code>SingleBufferConsumerThread</code>를 상속하는 경우 다음과 같은 메소드를
- * 재정의한다.
+ * <code>SingleBufferExecutor</code>를 상속하는 경우 다음과 같은 메소드를 재정의한다.
  * <dl>
  * 	<dt>{@link #consume(Object)}
  * 	<dd>{@link #waitNextWork()} 호출을 통해 데이타가
