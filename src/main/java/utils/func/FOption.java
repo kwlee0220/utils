@@ -224,10 +224,10 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	}
 
 	public static <T,S> S map(T nullable, Function<T,S> func) {
-		return FOption.map(nullable, func, (S)null);
+		return FOption.mapOrElse(nullable, func, (S)null);
 	}
 
-	public static <T,S> S map(T nullable, Function<T,S> func, S elsePart) {
+	public static <T,S> S mapOrElse(T nullable, Function<T,S> func, S elsePart) {
 		if ( nullable != null ) {
 			return func.apply(nullable);
 		}
@@ -236,7 +236,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		}
 	}
 
-	public static <T,S> S map(T nullable, Function<T,S> func, Supplier<? extends S> elsePart) {
+	public static <T,S> S mapOrSupply(T nullable, Function<T,S> func, Supplier<? extends S> elsePart) {
 		if ( nullable != null ) {
 			return func.apply(nullable);
 		}
