@@ -1,11 +1,13 @@
 package utils.io;
 
 import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -135,6 +137,12 @@ public class IOUtils {
     
     public static String toString(File file, Charset charset) throws IOException {
     	return new String(Files.readAllBytes(file.toPath()), charset);
+    }
+    
+    public static void toFile(String str, File file) throws IOException {
+    	try ( BufferedWriter writer = new BufferedWriter(new FileWriter(file)) ) { 
+    		writer.write(str);
+    	}
     }
     
     public static void toFile(byte[] bytes, File file) throws IOException {
