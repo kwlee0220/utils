@@ -1,6 +1,7 @@
 package utils.async;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
 import utils.Throwables;
@@ -37,7 +38,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 */
 	protected abstract T executeWork() throws InterruptedException, CancellationException, Exception;
 	
-	public final T run() throws CancellationException, InterruptedException, Exception {
+	public final T run() throws CancellationException, InterruptedException, ExecutionException {
 		notifyStarted();
 		
 		// 작업을 수행한다.
@@ -58,7 +59,9 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		}
 		catch ( Throwable e ) {
 			notifyFailed(Throwables.unwrapThrowable(e));
-			throw e;
+			Throwables.throwIfInstanceOf(e, ExecutionException.class);
+			
+			throw new ExecutionException(e);
 		}
 	}
 	

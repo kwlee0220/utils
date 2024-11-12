@@ -52,24 +52,26 @@ public class MultipleCases<K,V> {
 	public static class Case<K,V> {
 		private K m_key;
 		private V m_value;
-		private Map<K,V> m_remains;
+		private Map<K,V> m_others;
 		
-		private Case(K key, V value, Map<K,V> remains) {
+		private Case(K key, V value, Map<K,V> others) {
 			m_key = key;
 			m_value = value;
-			m_remains = remains;
+			m_others = others;
 		}
 		
 		public MultipleCases<K,V> consume(Consumer<V> consumer) {
 			if ( m_value != null ) {
 				consumer.accept(m_value);
 			}
-			return new MultipleCases<>(m_remains);
+			
+			// 남은 case들을 이용하여 'MultipleCases' 만들어서 반환한다.
+			return new MultipleCases<>(m_others);
 		}
 		
 		public <T> MultipleCases<K,V> apply(Function<V,T> func, Map<K,T> output) {
 			output.put(m_key, func.apply(m_value));
-			return new MultipleCases<>(m_remains);
+			return new MultipleCases<>(m_others);
 		}
 	}
 	

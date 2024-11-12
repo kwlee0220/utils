@@ -16,7 +16,7 @@ public interface CamusExecutor extends Executor {
 	/**
 	 * 주어진 작업을 주어진 시간 후에 수행시킨다.
 	 * <p>
-	 * delay가 0 또는 음수인 경우는 해당 작업을 별도의 쓰레드에서 바로 시작시킨다.
+	 * delay가 0 또는 음수인 경우는 작업을 별도의 쓰레드에서 바로 시작시킨다.
 	 *
 	 * @param task	수행시킬 작업
 	 * @param delay	지연 시간

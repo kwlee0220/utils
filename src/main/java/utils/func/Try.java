@@ -27,7 +27,7 @@ public interface Try<T> extends FStreamable<T> {
         return (Try<T>) t;
     }
     
-    public static <T> Try<Void> accept(CheckedConsumer<T> consumer, T input) {
+    public static <T> Try<Void> accept(T input, CheckedConsumer<T> consumer) {
 		try {
 			consumer.accept(input);
 			return success(null);
@@ -145,6 +145,8 @@ public interface Try<T> extends FStreamable<T> {
 	 * @return	수행 결과. 수행이 실패된 경우에는 {@code null}
 	 */
 	public T getOrElse(Supplier<? extends T> elseSupplier);
+
+	public <X extends Throwable> T getOrThrow(Supplier<X> thrower) throws X;
 	
 	/**
 	 * 작업 수행 결과에 {@code mapper}를 적용시킨 값으로 구성된 {@link Try} 객체를 반환한다.
@@ -164,7 +166,7 @@ public interface Try<T> extends FStreamable<T> {
 	public Try<T> ifSuccessful(Consumer<? super T> action);
 	public Try<T> ifFailed(Consumer<Throwable> handler);
 	
-	public Try<T> recover(Function<Throwable,Try<? extends T>> recovery);
+	public Try<T> recover(Function<Throwable,T> recovery);
 	
 	public FOption<T> toFOption();
 	
@@ -210,6 +212,11 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
+		public <X extends Throwable> T getOrThrow(Supplier<X> thrower) throws X {
+			return m_value;
+		}
+
+		@Override
 		public Throwable getCause() {
 			throw new IllegalStateException();
 		}
@@ -251,7 +258,7 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
-		public Try<T> recover(Function<Throwable, Try<? extends T>> recovery) {
+		public Try<T> recover(Function<Throwable, T> recovery) {
 			return this;
 		}
 
@@ -314,6 +321,11 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
+		public <X extends Throwable> T getOrThrow(Supplier<X> thrower) throws X {
+			throw thrower.get();
+		}
+
+		@Override
 		public Throwable getCause() {
 			return m_cause;
 		}
@@ -350,8 +362,8 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
-		public Try<T> recover(Function<Throwable, Try<? extends T>> recovery) {
-			return Try.narrow(recovery.apply(m_cause));
+		public Try<T> recover(Function<Throwable, T> recovery) {
+			return Try.get(() -> recovery.apply(m_cause));
 		}
 
 		@Override

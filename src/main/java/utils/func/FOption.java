@@ -138,6 +138,15 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return elseSupplier.get();
 		}
 	}
+	public static <T,X extends Throwable> T getOrElseThrow(T value, CheckedSupplierX<? extends T,X> elseSupplier) throws X {
+		if ( value != null ) {
+			return value;
+		}
+		else {
+			checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			return elseSupplier.get();
+		}
+	}
 	
 	public <X extends Throwable> T getOrThrow(Supplier<X> thrower) throws X {
 		if ( m_present ) {
@@ -158,6 +167,9 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		
 		return this;
 	}
+	public static <T> void ifPresent(T value, @Nonnull Consumer<? super T> effect) {
+		FOption.ofNullable(value).ifPresent(effect);
+	}
 	
 	public <X extends Throwable> FOption<T> ifPresentOrThrow(CheckedConsumerX<? super T,X> effect) throws X {
 		checkNotNullArgument(effect, "present consumer is null");
@@ -177,6 +189,9 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		}
 		
 		return this;
+	}
+	public static <T> void ifAbsent(T value, @Nonnull Runnable nullAction) {
+		FOption.ofNullable(value).ifAbsent(nullAction);
 	}
 
 	public <X extends Throwable> FOption<T> ifAbsentOrThrow(CheckedRunnableX<X> orElse) throws X {
@@ -440,6 +455,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	}
 
 	public static <T> void accept(T nullable, Consumer<T> consumer) {
+		if ( Objects.nonNull(nullable) ) {
+			consumer.accept(nullable);
+		}
+	}
+
+	public static <T,X extends Throwable>
+	void acceptOrThrow(T nullable, CheckedConsumerX<? super T,X> consumer) throws X {
 		if ( Objects.nonNull(nullable) ) {
 			consumer.accept(nullable);
 		}

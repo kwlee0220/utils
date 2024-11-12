@@ -20,8 +20,12 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 	private final Function<V,K> m_keyer;
 	private final List<KeyValue<K,V>> m_keyValues = Lists.newArrayList();
 	
-	public KeyedValueList(Function<V,K> keyer) {
+	protected KeyedValueList(Function<V,K> keyer) {
 		m_keyer = keyer;
+	}
+	
+	public static <K,V> KeyedValueList<K,V> newInstance(Function<V,K> keyer) {
+		return new KeyedValueList<>(keyer);
 	}
 	
 	public static <K,V> KeyedValueList<K,V> from(Iterable<V> initValues, Function<V,K> keyer) {
@@ -50,6 +54,13 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 		
 		return m_keyValues.add(KeyValue.of(key, value));
 	}
+	
+	public void addIfAbscent(V value) {
+		K key = m_keyer.apply(value);
+		if ( !Funcs.exists(m_keyValues, kv -> kv.key().equals(key)) ) {
+			m_keyValues.add(KeyValue.of(key, value));
+		}
+	}
 
 	@Override
 	public void add(int index, V value) {
@@ -68,6 +79,37 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 		assertValidIndex(index);
 		
 		return m_keyValues.remove(index).value();
+	}
+	
+	public V replace(V value) {
+		K key = m_keyer.apply(value);
+		
+		int idx = indexOfKey(key);
+		if ( idx >= 0 ) {
+			KeyValue<K,V> removed = m_keyValues.remove(idx);
+			m_keyValues.add(idx, KeyValue.of(key, value));
+			
+			return removed.value();
+		}
+		else {
+			return null;
+		}
+	}
+	
+	public V addOrReplace(V value) {
+		K key = m_keyer.apply(value);
+		
+		int idx = indexOfKey(key);
+		if ( idx >= 0 ) {
+			KeyValue<K,V> removed = m_keyValues.remove(idx);
+			m_keyValues.add(idx, KeyValue.of(key, value));
+			
+			return removed.value();
+		}
+		else {
+			m_keyValues.add(KeyValue.of(key, value));
+			return null;
+		}
 	}
 	
 	@Override

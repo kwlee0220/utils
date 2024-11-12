@@ -128,7 +128,9 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@Override
 	public T get() throws InterruptedException, ExecutionException, CancellationException {
 		try {
-			return waitForFinished().get();
+			AsyncResult<T> result = waitForFinished();
+			
+			return result.get();
 		}
 		catch ( TimeoutException neverHappens ) {
 			throw new AssertionError("Should not be here: " + getClass().getName() + "#get()");

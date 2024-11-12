@@ -2,11 +2,13 @@ package utils.io;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.CopyOption;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileTime;
 
 import utils.stream.FStream;
@@ -21,8 +23,48 @@ public class FileUtils {
 		throw new AssertionError("Should not be called: class=" + FileUtils.class.getName());
 	}
 	
-	public static File getWorkingDirectory() {
-		return new File("").getAbsoluteFile();
+	/**
+	 * 현재 작업 디렉토리 파일 객체를 반환한다.
+	 * 
+	 * @return	파일 객체.
+	 */
+	public static File getCurrentWorkingDirectory() {
+		return new File(System.getProperty("user.dir"));
+	}
+	
+	/**
+	 * 사용자 홈 디렉토리 파일 객체를 반환한다.
+	 * 
+	 * @return	파일 객체
+	 */
+	public static File getUserHomeDir() {
+		return new File(System.getProperty("user.home"));
+	}
+	
+	public static File path(File initial, String... children) {
+		return FStream.of(children)
+						.fold(initial, File::new);
+	}
+	
+	public static File path(String... names) {
+		return FStream.of(names)
+						.fold(new File("."), File::new);
+	}
+	
+	public static void copy(File srcFile, File tarFile, CopyOption... opts) throws IOException {
+		Files.copy(srcFile.toPath(), tarFile.toPath(), opts);
+	}
+	
+	public static void move(File srcFile, File tarFile, CopyOption... opts) throws IOException {
+		Files.move(srcFile.toPath(), tarFile.toPath(), opts);
+	}
+	
+	public static void createDirectories(File dir, FileAttribute<?>... opts) throws IOException {
+		Files.createDirectories(dir.toPath(), opts);
+	}
+	
+	public static void deleteDirectory(File dir) throws IOException {
+		org.apache.commons.io.FileUtils.deleteDirectory(dir);
 	}
 	
 	public static FStream<File> walk(File start, String glob) throws IOException {

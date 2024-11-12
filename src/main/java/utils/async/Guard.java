@@ -1,6 +1,8 @@
 package utils.async;
 
 import java.io.Serializable;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -479,53 +481,37 @@ public class Guard implements Serializable {
 	
 	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl)
 		throws InterruptedException {
-		m_lock.lock();
 		try {
-			while ( !predicate.get() ) {
-				m_cond.await();
-			}
-			return suppl.get();
+			return awaitUntilAndGet(predicate, suppl, (Date)null);	
 		}
-		finally {
-			m_lock.unlock();
+		catch ( TimeoutException neverHappens ) {
+			throw new AssertionError();
 		}
 	}
 	
-	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl,
-									long timeout, TimeUnit tu)
+	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl, Duration dur)
 		throws InterruptedException, TimeoutException {
-		Utilities.checkNotNullArgument(predicate, "Until-condition is null");
-		Utilities.checkNotNullArgument(tu, "TimeUnit is null");
-		Utilities.checkArgument(timeout >= 0, "timeout should be larger than zero");
-		Utilities.checkState(suppl != null, "Supplier is null");
+		Utilities.checkNotNullArgument(dur, "Duration is null");
 		
-		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
-		m_lock.lock();
-		try {
-			while ( !predicate.get() ) {
-				if ( !m_cond.awaitUntil(due) ) {
-					throw new TimeoutException();
-				}
-			}
-
-			return suppl.get();
-		}
-		finally {
-			m_lock.unlock();
-		}
+		Date due = Date.from(Instant.now().plus(dur)); 
+		return awaitUntilAndGet(predicate, suppl, due);
 	}
 	
 	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl, Date due)
 		throws InterruptedException, TimeoutException {
 		Utilities.checkNotNullArgument(predicate, "Until-condition is null");
 		Utilities.checkNotNullArgument(suppl, "value supplier is null");
-		Utilities.checkNotNullArgument(due, "due is null");
 		
 		m_lock.lock();
 		try {
 			while ( !predicate.get() ) {
-				if ( !m_cond.awaitUntil(due) ) {
-					throw new TimeoutException();
+				if ( due == null ) {
+					m_cond.await();
+				}
+				else {
+					if ( !m_cond.awaitUntil(due) ) {
+						throw new TimeoutException();
+					}
 				}
 			}
 

@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import utils.func.FOption;
+import utils.io.FileUtils;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Help.Ansi;
@@ -52,7 +53,8 @@ public abstract class HomeDirPicocliCommand implements Runnable, LoggerSettable 
 			run(getHomeDir());
 		}
 		catch ( Exception e ) {
-			System.err.printf("failed: %s%n%n", e);
+			System.err.printf("failed: %s%n", e);
+			System.exit(-1);
 		}
 	}
 	
@@ -72,7 +74,7 @@ public abstract class HomeDirPicocliCommand implements Runnable, LoggerSettable 
 		}
 		// 홈 디렉토리가 지정되지 않은 경우에는 사용자 홈 디렉토리를 홈 디렉토리로 설정한다.
 		if ( m_homeDir == null ) {
-			m_homeDir = Utilities.getUserHomeDir().toPath();
+			m_homeDir = FileUtils.getUserHomeDir().toPath();
 			if ( getLogger().isDebugEnabled() ) {
 				getLogger().debug("set homeDir '{}' from the user homeDir", m_homeDir);
 			}

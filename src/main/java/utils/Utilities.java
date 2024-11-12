@@ -1,6 +1,7 @@
 package utils;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -27,6 +28,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Sets;
 
 import utils.func.FOption;
+import utils.func.Tuple;
+import utils.io.IOUtils;
 import utils.stream.FStream;
 
 /**
@@ -46,24 +49,6 @@ public class Utilities {
 	}
 	
 	/**
-	 * 현재 작업 디렉토리 파일 객체를 반환한다.
-	 * 
-	 * @return	파일 객체.
-	 */
-	public static File getCurrentWorkingDir() {
-		return new File(System.getProperty("user.dir"));
-	}
-	
-	/**
-	 * 사용자 홈 디렉토리 파일 객체를 반환한다.
-	 * 
-	 * @return	파일 객체
-	 */
-	public static File getUserHomeDir() {
-		return new File(System.getProperty("user.home"));
-	}
-	
-	/**
 	 * 주어진 환경 변수에 이름에 기술된 파일 객체를 반환한다.
 	 * <p>
 	 * 만일 환경 변수에 지정된 경로의 파일이 존재하지 않는 경우에는 {@link FOption#empty()}가 반환된다.
@@ -75,7 +60,7 @@ public class Utilities {
 		String path = System.getenv(envVarName);
 		if ( path != null ) {
 			File file = new File(path);
-			if ( file.canRead() && file.isFile() ) {
+			if ( file.exists() ) {
 				return FOption.of(file);
 			}
 			else {
@@ -373,6 +358,16 @@ public class Utilities {
 	public static String substributeString(String template, Map<String,String> mappings) {
 		return new StringSubstitutor(mappings).replace(template);
 	}
+	public static void substributeFile(File templateFile, Map<String,String> mappings, File outputFile)
+			throws IOException {
+			String template = IOUtils.toString(templateFile);
+			String substributed = substributeString(template, mappings);
+			IOUtils.toFile(substributed, outputFile);
+		}
+	public static void substributeFile(File templateFile, Map<String,String> mappings)
+		throws IOException {
+		substributeFile(templateFile, mappings, templateFile);
+	}
 
 //	private static final Pattern KV_PAT = Pattern.compile("(\\w+)=\"*((?<=\")[^\"]+(?=\")|([^\\s]+))\"*");
 //	private static final Pattern KV_PAT = Pattern.compile("(\\S+)\\s*=\\s*\"*(((?<=\\\")([^\\\"]*)(?=\\\"))|([^;\\s][^;\\s]*))\"*;?");
@@ -388,6 +383,32 @@ public class Utilities {
 					.map(String::trim)
 					.map(KeyValue::parse)
 					.toMap(KeyValue::key, KeyValue::value);
+	}
+	
+	public static Tuple<String,String> split(String str, char delim, Tuple<String,String> defValue) {
+		int delimIndex = str.indexOf(delim);
+		if ( delimIndex >= 0 ) {
+			return Tuple.of(str.substring(0, delimIndex), str.substring(delimIndex+1));
+		}
+		else {
+			return defValue;
+		}
+	}
+	public static Tuple<String,String> split(String str, char delim) {
+		return split(str, delim, null);
+	}
+	
+	public static Tuple<String,String> splitLast(String str, char delim, Tuple<String,String> defValue) {
+		int delimIndex = str.lastIndexOf(delim);
+		if ( delimIndex >= 0 ) {
+			return Tuple.of(str.substring(0, delimIndex), str.substring(delimIndex+1));
+		}
+		else {
+			return defValue;
+		}
+	}
+	public static Tuple<String,String> splitLast(String str, char delim) {
+		return splitLast(str, delim, null);
 	}
 	
 	public static boolean isWindowsOS() {

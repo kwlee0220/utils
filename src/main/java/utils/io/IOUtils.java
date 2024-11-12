@@ -144,6 +144,11 @@ public class IOUtils {
     		writer.write(str);
     	}
     }
+    public static void toFile(String str, Charset charset, File file) throws IOException {
+    	try ( BufferedWriter writer = new BufferedWriter(new FileWriter(file, charset)) ) { 
+    		writer.write(str);
+    	}
+    }
     
     public static void toFile(byte[] bytes, File file) throws IOException {
     	try ( FileOutputStream fos = new FileOutputStream(file); 
