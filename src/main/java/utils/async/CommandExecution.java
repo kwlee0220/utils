@@ -98,7 +98,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 									.directory(m_workingDirectory);
 		if ( getLogger().isInfoEnabled() ) {
 			getLogger().info("WorkingDir: {}", m_workingDirectory);
-			getLogger().info("Command: {}", FStream.from(command).join(' '));
+			getLogger().info("Command (variable-replaced): {}", FStream.from(command).join(' '));
 		}
 		
 		// Standard output 처리

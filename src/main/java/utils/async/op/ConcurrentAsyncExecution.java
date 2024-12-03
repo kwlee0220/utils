@@ -5,6 +5,8 @@ import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+
 import utils.Utilities;
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
@@ -47,7 +49,7 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 	 * 									길이가 0인 경우.
 	 */
 	public ConcurrentAsyncExecution(StartableExecution<?>... elements) {
-		Utilities.checkNotNullArgument(elements, "elements is null");
+		Preconditions.checkArgument(elements != null, "elements is null");
 		
 		m_elements = elements;
 		m_noOfElmCompletionToCompletion = elements.length;

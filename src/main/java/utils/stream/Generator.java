@@ -1,11 +1,12 @@
 package utils.stream;
 
 import static utils.Utilities.checkArgument;
-import static utils.Utilities.checkNotNullArgument;
 
 import java.util.concurrent.Executor;
 
 import javax.annotation.Nonnull;
+
+import com.google.common.base.Preconditions;
 
 import utils.func.CheckedRunnable;
 
@@ -44,8 +45,8 @@ public abstract class Generator<T> extends SuppliableFStream<T> implements Check
 	 */
 	public Generator(int length, @Nonnull Executor executor) {
 		super(length);
-		checkNotNullArgument(executor);
-		checkArgument(length > 0, "Buffer length should be larger than zero.");
+		Preconditions.checkArgument(executor != null);
+		Preconditions.checkArgument(length > 0, "Buffer length should be larger than zero.");
 		
 		executor.execute(m_wrapper);
 	}
@@ -56,7 +57,7 @@ public abstract class Generator<T> extends SuppliableFStream<T> implements Check
 	 * @param value		생성한 데이터.
 	 */
 	public final void yield(T value) {
-		checkNotNullArgument(value);
+		Preconditions.checkArgument(value != null);
 		
 		supply(value);
 	}

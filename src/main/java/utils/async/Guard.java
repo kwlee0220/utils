@@ -13,6 +13,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.google.common.base.Preconditions;
+
 import utils.Utilities;
 import utils.func.CheckedConsumer;
 import utils.func.CheckedFunction;
@@ -406,8 +408,8 @@ public class Guard implements Serializable {
 	}
 	
 	public void awaitUntil(Supplier<Boolean> predicate) throws InterruptedException {
-		Utilities.checkNotNullArgument(predicate, "Until-condition is null");
-		Utilities.checkState(m_cond != null, "Condition is null");
+		Preconditions.checkArgument(predicate != null, "Until-condition is null");
+		Preconditions.checkState(m_cond != null, "Condition is null");
 		
 		m_lock.lock();
 		try {
@@ -428,9 +430,9 @@ public class Guard implements Serializable {
 	
 	public boolean awaitUntil(Supplier<Boolean> predicate, Date due)
 		throws InterruptedException {
-		Utilities.checkNotNullArgument(predicate, "Until-condition is null");
-		Utilities.checkNotNullArgument(due, "due is null");
-		Utilities.checkState(m_cond != null, "Condition is null");
+		Preconditions.checkArgument(predicate != null, "Until-condition is null");
+		Preconditions.checkArgument(due != null, "due is null");
+		Preconditions.checkState(m_cond != null, "Condition is null");
 		
 		m_lock.lock();
 		try {
@@ -491,7 +493,7 @@ public class Guard implements Serializable {
 	
 	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl, Duration dur)
 		throws InterruptedException, TimeoutException {
-		Utilities.checkNotNullArgument(dur, "Duration is null");
+		Preconditions.checkArgument(dur != null, "Duration is null");
 		
 		Date due = Date.from(Instant.now().plus(dur)); 
 		return awaitUntilAndGet(predicate, suppl, due);
@@ -499,8 +501,8 @@ public class Guard implements Serializable {
 	
 	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl, Date due)
 		throws InterruptedException, TimeoutException {
-		Utilities.checkNotNullArgument(predicate, "Until-condition is null");
-		Utilities.checkNotNullArgument(suppl, "value supplier is null");
+		Preconditions.checkArgument(predicate != null, "Until-condition is null");
+		Preconditions.checkArgument(suppl != null, "value supplier is null");
 		
 		m_lock.lock();
 		try {
@@ -540,8 +542,8 @@ public class Guard implements Serializable {
 	}
 	
 	public void awaitWhile(Supplier<Boolean> predicate) throws InterruptedException {
-		Utilities.checkNotNullArgument(predicate, "While-condition is null");
-		Utilities.checkState(m_cond != null, "Condition is null");
+		Preconditions.checkArgument(predicate != null, "While-condition is null");
+		Preconditions.checkState(m_cond != null, "Condition is null");
 		
 		m_lock.lock();
 		try {
@@ -556,9 +558,9 @@ public class Guard implements Serializable {
 	
 	public boolean awaitWhile(Supplier<Boolean> predicate, long timeout, TimeUnit unit)
 		throws InterruptedException {
-		Utilities.checkNotNullArgument(predicate, "While-condition is null");
-		Utilities.checkState(m_cond != null, "Condition is null");
-		Utilities.checkArgument(timeout >= 0, "invalid timeout: " + timeout);
+		Preconditions.checkArgument(predicate != null, "While-condition is null");
+		Preconditions.checkState(m_cond != null, "Condition is null");
+		Preconditions.checkArgument(timeout >= 0, "invalid timeout: " + timeout);
 		
 		Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
 		m_lock.lock();

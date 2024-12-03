@@ -58,10 +58,11 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 			throw e;
 		}
 		catch ( Throwable e ) {
-			notifyFailed(Throwables.unwrapThrowable(e));
+			Throwable cause = Throwables.unwrapThrowable(e);
+			notifyFailed(cause);
 			Throwables.throwIfInstanceOf(e, ExecutionException.class);
 			
-			throw new ExecutionException(e);
+			throw new ExecutionException(cause);
 		}
 	}
 	

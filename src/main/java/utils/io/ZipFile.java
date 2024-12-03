@@ -1,5 +1,6 @@
 package utils.io;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
@@ -20,6 +21,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import utils.stream.FStream;
 
 /**
  * 
@@ -63,12 +66,14 @@ public class ZipFile {
 		}
 	}
 	
-	public static ZipFile zip(Path zipFile, Path dir) throws IOException {
-		String baseName = dir.getParent().getFileName().toString();
-		return zip(zipFile, baseName, dir);
+	public static ZipFile zipDirectory(Path zipFile, Path dir) throws IOException {
+		List<Path> files = FStream.of(dir.toFile().listFiles())
+									.map(File::toPath)
+									.toList();
+		return zip(zipFile, "", files);
 	}
 	
-	public static ZipFile zip(Path zipFile, String baseName, Path... files) throws IOException {
+	public static ZipFile zip(Path zipFile, String baseName, List<Path> files) throws IOException {
 		final Map<String,String> env = Maps.newHashMap();
 		env.put("create", "true");
 

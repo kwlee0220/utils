@@ -17,6 +17,8 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import com.google.common.base.Preconditions;
+
 import utils.Throwables;
 import utils.stream.FStream;
 import utils.stream.FStreamable;
@@ -396,7 +398,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	}
 	
 	public <V> FOption<V> cast(Class<? extends V> cls) {
-		checkNotNullArgument(cls, "target class is null");
+		Preconditions.checkArgument(cls != null, "target class is null");
 		
 		return filter(cls::isInstance).map(cls::cast);
 	}

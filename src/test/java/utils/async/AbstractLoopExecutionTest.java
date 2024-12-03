@@ -111,14 +111,12 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected FOption<Integer> isLoopFinished() {
-			return m_index >= m_limit ? FOption.of(m_index) : FOption.empty();
-		}
-
-		@Override
-		protected void iterate() throws Exception {
+		protected FOption<Integer> iterate(long loopIndex) throws Exception {
+			Assert.assertEquals(loopIndex, m_index);
 			MILLISECONDS.sleep(100);
 			++m_index;
+			
+			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
 		}
 
 		@Override
@@ -139,16 +137,14 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected FOption<Integer> isLoopFinished() {
-			return m_index >= m_limit ? FOption.of(m_index) : FOption.empty();
-		}
-
-		@Override
-		protected void iterate() throws Exception {
+		protected FOption<Integer> iterate(long loopIndex) throws Exception {
+			Assert.assertEquals(loopIndex, m_index);
 			MILLISECONDS.sleep(100);
 			if ( ++m_index == 3 ) {
 				throw new CancellationException();
 			}
+
+			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
 		}
 
 		@Override
@@ -169,16 +165,15 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected FOption<Integer> isLoopFinished() {
-			return m_index >= m_limit ? FOption.of(m_index) : FOption.empty();
-		}
-
-		@Override
-		protected void iterate() throws Exception {
+		protected FOption<Integer> iterate(long loopIndex) throws Exception {
+			Assert.assertEquals(loopIndex, m_index);
+			
 			MILLISECONDS.sleep(100);
 			if ( ++m_index == 3 ) {
 				throw new Exception("test");
 			}
+
+			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
 		}
 
 		@Override
@@ -199,16 +194,15 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected FOption<Integer> isLoopFinished() {
-			return m_index >= m_limit ? FOption.of(m_index) : FOption.empty();
-		}
-
-		@Override
-		protected void iterate() throws Exception {
+		protected FOption<Integer> iterate(long loopIndex) throws Exception {
+			Assert.assertEquals(loopIndex, m_index);
+			
 			MILLISECONDS.sleep(100);
 			if ( ++m_index == 3 ) {
 				throw new Exception("test");
 			}
+
+			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
 		}
 
 		@Override

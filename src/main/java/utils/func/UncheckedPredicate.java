@@ -2,7 +2,7 @@ package utils.func;
 
 import java.util.function.Predicate;
 
-import utils.Utilities;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -14,8 +14,8 @@ public class UncheckedPredicate<T> implements Predicate<T> {
 	private final FailureHandler<? super T> m_handler;
 	
 	UncheckedPredicate(CheckedPredicate<? super T> checked, FailureHandler<? super T> handler) {
-		Utilities.checkNotNullArgument(checked, "CheckedPredicate is null");
-		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
+		Preconditions.checkArgument(checked != null, "CheckedPredicate is null");
+		Preconditions.checkArgument(handler != null, "FailureHandler is null");
 		
 		m_checked = checked;
 		m_handler = handler;

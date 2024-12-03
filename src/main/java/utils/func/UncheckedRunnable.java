@@ -1,6 +1,6 @@
 package utils.func;
 
-import utils.Utilities;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -12,8 +12,8 @@ public class UncheckedRunnable implements Runnable {
 	private final FailureHandler<Void> m_handler;
 	
 	UncheckedRunnable(CheckedRunnable checked, FailureHandler<Void> handler) {
-		Utilities.checkNotNullArgument(checked, "CheckedRunnable is null");
-		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
+		Preconditions.checkArgument(checked != null, "CheckedRunnable is null");
+		Preconditions.checkArgument(handler != null, "FailureHandler is null");
 		
 		m_checked = checked;
 		m_handler = handler;

@@ -2,7 +2,7 @@ package utils.func;
 
 import java.util.function.Function;
 
-import utils.Utilities;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -15,8 +15,8 @@ public class UncheckedFunction<T,S> implements Function<T,S> {
 	
 	UncheckedFunction(CheckedFunction<? super T, ? extends S> checked,
 						FailureHandler<? super T> handler) {
-		Utilities.checkNotNullArgument(checked, "CheckedFunction is null");
-		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
+		Preconditions.checkArgument(checked != null, "CheckedFunction is null");
+		Preconditions.checkArgument(handler != null, "FailureHandler is null");
 		
 		m_checked = checked;
 		m_handler = handler;

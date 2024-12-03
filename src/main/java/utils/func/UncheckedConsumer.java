@@ -2,7 +2,7 @@ package utils.func;
 
 import java.util.function.Consumer;
 
-import utils.Utilities;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -14,8 +14,8 @@ public class UncheckedConsumer<T> implements Consumer<T> {
 	private final FailureHandler<? super T> m_handler;
 	
 	UncheckedConsumer(CheckedConsumer<? super T> checked, FailureHandler<? super T> handler) {
-		Utilities.checkNotNullArgument(checked, "CheckedConsumer is null");
-		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
+		Preconditions.checkArgument(checked != null, "CheckedConsumer is null");
+		Preconditions.checkArgument(handler != null, "FailureHandler is null");
 		
 		m_checked = checked;
 		m_handler = handler;

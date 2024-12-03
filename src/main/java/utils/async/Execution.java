@@ -31,8 +31,6 @@ public interface Execution<T> extends Future<T> {
 		public void onCancelled();
 	}
 	
-	public static final Timer s_timer = new Timer();
-	
 	/**
 	 * 연산 수행을 중단시킨다.
 	 * <p>
@@ -305,9 +303,7 @@ public interface Execution<T> extends Future<T> {
      * @param timeout	제한 시간.
      * @param unit		제한 시간의 단위.
      */
-    public default void setTimeout(long timeout, TimeUnit unit) {
-    	s_timer.setTimer(this, timeout, unit);
-    }
+    public void setTimeout(long timeout, TimeUnit unit);
     
     public default <S> Execution<S> map(Function<? super T,? extends S> mapper) {
     	return new MapChainExecution<>(this, mapper);

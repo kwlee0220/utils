@@ -25,6 +25,7 @@ import org.apache.commons.text.StringSubstitutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
 import utils.func.FOption;
@@ -117,7 +118,7 @@ public class Utilities {
 			throw new IllegalArgumentException(msg);
 		}
 		for ( Object obj: objs ) {
-			checkNotNullArgument(obj, msg);
+			Preconditions.checkArgument(obj != null, msg);
 		}
 	}
 	

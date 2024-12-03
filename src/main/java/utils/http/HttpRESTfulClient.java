@@ -5,13 +5,15 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.base.Preconditions;
 
-import utils.InternalException;
 import utils.LoggerSettable;
 import utils.Throwables;
 import utils.func.FOption;
+import utils.func.Try;
 import utils.func.Tuple;
 
 import okhttp3.Headers;
@@ -27,12 +29,11 @@ import okhttp3.Response;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class HttpRESTfulClient implements HttpClientProxy, LoggerSettable {
+public class HttpRESTfulClient implements LoggerSettable {
 	private static final Logger s_logger = LoggerFactory.getLogger(HttpRESTfulClient.class);
 	public static final MediaType MEDIA_TYPE_JSON = MediaType.parse("application/json; charset=utf-8");
 	
 	private final OkHttpClient m_client;
-	private final String m_endpoint;
 	private final ErrorEntityDeserializer m_errorEntityDeser;
 	private final JsonMapper m_mapper;
 	private Logger m_logger = null;
@@ -57,21 +58,13 @@ public class HttpRESTfulClient implements HttpClientProxy, LoggerSettable {
 	private HttpRESTfulClient(Builder builder) {
 		Preconditions.checkNotNull(builder);
 		Preconditions.checkNotNull(builder.m_httpClient);
-		Preconditions.checkNotNull(builder.m_endpoint);
 		Preconditions.checkNotNull(builder.m_deser);
 		
 		m_client = builder.m_httpClient;
-		m_endpoint = builder.m_endpoint;
 		m_errorEntityDeser = builder.m_deser;
 		m_mapper = builder.m_mapper;
 	}
 	
-	@Override
-	public String getEndpoint() {
-		return m_endpoint;
-	}
-	
-	@Override
 	public OkHttpClient getHttpClient() {
 		return m_client;
 	}
@@ -167,7 +160,6 @@ public class HttpRESTfulClient implements HttpClientProxy, LoggerSettable {
 	}
 	public static class Builder {
 		private OkHttpClient m_httpClient;
-		private String m_endpoint;
 		private ErrorEntityDeserializer m_deser;
 		private JsonMapper m_mapper;
 		
@@ -181,11 +173,6 @@ public class HttpRESTfulClient implements HttpClientProxy, LoggerSettable {
 		
 		public Builder httpClient(OkHttpClient client) {
 			m_httpClient = client;
-			return this;
-		}
-		
-		public Builder endpoint(String endpoint) {
-			m_endpoint = endpoint;
 			return this;
 		}
 		
@@ -259,29 +246,34 @@ public class HttpRESTfulClient implements HttpClientProxy, LoggerSettable {
 			throw new RESTfulIOException("Failed to read RESTful response, cause=" + e);
 		}
 	}
+	
+	private Throwable parseSpringException(String respBody)
+		throws JsonMappingException, JsonProcessingException {
+		// Web 서버에 자체에서 오류가 발생하여 web 서버가 보내는 오류 메시지의 경우는 따로 처리해야 함.
+		SpringExceptionEntity errorMsg = m_mapper.readValue(respBody, SpringExceptionEntity.class);
+		return errorMsg.toException();
+	}
+	
+	private Throwable parseRESTfulServerErrorMessage(String respBody)
+		throws JsonMappingException, JsonProcessingException {
+		// Web 서버에 자체에서 오류가 발생하여 web 서버가 보내는 오류 메시지의 경우는 따로 처리해야 함.
+		RESTfulServerErrorMessage errorMsg = m_mapper.readValue(respBody, RESTfulServerErrorMessage.class);
+		return new RESTfulIOException(errorMsg.toString());
+	}
 
 	protected void throwException(String respBody) {
-		RESTfulErrorEntity error;
-		try {
-			error = m_errorEntityDeser.deserialize(respBody);
-		}
-		catch ( RESTfulRemoteException e ) {
-			throw e;
-		}
-		catch ( IOException e ) {
-			// Web 서버에 자체에서 오류가 발생하여 web 서버가 보내는 오류 메시지의 경우는 따로 처리해야 함.
-			try {
-				RESTfulServerErrorMessage errorMsg = m_mapper.readValue(respBody, RESTfulServerErrorMessage.class);
-				throw new RESTfulIOException(errorMsg.toString());
-			}
-			catch ( IOException e1 ) {
-				throw new InternalException(e1);
-			}
-		}
-		catch ( Exception e ) {
-			throw new InternalException("Failed to parse RESTfulErrorEntity: body=" + respBody);
-		}
+		Try<Throwable> cause
+			= Try.get(() -> {
+					try {
+						return m_errorEntityDeser.deserialize(respBody).toException();
+					}
+					catch ( RESTfulRemoteException e ) {
+						return e;
+					}
+				})
+				.recover(() -> parseSpringException(respBody))
+				.recover(() -> parseRESTfulServerErrorMessage(respBody));
 		
-		Throwables.sneakyThrow(error.toException());
+		Throwables.sneakyThrow(cause.get());
 	}
 }

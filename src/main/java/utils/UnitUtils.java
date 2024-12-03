@@ -185,6 +185,10 @@ public class UnitUtils {
 	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
 	    	millis = TimeUnit.HOURS.toMillis(value);
 	    }
+	    else if ( durStr.endsWith("d") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	millis = TimeUnit.DAYS.toMillis(value);
+	    }
 	    else {
 	    	millis = Long.parseLong(durStr.substring(0, durStr.length()));
 	    }

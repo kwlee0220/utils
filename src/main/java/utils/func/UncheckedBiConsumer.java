@@ -2,7 +2,7 @@ package utils.func;
 
 import java.util.function.BiConsumer;
 
-import utils.Utilities;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -15,8 +15,8 @@ public class UncheckedBiConsumer<S,T> implements BiConsumer<S,T> {
 	
 	UncheckedBiConsumer(CheckedBiConsumer<? super S, ? super T> checked,
 						FailureHandler<Tuple<? super S, ? super T>> handler) {
-		Utilities.checkNotNullArgument(checked, "CheckedBiConsumer is null");
-		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
+		Preconditions.checkArgument(checked != null, "CheckedBiConsumer is null");
+		Preconditions.checkArgument(handler != null, "FailureHandler is null");
 		
 		m_checked = checked;
 		m_handler = handler;

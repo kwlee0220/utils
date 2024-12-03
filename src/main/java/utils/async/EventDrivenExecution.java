@@ -48,6 +48,10 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		return m_aopGuard.get(() -> m_aopState);
 	}
 	
+    public void setTimeout(long timeout, TimeUnit unit) {
+    	Executions.getTimer().setTimer(this, timeout, unit);
+    }
+	
 	public void setCancelTimeout(long timeout, TimeUnit unit) {
 		m_cancelTimeoutMillis = unit.toMillis(timeout);
 	}

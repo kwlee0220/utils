@@ -2,7 +2,7 @@ package utils.func;
 
 import java.util.function.BiFunction;
 
-import utils.Utilities;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -15,8 +15,8 @@ public class UncheckedBiFunction<S,T,R> implements BiFunction<S,T,R> {
 	
 	UncheckedBiFunction(CheckedBiFunction<? super S, ? super T, ? extends R> checked,
 						FailureHandler<Tuple<? super S, ? super T>> handler) {
-		Utilities.checkNotNullArgument(checked, "CheckedBiFunction is null");
-		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
+		Preconditions.checkArgument(checked != null, "CheckedBiFunction is null");
+		Preconditions.checkArgument(handler != null, "FailureHandler is null");
 		
 		m_checked = checked;
 		m_handler = handler;

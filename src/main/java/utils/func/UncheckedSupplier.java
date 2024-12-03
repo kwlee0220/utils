@@ -2,7 +2,7 @@ package utils.func;
 
 import java.util.function.Supplier;
 
-import utils.Utilities;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -14,8 +14,8 @@ public class UncheckedSupplier<T> implements Supplier<T> {
 	private final FailureHandler<Void> m_handler;
 	
 	UncheckedSupplier(CheckedSupplier<? extends T> checked, FailureHandler<Void> handler) {
-		Utilities.checkNotNullArgument(checked, "CheckedSupplier is null");
-		Utilities.checkNotNullArgument(handler, "FailureHandler is null");
+		Preconditions.checkArgument(checked != null, "CheckedSupplier is null");
+		Preconditions.checkArgument(handler != null, "FailureHandler is null");
 		
 		m_checked = checked;
 		m_handler = handler;

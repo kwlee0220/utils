@@ -10,8 +10,10 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 import utils.func.CheckedRunnable;
+import utils.func.CheckedSupplier;
 import utils.func.Result;
 import utils.func.UncheckedRunnable;
+import utils.func.UncheckedSupplier;
 
 /**
  * 
@@ -22,8 +24,17 @@ public class Executions {
 //					= Lazy.wrap(Executions::createDefaultExecutor, ScheduledExecutorService.class);
 	private static final ScheduledExecutorService EXECUTOR = Executions.createDefaultExecutor();
 	
+	private static Timer s_timer = null;
+	
 	private Executions() {
 		throw new AssertionError("Should not be called: class=" + getClass());
+	}
+	
+	public static Timer getTimer() {
+		if ( s_timer == null ) {
+			s_timer = new Timer();
+		}
+		return s_timer;
 	}
 	
 	public static ScheduledExecutorService getExecutor() {
@@ -61,6 +72,13 @@ public class Executions {
 											:  CompletableFuture.supplyAsync(supplier);
 			}
 		};
+	}
+	public static <T> CompletableFutureAsyncExecution<T> supplyCheckedAsync(CheckedSupplier<? extends T> supplier) {
+		return supplyAsync(UncheckedSupplier.sneakyThrow(supplier));
+	}
+	public static <T> CompletableFutureAsyncExecution<T> supplyCheckedAsync(CheckedSupplier<? extends T> supplier,
+																		@Nullable Executor exector) {
+		return supplyAsync(UncheckedSupplier.sneakyThrow(supplier), exector);
 	}
 	
 	static class FlatMapCompleteChainExecution<T,S> extends EventDrivenExecution<S> {

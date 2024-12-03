@@ -26,6 +26,10 @@ public class LocalDateTimes {
 		return ldt.atZone(ZoneOffset.systemDefault()).toInstant();
 	}
 	
+	public static Instant toInstantWithoutTimeZone(LocalDateTime ldt) {
+		return ldt.toInstant(ZoneOffset.UTC);
+	}
+	
 	public static long toEpochMillis(LocalDateTime ldt) {
 		return ldt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
 	}

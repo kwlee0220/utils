@@ -50,67 +50,73 @@ public class JdbcProcessor implements Serializable {
 	@Nullable private File m_jarFile;
 	@Nullable private ClassLoader m_cloader;
 	
-	public static class Configuration {
-		private String m_system;
-		private String m_host;
-		private int m_port;
-		private String m_user;
-		private String m_password;
-		private String m_database;
-		
-		public String getSystem() {
-			return m_system;
-		}
-		public void setSystem(String system) {
-			m_system = system;
-		}
-		
-		public String getHost() {
-			return m_host;
-		}
-		public void setHost(String host) {
-			m_host = host;
-		}
-		
-		public int getPort() {
-			return m_port;
-		}
-		public void setPort(int port) {
-			m_port = port;
-		}
-		
-		public String getUser() {
-			return m_user;
-		}
-		public void setUser(String user) {
-			m_user = user;
-		}
-		
-		public String getPassword() {
-			return m_password;
-		}
-		public void setPassword(String passwd) {
-			m_password = passwd;
-		}
-		
-		public String getDatabase() {
-			return m_database;
-		}
-		public void setDatabase(String database) {
-			m_database = database;
-		}
-	}
+//	public static class Configuration {
+//		private String m_system;
+//		private String m_host;
+//		private int m_port;
+//		private String m_user;
+//		private String m_password;
+//		private String m_database;
+//		
+//		public String getSystem() {
+//			return m_system;
+//		}
+//		public void setSystem(String system) {
+//			m_system = system;
+//		}
+//		
+//		public String getHost() {
+//			return m_host;
+//		}
+//		public void setHost(String host) {
+//			m_host = host;
+//		}
+//		
+//		public int getPort() {
+//			return m_port;
+//		}
+//		public void setPort(int port) {
+//			m_port = port;
+//		}
+//		
+//		public String getUser() {
+//			return m_user;
+//		}
+//		public void setUser(String user) {
+//			m_user = user;
+//		}
+//		
+//		public String getPassword() {
+//			return m_password;
+//		}
+//		public void setPassword(String passwd) {
+//			m_password = passwd;
+//		}
+//		
+//		public String getDatabase() {
+//			return m_database;
+//		}
+//		public void setDatabase(String database) {
+//			m_database = database;
+//		}
+//	}
 	
-	public static JdbcProcessor create(Configuration configs) {
-		JdbcConnectInfo connInfo = getJdbcConnectInfo(configs.getSystem());
+	public static JdbcProcessor create(JdbcConfiguration config) {
+//		JdbcConnectInfo connInfo = getJdbcConnectInfo(configs.getSystem());
 		
-		Map<String,String> values = Maps.newHashMap();
-		values.put("host", configs.getHost());
-		values.put("port", Integer.toString(configs.getPort()));
-		values.put("dbname", configs.getDatabase());
-		String jdbcUrl = new StringSubstitutor(values).replace(connInfo.m_urlFormat);
+//		Map<String,String> values = Maps.newHashMap();
+//		values.put("host", configs.getHost());
+//		values.put("port", Integer.toString(configs.getPort()));
+//		values.put("dbname", configs.getDatabase());
+//		String jdbcUrl = new StringSubstitutor(values).replace(connInfo.m_urlFormat);
 		
-		return new JdbcProcessor(jdbcUrl, configs.getUser(), configs.getPassword(), connInfo.m_driverClassName);
+		if ( config.getDriverClassName() != null ) {
+			return new JdbcProcessor(config.getJdbcUrl(), config.getUser(), config.getPassword(),
+									config.getDriverClassName());
+		}
+		else {
+			return JdbcProcessor.create(config.getJdbcUrl(), config.getUser(), config.getPassword());
+		}
 	}
 	
 	public static JdbcProcessor create(String system, String host, int port, String user, String passwd,
@@ -330,13 +336,11 @@ public class JdbcProcessor implements Serializable {
 		}
 	}
 	
-	public int executeUpdate(String sql, JdbcConsumer<PreparedStatement> pstmtSetter)
+	public void executeUpdate(String sql, JdbcConsumer<PreparedStatement> update)
 		throws SQLException, ExecutionException {
 		try ( Connection conn = connect() ) {
 			PreparedStatement pstmt = conn.prepareStatement(sql);
-			pstmtSetter.accept(pstmt);
-			
-			return pstmt.executeUpdate();
+			update.accept(pstmt);
 		}
 		catch ( SQLException e ) {
 			throw e;
@@ -407,7 +411,7 @@ public class JdbcProcessor implements Serializable {
 	
 	@Override
 	public String toString() {
-		return String.format("url=%s,user=%s,driver=%s", m_jdbcUrl, m_user, m_driverClsName);
+		return String.format("%s?user=%s,driver=%s", m_jdbcUrl, m_user, m_driverClsName);
 	}
 	
 	public static JdbcProcessor parseString(String str) {

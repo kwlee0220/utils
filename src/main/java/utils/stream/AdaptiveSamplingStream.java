@@ -2,6 +2,8 @@ package utils.stream;
 
 import java.util.Random;
 
+import com.google.common.base.Preconditions;
+
 import utils.Utilities;
 import utils.func.FOption;
 
@@ -23,9 +25,9 @@ public class AdaptiveSamplingStream<T> implements FStream<T> {
 	}
 	
 	public AdaptiveSamplingStream(FStream<T> input, long total, long nsamples) {
-		Utilities.checkNotNullArgument(input, "input RecordSet is null");
-		Utilities.checkArgument(total >= nsamples, "total >= nsamples");
-		Utilities.checkArgument(nsamples > 0, "nsamples > 0");
+		Preconditions.checkArgument(input != null, "input RecordSet is null");
+		Preconditions.checkArgument(total >= nsamples, "total >= nsamples");
+		Preconditions.checkArgument(nsamples > 0, "nsamples > 0");
 		
 		m_input = input;
 		m_denominator = total;

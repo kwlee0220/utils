@@ -133,8 +133,9 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 						.getOrElse(-1);
 	}
 	
-	public boolean removeOfKey(K key) {
-		return m_keyValues.removeIf(kv -> kv.key().equals(key));
+	public V removeOfKey(K key) {
+		KeyValue<K,V> removed = Funcs.removeFirstIf(m_keyValues, kv -> kv.key().equals(key));
+		return (removed != null) ? removed.value() : null;
 	}
 	
 	public Map<K,V> toMap() {

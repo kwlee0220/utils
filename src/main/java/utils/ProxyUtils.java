@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
 import net.sf.cglib.core.CodeGenerationException;
@@ -127,9 +128,9 @@ public final class ProxyUtils {
 	@SuppressWarnings("unchecked")
 	public static <T> T buildObject(Object base, Class<?>[] extraIntfcs, CallHandler[] handlers,
 									Class<T> outIntfc) {
-		checkNotNullArgument(base, "target object is null");
-		checkNotNullArgument(handlers, "CallHandler is null");
-		checkArgument(handlers.length > 0, "Zero CallHandler" );
+		Preconditions.checkArgument(base != null, "target object is null");
+		Preconditions.checkArgument(handlers != null, "CallHandler is null");
+		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
 		
 		Callback[] callbacks = new Callback[handlers.length+1];
 		for ( int i =0; i < handlers.length; ++i ) {

@@ -148,6 +148,9 @@ public interface Try<T> extends FStreamable<T> {
 
 	public <X extends Throwable> T getOrThrow(Supplier<X> thrower) throws X;
 	
+	public Try<T> recover(Function<Throwable,T> recovery);
+	public Try<T> recover(CheckedSupplier<T> recovery);
+	
 	/**
 	 * 작업 수행 결과에 {@code mapper}를 적용시킨 값으로 구성된 {@link Try} 객체를 반환한다.
 	 * <p>
@@ -165,8 +168,6 @@ public interface Try<T> extends FStreamable<T> {
 	
 	public Try<T> ifSuccessful(Consumer<? super T> action);
 	public Try<T> ifFailed(Consumer<Throwable> handler);
-	
-	public Try<T> recover(Function<Throwable,T> recovery);
 	
 	public FOption<T> toFOption();
 	
@@ -259,6 +260,11 @@ public interface Try<T> extends FStreamable<T> {
 
 		@Override
 		public Try<T> recover(Function<Throwable, T> recovery) {
+			return this;
+		}
+
+		@Override
+		public Try<T> recover(CheckedSupplier<T> recovery) {
 			return this;
 		}
 
@@ -364,6 +370,11 @@ public interface Try<T> extends FStreamable<T> {
 		@Override
 		public Try<T> recover(Function<Throwable, T> recovery) {
 			return Try.get(() -> recovery.apply(m_cause));
+		}
+
+		@Override
+		public Try<T> recover(CheckedSupplier<T> recovery) {
+			return Try.get(recovery);
 		}
 
 		@Override
