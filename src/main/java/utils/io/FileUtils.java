@@ -11,6 +11,8 @@ import java.nio.file.PathMatcher;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileTime;
 
+import com.google.common.base.Preconditions;
+
 import utils.stream.FStream;
 
 
@@ -47,8 +49,10 @@ public class FileUtils {
 	}
 	
 	public static File path(String... names) {
+		Preconditions.checkArgument(names.length > 0);
 		return FStream.of(names)
-						.fold(new File("."), File::new);
+						.drop(1)
+						.fold(new File(names[0]), File::new);
 	}
 	
 	public static void copy(File srcFile, File tarFile, CopyOption... opts) throws IOException {

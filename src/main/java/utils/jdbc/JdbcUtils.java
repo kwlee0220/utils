@@ -4,6 +4,8 @@ import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.stream.Stream;
 
 import utils.CallHandler;
@@ -24,6 +26,10 @@ import net.sf.cglib.proxy.MethodProxy;
 public class JdbcUtils {
 	private JdbcUtils() {
 		throw new AssertionError("Should not be called: " + JdbcUtils.class);
+	}
+	
+	public static Timestamp toTimestamp(Instant instant) {
+		return Timestamp.from(instant);
 	}
 
 	public static <T> FStream<T> fstream(ResultSet rs,

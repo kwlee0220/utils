@@ -1283,9 +1283,9 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return toCollection(Sets.newHashSet());
 	}
 	
-	public default <K,V> Map<K,V> toMap(Map<K,V> map,
-										Function<? super T,? extends K> toKey,
-										Function<? super T,? extends V> toValue) {
+	public default <K,V, M extends Map<K,V>> M toMap(M map,
+													Function<? super T,? extends K> toKey,
+													Function<? super T,? extends V> toValue) {
 		return collect(map, (m,kv) -> m.put(toKey.apply(kv), toValue.apply(kv)));
 	}
 	

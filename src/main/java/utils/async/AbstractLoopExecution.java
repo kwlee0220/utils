@@ -27,7 +27,8 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 	 * 
 	 * @param loopIndex		loop 인덱스. 0부터 시작함.
 	 * @return		loop 수행으로 최종적으로 생성된 결과.
-	 * 				{@link FOption#empty()}인 경우는 추가 iteration이 더 필요하다는 의미이고,
+	 * 				반환 값이 {@code null}이거나 {@link FOption#empty()}인 경우는
+	 * 				추가 iteration이 더 필요하다는 의미이고,
 	 * 				그렇지 않은 경우는 더 이상의 iteration이 필요없어서 loop Execution이
 	 * 				종료되어야 한다는 의미이다.
 	 * @throws Exception	iteration 작업 중 예외가 발생한 경우.
@@ -103,7 +104,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 			// loop을 종료시킨다.
 			try {
 				FOption<T> result = iterate(++iterCount);
-				if ( result.isPresent() ) {
+				if ( result != null && result.isPresent() ) {
 					notifyCompleted(result.getUnchecked());
 					return;
 				}

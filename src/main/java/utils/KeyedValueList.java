@@ -1,6 +1,7 @@
 package utils;
 
 import java.util.AbstractList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -8,6 +9,7 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import utils.func.Funcs;
 import utils.stream.FStream;
@@ -28,7 +30,7 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 		return new KeyedValueList<>(keyer);
 	}
 	
-	public static <K,V> KeyedValueList<K,V> from(Iterable<V> initValues, Function<V,K> keyer) {
+	public static <K,V> KeyedValueList<K,V> from(Iterable<? extends V> initValues, Function<V,K> keyer) {
 		KeyedValueList<K,V> kvList = new KeyedValueList<>(keyer);
 		FStream.from(initValues).forEach(kvList::add);
 		
@@ -115,6 +117,11 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 	@Override
 	public void clear() {
 		m_keyValues.clear();
+	}
+	
+	public LinkedHashSet<K> keySet() {
+		LinkedHashSet<K> keys = Sets.newLinkedHashSet();
+		return FStream.from(m_keyValues).map(KeyValue::key).toCollection(keys);
 	}
 	
 	public boolean containsKey(K key) {

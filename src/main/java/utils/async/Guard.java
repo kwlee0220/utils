@@ -23,6 +23,8 @@ import utils.func.CheckedRunnableX;
 import utils.func.CheckedSupplier;
 import utils.func.CheckedSupplierX;
 import utils.func.Try;
+
+
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
@@ -65,30 +67,64 @@ public class Guard implements Serializable {
 		return m_lock;
 	}
 	
+	/**
+	 * Acquires this lock for the guard. 
+	 */
 	public void lock() {
 		m_lock.lock();
 	}
 	
+	/**
+	 * Releases this lock for the guard.
+	 */
 	public void unlock() {
 		m_lock.unlock();
 	}
 	
+	/**
+	 * Signals all waiting threads.
+	 * This method should be called while holding the lock.
+	 */
 	public void signalAll() {
 		m_cond.signalAll();
 	}
 
+	/**
+	 * Wait until this guard is signaled.
+	 * This method should be called while holding the lock.
+	 */
 	public void await() throws InterruptedException {
 		m_cond.await();
 	}
 
+	/**
+	 * Wait until this guard is signaled or the specified deadline is reached.
+	 * This method should be called while holding the lock.
+	 * 
+	 * @param due   the deadline.
+	 * @return {@code true} if the guard is signaled before the deadline, or {@code false} otherwise.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public boolean awaitUntil(Date due) throws InterruptedException {
+		Preconditions.checkArgument(due != null, "due is null");
+		
 		return m_cond.awaitUntil(due);
 	}
 	
+	/**
+	 * Get the condition object associated with this guard.
+	 * 
+	 * @return	condition
+	 */
 	public Condition getCondition() {
 		return m_cond;
 	}
 	
+	/**
+	 * Runs the given work while holding the lock.
+	 * 
+	 * @param work to run.
+	 */
 	public void run(Runnable work) {
 		m_lock.lock();
 		try {
@@ -99,6 +135,13 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Runs the given work while holding the lock. If the work throws a checked
+	 * exception, it rethrows the exception.
+	 * 
+	 * @param work to run.
+	 * @throws X if the work throws a checked exception.
+	 */
 	public <X extends Throwable> void runOrThrow(CheckedRunnableX<X> work) throws X {
 		m_lock.lock();
 		try {
@@ -109,6 +152,11 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Runs the given work while holding the lock and signals all waiting threads.
+	 * 
+	 * @param work to run.
+	 */
 	public void runAndSignalAll(Runnable work) {
 		m_lock.lock();
 		try {
@@ -120,6 +168,12 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Runs the given work while holding the lock and signals all waiting threads.
+	 * 
+	 * @param work to run.
+	 * @throws X if the work throws a checked exception.
+	 */
 	public <X extends Throwable> void runAnSignalAllOrThrow(CheckedRunnableX<X> work) throws X {
 		m_lock.lock();
 		try {
@@ -131,6 +185,12 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Runs the given work while holding the lock and returns the {@code Try} object.
+	 * 
+	 * @param work to run.
+	 * @return the result of the work.
+	 */
 	public Try<Void> tryToRun(CheckedRunnable work) {
 		m_lock.lock();
 		try {
@@ -407,6 +467,12 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied.
+	 * 
+	 * @param predicate until-condition
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public void awaitUntil(Supplier<Boolean> predicate) throws InterruptedException {
 		Preconditions.checkArgument(predicate != null, "Until-condition is null");
 		Preconditions.checkState(m_cond != null, "Condition is null");
@@ -422,12 +488,31 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied or the specified deadline is
+	 * reached and returns false.
+	 * 
+	 * @param predicate until-condition
+	 * @param timeout   timeout
+	 * @param tu        time unit of the timeout
+	 * @return {@code true} if the condition is satisfied before the deadline, or
+	 *         {@code false} otherwise.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public boolean awaitUntil(Supplier<Boolean> predicate, long timeout, TimeUnit tu)
 		throws InterruptedException {
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		return awaitUntil(predicate, due);
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied or the specified deadline is reached and returns false.
+	 * 
+	 * @param predicate    until-condition
+	 * @param due    deadline
+	 * @return	{@code true} if the condition is satisfied before the deadline, or {@code false} otherwise.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public boolean awaitUntil(Supplier<Boolean> predicate, Date due)
 		throws InterruptedException {
 		Preconditions.checkArgument(predicate != null, "Until-condition is null");
@@ -449,6 +534,13 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied and then runs the given work.
+	 * 
+	 * @param predicate until-condition.
+	 * @param work      work to run.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public void awaitUntilAndRun(Supplier<Boolean> predicate, Runnable work)
 		throws InterruptedException {
 		m_lock.lock();
@@ -463,6 +555,15 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied and then runs the given work.
+	 * If {@code singal} is true, it signals all waiting threads.
+	 * 
+	 * @param predicate until-condition.
+	 * @param work      work to run.
+	 * @param signal    whether to signal all waiting threads.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public void awaitUntilAndRun(Supplier<Boolean> predicate, Runnable work, boolean signal)
 		throws InterruptedException {
 		m_lock.lock();
@@ -481,6 +582,14 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied and then runs the supplier to get a value.
+	 * 
+	 * @param predicate until-condition.
+	 * @param suppl     value supplier.
+	 * @return the value returned by the supplier.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl)
 		throws InterruptedException {
 		try {
@@ -491,6 +600,17 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied and then runs the supplier to get a value.
+	 * If the predicate is not satisfied before the deadline, it throws a TimeoutException.
+	 * 
+	 * @param predicate until-condition.
+	 * @param suppl     value supplier.
+	 * @param dur       timeout duration. If {@code null}, it waits indefinitely.
+	 * @return the value returned by the supplier.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 * @throws TimeoutException if the predicate is not satisfied before the deadline.
+	 */
 	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl, Duration dur)
 		throws InterruptedException, TimeoutException {
 		Preconditions.checkArgument(dur != null, "Duration is null");
@@ -499,6 +619,17 @@ public class Guard implements Serializable {
 		return awaitUntilAndGet(predicate, suppl, due);
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied and then runs the supplier to get a value.
+	 * If the predicate is not satisfied before the deadline, it throws a TimeoutException.
+	 * 
+	 * @param predicate until-condition.
+	 * @param suppl     value supplier.
+	 * @param due    deadline. If {@code null}, it waits indefinitely.
+	 * @return the value returned by the supplier.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 * @throws TimeoutException if the predicate is not satisfied before the deadline.
+	 */
 	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, Supplier<T> suppl, Date due)
 		throws InterruptedException, TimeoutException {
 		Preconditions.checkArgument(predicate != null, "Until-condition is null");
@@ -524,8 +655,19 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied and then runs the supplier to get a value.
+	 * 
+	 * @param predicate until-condition.
+	 * @param suppl     value supplier.
+	 * @return the value returned by the supplier.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public <T> Try<T> awaitUntilAndTryToGet(Supplier<Boolean> predicate, CheckedSupplier<T> suppl)
 		throws InterruptedException {
+		Preconditions.checkArgument(predicate != null, "While-condition is null");
+		Preconditions.checkArgument(suppl != null, "value supplier is null");
+		
 		m_lock.lock();
 		try {
 			while ( !predicate.get() ) {
@@ -541,6 +683,12 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied.
+	 * 
+	 * @param predicate while-condition
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public void awaitWhile(Supplier<Boolean> predicate) throws InterruptedException {
 		Preconditions.checkArgument(predicate != null, "While-condition is null");
 		Preconditions.checkState(m_cond != null, "Condition is null");
@@ -556,6 +704,16 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied within the specified timeout.
+	 * If the condition is not satisfied before the deadline, it returns false.
+	 * 
+	 * @param predicate while-condition
+	 * @param timeout   timeout
+	 * @param unit      time unit of the timeout
+	 * @return {@code true} if the condition is satisfied before the deadline, or {@code false} otherwise.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public boolean awaitWhile(Supplier<Boolean> predicate, long timeout, TimeUnit unit)
 		throws InterruptedException {
 		Preconditions.checkArgument(predicate != null, "While-condition is null");
@@ -578,8 +736,18 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied and then runs the given work.
+	 * 
+	 * @param predicate while-condition.
+	 * @param work      work to run when the condition is satisfied.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public void awaitWhileAndRun(Supplier<Boolean> predicate, Runnable work)
 		throws InterruptedException {
+		Preconditions.checkArgument(predicate != null, "While-condition is null");
+		Preconditions.checkState(m_cond != null, "Condition is null");
+		
 		m_lock.lock();
 		try {
 			while ( predicate.get() ) {
@@ -592,8 +760,20 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied and then runs the supplier to get a value.
+	 * 
+	 * @param predicate while-condition.
+	 * @param suppl     value supplier.
+	 * @return the value returned by the supplier.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public <T> T awaitWhileAndGet(Supplier<Boolean> predicate, Supplier<T> suppl)
 		throws InterruptedException {
+		Preconditions.checkArgument(predicate != null, "While-condition is null");
+		Preconditions.checkState(m_cond != null, "Condition is null");
+		Preconditions.checkArgument(suppl != null, "value supplier is null");
+		
 		m_lock.lock();
 		try {
 			while ( predicate.get() ) {
@@ -606,6 +786,15 @@ public class Guard implements Serializable {
 		}
 	}
 	
+	/**
+	 * Waits until the given condition is satisfied and then runs the supplier to get a value.
+	 * The supplier may throw a checked exception. In this case, it returns a Try object.
+	 * 
+	 * @param predicate while-condition.
+	 * @param suppl     value supplier.	
+	 * @return the {@code Try} object returned by the supplier.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 */
 	public <T> Try<T> awaitWhileAndTryToGet(Supplier<Boolean> predicate, CheckedSupplier<T> suppl)
 		throws InterruptedException {
 		m_lock.lock();

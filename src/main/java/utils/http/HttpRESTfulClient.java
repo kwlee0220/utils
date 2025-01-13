@@ -167,6 +167,9 @@ public class HttpRESTfulClient implements LoggerSettable {
 		
 		public HttpRESTfulClient build() {
 			m_httpClient = FOption.getOrElse(m_httpClient, OkHttpClientUtils.newClient());
+			if ( m_mapper == null ) {
+				m_mapper = new JsonMapper();
+			}
 			
 			return new HttpRESTfulClient(this);
 		}

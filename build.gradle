@@ -1,16 +1,18 @@
 plugins {
 	id 'java-library'
 	id 'eclipse'
+	// id 'maven-publish'	// Maven 배포 플러그인
+	// id 'signing'		// GPG 서명 플러그인
 }
 
 group = 'etri'
-version = '24.08.09'
+version = '24.12.25'
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_11
 	targetCompatibility = JavaVersion.VERSION_11
-//	withSourcesJar()
-//	withJavadocJar()
+	// withSourcesJar()
+	// withJavadocJar()
 }
 [compileJava,compileTestJava]*.options*.encoding = 'UTF-8'
 
@@ -120,3 +122,40 @@ eclipse {
 		}
 	}
 }
+
+// publishing {
+//     publications {
+//         mavenJava(MavenPublication) {
+//             from components.java
+
+//             pom {
+//                 name.set('common.utils') // 프로젝트 이름
+//                 description.set('Java common library') // 프로젝트 설명
+//                 url.set('https://github.com/username/repository') // 프로젝트 URL
+//                 licenses {
+//                     license {
+//                         name.set('The Apache License, Version 2.0') // 라이선스
+//                         url.set('https://www.apache.org/licenses/LICENSE-2.0')
+//                     }
+//                 }
+//                 developers {
+//                     developer {
+//                         id.set('developerId') // 개발자 ID
+//                         name.set('Kang-Woo Lee') // 개발자 이름
+//                         email.set('kwlee@etri.re.kr') // 이메일
+//                     }
+//                 }
+//                 scm {
+//                     connection.set('scm:git:git://github.com/username/repository.git')
+//                     developerConnection.set('scm:git:ssh://github.com/username/repository.git')
+//                     url.set('https://github.com/username/repository')
+//                 }
+//             }
+//         }
+//     }
+// }
+
+// signing {
+//     useGpgCmd()
+//     sign publishing.publications.mavenJava
+// }

@@ -29,7 +29,6 @@ import utils.func.FOption;
 import utils.func.Try;
 import utils.func.Tuple;
 import utils.io.FileUtils;
-import utils.io.IOUtils;
 import utils.stream.FStream;
 
 
@@ -45,7 +44,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 
 	private final List<String> m_command;
 	private final File m_workingDirectory;
-	private final Map<String,Variable> m_variables;
+	private final Map<String,CommandVariable> m_variables;
 	private final Map<String,String> m_substVariables;
 	private final @Nullable Redirect m_stdin;
 	private final @Nullable Redirect m_stdout;
@@ -76,10 +75,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 	public void close() {
 		// 등록된 모든 변수을 close 시킨다.
 		FStream.from(m_variables.values())
-				.forEachOrIgnore(Variable::close);
+				.forEachOrIgnore(CommandVariable::close);
 	}
 	
-	public Map<String,Variable> getVariableMap() {
+	public Map<String,CommandVariable> getVariableMap() {
 		return m_variables;
 	}
 
@@ -121,6 +120,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 		try {
 			Process process = m_guard.getOrThrow(() -> m_process = builder.start());
 			if ( m_timeout != null ) {
+				// 제한시간이 설정된 경우
 				boolean completed = process.waitFor(m_timeout.toMillis(), TimeUnit.MILLISECONDS);
 				
 				// 사용자의 강제 종료를 통해 프로그램이 종료되었을 수도 있기 때문에
@@ -211,7 +211,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 	public static final class Builder {
 		private List<String> m_command = Lists.newArrayList();
 		private File m_workingDirectory;
-		private KeyedValueList<String,Variable> m_variables = KeyedValueList.newInstance(Variable::getName);
+		private KeyedValueList<String,CommandVariable> m_variables = KeyedValueList.newInstance(CommandVariable::getName);
 		private Duration m_timeout;
 		private Redirect m_stdin;
 		private Redirect m_stdout = Redirect.DISCARD;
@@ -235,7 +235,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 			return this;
 		}
 		
-		public Builder addVariable(Variable var) {
+		public Builder addVariable(CommandVariable var) {
 			m_variables.add(var);
 			return this;
 		}
@@ -296,114 +296,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 		}
 	}
 	
-	public interface Variable extends Closeable {
-		public String getName();
-		public String getValue();
-		
-		/**
-		 * Command variable 동작을 위해 할당된 자원을 모두 반환한다.
-		 */
-		public void close();
-		
-		public default String getValueByModifier(String mod) {
-			switch ( mod ) {
-				case "name":
-					return getName();
-				case "value":
-					return getValue();
-				default:
-					throw new IllegalArgumentException("Unsupported Modifier: " + mod);
-			}
-		}
-	}
-	
-	public static final class StringVariable implements Variable {
-		private final String m_name;
-		private final String m_value;
-		
-		private StringVariable(String name, String value) {
-			m_name = name;
-			m_value = value;
-		}
-		
-		@Override
-		public String getName() {
-			return m_name;
-		}
-
-		@Override
-		public String getValue() {
-			return m_value;
-		}
-
-		@Override
-		public void close() { }
-	}
-	
-	public static class FileVariable implements Variable {
-		private final String m_name;
-		private final File m_file;
-		
-		public FileVariable(String name, File file) {
-			m_name = name;
-			m_file = file;
-		}
-		
-		@Override
-		public String getName() {
-			return m_name;
-		}
-
-		@Override
-		public String getValue() {
-			try {
-				return IOUtils.toString(m_file);
-			}
-			catch ( IOException e ) {
-				throw new RuntimeException("Failed to read FileVariable: name=" + m_name
-											+ ", path=" + m_file.getAbsolutePath() + ", cause=" + e);
-			}
-		}
-		
-		public File getFile() {
-			return m_file;
-		}
-		
-		public void deleteFile() {
-			m_file.delete();
-		}
-
-		@Override
-		public void close() {
-			if ( m_file != null ) {
-				m_file.delete();
-			}
-		}
-
-		@Override
-		public String getValueByModifier(String mod) {
-			switch ( mod ) {
-				case "name":
-					return getName();
-				case "value":
-					return getValue();
-				case "path":
-					return getFile().getAbsolutePath();
-				default:
-					throw new IllegalArgumentException("Unsupported Modifier: " + mod);
-			}
-		}
-		
-		@Override
-		public String toString() {
-			return String.format("FileVariable[%s]: %s", m_name, m_file.getAbsolutePath());
-		}
-	}
-	
 	private static final class VariableLookup implements StringLookup {
-		private final Map<String,Variable> m_varMap;
+		private final Map<String,CommandVariable> m_varMap;
 		
-		private VariableLookup(Map<String,Variable> vars) {
+		private VariableLookup(Map<String,CommandVariable> vars) {
 			m_varMap = vars;
 		}
 
@@ -417,7 +313,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 			Tuple<String,String> parts = Utilities.split(key, ':', Tuple.of(key, "name"));
 			
 			// 변수 이름에 해당하는 CommandVariable 객체를 획득한다.
-			Variable commandVar = m_varMap.get(parts._1);
+			CommandVariable commandVar = m_varMap.get(parts._1);
 			if ( commandVar == null ) {
 				throw new IllegalArgumentException("Undefined CommandVariable: name=" + parts._1);
 			}

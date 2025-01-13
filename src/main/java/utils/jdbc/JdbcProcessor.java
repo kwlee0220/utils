@@ -24,6 +24,7 @@ import org.apache.commons.text.StringSubstitutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import utils.CSV;
@@ -36,6 +37,34 @@ import utils.stream.KVFStream;
 
 
 /**
+ * {@code JdbcProcessor}는 JDBC 연결을 다루는 인터페이스를 제공한다.
+ * <p>
+ * JDBC 연결을 위한 URL, 사용자 이름, 패스워드, 드라이버 클래스 이름을 이용하여
+ * JDBC 연결을 생성하고, SQL 질의문을 실행시키는 기능을 제공한다.
+ * <p>
+ * JDBC 연결을 위한 URL은 다음과 같은 형식을 가진다.
+ * <pre>
+ * jdbc:system:host:port:dbname
+ * </pre>
+ * 여기서 {@code system}은 JDBC 시스템 이름이며, 현재 지원되는 시스템은 다음과 같다.
+ * <ul>
+ *     <li>mysql</li>
+ *     <li>postgresql</li>
+ *     <li>mariadb</li>
+ *     <li>kairos</li>
+ *     <li>h2_remote</li>
+ *     <li>h2_local</li>
+ * </ul>
+ * <p>
+ * 예를 들어, MySQL 데이터베이스에 대한 JDBC 연결을 생성하는 경우는 다음과 같이 사용한다.
+ * <pre>
+ * JdbcProcessor jdbc = new JdbcProcessor("jdbc:mysql:localhost:3306:mydb", "user", "passwd");
+ * </pre>
+ * <p>
+ * JDBC 연결을 생성한 후, SQL 질의문을 실행시키는 경우는 다음과 같이 사용한다.
+ * <pre>
+ * ResultSet rs = jdbc.executeQuery("select * from mytable");
+ * </pre>
  * 
  * @author Kang-Woo Lee (ETRI)
  */
@@ -50,66 +79,7 @@ public class JdbcProcessor implements Serializable {
 	@Nullable private File m_jarFile;
 	@Nullable private ClassLoader m_cloader;
 	
-//	public static class Configuration {
-//		private String m_system;
-//		private String m_host;
-//		private int m_port;
-//		private String m_user;
-//		private String m_password;
-//		private String m_database;
-//		
-//		public String getSystem() {
-//			return m_system;
-//		}
-//		public void setSystem(String system) {
-//			m_system = system;
-//		}
-//		
-//		public String getHost() {
-//			return m_host;
-//		}
-//		public void setHost(String host) {
-//			m_host = host;
-//		}
-//		
-//		public int getPort() {
-//			return m_port;
-//		}
-//		public void setPort(int port) {
-//			m_port = port;
-//		}
-//		
-//		public String getUser() {
-//			return m_user;
-//		}
-//		public void setUser(String user) {
-//			m_user = user;
-//		}
-//		
-//		public String getPassword() {
-//			return m_password;
-//		}
-//		public void setPassword(String passwd) {
-//			m_password = passwd;
-//		}
-//		
-//		public String getDatabase() {
-//			return m_database;
-//		}
-//		public void setDatabase(String database) {
-//			m_database = database;
-//		}
-//	}
-	
 	public static JdbcProcessor create(JdbcConfiguration config) {
-//		JdbcConnectInfo connInfo = getJdbcConnectInfo(configs.getSystem());
-		
-//		Map<String,String> values = Maps.newHashMap();
-//		values.put("host", configs.getHost());
-//		values.put("port", Integer.toString(configs.getPort()));
-//		values.put("dbname", configs.getDatabase());
-//		String jdbcUrl = new StringSubstitutor(values).replace(connInfo.m_urlFormat);
-		
 		if ( config.getDriverClassName() != null ) {
 			return new JdbcProcessor(config.getJdbcUrl(), config.getUser(), config.getPassword(),
 									config.getDriverClassName());
@@ -119,19 +89,41 @@ public class JdbcProcessor implements Serializable {
 		}
 	}
 	
+	/**
+	 * Creates a new JdbcProcessor using the specified connection details.
+	 *
+	 * @param system the JDBC system name (e.g., mysql, postgresql).
+	 * @param host   the host name or IP address of the database server.
+	 * @param port   the port number on which the database server is listening.
+	 * @param user   the user name for the JDBC connection.
+	 * @param passwd the password for the JDBC connection.
+	 * @param dbName the name of the database to connect to.
+	 * @return a new JdbcProcessor instance.
+	 */
 	public static JdbcProcessor create(String system, String host, int port, String user, String passwd,
-										String dbName) {
+			String dbName) {
 		JdbcConnectInfo connInfo = getJdbcConnectInfo(system);
-		
-		Map<String,String> values = Maps.newHashMap();
+
+		Map<String, String> values = Maps.newHashMap();
 		values.put("host", host);
 		values.put("port", Integer.toString(port));
 		values.put("dbname", dbName);
 		String jdbcUrl = new StringSubstitutor(values).replace(connInfo.m_urlFormat);
-		
+
 		return new JdbcProcessor(jdbcUrl, user, passwd, connInfo.m_driverClassName);
 	}
 	
+	/**
+	 * Creates a new JdbcProcessor instance using the specified JDBC URL, user, and
+	 * password.
+	 *
+	 * @param jdbcUrl the JDBC URL to connect to.
+	 * @param user    the user name for the JDBC connection.
+	 * @param passwd  the password for the JDBC connection.
+	 * @return a new JdbcProcessor instance configured with the specified connection
+	 *         details.
+	 * @throws IllegalArgumentException if the provided JDBC URL is invalid.
+	 */
 	public static JdbcProcessor create(String jdbcUrl, String user, String passwd) {
 		FOption<JdbcConnectInfo> oConnInfo = getJdbcConnectInfoByUrl(jdbcUrl);
 		if ( oConnInfo.isPresent() ) {
@@ -155,10 +147,10 @@ public class JdbcProcessor implements Serializable {
 	 * @param driverClsName	JDBC driver class name
 	 */
 	public JdbcProcessor(String jdbcUrl, String user, String passwd, String driverClsName) {
-		Objects.requireNonNull(jdbcUrl, "JDBC URL is null");
-		Objects.requireNonNull(user, "JDBC user is null");
-		Objects.requireNonNull(passwd, "JDBC password is null");
-		Objects.requireNonNull(driverClsName, "JDBC driver class is null");
+		Preconditions.checkArgument(jdbcUrl != null, "JDBC URL is null");
+		Preconditions.checkArgument(user != null, "JDBC user is null");
+		Preconditions.checkArgument(passwd != null, "JDBC password is null");
+		Preconditions.checkArgument(driverClsName != null, "JDBC driver class is null");
 		
 		m_jdbcUrl = jdbcUrl;
 		m_user = user;
@@ -310,7 +302,7 @@ public class JdbcProcessor implements Serializable {
 	}
 	
 	public ResultSet executeQuery(String sql,
-							CheckedConsumerX<Statement,SQLException> stmtSetter) throws SQLException {
+									CheckedConsumerX<Statement,SQLException> stmtSetter) throws SQLException {
 		Statement stmt = connect().createStatement();
 		stmtSetter.accept(stmt);
 		return JdbcUtils.bindToConnection(stmt.executeQuery(sql));
