@@ -33,14 +33,29 @@ public final class KeyValue<K,V> {
 		m_value = value;
 	}
 	
+	/**
+	 * 키 값을 반환한다.
+	 * 
+	 * @return 키 값.
+	 */
 	public K key() {
 		return m_key;
 	}
 	
+	/**
+	 * 값을 반환한다.
+	 * 
+	 * @return 값.
+	 */
 	public V value() {
 		return m_value;
 	}
 	
+	/**
+	 * 키-값 쌍을 Tuple로 변환한다.
+	 * 
+	 * @return Tuple 객체.
+	 */
 	public Tuple<K,V> toTuple() {
 		return Tuple.of(m_key, m_value);
 	}

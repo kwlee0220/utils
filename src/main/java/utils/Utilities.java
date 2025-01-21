@@ -386,6 +386,17 @@ public class Utilities {
 					.toMap(KeyValue::key, KeyValue::value);
 	}
 	
+	/**
+	 * 주어진 문자열을 주어진 구분자로 분리하여 반환한다.
+	 * <p>
+	 * 구분자가 주어진 문자열에 여러번 포함되어 있는 경우에는 첫번째 구분자를 기준으로 분리한다.
+	 * 문자열이 구분자를 포함하지 않는 경우에는 세번째 인자인 {@code defValue}를 반환한다.
+	 * 
+	 * @param str      분리할 문자열
+	 * @param delim    구분자
+	 * @param defValue 구분자가 없는 경우의 기본값
+	 * @return 분리된 문자열의 쌍
+	 */
 	public static Tuple<String,String> split(String str, char delim, Tuple<String,String> defValue) {
 		int delimIndex = str.indexOf(delim);
 		if ( delimIndex >= 0 ) {
@@ -395,10 +406,32 @@ public class Utilities {
 			return defValue;
 		}
 	}
+	
+	/**
+	 * 주어진 문자열을 주어진 구분자로 분리하여 반환한다.
+	 * <p>
+	 * 구분자가 주어진 문자열에 여러번 포함되어 있는 경우에는 첫번째 구분자를 기준으로 분리한다.
+	 * 문자열이 구분자를 포함하지 않는 경우에는 {@code null}을 반환한다.
+	 * 
+	 * @param str   분리할 문자열
+	 * @param delim 구분자
+	 * @return 분리된 문자열의 쌍
+	 */
 	public static Tuple<String,String> split(String str, char delim) {
 		return split(str, delim, null);
 	}
 	
+	/**
+	 * 주어진 문자열을 주어진 구분자로 분리하여 반환한다.
+	 * <p>
+	 * 구분자가 주어진 문자열에 여러번 포함되어 있는 경우에는 마지막 구분자를 기준으로 분리한다.
+	 * 문자열이 구분자를 포함하지 않는 경우에는 세번째 인자인 {@code defValue}를 반환한다.
+	 * 
+	 * @param str      분리할 문자열
+	 * @param delim    구분자
+	 * @param defValue 구분자가 없는 경우의 기본값
+	 * @return 분리된 문자열의 쌍
+	 */
 	public static Tuple<String,String> splitLast(String str, char delim, Tuple<String,String> defValue) {
 		int delimIndex = str.lastIndexOf(delim);
 		if ( delimIndex >= 0 ) {
@@ -408,6 +441,17 @@ public class Utilities {
 			return defValue;
 		}
 	}
+	
+	/**
+	 * 주어진 문자열을 주어진 구분자로 분리하여 반환한다.
+	 * <p>
+	 * 구분자가 주어진 문자열에 여러번 포함되어 있는 경우에는 마지막 구분자를 기준으로 분리한다.
+	 * 문자열이 구분자를 포함하지 않는 경우에는 {@code null}을 반환한다.
+	 * 
+	 * @param str   분리할 문자열
+	 * @param delim 구분자
+	 * @return 분리된 문자열의 쌍
+	 */
 	public static Tuple<String,String> splitLast(String str, char delim) {
 		return splitLast(str, delim, null);
 	}

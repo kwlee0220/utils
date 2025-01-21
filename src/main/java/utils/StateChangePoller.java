@@ -28,17 +28,17 @@ import utils.func.CheckedSupplier;
 public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 	private final Logger s_logger = LoggerFactory.getLogger(StateChangePoller.class);
 	
-	private CheckedSupplier<Boolean> m_goalStatePredicate;
+	private final CheckedSupplier<Boolean> m_endOfPollingPredicate;
 	private Duration m_pollInterval;
 	@Nullable private Duration m_timeout = null;
 	@Nullable private Instant m_due = null;
 	private Logger m_logger;
 	
 	private StateChangePoller(Builder builder) {
-		Preconditions.checkNotNull(builder.m_statePredicate);
-		Preconditions.checkNotNull(builder.m_pollInterval);
+		Preconditions.checkArgument(builder.m_endOfPollingPredicate != null);
+		Preconditions.checkArgument(builder.m_pollInterval != null);
 		
-		m_goalStatePredicate = builder.m_statePredicate;
+		m_endOfPollingPredicate = builder.m_endOfPollingPredicate;
 		m_pollInterval = builder.m_pollInterval;
 		m_timeout = builder.m_timeout;
 		m_due = builder.m_due;
@@ -46,21 +46,47 @@ public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 		m_logger = s_logger;
 	}
 	
+	/**
+	 * Polling 간격을 반환합니다.
+	 *
+	 * @return 폴링 간격의 Duration 객체
+	 */
 	public Duration getPollingInterval() {
 		return m_pollInterval;
 	}
 	
+	/**
+	 * 실행 제한 시간을 반환합니다.
+	 *
+	 * @return 설정된 실행 제한 시간의 Duration 객체, 설정되지 않은 경우 null
+	 */
 	public Duration getTimeout() {
 		return m_timeout;
 	}
 	
+	/**
+     * Polling 제한 시각을 반환합니다.
+     * 
+     * @return 설정된 Polling 제한 시각의 Instant 객체, 설정되지 않은 경우 null
+     */
 	public Instant getDue() {
 		return m_due;
 	}
 
+	/**
+	 * Polling을 수행한다.
+	 * <p>
+	 * Polling이 시작되면 주어진 목표 상태가 될 때까지 주기적으로 상태를 확인한다.
+	 * 상태 확인은 {@code m_endOfPollingPredicate}를 호출하여 그 반환 값이 {@code true}가 될 때 까지 반복한다.
+	 * 만일 Polling 제한 시간이 설정되어 있으면 그 시간이 지나면 {@code TimeoutException} 예외가 발생한다.
+	 *
+	 * @throws TimeoutException     Polling 제한 시간이 지난 경우
+	 * @throws InterruptedException Polling 대기 과정 중에 쓰레드가 중단된 경우
+	 * @throws ExecutionRuntimeExecution Polling 확인 과정에서 예외가 발생한 경우
+	 */
 	@Override
 	public void run() throws TimeoutException, InterruptedException, ExecutionRuntimeExecution {
-		Preconditions.checkState(m_goalStatePredicate != null, "Poller is not set");
+		Preconditions.checkState(m_endOfPollingPredicate != null, "Poller is not set");
 		Preconditions.checkState(m_pollInterval != null, "Sample interval is not set");
 
 		Instant due;
@@ -80,7 +106,7 @@ public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 			}
 			
 			try {
-				boolean endOfPolling = !m_goalStatePredicate.get();
+				boolean endOfPolling = m_endOfPollingPredicate.get();
 				if ( endOfPolling ) {
 					if ( getLogger().isInfoEnabled() ) {
 						getLogger().info("polling has finished");
@@ -118,37 +144,78 @@ public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 		m_logger = (logger != null) ? logger : s_logger;
 	}
 
-	public static Builder pollWhile(CheckedSupplier<Boolean> stayStatePredicate) {
-		return new Builder(stayStatePredicate);
+	/**
+	 * Polling을 수행할 {@code StateChangePoller} 객체를 생성한다.
+	 * <p>
+	 * Polling 종료 조건은 주어진 함수가 {@code false}를 반환할 때 Polling을 종료한다.
+	 *
+	 * @param predicate Polling 유지 조건을 판단하는 함수
+	 * @return 생성된 StateChangePoller 객체
+	 */
+	public static Builder pollWhile(CheckedSupplier<Boolean> predicate) {
+		return new Builder(() -> !predicate.get());
 	}
-	public static Builder pollUntil(CheckedSupplier<Boolean> goalStatePredicate) {
-		return new Builder(() -> !goalStatePredicate.get());
+	
+	/**
+	 * Polling을 수행할 {@code StateChangePoller} 객체를 생성한다.
+	 * <p>
+	 * Polling 종료 조건은 주어진 함수가 {@code true}를 반환할 때 Polling을 종료한다.
+	 *
+	 * @param predicate Polling 종료 조건을 판단하는 함수
+	 * @return 생성된 StateChangePoller 객체
+	 */
+	public static Builder pollUntil(CheckedSupplier<Boolean> predicate) {
+		return new Builder(predicate);
 	}
 	
 	public static class Builder {
-		private CheckedSupplier<Boolean> m_statePredicate;
+		private final CheckedSupplier<Boolean> m_endOfPollingPredicate;
 		private Duration m_pollInterval;
 		@Nullable private Duration m_timeout = null;
 		@Nullable private Instant m_due = null;
 		
-		private Builder(CheckedSupplier<Boolean> predicate) {
-			m_statePredicate = predicate;
+		private Builder(CheckedSupplier<Boolean> endOfPollingPredicate) {
+			Preconditions.checkArgument(endOfPollingPredicate != null, "endOfPollingPredicate is null");
+			m_endOfPollingPredicate = endOfPollingPredicate;
 		}
 		
+		/**
+		 * Polling을 수행할 {@code StateChangePoller} 객체를 생성한다.
+		 *
+		 * @return 생성된 StateChangePoller 객체
+		 */
 		public StateChangePoller build() {
 			return new StateChangePoller(this);
 		}
 		
+		/**
+		 * Polling 간격을 설정한다.
+		 *
+		 * @param interval polling 시간 간격
+		 * @return Builder 객체
+		 */
 		public Builder pollInterval(Duration interval) {
 			m_pollInterval = interval;
 			return this;
 		}
 		
+		/**
+		 * Polling 제한 기간을 설정한다.
+		 *
+		 * @param timeout Polling 제한 기간
+		 * @return Builder 객체
+		 */
 		public Builder timeout(@Nullable Duration timeout) {
 			m_timeout = timeout;
 			return this;
 		}
 		
+		/**
+         * Polling 제한 시각을 설정한다.
+         *
+         * @param due Polling 제한 시각
+         * @return Builder 객체
+         */
 		public Builder due(@Nullable Instant due) {
 			m_due = due;
 			return this;
