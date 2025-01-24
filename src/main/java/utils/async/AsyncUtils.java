@@ -57,27 +57,4 @@ public class AsyncUtils {
 			TimeUnit.MILLISECONDS.sleep(sleepTime.toMillis());
 		}
 	}
-	
-//	public static <T> T waitUntilAnyOfTrue(List<T> list, Predicate<T> pred)
-//		throws InterruptedException, ExecutionException {
-//		List<T> remains = Lists.newArrayList(list);
-//		
-//		Holder<T> found = Holder.of(null);
-//		while ( true ) {
-//			List<CompletableFuture<Void>> jobs = Lists.newArrayList();
-//			for ( T element: remains ) {
-//				CompletableFuture<Void> job = CompletableFuture.supplyAsync(() -> pred.test(element))
-//																.thenAccept(truth -> {
-//																	if ( truth ) {
-//																		found.set(element);
-//																	}
-//																});
-//				if ( found.get() != null ) {
-//					return found.get();
-//				}
-//				jobs.add(job);
-//			}
-//			CompletableFuture.allOf(jobs.toArray(new CompletableFuture[0])).get();
-//		}
-//	}
 }
