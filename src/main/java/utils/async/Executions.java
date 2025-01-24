@@ -1,6 +1,8 @@
 package utils.async;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -8,6 +10,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
+
+import com.google.common.base.Preconditions;
 
 import utils.func.CheckedRunnable;
 import utils.func.CheckedSupplier;
@@ -77,8 +81,37 @@ public class Executions {
 		return supplyAsync(UncheckedSupplier.sneakyThrow(supplier));
 	}
 	public static <T> CompletableFutureAsyncExecution<T> supplyCheckedAsync(CheckedSupplier<? extends T> supplier,
-																		@Nullable Executor exector) {
+																			@Nullable Executor exector) {
 		return supplyAsync(UncheckedSupplier.sneakyThrow(supplier), exector);
+	}
+	
+	/**
+	 * 주어진 {@code Callable} 작업을 비동기로 실행하는 {@link CompletableFuture}를 생성한다.
+	 * 
+	 * @param task     비동기로 실행할 작업
+	 * @param executor 작업을 실행할 {@link Executor} 객체. {@code null}인 경우는 기본
+	 *                 {@link Executor}를 사용한다.
+	 * @return {@link CompletableFuture} 객체.
+	 */
+	public static <T> CompletableFuture<T> callAsync(Callable<? extends T> task, @Nullable Executor executor) {
+		Preconditions.checkArgument(task != null, "task is null");
+		
+		Supplier<T> supplier = () -> {
+			try {
+				return task.call();
+			}
+			catch ( Error | RuntimeException e ) {
+				throw e;
+			}
+			catch ( Throwable e ) {
+				throw new CompletionException(e);
+			}
+		};
+		return (executor != null) ? CompletableFuture.supplyAsync(supplier, executor)
+									: CompletableFuture.supplyAsync(supplier);
+	}
+	public static <T> CompletableFuture<T> callAsync(Callable<? extends T> task) {
+		return callAsync(task, null);
 	}
 	
 	static class FlatMapCompleteChainExecution<T,S> extends EventDrivenExecution<S> {
