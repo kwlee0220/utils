@@ -31,6 +31,7 @@ import okhttp3.Response;
  */
 public class HttpRESTfulClient implements LoggerSettable {
 	private static final Logger s_logger = LoggerFactory.getLogger(HttpRESTfulClient.class);
+	public static final MediaType MEDIA_TYPE_TEXT = MediaType.parse("text/plain; charset=utf-8");
 	public static final MediaType MEDIA_TYPE_JSON = MediaType.parse("application/json; charset=utf-8");
 	
 	private final OkHttpClient m_client;
