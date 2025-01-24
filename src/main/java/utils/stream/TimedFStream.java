@@ -1,9 +1,9 @@
 package utils.stream;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import utils.func.FOption;
-import utils.func.Try;
 
 
 /**
@@ -19,14 +19,14 @@ public interface TimedFStream<T> extends FStream<T> {
 	/**
 	 * 제한 시간 동안 다음 번 데이터을 대기하여 반환한다.
 	 * <p>
-	 * 주어진 시간 내에 데이터가 반환되지 않는 경우에는 {@link FOption#empty()}가 반환된다.
+	 * 주어진 시간 내에 데이터가 반환되지 않는 경우에는 {@link TimeoutException} 예외가 발생된다.
 	 * 
 	 * @param timeout	제한시간
 	 * @param tu		제한 시간 단위
 	 * @return	스트림 내 다음 데이터.
-	 * 			데이터 획득 과정에서 예외가 발생하는 경우에는 {@link Try#failure(Throwable)}를 통해
-	 * 			예외가 전달된다.
-	 * 			제한된 시간 내에 데이터가 반환되지 않는 경우에는 {@link FOption#empty()}가 반환된다.
+	 * 			데이터가 없는 경우에는 {@link FOption#empty()}가 반환된다.
+	 * 			제한된 시간 내에 데이터가 반환되지 않는 경우에는 {@link TimeoutException} 예외가 발생된다.
+	 * @throws TimeoutException	제한 시간 내에 데이터가 반환되지 않은 경우.
 	 */
-	public FOption<Try<T>> next(long timeout, TimeUnit tu);
+	public FOption<T> next(long timeout, TimeUnit tu) throws TimeoutException;
 }
