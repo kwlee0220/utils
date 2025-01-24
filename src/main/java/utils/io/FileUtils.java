@@ -63,12 +63,27 @@ public class FileUtils {
 		Files.move(srcFile.toPath(), tarFile.toPath(), opts);
 	}
 	
-	public static void createDirectories(File dir, FileAttribute<?>... opts) throws IOException {
+	public static void createDirectory(File dir, FileAttribute<?>... opts) throws IOException {
 		Files.createDirectories(dir.toPath(), opts);
 	}
 	
 	public static void deleteDirectory(File dir) throws IOException {
 		org.apache.commons.io.FileUtils.deleteDirectory(dir);
+	}
+	
+	/**
+	 * 주어진 파일을 삭제한다. 만일 파일이 디렉토리인 경우 해당 디렉토리를 삭제한다.
+	 * 
+	 * @param file 삭제할 파일 객체
+	 * @throws IOException 파일 삭제 중 오류가 발생된 경우.
+	 */
+	public static void deleteAnyway(File file) throws IOException {
+		if ( file.isDirectory() ) {
+			deleteDirectory(file);
+		}
+		else {
+			file.delete();
+		}
 	}
 	
 	public static FStream<File> walk(File start, String glob) throws IOException {
@@ -79,7 +94,7 @@ public class FileUtils {
 		PathMatcher matcher = FileSystems.getDefault()
 										.getPathMatcher("glob:" + glob);
 		return FStream.from(Files.walk(start, FileVisitOption.FOLLOW_LINKS)
-								.filter(matcher::matches));
+								.filter(path -> matcher.matches(path.getFileName())));
 	}
 	
 	public static FStream<File> walk(File start) throws IOException {
