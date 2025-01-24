@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -17,7 +18,6 @@ import utils.Suppliable;
 import utils.Throwables;
 import utils.async.ThreadInterruptedException;
 import utils.func.FOption;
-import utils.func.Try;
 
 /**
  * 
@@ -115,14 +115,14 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 	 * 스트림의 다음 원소를 반환한다.
 	 * <p>
 	 * 만일 다음 원소가 없는 경우는 지정된 시간만큼 새 원소가 스트림에 삽입될 때까지
-	 * 대기한다. 지정된 시간동안 원소가 삽입되지 않으면 {@code FOption<Try.failed()>}가 반환된다.
+	 * 대기한다. 지정된 시간동안 원소가 삽입되지 않으면 {@link TimeoutException} 예외가 발생된다.
 	 * 
 	 * @param timeout	제한 시간
 	 * @param tu		제한 시간 단위
 	 * @throws TimeoutException	제한된 시간 동안 스트림이 비어있었던 경우.
 	 */
 	@Override
-	public FOption<Try<T>> next(long timeout, TimeUnit tu) {
+	public FOption<T> next(long timeout, TimeUnit tu) throws TimeoutException {
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		
 		m_lock.lock();
@@ -135,11 +135,11 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 					T value = m_buffer.remove(0);
 					m_cond.signalAll();
 					
-					return FOption.of(Try.success(value));
+					return FOption.of(value);
 				}
 				else if ( m_closed || m_eos ) {
 					if ( m_error == null ) {
-						FOption.empty();
+						return FOption.empty();
 					}
 					else {
 						throw Throwables.toRuntimeException(m_error);
@@ -148,7 +148,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 				
 				try {
 					if ( !m_cond.awaitUntil(due) ) {
-						return FOption.of(Try.failure(new TimeoutException()));
+						throw new TimeoutException();
 					}
 				}
 				catch ( InterruptedException e ) {
@@ -189,6 +189,16 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 			else {
 				return FOption.empty();
 			}
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
+	public boolean isClosed() {
+		m_lock.lock();
+		try {
+			return m_closed;
 		}
 		finally {
 			m_lock.unlock();
@@ -262,6 +272,37 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 					if ( !m_cond.awaitUntil(due) ) {
 						return false;
 					}
+				}
+				catch ( InterruptedException e ) {
+					throw new ThreadInterruptedException("" + e);
+				}
+			}
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+
+	public T supply(Supplier<T> supplier) throws IllegalStateException, ThreadInterruptedException {
+		m_lock.lock();
+		try {
+			while ( true ) {
+				if ( m_closed ) {
+					throw new IllegalStateException("closed at consumer-side");
+				}
+				else if ( m_eos ) {
+					throw new IllegalStateException("Supplier has closed the stream");
+				}
+				if ( m_buffer.size() < m_length ) {
+					T value = supplier.get();
+					m_buffer.add(value);
+					m_cond.signalAll();
+					
+					return value;
+				}
+				
+				try {
+					m_cond.await();
 				}
 				catch ( InterruptedException e ) {
 					throw new ThreadInterruptedException("" + e);
