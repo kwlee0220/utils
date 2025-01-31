@@ -15,7 +15,6 @@ import java.util.function.Supplier;
 
 import com.google.common.base.Preconditions;
 
-import utils.Utilities;
 import utils.func.CheckedConsumer;
 import utils.func.CheckedFunction;
 import utils.func.CheckedRunnable;
@@ -49,15 +48,15 @@ public class Guard implements Serializable {
 	}
 	
 	private Guard(Lock lock) {
-		Utilities.checkNotNullArgument(lock, "lock is null");
+		Preconditions.checkArgument(lock != null, "lock is null");
 		
 		m_lock = lock;
 		m_cond = null;
 	}
 	
 	private Guard(Lock lock, Condition cond) {
-		Utilities.checkNotNullArgument(lock, "lock is null");
-		Utilities.checkNotNullArgument(cond, "Condition is null");
+		Preconditions.checkArgument(lock != null, "lock is null");
+		Preconditions.checkArgument(cond != null, "Condition is null");
 		
 		m_lock = lock;
 		m_cond = cond;
@@ -126,6 +125,8 @@ public class Guard implements Serializable {
 	 * @param work to run.
 	 */
 	public void run(Runnable work) {
+		Preconditions.checkArgument(work != null, "work is null");
+		
 		m_lock.lock();
 		try {
 			work.run();
@@ -143,6 +144,8 @@ public class Guard implements Serializable {
 	 * @throws X if the work throws a checked exception.
 	 */
 	public <X extends Throwable> void runOrThrow(CheckedRunnableX<X> work) throws X {
+		Preconditions.checkArgument(work != null, "work is null");
+		
 		m_lock.lock();
 		try {
 			work.run();
@@ -153,11 +156,14 @@ public class Guard implements Serializable {
 	}
 	
 	/**
-	 * Runs the given work while holding the lock and signals all waiting threads.
+	 * Runs the given work while holding the lock and
+	 * signals all waiting threads when it finishes.
 	 * 
 	 * @param work to run.
 	 */
 	public void runAndSignalAll(Runnable work) {
+		Preconditions.checkArgument(work != null, "work is null");
+		
 		m_lock.lock();
 		try {
 			work.run();
@@ -169,12 +175,14 @@ public class Guard implements Serializable {
 	}
 	
 	/**
-	 * Runs the given work while holding the lock and signals all waiting threads.
+	 * Runs the given work while holding the lock and signals all waiting threads when it finishes.
 	 * 
 	 * @param work to run.
 	 * @throws X if the work throws a checked exception.
 	 */
 	public <X extends Throwable> void runAnSignalAllOrThrow(CheckedRunnableX<X> work) throws X {
+		Preconditions.checkArgument(work != null, "work is null");
+		
 		m_lock.lock();
 		try {
 			work.run();
@@ -192,6 +200,8 @@ public class Guard implements Serializable {
 	 * @return the result of the work.
 	 */
 	public Try<Void> tryToRun(CheckedRunnable work) {
+		Preconditions.checkArgument(work != null, "work is null");
+		
 		m_lock.lock();
 		try {
 			work.run();
@@ -213,7 +223,7 @@ public class Guard implements Serializable {
 		private final Runnable m_task;
 		
 		GuardedRunnable(Runnable task) {
-			Utilities.checkNotNullArgument(task, "task is null");
+			Preconditions.checkArgument(task != null, "task is null");
 			
 			m_task = task;
 		}
@@ -265,7 +275,7 @@ public class Guard implements Serializable {
 		}
 	}
 	
-	public <T> Try<T> tryToGet(CheckedSupplier<T> suppl) {
+	public <T> Try<T> tryToGet(CheckedSupplier<T> suppl, boolean signal) {
 		m_lock.lock();
 		try {
 			return Try.success(suppl.get());
@@ -274,8 +284,12 @@ public class Guard implements Serializable {
 			return Try.failure(e);
 		}
 		finally {
+			m_cond.signalAll();
 			m_lock.unlock();
 		}
+	}
+	public <T> Try<T> tryToGet(CheckedSupplier<T> suppl) {
+		return tryToGet(suppl, true);
 	}
 	
 	public <T> GuardedSupplier<T> lift(Supplier<T> suppl) {
@@ -287,7 +301,7 @@ public class Guard implements Serializable {
 		private boolean m_signal = false;
 		
 		GuardedSupplier(Supplier<T> suppl) {
-			Utilities.checkNotNullArgument(suppl, "Supplier is null");
+			Preconditions.checkArgument(suppl != null, "Supplier is null");
 			
 			m_suppl = suppl;
 		}
@@ -363,7 +377,7 @@ public class Guard implements Serializable {
 		private boolean m_signal = false;
 		
 		GuardedConsumer(Consumer<T> consumer) {
-			Utilities.checkNotNullArgument(consumer, "Consumer is null");
+			Preconditions.checkArgument(consumer != null, "Consumer is null");
 			
 			m_consumer = consumer;
 		}
@@ -440,7 +454,7 @@ public class Guard implements Serializable {
 		private boolean m_signal = false;
 		
 		GuardedFunction(Function<T,R> func) {
-			Utilities.checkNotNullArgument(func, "Function is null");
+			Preconditions.checkArgument(func != null, "Function is null");
 			
 			m_func = func;
 		}
