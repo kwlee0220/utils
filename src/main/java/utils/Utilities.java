@@ -360,11 +360,11 @@ public class Utilities {
 		return new StringSubstitutor(mappings).replace(template);
 	}
 	public static void substributeFile(File templateFile, Map<String,String> mappings, File outputFile)
-			throws IOException {
-			String template = IOUtils.toString(templateFile);
-			String substributed = substributeString(template, mappings);
-			IOUtils.toFile(substributed, outputFile);
-		}
+		throws IOException {
+		String template = IOUtils.toString(templateFile);
+		String substributed = substributeString(template, mappings);
+		IOUtils.toFile(substributed, outputFile);
+	}
 	public static void substributeFile(File templateFile, Map<String,String> mappings)
 		throws IOException {
 		substributeFile(templateFile, mappings, templateFile);
