@@ -78,7 +78,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 			return;
 		}
 		if ( !notifyStarted() ) {
-			throw new IllegalStateException("cannot start this execution because invalid state: state=" + getState());
+			throw new IllegalStateException("cannot start loop execution because invalid state: state=" + getState());
 		}
 		
 		try {
