@@ -2,6 +2,7 @@ package utils.async;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Date;
 
 import org.apache.commons.lang3.time.DurationUtils;
 
@@ -39,9 +40,9 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	 * 
 	 * @param interval 주기
 	 * @param cumulativeInterval	주기가 누적되는지 여부.
-	 *                             만일 {@code true}인 경우는 loop의 시작 시각으로부터 매 iteration의
-	 *                             시작 시간을 계산한다. 반대로 {@code false}인 경우는 매 iteratio이
-	 *                             시작하는 시각을 기준으로 다음 번 iteration의 시작 시각을 계산한다.
+	 *                             	만일 {@code true}인 경우는 loop의 시작 시각으로부터 매 iteration의
+	 *                             	시작 시간을 계산한다. 반대로 {@code false}인 경우는 매 iteratio이
+	 *                             	시작하는 시각을 기준으로 다음 번 iteration의 시작 시각을 계산한다.
 	 */
 	protected PeriodicLoopExecution(Duration interval, boolean cumulativeInterval) {
 		Preconditions.checkArgument(interval != null && DurationUtils.isPositive(interval));
@@ -101,26 +102,29 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 
 	@Override
 	protected FOption<T> iterate(long loopIndex) throws Exception {
-		Instant due;
+		Date due;
 		if ( !m_cumulativeInterval ) {
 			// 'm_cumulativeInterval'이 false인 경우는 매 iteration마다 시작 시각을 계산해서
 			// due 시간을 결정한다.
-			due = Instant.now().plus(m_interval);
+			due = Date.from(Instant.now().plus(m_interval));
 		}
 		else {
 			// Loop 인덱스를 이용하여 이번 loop외 due 시간을 계산한다.
 			// Due 시간은 interval 기간에 iterate 횟수를 곱해서 전체 지연 시간을 계산해서
 			// loop의 시작 시각에 더해서 결정한다.
-			due = m_started.plus(m_interval.multipliedBy(loopIndex+1));
+			due = Date.from(m_started.plus(m_interval.multipliedBy(loopIndex+1)));
 		}
 		
 		FOption<T> result = performPeriodicAction(loopIndex);
 		if ( result == null || result.isAbsent() ) {
 			// 다음번 iteration 시작 시각까지 대기한다.
-			long remainMillis = Duration.between(Instant.now(), due).toMillis();
-			if ( remainMillis > 20 ) {
-				Thread.sleep(remainMillis);
+			
+			if ( m_aopGuard.awaitUntil(() -> isCancelRequested(), due) ) {
+				// 취소 요청이 들어온 경우는 loop 종료
+				return null;
 			}
+			
+			// Iteration 실행 시간을 다 채운 경우, 다음 번 iteration을 수행하도록 한다.
 		}
 		
 		return result;

@@ -49,7 +49,7 @@ public class Timer {
 			Schedule schedule = new Schedule(task, due);
 			m_timerQueue.add(schedule);
 			if ( m_timerQueue.peekFirst() == schedule ) {
-				m_guard.signalAll();
+				m_guard.signalAllInGuard();
 			}
 		}
 		finally {
@@ -82,7 +82,7 @@ public class Timer {
 									schedule.m_exec.cancel(true);
 								}
 								else {
-									m_guard.awaitUntil(schedule.m_due);
+									m_guard.awaitInGuardUntil(schedule.m_due);
 								}
 							}
 							else {
@@ -90,7 +90,7 @@ public class Timer {
 							}
 						}
 						else {
-							m_guard.await();
+							m_guard.awaitInGuard();
 						}
 					}
 					catch ( InterruptedException expected ) { }

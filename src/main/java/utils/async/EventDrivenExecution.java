@@ -77,7 +77,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					case CANCELLING:
 						// 'STARTING'/'CANCELLING' 상태인 경우에는 상태가 바뀔때까지
 						// 제한시간동안 대기한다.
-						if ( !m_aopGuard.awaitUntil(due) ) {
+						if ( !m_aopGuard.awaitInGuardUntil(due) ) {
 							return false;
 						}
 						break;
@@ -193,7 +193,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			switch ( m_aopState ) {
 				case NOT_STARTED:
 					m_aopState = AsyncState.STARTING;
-					m_aopGuard.signalAll();
+					m_aopGuard.signalAllInGuard();
 				case STARTING:
 			    	return true;
 				case RUNNING:
@@ -221,7 +221,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case NOT_STARTED:
 				case STARTING:
 					m_aopState = AsyncState.RUNNING;
-					m_aopGuard.signalAll();
+					m_aopGuard.signalAllInGuard();
 					getLogger().debug("started: {}", this);
 					
 					notifyStartListeners();
@@ -251,7 +251,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case CANCELLING:
 					m_asyncResult = AsyncResult.completed(result);
 					m_aopState = AsyncState.COMPLETED;
-					m_aopGuard.signalAll();
+					m_aopGuard.signalAllInGuard();
 					getLogger().debug("completed: {}, result={}", this, result);
 					
 					notifyFinishListenersInGuard();
@@ -283,7 +283,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case CANCELLING:
 					m_asyncResult = AsyncResult.failed(cause);
 			    	m_aopState = AsyncState.FAILED;
-			    	m_aopGuard.signalAll();
+			    	m_aopGuard.signalAllInGuard();
 					getLogger().info("failed: {}, cause={}", this, cause.toString());
 					
 					notifyFinishListenersInGuard();
@@ -312,7 +312,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     		Date due = new Date(System.currentTimeMillis() + m_cancelTimeoutMillis);
 			while ( m_aopState == AsyncState.STARTING ) {
 				try {
-					if ( !m_aopGuard.awaitUntil(due) ) {
+					if ( !m_aopGuard.awaitInGuardUntil(due) ) {
 						return false;
 					}
 				}
@@ -325,7 +325,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case RUNNING:
 				case NOT_STARTED:
 					m_aopState = AsyncState.CANCELLING;
-					m_aopGuard.signalAll();
+					m_aopGuard.signalAllInGuard();
 				case CANCELLING:
 				case CANCELLED:
 					return true;
@@ -351,7 +351,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     		Date due = new Date(System.currentTimeMillis() + m_cancelTimeoutMillis);
     		try {
 				while ( m_aopState == AsyncState.STARTING ) {
-					if ( !m_aopGuard.awaitUntil(due) ) {
+					if ( !m_aopGuard.awaitInGuardUntil(due) ) {
 						return false;
 					}
 				}
@@ -366,7 +366,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case NOT_STARTED:
 					m_asyncResult = AsyncResult.cancelled();
 					m_aopState = AsyncState.CANCELLED;
-					m_aopGuard.signalAll();
+					m_aopGuard.signalAllInGuard();
 					getLogger().info("cancelled: {}", this);
 					
 					notifyFinishListenersInGuard();

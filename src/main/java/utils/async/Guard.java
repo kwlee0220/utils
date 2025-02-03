@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
@@ -15,6 +16,7 @@ import java.util.function.Supplier;
 
 import com.google.common.base.Preconditions;
 
+import utils.Throwables;
 import utils.func.CheckedConsumer;
 import utils.func.CheckedFunction;
 import utils.func.CheckedRunnable;
@@ -84,30 +86,48 @@ public class Guard implements Serializable {
 	 * Signals all waiting threads.
 	 * This method should be called while holding the lock.
 	 */
-	public void signalAll() {
+	public void signalAllInGuard() {
 		m_cond.signalAll();
 	}
 
 	/**
 	 * Wait until this guard is signaled.
-	 * This method should be called while holding the lock.
+	 * <p>
+	 * 본 메소드는 반드시 lock을 획득한 상태에서 호출해야 한다.
 	 */
-	public void await() throws InterruptedException {
+	public void awaitInGuard() throws InterruptedException {
 		m_cond.await();
 	}
 
 	/**
-	 * Wait until this guard is signaled or the specified deadline is reached.
-	 * This method should be called while holding the lock.
+	 * Guard가 signal을 받거나 주어진 제한 시각을 경과할 때까지 대기한다.
+	 * <p>
+	 * 본 메소드는 반드시 lock을 획득한 상태에서 호출해야 한다.
 	 * 
-	 * @param due   the deadline.
-	 * @return {@code true} if the guard is signaled before the deadline, or {@code false} otherwise.
-	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 * @param due	대기 제한 시각
+	 * @return	대기 제한 시각이 경과하기 전에 signal을 받은 경우는 {@code true}, 그렇지 않은 경우는 {@code false}.
+	 * @throws InterruptedException	대기 중에 현재 쓰레드가 interrupt된 경우.
 	 */
-	public boolean awaitUntil(Date due) throws InterruptedException {
+	public boolean awaitInGuardUntil(Date due) throws InterruptedException {
 		Preconditions.checkArgument(due != null, "due is null");
 		
 		return m_cond.awaitUntil(due);
+	}
+	
+	/**
+	 * Guard가 signal을 받거나 주어진 제한 시간이 도달할 때까지 대기한다.
+	 * <p>
+	 * 본 메소드는 반드시 lock을 획득한 상태에서 호출해야 한다.
+	 * 
+	 * @param dur	대기 제한 기간
+	 * @return	대기 제한 시간이 경과하기 전에 signal을 받은 경우는 {@code true}, 그렇지 않은 경우는 {@code false}.
+	 * @throws InterruptedException	대기 중에 현재 쓰레드가 interrupt된 경우.
+	 */
+	public boolean awaitInGuardFor(Duration dur) throws InterruptedException {
+		Preconditions.checkArgument(dur != null, "period is null");
+		
+		Instant due = Instant.now().plus(dur);
+		return m_cond.awaitUntil(Date.from(due));
 	}
 	
 	/**
@@ -503,35 +523,20 @@ public class Guard implements Serializable {
 	}
 	
 	/**
-	 * Waits until the given condition is satisfied or the specified deadline is
-	 * reached and returns false.
+	 * 주어진 조건이 만족할 때까지 대기하고 {@code true}를 반환한다.
+	 * <p>
+	 * 대기 중 제한 시간이 경과한 경우에는 대기가 종료되고 {@code false}를 반환한다.
 	 * 
-	 * @param predicate until-condition
-	 * @param timeout   timeout
-	 * @param tu        time unit of the timeout
-	 * @return {@code true} if the condition is satisfied before the deadline, or
-	 *         {@code false} otherwise.
-	 * @throws InterruptedException if the current thread is interrupted while waiting.
-	 */
-	public boolean awaitUntil(Supplier<Boolean> predicate, long timeout, TimeUnit tu)
-		throws InterruptedException {
-		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
-		return awaitUntil(predicate, due);
-	}
-	
-	/**
-	 * Waits until the given condition is satisfied or the specified deadline is reached and returns false.
-	 * 
-	 * @param predicate    until-condition
-	 * @param due    deadline
-	 * @return	{@code true} if the condition is satisfied before the deadline, or {@code false} otherwise.
-	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 * @param predicate    대기 종료 조건
+	 * @param due    	대기 제한 시각
+	 * @return	주어진 조건을 만족하여 대기가 종료된 경우는 {@code true}, 그렇지 않은 않고
+	 *             제한 시간이 경과한 경우는 {@code false}를 반환한다.
+	 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
 	 */
 	public boolean awaitUntil(Supplier<Boolean> predicate, Date due)
 		throws InterruptedException {
 		Preconditions.checkArgument(predicate != null, "Until-condition is null");
 		Preconditions.checkArgument(due != null, "due is null");
-		Preconditions.checkState(m_cond != null, "Condition is null");
 		
 		m_lock.lock();
 		try {
@@ -549,20 +554,86 @@ public class Guard implements Serializable {
 	}
 	
 	/**
-	 * Waits until the given condition is satisfied and then runs the given work.
+	 * 주어진 조건이 만족할 때까지 대기하고 {@code true}를 반환한다.
+	 * <p>
+	 * 대기 중 제한 시간이 경과한 경우에는 대기가 종료되고 {@code false}를 반환한다.
 	 * 
-	 * @param predicate until-condition.
-	 * @param work      work to run.
-	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 * @param predicate until-condition
+	 * @param timeout   timeout
+	 * @return	주어진 조건을 만족하여 대기가 종료된 경우는 {@code true}, 그렇지 않은 않고
+	 *             제한 시간이 경과한 경우는 {@code false}를 반환한다.
+	 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
 	 */
-	public void awaitUntilAndRun(Supplier<Boolean> predicate, Runnable work)
+	public boolean awaitUntil(Supplier<Boolean> predicate, Duration timeout)
 		throws InterruptedException {
+		Preconditions.checkArgument(predicate != null, "Until-condition is null");
+		Preconditions.checkArgument(timeout != null, "Timeout duration is null");
+		
+		return awaitUntil(predicate, Date.from(Instant.now().plus(timeout)));
+	}
+	
+	/**
+	 * 주어진 조건이 만족할 때까지 대기하고 {@code true}를 반환한다.
+	 * <p>
+	 * 대기 중 제한 시간이 경과한 경우에는 대기가 종료되고 {@code false}를 반환한다.
+	 * 
+	 * @param predicate until-condition
+	 * @param timeout   timeout
+	 * @param tu        time unit of the timeout
+	 * @return	주어진 조건을 만족하여 대기가 종료된 경우는 {@code true}, 그렇지 않은 않고
+	 *             제한 시간이 경과한 경우는 {@code false}를 반환한다.
+	 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
+	 */
+	public boolean awaitUntil(Supplier<Boolean> predicate, long timeout, TimeUnit tu)
+		throws InterruptedException {
+		Preconditions.checkArgument(predicate != null, "Until-condition is null");
+		Preconditions.checkArgument(timeout >= 0, "invalid timeout: " + timeout);
+		Preconditions.checkArgument(tu != null, "TimeUnit is null");
+		
+		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
+		return awaitUntil(predicate, due);
+	}
+	
+	/**
+	 * 주어진 조건이 만족할 때까지 대기하고 대기 조건이 만족한 경우 주어진 작업을 실행하고,
+	 * 내부 condition variable을 signal한다.
+	 * <p>
+	 * 작업은 내부 lock을 획득한 상태에서 실행된다.
+	 * 대기 제한 시간이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
+	 * 대기 조건 만족 후 작업 수행 중 예외가 발생한 경우에는 {@link ExecutionException}을 발생시킨다.
+	 * 
+	 * @param predicate    대기 종료 조건
+	 * @param timeout		대기 제한 시각
+	 * @param work      	대기 종료 조건이 만족한 경우 수행할 작업.
+	 * @param signal		작업 수행 후 condition variable을 signal할지 여부.
+	 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
+	 * @throws TimeoutException 대기 제한 시각을 경과한 경우.
+	 * @throws ExecutionException 작업 ({@code work}) 수행 중 예외가 발생한 경우.
+	 */
+	public void awaitUntilAndRun(Supplier<Boolean> predicate, Date due, CheckedRunnable work, boolean signal)
+		throws InterruptedException, TimeoutException, ExecutionException {
+		Preconditions.checkArgument(predicate != null, "Until-condition is null");
+		Preconditions.checkArgument(due != null, "due is null");
+		Preconditions.checkArgument(work != null, "work is null");
+		
 		m_lock.lock();
 		try {
 			while ( !predicate.get() ) {
-				m_cond.await();
+				if ( !m_cond.awaitUntil(due) ) {
+					throw new TimeoutException("due=" + due);
+				}
 			}
-			work.run();
+			try {
+				work.run();
+			}
+			catch ( Throwable e ) {
+				Throwable cause = Throwables.unwrapThrowable(e);
+				throw new ExecutionException(cause);
+			}
+			
+			if ( signal ) {
+				m_cond.signalAll();
+			}
 		}
 		finally {
 			m_lock.unlock();
@@ -570,16 +641,34 @@ public class Guard implements Serializable {
 	}
 	
 	/**
-	 * Waits until the given condition is satisfied and then runs the given work.
-	 * If {@code singal} is true, it signals all waiting threads.
+	 * 주어진 조건이 만족할 때까지 무한히 대기하고 대기 조건이 만족한 경우 주어진 작업을 실행한다.
+	 * <p>
+	 * 작업은 내부 lock을 획득한 상태에서 실행된다.
 	 * 
-	 * @param predicate until-condition.
-	 * @param work      work to run.
-	 * @param signal    whether to signal all waiting threads.
-	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 * @param predicate    대기 종료 조건
+	 * @param work      	대기 종료 조건이 만족한 경우 수행할 작업.
+	 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
+	 */
+	public void awaitUntilAndRun(Supplier<Boolean> predicate, Runnable work)
+		throws InterruptedException {
+		awaitUntilAndRun(predicate, work, false);
+	}
+	
+	/**
+	 * 주어진 조건이 만족할 때까지 무한히 대기하고 대기 조건이 만족한 경우 주어진 작업을 실행하고,
+	 * 내부 condition variable을 signal한다.
+	 * <p>
+	 * 작업은 내부 lock을 획득한 상태에서 실행된다.
+	 * 
+	 * @param predicate    대기 종료 조건
+	 * @param work      	대기 종료 조건이 만족한 경우 수행할 작업.
+	 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
 	 */
 	public void awaitUntilAndRun(Supplier<Boolean> predicate, Runnable work, boolean signal)
 		throws InterruptedException {
+		Preconditions.checkArgument(predicate != null, "Until-condition is null");
+		Preconditions.checkArgument(work != null, "work is null");
+		
 		m_lock.lock();
 		try {
 			while ( !predicate.get() ) {
@@ -590,6 +679,49 @@ public class Guard implements Serializable {
 			if ( signal ) {
 				m_cond.signalAll();
 			}
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+	
+	/**
+	 * Waits until the given condition is satisfied and then runs the supplier to get a value.
+	 * If the predicate is not satisfied before the deadline, it throws a TimeoutException.
+	 * 
+	 * @param predicate until-condition.
+	 * @param suppl     value supplier.
+	 * @param due    deadline. If {@code null}, it waits indefinitely.
+	 * @return the value returned by the supplier.
+	 * @throws InterruptedException if the current thread is interrupted while waiting.
+	 * @throws TimeoutException if the predicate is not satisfied before the deadline.
+	 */
+	public <T> T awaitUntilAndGet(Supplier<Boolean> predicate, CheckedSupplier<T> suppl, Date due, boolean singal)
+		throws InterruptedException, TimeoutException, ExecutionException {
+		Preconditions.checkArgument(predicate != null, "Until-condition is null");
+		Preconditions.checkArgument(suppl != null, "value supplier is null");
+		Preconditions.checkArgument(due != null, "due is null");
+		
+		m_lock.lock();
+		try {
+			while ( !predicate.get() ) {
+				if ( !m_cond.awaitUntil(due) ) {
+					throw new TimeoutException("due=" + due);
+				}
+			}
+			
+			try {
+				T result = suppl.get();
+                if ( singal ) {
+                    m_cond.signalAll();
+                }
+                
+                return result;
+			}
+			catch ( Throwable e ) {
+				Throwable cause = Throwables.unwrapThrowable(e);
+                throw new ExecutionException(cause);
+            }
 		}
 		finally {
 			m_lock.unlock();

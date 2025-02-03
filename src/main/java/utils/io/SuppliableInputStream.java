@@ -65,7 +65,7 @@ public class SuppliableInputStream extends InputStream {
 			m_chunkQueue.clear();
 			m_closed = true;
 			
-			m_guard.signalAll();
+			m_guard.signalAllInGuard();
 		}
 		finally {
 			m_guard.unlock();
@@ -105,7 +105,7 @@ public class SuppliableInputStream extends InputStream {
 		m_guard.lock();
 		try {
 			while ( !isClosed() && m_current < chunkNo ) {
-				if ( !m_guard.awaitUntil(due) ) {
+				if ( !m_guard.awaitInGuardUntil(due) ) {
 					return false;
 				}
 			}
@@ -157,12 +157,12 @@ public class SuppliableInputStream extends InputStream {
 				}
 				if ( m_chunkQueue.size() < m_maxQueueLength ) {
 					m_chunkQueue.add(chunk);
-					m_guard.signalAll();
+					m_guard.signalAllInGuard();
 					
 					return;
 				}
 				
-				m_guard.await();
+				m_guard.awaitInGuard();
 			}
 		}
 		finally {
@@ -200,19 +200,19 @@ public class SuppliableInputStream extends InputStream {
 				}
 				if ( m_chunkQueue.size() < m_maxQueueLength ) {
 					m_chunkQueue.add(chunk);
-					m_guard.signalAll();
+					m_guard.signalAllInGuard();
 					
 					return;
 				}
 				
 				if ( timeout < 0 ) {
-					m_guard.await();
+					m_guard.awaitInGuard();
 				}
 				else if ( timeout == 0 ) {
 					throw new TimeoutException("supply timeout");
 				}
 				else {
-					if ( !m_guard.awaitUntil(due) ) {
+					if ( !m_guard.awaitInGuardUntil(due) ) {
 						String details = String.format("supply timeout: %s",
 														UnitUtils.toMillisString(unit.toMillis(timeout)));
 						throw new TimeoutException(details);
@@ -288,13 +288,13 @@ public class SuppliableInputStream extends InputStream {
 				return null;
 			}
 			
-			m_guard.await();
+			m_guard.awaitInGuard();
 		}
 
 		ByteBuffer head = m_chunkQueue.get(0);
 		++m_current;
 		s_logger.debug("get_next_chunk: {}", this);
-		m_guard.signalAll();
+		m_guard.signalAllInGuard();
 		
 		return head;
 	}
