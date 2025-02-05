@@ -15,11 +15,11 @@ import utils.stream.FStreams.AbstractFStream;
  * @author Kang-Woo Lee (ETRI)
  */
 class GeneratorBasedFStream<T> extends AbstractFStream<T> {
-	private final DataGenerator<T> m_dataGenerator;
+	private final Generator<T> m_dataGenerator;
 	private final SuppliableFStream<T> m_channel;
 	private Thread m_generatorThread;
 	
-	GeneratorBasedFStream(DataGenerator<T> dataGenerator, int length) {
+	GeneratorBasedFStream(Generator<T> dataGenerator, int length) {
 		checkNotNullArgument(dataGenerator, "generator is null");
 		checkArgument(length > 0, "Buffer length should be larger than zero.");
 		
@@ -44,10 +44,10 @@ class GeneratorBasedFStream<T> extends AbstractFStream<T> {
 	}
 	
 	private static class DataGeneratingWorker<T> implements Runnable {
-		private final DataGenerator<T> m_dataGenerator;
+		private final Generator<T> m_dataGenerator;
 		private final Suppliable<T> m_outChannel;
 		
-		DataGeneratingWorker(DataGenerator<T> dataGenerator, Suppliable<T> channel) {
+		DataGeneratingWorker(Generator<T> dataGenerator, Suppliable<T> channel) {
 			m_dataGenerator = dataGenerator;
 			m_outChannel = channel;
 		}

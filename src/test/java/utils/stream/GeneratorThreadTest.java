@@ -24,7 +24,7 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test00() throws Exception {
-		DataGenerator<String> generator = new DataGenerator<String>() {
+		Generator<String> generator = new Generator<String>() {
 			@Override
 			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
@@ -41,7 +41,7 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test01() throws Exception {
-		DataGenerator<String> generator = new DataGenerator<String>() {
+		Generator<String> generator = new Generator<String>() {
 			@Override
 			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
@@ -58,7 +58,7 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test10() throws Exception {
-		DataGenerator<String> generator = new DataGenerator<String>() {
+		Generator<String> generator = new Generator<String>() {
 			@Override
 			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
@@ -74,7 +74,7 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test11() throws Exception {
-		DataGenerator<String> generator = new DataGenerator<String>() {
+		Generator<String> generator = new Generator<String>() {
 			@Override
 			public void generate(Suppliable<String> channel) throws InterruptedException {
 				channel.supply("a");
@@ -90,7 +90,7 @@ public class GeneratorThreadTest {
 
 	@Test
 	public void test12() throws Exception {
-		DataGenerator<String> generator = new DataGenerator<String>() {
+		Generator<String> generator = new Generator<String>() {
 			@Override
 			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
@@ -106,7 +106,7 @@ public class GeneratorThreadTest {
 
 	@Test(expected=RuntimeException.class)
 	public void test13() throws Exception {
-		DataGenerator<String> generator = new DataGenerator<String>() {
+		Generator<String> generator = new Generator<String>() {
 			@Override
 			public void generate(Suppliable<String> channel) {
 				channel.supply("a");
@@ -125,7 +125,7 @@ public class GeneratorThreadTest {
 		Holder<Integer> state = Holder.of(0);
 		
 		long started = System.currentTimeMillis();
-		DataGenerator<String> generator = new DataGenerator<String>() {
+		Generator<String> generator = new Generator<String>() {
 			@Override
 			public void generate(Suppliable<String> channel) throws InterruptedException {
 				Thread.sleep(200);
@@ -158,13 +158,13 @@ public class GeneratorThreadTest {
 
 	@Test(expected=IllegalArgumentException.class)
 	public void test90() throws Exception {
-		DataGenerator<String> generator = null;
+		Generator<String> generator = null;
 		FStream.generate(generator, 1);
 	}
 
 	@Test(expected=IllegalArgumentException.class)
 	public void test91() throws Exception {
-		DataGenerator<String> generator = new DataGenerator<String>() {
+		Generator<String> generator = new Generator<String>() {
 			@Override
 			public void generate(Suppliable<String> channel) {
 				channel.supply("a");

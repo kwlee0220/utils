@@ -274,11 +274,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 						데이터 생성 모듈이 생성한 데이터로 인해 내부 버퍼가 full된 경우
 	 * 						생성 모듈 쓰레드는 버퍼가 여유 공간이 발생할 때까지 대기한다.
 	 * @return FStream 객체
-	 * @see Generator
 	 */
-	public static <T> FStream<T> generate(DataGenerator<T> generator, int bufLength) {
+	public static <T> FStream<T> generate(Generator<T> generator, int bufLength) {
 		Preconditions.checkArgument(generator != null, "generator is null");
-		Preconditions.checkArgument(bufLength > 0);
+		Preconditions.checkArgument(bufLength > 0, "bufLength > 0: but=" + bufLength);
 		
 		return new GeneratorBasedFStream<>(generator, bufLength);
 	}
@@ -886,17 +885,17 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	/**
-	 * {@code fact}가 반환하는 {@link FStream<T>}들에서 생성하는 데이터들이 합쳐진
+	 * {@code inputStreamFact}가 반환하는 {@link FStream<T>}들에서 생성하는 데이터들이 합쳐진
 	 * 데이터를 구성된 스트림을 반환한다.
 	 * <p>
-	 * {@code fact}가 반환하는 {@link FStream<T>}마다 별도의 쓰레드가 할당되어
+	 * {@code inputStreamFact}가 반환하는 {@link FStream<T>}마다 별도의 쓰레드가 할당되어
 	 * 병렬적으로 자신이 맡은 FStream에서 데이터 얻어 출력 스트림으로 전송하기 때문에,
 	 * 출력 스트림에는 여러 입력 스트림에서 생성된 데이터가 섞일 수 있다.
 	 * <p>
 	 * 이때 수행되는 쓰레드의 수는 인자로 주어진 {@code workerCount}에 의해 결정된다.
 	 * 
 	 * @param <T>	스트림의 원소 타입
-	 * @param inputStreamFact			입력 스트림의 스트림 객체.
+	 * @param inputStreamFact	입력 스트림의 스트림 객체.
 	 * @param workerCount	스트림 merge 작업을 수행하는 쓰레드의 갯수.
 	 * @param executor		쓰레드 풀 객체.
 	 * 						{@code null}인 경우는 별도의 쓰레드 풀을 사용하지 않는 것을 의미한다.

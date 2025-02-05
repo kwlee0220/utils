@@ -1,77 +1,24 @@
 package utils.stream;
 
-import static utils.Utilities.checkArgument;
-
-import java.util.concurrent.Executor;
-
-import javax.annotation.Nonnull;
-
-import com.google.common.base.Preconditions;
-
-import utils.func.CheckedRunnable;
+import utils.Suppliable;
 
 
 /**
+ * {@code DataGenerator}는 데이터를 생성하는 인터페이스를 정의한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class Generator<T> extends SuppliableFStream<T> implements CheckedRunnable {
+public interface Generator<T> {
 	/**
-	 * Generator 객체를 생성한다.
+	 * 주어진 출력 채널로 데이터를 생성한다.
+	 * <p>
+	 * 데이터 생성은 {@link Suppliable#supply(Object)}를 호출하여 출력 채널로 데이터를 전달한다.
+	 * 데이터 생성이 완료되면 {@link Suppliable#endOfSupply()}를 호출하여 데이터 생성을 종료한다.
+	 * 만일 데이터 생성 중 오류가 발생한 경우는 {@link Suppliable#endOfSupply(Throwable)}를 호출하여
+	 * 예외를 전달한다.
 	 * 
-	 * Generator 객체가 생성되면 내부적으로 데이터를 생성하는 thread가 시작되어
-	 * abstract method인 {@link #run()}을 수행시킨다.
-	 * 생성된 generator는 내부적으로 길이 {@code length}의 버퍼를 통해 스트림에 데이터를 제공한다.
-	 *
-	 * @param length	버퍼 길이. 버퍼 길이는 0보다 커야한다.
+	 * @param outChannel	데이터를 출력할 채널 객체.
+	 * @throws Exception	데이터 생성 중 오류가 발생된 경우.
 	 */
-	public Generator(int length) {
-		super(length);
-		checkArgument(length > 0, "Buffer length should be larger than zero.");
-		
-		Thread generator = new Thread(m_wrapper, "generator");
-		generator.start();
-	}
-
-	/**
-	 * Generator 객체를 생성한다.
-	 * 
-	 * Generator 객체가 생성되면 내부적으로 주어진 thread pool에서 thread를 할당받아
-	 * abstract methoddls {@link #run()}을 수행시킨다.
-	 * 생성된 generator는 내부적으로 길이 {@code length}의 버퍼를 갖는다.
-	 *
-	 * @param length	버퍼 길이. 버퍼 길이는 0보다 커야한다.
-	 * @param executor	내부 쓰레드가 사용한 {@link Executor} 객체.
-	 */
-	public Generator(int length, @Nonnull Executor executor) {
-		super(length);
-		Preconditions.checkArgument(executor != null);
-		Preconditions.checkArgument(length > 0, "Buffer length should be larger than zero.");
-		
-		executor.execute(m_wrapper);
-	}
-	
-	/**
-	 * Generator에 주어진 데이터를 추가시킨다.
-	 * 
-	 * @param value		생성한 데이터.
-	 */
-	public final void yield(T value) {
-		Preconditions.checkArgument(value != null);
-		
-		supply(value);
-	}
-	
-	private final Runnable m_wrapper = new Runnable() {
-		@Override
-		public void run() {
-			try {
-				Generator.this.run();
-				Generator.this.endOfSupply();
-			}
-			catch ( Throwable e ) {
-				Generator.this.endOfSupply(e);
-			}
-		}
-	};
+	public void generate(Suppliable<T> outChannel) throws Exception;
 }
