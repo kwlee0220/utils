@@ -179,7 +179,7 @@ public class FlatMapAsyncFStreamTest {
 	}
 	
 	private int m_count = 0;
-	private class SimpleGenerator implements DataGenerator<String> {
+	private class SimpleGenerator implements Generator<String> {
 		private final String m_tag;
 		
 		SimpleGenerator(String tag) {
