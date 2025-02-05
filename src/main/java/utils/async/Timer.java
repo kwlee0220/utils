@@ -82,7 +82,7 @@ public class Timer {
 									schedule.m_exec.cancel(true);
 								}
 								else {
-									m_guard.awaitInGuardUntil(schedule.m_due);
+									m_guard.awaitUntilInGuard(schedule.m_due);
 								}
 							}
 							else {

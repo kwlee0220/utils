@@ -105,7 +105,7 @@ public class SuppliableInputStream extends InputStream {
 		m_guard.lock();
 		try {
 			while ( !isClosed() && m_current < chunkNo ) {
-				if ( !m_guard.awaitInGuardUntil(due) ) {
+				if ( !m_guard.awaitUntilInGuard(due) ) {
 					return false;
 				}
 			}
@@ -212,7 +212,7 @@ public class SuppliableInputStream extends InputStream {
 					throw new TimeoutException("supply timeout");
 				}
 				else {
-					if ( !m_guard.awaitInGuardUntil(due) ) {
+					if ( !m_guard.awaitUntilInGuard(due) ) {
 						String details = String.format("supply timeout: %s",
 														UnitUtils.toMillisString(unit.toMillis(timeout)));
 						throw new TimeoutException(details);
