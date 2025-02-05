@@ -54,7 +54,8 @@ public class EventDrivenExecution2Test {
 		boolean ret = m_exec.notifyStarted();
 		Assert.assertEquals(true, ret);
 		Assert.assertEquals(AsyncState.RUNNING, m_exec.getState());
-		
+
+		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
 		verify(m_completeListener, never()).accept(anyString());
 		verify(m_cancelListener, never()).run();

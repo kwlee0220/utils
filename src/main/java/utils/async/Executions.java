@@ -45,11 +45,15 @@ public class Executions {
 		return EXECUTOR;
 	}
 	
-	public static CompletableFutureAsyncExecution<Void> runAsync(CheckedRunnable task) {
-		return runAsync(task, null);
-	}
-	public static CompletableFutureAsyncExecution<Void> runAsync(CheckedRunnable task, Executor exector) {
-		CompletableFutureAsyncExecution<Void> exec = new CompletableFutureAsyncExecution<Void>() {
+	/**
+	 * 주어진 {@link CheckedRunnable} 작업을 비동기로 실행하는 {@link CompletableFuture}를 생성한다.
+	 *
+	 * @param task	비동기로 실행할 작업
+	 * @param exector	작업을 실행할 {@link Executor} 객체. {@code null}인 경우는 쓰레드를 새로 생성한다.
+	 * @return	{@link StartableExecution} 객체.
+	 */
+	public static StartableExecution<Void> toExecution(CheckedRunnable task, Executor exector) {
+		return new CompletableFutureAsyncExecution<Void>() {
 			@Override
 			protected CompletableFuture<? extends Void> startExecution() {
 				if ( exector != null ) {
@@ -60,8 +64,16 @@ public class Executions {
 				}
 			}
 		};
-		exec.start();
-		return exec;
+	}
+	
+	/**
+	 * 주어진 {@link CheckedRunnable} 작업을 비동기로 실행하는 {@link CompletableFuture}를 생성한다.
+	 *
+	 * @param task 비동기로 실행할 작업
+	 * @return {@link StartableExecution} 객체.
+	 */
+	public static StartableExecution<Void> toExecution(CheckedRunnable task) {
+		return toExecution(task, null);
 	}
 	
 	public static <T> CompletableFutureAsyncExecution<T> supplyAsync(Supplier<? extends T> supplier) {

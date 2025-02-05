@@ -144,14 +144,14 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 					// 제한시간이 경과한 경우
 					// 프로세스는 살이 있기 때문에 (강제로) 종료시킨다.
 					process.destroy();
-					Executions.runAsync(() -> {
+					Executions.toExecution(() -> {
 						// 1초가 경과된 이후에도 프로세스가 계속 살아있는 경우에는 
 						// 강제로 종료시킨다.
 						Thread.sleep(1000);
 						if ( process.isAlive() ) {
 							process.destroyForcibly();
 						}
-					});
+					}).start();
 					throw new TimeoutException(m_timeout.toString());
 				}
 			}

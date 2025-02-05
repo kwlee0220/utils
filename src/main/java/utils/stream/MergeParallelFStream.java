@@ -64,7 +64,7 @@ class MergeParallelFStream<T> extends AbstractFStream<T> {
 		try {
 			m_fact.next()
 				.ifPresent(strm -> {
-					StartableExecution<Void> exec = Executions.runAsync(() -> {
+					StartableExecution<Void> exec = Executions.toExecution(() -> {
 						strm.forEach(m_outChannel::supply);
 					}, m_executor);
 					exec.whenFinished(ret -> startNext());

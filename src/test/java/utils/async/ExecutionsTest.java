@@ -87,7 +87,7 @@ public class ExecutionsTest {
 	
 	@Test
 	public void testRunAsync01() throws Exception {
-		CompletableFutureAsyncExecution<Void> exec = Executions.runAsync(TASK_COMPLETE);
+		StartableExecution<Void> exec = Executions.toExecution(TASK_COMPLETE);
 		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
@@ -110,7 +110,7 @@ public class ExecutionsTest {
 	
 	@Test
 	public void testRunAsync02() throws Exception {
-		CompletableFutureAsyncExecution<Void> exec = Executions.runAsync(TASK_FAILED);
+		StartableExecution<Void> exec = Executions.toExecution(TASK_FAILED);
 		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
@@ -140,7 +140,7 @@ public class ExecutionsTest {
 	
 	@Test
 	public void testRunAsync03() throws Exception {
-		CompletableFutureAsyncExecution<Void> exec = Executions.runAsync(TASK_CANCEL);
+		StartableExecution<Void> exec = Executions.toExecution(TASK_CANCEL);
 		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
@@ -167,7 +167,7 @@ public class ExecutionsTest {
 	
 	@Test
 	public void testRunAsync04() throws Exception {
-		CompletableFutureAsyncExecution<Void> exec = Executions.runAsync(TASK_COMPLETE);
+		StartableExecution<Void> exec = Executions.toExecution(TASK_COMPLETE);
 		exec.whenStartedAsync(() -> m_started = true);
 		exec.whenCompleted((r) -> { m_finished = true; m_completed = true; m_result=r; });
 		exec.whenFailed((ex) -> { m_finished = true; m_failed = true; m_cause = ex;});
