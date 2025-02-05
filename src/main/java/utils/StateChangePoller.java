@@ -82,10 +82,10 @@ public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 	 *
 	 * @throws TimeoutException     Polling 제한 시간이 지난 경우
 	 * @throws InterruptedException Polling 대기 과정 중에 쓰레드가 중단된 경우
-	 * @throws ExecutionRuntimeExecution Polling 확인 과정에서 예외가 발생한 경우
+	 * @throws RuntimeExecutionException Polling 확인 과정에서 예외가 발생한 경우
 	 */
 	@Override
-	public void run() throws TimeoutException, InterruptedException, ExecutionRuntimeExecution {
+	public void run() throws TimeoutException, InterruptedException, RuntimeExecutionException {
 		Preconditions.checkState(m_endOfPollingPredicate != null, "Poller is not set");
 		Preconditions.checkState(m_pollInterval != null, "Sample interval is not set");
 
@@ -119,7 +119,7 @@ public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 			}
 			catch ( Throwable e ) {
 				Throwable cause = Throwables.unwrapThrowable(e);
-				throw new ExecutionRuntimeExecution(cause);
+				throw new RuntimeExecutionException(cause);
 			}
 			
 			if ( due != null ) {

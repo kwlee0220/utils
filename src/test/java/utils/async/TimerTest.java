@@ -10,6 +10,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import utils.RuntimeInterruptedException;
 import utils.func.Unchecked;
 
 
@@ -37,7 +38,7 @@ public class TimerTest {
 				Thread.sleep(timeout);
 			}
 			catch ( InterruptedException e ) {
-				throw new ThreadInterruptedException();
+				throw new RuntimeInterruptedException(e);
 			}
 			return ret;
 		});

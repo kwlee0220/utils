@@ -30,8 +30,14 @@ public class Throwables {
 			else if ( e instanceof ExecutionException ) {
 				e = ((ExecutionException)e).getCause();
 			}
-			else if ( e instanceof ExecutionRuntimeExecution ) {
-				e = ((ExecutionRuntimeExecution)e).getCause();
+			else if ( e instanceof RuntimeExecutionException ) {
+				e = ((RuntimeExecutionException)e).getCause();
+			}
+			else if ( e instanceof RuntimeInterruptedException ) {
+				e = ((RuntimeInterruptedException)e).getCause();
+			}
+			else if ( e instanceof RuntimeTimeoutException ) {
+				e = ((RuntimeTimeoutException)e).getCause();
 			}
 			else if ( e instanceof CompletionException ) {
 				e = ((CompletionException)e).getCause();

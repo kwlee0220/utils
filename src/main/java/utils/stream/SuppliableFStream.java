@@ -14,9 +14,9 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import utils.RuntimeInterruptedException;
 import utils.Suppliable;
 import utils.Throwables;
-import utils.async.ThreadInterruptedException;
 import utils.func.FOption;
 
 /**
@@ -102,7 +102,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 				}
 				catch ( InterruptedException e ) {
 					Thread.currentThread().interrupt();
-					throw new ThreadInterruptedException("" + e);
+					throw new RuntimeInterruptedException(e);
 				}
 			}
 		}
@@ -153,7 +153,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 				}
 				catch ( InterruptedException e ) {
 					Thread.currentThread().interrupt();
-					throw new ThreadInterruptedException("" + e);
+					throw new RuntimeInterruptedException(e);
 				}
 			}
 		}
@@ -217,7 +217,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 	}
 
 	@Override
-	public boolean supply(T value) throws IllegalStateException, ThreadInterruptedException {
+	public boolean supply(T value) throws IllegalStateException, RuntimeInterruptedException {
 		m_lock.lock();
 		try {
 			while ( true ) {
@@ -238,7 +238,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 					m_cond.await();
 				}
 				catch ( InterruptedException e ) {
-					throw new ThreadInterruptedException("" + e);
+					throw new RuntimeInterruptedException(e);
 				}
 			}
 		}
@@ -248,7 +248,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 	}
 
 	@Override
-	public boolean supply(T value, long timeout, TimeUnit tu) throws IllegalStateException, ThreadInterruptedException {
+	public boolean supply(T value, long timeout, TimeUnit tu) throws IllegalStateException, RuntimeInterruptedException {
 		Date due = new Date(System.currentTimeMillis() + tu.toMillis(timeout));
 		
 		m_lock.lock();
@@ -274,7 +274,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 					}
 				}
 				catch ( InterruptedException e ) {
-					throw new ThreadInterruptedException("" + e);
+					throw new RuntimeInterruptedException(e);
 				}
 			}
 		}
@@ -283,7 +283,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 		}
 	}
 
-	public T supply(Supplier<T> supplier) throws IllegalStateException, ThreadInterruptedException {
+	public T supply(Supplier<T> supplier) throws IllegalStateException, RuntimeInterruptedException {
 		m_lock.lock();
 		try {
 			while ( true ) {
@@ -305,7 +305,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 					m_cond.await();
 				}
 				catch ( InterruptedException e ) {
-					throw new ThreadInterruptedException("" + e);
+					throw new RuntimeInterruptedException(e);
 				}
 			}
 		}

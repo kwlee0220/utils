@@ -5,10 +5,10 @@ package utils;
  * 
  * @author Kang-Woo Lee
  */
-public class ExecutionRuntimeExecution extends RuntimeException {
+public class RuntimeExecutionException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 
-	public ExecutionRuntimeExecution(Throwable cause) {
+	public RuntimeExecutionException(Throwable cause) {
 		super(cause);
 	}
 }

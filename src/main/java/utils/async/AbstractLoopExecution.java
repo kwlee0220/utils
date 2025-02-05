@@ -3,6 +3,7 @@ package utils.async;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executor;
 
+import utils.RuntimeInterruptedException;
 import utils.Throwables;
 import utils.func.FOption;
 import utils.func.Try;
@@ -65,7 +66,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 			return true;
 		}
 		catch ( InterruptedException e ) {
-			throw new ThreadInterruptedException("interrupted");
+			throw new RuntimeInterruptedException(e);
 		}
 	}
 	

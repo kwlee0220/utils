@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 
 import utils.LoggerSettable;
+import utils.RuntimeInterruptedException;
+import utils.RuntimeTimeoutException;
 import utils.Utilities;
 import utils.func.Result;
 import utils.func.Tuple;
@@ -77,7 +79,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					case CANCELLING:
 						// 'STARTING'/'CANCELLING' 상태인 경우에는 상태가 바뀔때까지
 						// 제한시간동안 대기한다.
-						if ( !m_aopGuard.awaitInGuardUntil(due) ) {
+						if ( !m_aopGuard.awaitUntilInGuard(due) ) {
 							return false;
 						}
 						break;
@@ -107,7 +109,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 			}
 		}
 		catch ( InterruptedException e ) {
-			throw new ThreadInterruptedException();
+			throw new RuntimeInterruptedException(e);
 		}
 		finally {
 			m_aopGuard.unlock();
@@ -165,16 +167,26 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	@Override
 	public AsyncResult<T> waitForFinished(Date due) throws InterruptedException {
 		try {
-			return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_asyncResult, due);
+			return GuardedSupplier.from(m_aopGuard, () -> m_asyncResult)
+									.preCondition(this::isDoneInGuard)
+									.due(due)
+									.get();
 		}
-		catch ( TimeoutException e ) {
+		catch ( RuntimeTimeoutException e ) {
 			return AsyncResult.running();
 		}
 	}
 
 	@Override
 	public AsyncResult<T> waitForFinished() throws InterruptedException {
-		return m_aopGuard.awaitUntilAndGet(this::isDoneInGuard, () -> m_asyncResult);
+		try {
+			return GuardedSupplier.from(m_aopGuard, () -> m_asyncResult)
+									.preCondition(this::isDoneInGuard)
+									.get();
+		}
+		catch ( RuntimeInterruptedException e ) {
+			throw e.getCause();
+		}
 	}
 
 	@Override
@@ -312,7 +324,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     		Date due = new Date(System.currentTimeMillis() + m_cancelTimeoutMillis);
 			while ( m_aopState == AsyncState.STARTING ) {
 				try {
-					if ( !m_aopGuard.awaitInGuardUntil(due) ) {
+					if ( !m_aopGuard.awaitUntilInGuard(due) ) {
 						return false;
 					}
 				}
@@ -351,7 +363,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     		Date due = new Date(System.currentTimeMillis() + m_cancelTimeoutMillis);
     		try {
 				while ( m_aopState == AsyncState.STARTING ) {
-					if ( !m_aopGuard.awaitInGuardUntil(due) ) {
+					if ( !m_aopGuard.awaitUntilInGuard(due) ) {
 						return false;
 					}
 				}

@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 
 import utils.KeyedValueList;
+import utils.RuntimeInterruptedException;
 import utils.Utilities;
 import utils.func.FOption;
 import utils.func.Tuple;
@@ -154,24 +155,29 @@ public class SyncCommandExecution {
 	}
 
 	public void cancel() throws InterruptedException {
-		m_guard.runOrThrow(() -> {
-			switch ( m_state ) {
-				case NOT_STARTED:
-					m_state = State.FINISHED;
-					break;
-				case RUNNING:
-					if ( s_logger.isInfoEnabled() ) {
-						s_logger.debug("killing process: pid={}", m_process.toHandle().pid());
-					}
-					m_process.destroy();
-					m_state = State.CANCEL_REQUESTED;
-				case CANCEL_REQUESTED:
-					m_guard.awaitWhile(() -> m_state == State.CANCEL_REQUESTED);
-					break;
-				case FINISHED:
-					break;
-			}
-		});
+		try {
+			GuardedRunnable.from(m_guard, () -> {
+				switch (m_state) {
+					case NOT_STARTED:
+						m_state = State.FINISHED;
+						break;
+					case RUNNING:
+						if ( s_logger.isInfoEnabled() ) {
+							s_logger.debug("killing process: pid={}", m_process.toHandle().pid());
+						}
+						m_process.destroy();
+						m_state = State.CANCEL_REQUESTED;
+					case CANCEL_REQUESTED:
+						m_guard.awaitWhile(() -> m_state == State.CANCEL_REQUESTED);
+						break;
+					case FINISHED:
+						break;
+				}
+			}).run();
+		}
+		catch ( RuntimeInterruptedException e ) {
+			throw e.getCause();
+		}
 	}
 	
 	public static Builder builder() {
