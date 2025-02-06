@@ -440,6 +440,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 */
 	public default FStream<T> mapSelectively(Predicate<? super T> pred,
 												Function<? super T,? extends T> mapper) {
+		Preconditions.checkArgument(pred != null, "predicate is null");
 		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
 		return new SelectiveMapStream<>(this, pred, mapper);
@@ -490,6 +491,9 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 */
 	public default <S> FStream<Try<S>> mapAsync(Function<? super T,? extends S> mapper,
 													AsyncExecutionOptions options) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Preconditions.checkArgument(options != null, "AsyncExecutionOptions is null");
+		
 		if ( options.getKeepOrder() ) {
 			return new MapOrderedAsyncStream<>(this, mapper, options);
 		}
