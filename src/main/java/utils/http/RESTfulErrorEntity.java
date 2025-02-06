@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import utils.InternalException;
+import utils.func.FOption;
 
 /**
  *
@@ -39,7 +40,8 @@ public class RESTfulErrorEntity {
 		return ofMessage(String.format("%s, cause=%s", msg, cause));
 	}
 	public static RESTfulErrorEntity of(Throwable e) {
-		return new RESTfulErrorEntity(e.getClass().getName(), e.getMessage());
+		String msg = FOption.getOrElse(e.getMessage(), "");
+		return new RESTfulErrorEntity(e.getClass().getName(), msg);
 	}
 	public static RESTfulErrorEntity ofMessage(String msg) {
 		return new RESTfulErrorEntity(null, msg);
