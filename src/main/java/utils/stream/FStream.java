@@ -785,6 +785,13 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default FStream<Indexed<T>> zipWithIndex() {
 		return zipWithIndex(0);
 	}
+	
+	public static <T,S> FStream<Tuple<T, S>> zip(Iterable<T> first, Iterable<S> second, boolean longest) {
+		return FStream.from(first).zipWith(FStream.from(second), longest);
+	}
+	public static <T,S> FStream<Tuple<T, S>> zip(Iterable<T> first, Iterable<S> second) {
+		return FStream.zip(first, second, false);
+	}
 
 	public default <S> FStream<Tuple<T,S>> zipWith(FStream<S> other) {
 		return zipWith(other, false);
