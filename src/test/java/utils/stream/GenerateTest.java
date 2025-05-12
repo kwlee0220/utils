@@ -15,7 +15,7 @@ import utils.func.FOption;
 public class GenerateTest {
 	@Test
 	public void test0() throws Exception {
-		FStream<Integer> stream = FStream.generate(0, FStream::INC).take(3);
+		FStream<Integer> stream = FStream.generate(0, v -> v+1).take(3);
 		
 		FOption<Integer> r;
 		

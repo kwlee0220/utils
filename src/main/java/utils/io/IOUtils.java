@@ -28,10 +28,10 @@ import java.util.zip.Inflater;
 
 import com.google.common.io.CharStreams;
 
+import utils.Tuple;
 import utils.Utilities;
 import utils.async.AbstractThreadedExecution;
 import utils.async.CancellableWork;
-import utils.func.Tuple;
 
 /**
  * 

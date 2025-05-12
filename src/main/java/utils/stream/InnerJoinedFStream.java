@@ -4,42 +4,39 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import utils.KeyValue;
+import utils.Tuple;
 import utils.func.FOption;
-import utils.func.Tuple;
-import utils.stream.FStreams.AbstractFStream;
+import utils.stream.KeyValueFStreams.AbstractKeyValueFStream;
+
 
 /**
  *
  * @author Kang-Woo Lee (ETRI)
  */
-class InnerJoinedFStream<TL,TR, K> extends AbstractFStream<Tuple<TL,TR>> {
-	private final FStream<TL> m_left;
-	private final Function<TL,K> m_leftKeyer;
-	private final FStream<TR> m_rightStream;
-	private final Function<TR,K> m_rightKeyer;
+class InnerJoinedFStream<K,TL,TR> extends AbstractKeyValueFStream<K,Tuple<TL,TR>> {
+	private final KeyValueFStream<K,TL> m_leftStream;
+	private final KeyValueFStream<K,TR> m_rightStream;
 	private Map<K,List<TL>> m_leftDict;
 	private Iterator<TL> m_leftIter;
+	private K m_key;
 	private TR m_right;
 	
-	InnerJoinedFStream(FStream<TL> left, FStream<TR> right,
-						Function<TL,K> leftKeyer, Function<TR,K> rightKeyer) {
-		m_left = left;
+	InnerJoinedFStream(KeyValueFStream<K,TL> left, KeyValueFStream<K,TR> right) {
+		m_leftStream = left;
 		m_rightStream = right;
-		m_leftKeyer = leftKeyer;
-		m_rightKeyer = rightKeyer;
 	}
 
 	@Override
 	protected void initialize() {
 		m_leftDict = Maps.newHashMap();
-		for ( TL left: m_left ) {
-			K key = m_leftKeyer.apply(left);
-			m_leftDict.computeIfAbsent(key, k -> Lists.newArrayList()).add(left);
+		for ( KeyValue<K,TL> left: m_leftStream ) {
+			m_key = left.key();
+			m_leftDict.computeIfAbsent(m_key, k -> Lists.newArrayList()).add(left.value());
 		}
 		
 		m_leftIter = Collections.emptyIterator();
@@ -49,19 +46,21 @@ class InnerJoinedFStream<TL,TR, K> extends AbstractFStream<Tuple<TL,TR>> {
 	protected void closeInGuard() throws Exception { }
 
 	@Override
-	protected FOption<Tuple<TL, TR>> nextInGuard() {
+	protected FOption<KeyValue<K,Tuple<TL,TR>>> nextInGuard() {
 		while ( !m_leftIter.hasNext() ) {
-			FOption<TR> onext = m_rightStream.next();
+			FOption<KeyValue<K,TR>> onext = m_rightStream.next();
 			if ( onext.isAbsent() ) {
 				return FOption.empty();
 			}
-			m_right = onext.getUnchecked();
+
+			m_key = onext.get().key();
+			m_right = onext.get().value();
 			
-			List<TL> leftMatches = m_leftDict.get(m_rightKeyer.apply(onext.get()));
+			List<TL> leftMatches = m_leftDict.get(m_key);
 			m_leftIter = (leftMatches != null) ? leftMatches.iterator() : Collections.emptyIterator();
 		}
 		
 		TL left = m_leftIter.next();
-		return FOption.of(Tuple.of(left, m_right));
+		return FOption.of(KeyValue.of(m_key, Tuple.of(left, m_right)));
 	}
 }

@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -24,10 +25,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 
 import utils.KeyedValueList;
+import utils.Tuple;
 import utils.Utilities;
 import utils.func.FOption;
 import utils.func.Try;
-import utils.func.Tuple;
+import utils.func.Unchecked;
 import utils.io.FileUtils;
 import utils.stream.FStream;
 
@@ -118,9 +120,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 		}
 		
 		try {
-			Process process = m_guard.getOrThrow(() -> m_process = builder.start());
+			Process process = m_guard.getChecked(() -> m_process = builder.start());
 			if ( m_timeout != null ) {
 				// 제한시간이 설정된 경우
+				// 제한시간만큼나 프로세스를 대기한다.
 				boolean completed = process.waitFor(m_timeout.toMillis(), TimeUnit.MILLISECONDS);
 				
 				// 사용자의 강제 종료를 통해 프로그램이 종료되었을 수도 있기 때문에
@@ -144,14 +147,14 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 					// 제한시간이 경과한 경우
 					// 프로세스는 살이 있기 때문에 (강제로) 종료시킨다.
 					process.destroy();
-					Executions.toExecution(() -> {
+					CompletableFuture.runAsync(() -> {
 						// 1초가 경과된 이후에도 프로세스가 계속 살아있는 경우에는 
 						// 강제로 종료시킨다.
-						Thread.sleep(1000);
+						Unchecked.runOrIgnore(() -> Thread.sleep(1000));
 						if ( process.isAlive() ) {
 							process.destroyForcibly();
 						}
-					}).start();
+					});
 					throw new TimeoutException(m_timeout.toString());
 				}
 			}
@@ -211,7 +214,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 	public static final class Builder {
 		private List<String> m_command = Lists.newArrayList();
 		private File m_workingDirectory;
-		private KeyedValueList<String,CommandVariable> m_variables = KeyedValueList.newInstance(CommandVariable::getName);
+		private KeyedValueList<String,CommandVariable> m_variables = KeyedValueList.with(CommandVariable::getName);
 		private Duration m_timeout;
 		private Redirect m_stdin;
 		private Redirect m_stdout = Redirect.DISCARD;
@@ -237,6 +240,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 		
 		public Builder addVariable(CommandVariable var) {
 			m_variables.add(var);
+			return this;
+		}
+		public Builder addVariableIfAbscent(CommandVariable var) {
+			m_variables.addIfAbscent(var);
 			return this;
 		}
 		
@@ -315,11 +322,12 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 			// 변수 이름에 해당하는 CommandVariable 객체를 획득한다.
 			CommandVariable commandVar = m_varMap.get(parts._1);
 			if ( commandVar == null ) {
-				throw new IllegalArgumentException("Undefined CommandVariable: name=" + parts._1);
+				return null;
+            }
+			else {
+				// Modifier 객체를 얻고, 이를 통한 variable replacement를 시도한다.
+				return commandVar.getValueByModifier(parts._2);
 			}
-			
-			// Modifier 객체를 얻고, 이를 통한 variable replacement를 시도한다.
-			return commandVar.getValueByModifier(parts._2);
 		}
 	}
 }

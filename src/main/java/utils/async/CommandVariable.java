@@ -4,18 +4,21 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 
+import utils.Keyed;
 import utils.io.IOUtils;
 
 
 /**
- * <code>CommandExecutor</code>는 주어진 명령어 프로그램을 sub-process를 통해 실행시키는 작업을 수행한다.
- * <p>
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public interface CommandVariable extends Closeable {
+public interface CommandVariable extends Keyed<String>, Closeable {
 	public String getName();
 	public String getValue();
+	
+	public default String key() {
+        return getName();
+	}
 	
 	/**
 	 * Command variable 동작을 위해 할당된 자원을 모두 반환한다.
@@ -37,7 +40,7 @@ public interface CommandVariable extends Closeable {
 		private final String m_name;
 		private final String m_value;
 		
-		private StringVariable(String name, String value) {
+		public StringVariable(String name, String value) {
 			m_name = name;
 			m_value = value;
 		}

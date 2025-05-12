@@ -7,9 +7,9 @@ import java.util.function.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
+import utils.Tuple;
 import utils.Utilities;
 import utils.func.FOption;
-import utils.func.Tuple;
 import utils.stream.FStreams.AbstractFStream;
 
 /**

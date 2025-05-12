@@ -17,8 +17,8 @@ import com.google.common.collect.Sets;
 
 import utils.Indexed;
 import utils.KeyValue;
+import utils.Tuple;
 import utils.stream.FStream;
-import utils.stream.KeyedGroups;
 
 /**
  * 
@@ -67,6 +67,9 @@ public class Funcs {
 	 */
 	public static <T> FOption<T> getFirst(Iterable<T> iterable) {
 		Iterator<T> iter = iterable.iterator();
+		return iter.hasNext() ? FOption.of(iter.next()) : FOption.empty();
+	}
+	public static <T> FOption<T> getFirst(Iterator<T> iter) {
 		return iter.hasNext() ? FOption.of(iter.next()) : FOption.empty();
 	}
 
@@ -413,10 +416,6 @@ public class Funcs {
 		return union;
 	}
 	
-	public static <T,K> KeyedGroups<K,T> groupBy(Iterable<T> values, Function<? super T,? extends K> keyer) {
-		return FStream.from(values).groupByKey(keyer);
-	}
-	
 	public static <T> Tuple<List<T>,List<T>> partition(Iterable<T> values, Predicate<? super T> pred) {
 		List<T> trueCollection = Lists.newArrayList();
 		List<T> falseCollection = Lists.newArrayList();
@@ -430,10 +429,5 @@ public class Funcs {
 		}
 		
 		return Tuple.of(trueCollection, falseCollection);
-	}
-	
-	public static <L,R,K> FStream<Tuple<List<L>,List<R>>>
-	outerJoin(Iterable<L> left, Iterable<R> right, Function<L,K> leftKeyer, Function<R,K> rightKeyer) {
-		return FStream.from(left).outerJoin(FStream.from(right), leftKeyer, rightKeyer);
 	}
 }

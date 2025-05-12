@@ -1,6 +1,5 @@
 package utils;
 
-import java.util.AbstractList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -8,101 +7,115 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import lombok.experimental.Delegate;
+
 import utils.func.Funcs;
 import utils.stream.FStream;
+import utils.stream.KeyValueFStream;
 
 /**
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class KeyedValueList<K,V> extends AbstractList<V> {
+public class KeyedValueList<K,V> implements List<V> {
+	@Delegate private final List<V> m_values;
 	private final Function<V,K> m_keyer;
-	private final List<KeyValue<K,V>> m_keyValues = Lists.newArrayList();
 	
-	protected KeyedValueList(Function<V,K> keyer) {
+	public KeyedValueList(Function<V,K> keyer) {
 		m_keyer = keyer;
+		m_values = Lists.newArrayList();
+	}
+
+	public KeyValueFStream<K,V> fstream() {
+		return FStream.from(m_values)
+		        		.toKeyValueStream(v -> KeyValue.of(m_keyer.apply(v), v));
 	}
 	
 	/**
-	 * 새로운 빈 {@link KeyedValueList} 객체를 생성한다.
+	 * 주어진 {@link Iterable} 객체로부터 {@link KeyedValueList} 객체를 생성한다.
+	 * <p>
+	 * {@code Iterable} 객체에 포함된 값들은 {@link Keyed} 인터페이스를 구현해야 한다.
 	 * 
-	 * @param <K>   키 값의 타입.
-	 * @param <V>   값의 타입.
-	 * @param keyer 값에서 키를 추출하는 함수.
-	 * @return {@link KeyedValueList} 객체.
+	 * @param <K> 키 값의 타입.
+	 * @param <V> 값의 타입.
+	 * @param values 값의 {@link Iterable} 객체.
 	 */
-	public static <K,V> KeyedValueList<K,V> newInstance(Function<V,K> keyer) {
+	public static <K, V> KeyedValueList<K, V> with(Function<V,K> keyer) {
+		Preconditions.checkArgument(keyer != null, "Function<V,K> keyer is null");
+		
 		return new KeyedValueList<>(keyer);
 	}
-	
+
 	/**
-	 * 주어진 리스트에 포함 값들을 초기값으로 하는 {@link KeyedValueList} 객체를 생성한다.
+	 * 주어진 {@link Iterable} 객체로부터 {@link KeyedValueList} 객체를 생성한다.
+	 * <p>
+	 * {@code Iterable} 객체에 포함된 값들은 {@link Keyed} 인터페이스를 구현해야 한다.
 	 * 
-	 * @param <K>        키 값의 타입.
-	 * @param <V>        값의 타입.
-	 * @param initValues 초기 값을 포한한 리스트.
-	 * @param keyer      값에서 키를 추출하는 함수.
-	 * @return {@link KeyedValueList} 객체.
+	 * @param <K> 키 값의 타입.
+	 * @param <V> 값의 타입.
+	 * @param values 값의 {@link Iterable} 객체.
 	 */
-	public static <K,V> KeyedValueList<K,V> from(Iterable<? extends V> initValues, Function<V,K> keyer) {
+	public static <K, V> KeyedValueList<K, V> from(Iterable<V> values, Function<V,K> keyer) {
+		Preconditions.checkArgument(values != null, "values is null");
+		
 		KeyedValueList<K,V> kvList = new KeyedValueList<>(keyer);
-		FStream.from(initValues).forEach(kvList::add);
+		FStream.from(values).forEach(kvList::add);
 		
 		return kvList;
 	}
 
-	@Override
-	public int size() {
-		return m_keyValues.size();
-	}
-
-	@Override
-	public V get(int index) {
-		return m_keyValues.get(index).value();
-	}
-
+	/**
+	 * 주어진 값이 키 값이 존재하지 않을 경우에만 추가한다.
+	 * 만일 동일한 키 값을 가지는 값이 존재할 경우는 {@code IllegalArgumentException} 예외를 발생시킨다.
+	 * 
+	 * @param value 추가할 값.
+	 * @return 값이 추가되었는지 여부.
+	 */
 	@Override
 	public boolean add(V value) {
+		Preconditions.checkArgument(value != null, "value is null");
+		
 		K key = m_keyer.apply(value);
-		if ( Funcs.exists(m_keyValues, kv -> kv.key().equals(key)) ) {
+		if ( Funcs.exists(m_values, v -> m_keyer.apply(v).equals(key)) ) {
 			throw newDuplicationError(key, value);
 		}
 		
-		return m_keyValues.add(KeyValue.of(key, value));
+		return m_values.add(value);
 	}
 	
 	/**
 	 * 주어진 값이 키 값이 존재하지 않을 경우에만 추가한다.
+	 * <p>
+	 * 만일 동일한 키 값을 가지는 값이 존재할 경우는 아무런 동작을 하지 않고, {@code false}를 반환한다.
 	 * 
 	 * @param value 추가할 값.
 	 */
-	public void addIfAbscent(V value) {
+	public boolean addIfAbscent(V value) {
+		Preconditions.checkArgument(value != null, "value is null");
+
 		K key = m_keyer.apply(value);
-		if ( !Funcs.exists(m_keyValues, kv -> kv.key().equals(key)) ) {
-			m_keyValues.add(KeyValue.of(key, value));
+		if ( Funcs.exists(m_values, v -> m_keyer.apply(v).equals(key)) ) {
+			return false;
 		}
+		
+		return m_values.add(value);
 	}
 
 	@Override
 	public void add(int index, V value) {
+		Preconditions.checkArgument(value != null, "value is null");
 		assertValidIndex(index);
-		
+
 		K key = m_keyer.apply(value);
-		if ( Funcs.exists(m_keyValues, kv -> kv.key().equals(key)) ) {
+		if ( Funcs.exists(m_values, v -> m_keyer.apply(v).equals(key)) ) {
 			throw newDuplicationError(key, value);
 		}
 		
-		m_keyValues.add(index, KeyValue.of(key, value));
-	}
-	
-	@Override
-	public V remove(int index) {
-		assertValidIndex(index);
-		
-		return m_keyValues.remove(index).value();
+		m_values.add(index, value);
 	}
 	
 	/**
@@ -118,10 +131,10 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 		
 		int idx = indexOfKey(key);
 		if ( idx >= 0 ) {
-			KeyValue<K,V> removed = m_keyValues.remove(idx);
-			m_keyValues.add(idx, KeyValue.of(key, value));
+			V removed = m_values.remove(idx);
+			m_values.add(idx, value);
 			
-			return removed.value();
+			return removed;
 		}
 		else {
 			return null;
@@ -141,20 +154,15 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 		
 		int idx = indexOfKey(key);
 		if ( idx >= 0 ) {
-			KeyValue<K,V> removed = m_keyValues.remove(idx);
-			m_keyValues.add(idx, KeyValue.of(key, value));
+			V removed = m_values.remove(idx);
+			m_values.add(idx, value);
 			
-			return removed.value();
+			return removed;
 		}
 		else {
-			m_keyValues.add(KeyValue.of(key, value));
+			m_values.add(value);
 			return null;
 		}
-	}
-	
-	@Override
-	public void clear() {
-		m_keyValues.clear();
 	}
 	
 	/**
@@ -164,7 +172,7 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 	 */
 	public LinkedHashSet<K> keySet() {
 		LinkedHashSet<K> keys = Sets.newLinkedHashSet();
-		return FStream.from(m_keyValues).map(KeyValue::key).toCollection(keys);
+		return FStream.from(m_values).map(m_keyer).toCollection(keys);
 	}
 	
 	/**
@@ -174,7 +182,7 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 	 * @return 값이 존재하는지 여부.
 	 */
 	public boolean containsKey(K key) {
-		return Funcs.exists(m_keyValues, kv -> kv.key().equals(key));
+		return Funcs.exists(m_values, v -> m_keyer.apply(v).equals(key));
 	}
 	
 	/**
@@ -186,8 +194,9 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 	 * @return 값. 주어진 키 값을 가지는 값이 존재하지 않을 경우는 {@code null}.
 	 */
 	public @Nullable V getOfKey(K key) {
-		return Funcs.findFirst(m_keyValues, kv -> kv.key().equals(key))
-					.map(KeyValue::value)
+		Preconditions.checkArgument(key != null, "key is null");
+		
+		return Funcs.findFirst(m_values, v -> m_keyer.apply(v).equals(key))
 					.getOrNull();
 	}
 	
@@ -200,9 +209,11 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 	 * @return 값의 인덱스. 주어진 키 값을 가지는 값이 존재하지 않을 경우는 {@code -1}.
 	 */
 	public int indexOfKey(K key) {
-		return Funcs.findFirstIndexed(m_keyValues, kv -> kv.key().equals(key))
-						.map(Indexed::index)
-						.getOrElse(-1);
+		Preconditions.checkArgument(key != null, "key is null");
+		
+		return Funcs.findFirstIndexed(m_values, v -> m_keyer.apply(v).equals(key))
+					.map(Indexed::index)
+					.getOrElse(-1);
 	}
 	
 	/**
@@ -214,8 +225,9 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 	 * @return 제거된 값. 주어진 키 값을 가지는 값이 존재하지 않을 경우는 {@code null}.
 	 */
 	public V removeOfKey(K key) {
-		KeyValue<K,V> removed = Funcs.removeFirstIf(m_keyValues, kv -> kv.key().equals(key));
-		return (removed != null) ? removed.value() : null;
+		Preconditions.checkArgument(key != null, "key is null");
+		
+		return Funcs.removeFirstIf(m_values, v -> m_keyer.apply(v).equals(key));
 	}
 	
 	/**
@@ -224,7 +236,12 @@ public class KeyedValueList<K,V> extends AbstractList<V> {
 	 * @return {@link Map} 객체.
 	 */
 	public Map<K,V> toMap() {
-		return FStream.from(m_keyValues).toMap(KeyValue::key, KeyValue::value);
+		return fstream().toMap();
+	}
+	
+	@Override
+	public String toString() {
+		return m_values.toString();
 	}
 	
 	protected void assertValidIndex(int index) {

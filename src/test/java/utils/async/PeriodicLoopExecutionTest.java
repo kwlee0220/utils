@@ -15,7 +15,7 @@ import utils.func.FOption;
  * @author Kang-Woo Lee (ETRI)
  */
 public class PeriodicLoopExecutionTest {
-	private static final Duration INTERVAL = Duration.ofMillis(100);
+	private static final Duration INTERVAL_100MS = Duration.ofMillis(100);
 	
 	static class TestPeriodicLoop extends PeriodicLoopExecution<Integer> {
 		private final int m_lastIteration;
@@ -39,21 +39,27 @@ public class PeriodicLoopExecutionTest {
 	
 	@Test
 	public void testBasic() throws Exception {
-		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL, 3);
-		loop.start();
+		// 100ms 주기로 3번 iteration을 수행하는 loop
+		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_100MS, 3);
 		
+		long started = System.currentTimeMillis();
+		loop.start();
 		int count = loop.waitForFinished().get();
+		long elapsed = System.currentTimeMillis() - started;
+		
 		Assert.assertEquals(3, count);
+		// 대충 300ms 정도 소요된다.
+		Assert.assertTrue(elapsed > 250 && elapsed <= 350);
 	}
 	
 	@Test
 	public void testCancel() throws Exception {
-		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL, 5);
+		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_100MS, 5);
 		loop.start();
 		
 		CompletableFuture.runAsync(() -> {
 			try {
-				Thread.sleep(200);
+				Thread.sleep(250);
 				loop.cancel(true);
 			}
 			catch ( InterruptedException e ) { }
@@ -65,22 +71,30 @@ public class PeriodicLoopExecutionTest {
 	
 	@Test
 	public void testCancelImmediately() throws Exception {
-		TestPeriodicLoop loop = new TestPeriodicLoop(Duration.ofMillis(10000), 5);
-		loop.start();
+		// 100ms 주기로 5번 iteration을 수행하는 loop
+		// 대충 500ms 정도 소요된다
+		// 200ms 후에 cancel 시킨다.
 		
+		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_100MS, 5);
+
 		long started = System.currentTimeMillis();
+		loop.start();
 		CompletableFuture.runAsync(() -> {
 			try {
-				Thread.sleep(200);
-				loop.cancel(true);
+				Thread.sleep(230);
+				// cancel을 성공해야 함.
+				boolean ret = loop.cancel(true);
+				Assert.assertTrue(ret);
 			}
 			catch ( InterruptedException e ) { }
 		});
 		AsyncResult<Integer> aresult = loop.waitForFinished();
 		long elapsed = System.currentTimeMillis() - started;
 		
+		// 200ms 후에 cancel 시키므로 중단되어야 함.
 		Assert.assertTrue(aresult.isCancelled());
-		Assert.assertEquals(1, loop.m_count);
+		// 2번 iteration 수행되어야 함.
+		Assert.assertEquals(3, loop.m_count);
 		Assert.assertTrue(elapsed < 250);
 	}
 }

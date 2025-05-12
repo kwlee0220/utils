@@ -24,12 +24,14 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 	protected abstract void initializeLoop() throws Exception;
 	
 	/**
-	 * Loop의 한 번의 iteration 작업을 수행한다.
+	 * Loop의 한 번의 iteration 작업을 수행하여 최종 결과를 생성한다.
+	 * <p>
+	 * 만일 이번 iteration 작업에서 최종 결과를 생성하지 못한 경우는 {@link FOption#empty()}를 반환하며,
+	 * 이 경우에는 다음번 iteration이 필요하다는 의미이다.
 	 * 
 	 * @param loopIndex		loop 인덱스. 0부터 시작함.
 	 * @return		loop 수행으로 최종적으로 생성된 결과.
-	 * 				반환 값이 {@code null}이거나 {@link FOption#empty()}인 경우는
-	 * 				추가 iteration이 더 필요하다는 의미이고,
+	 * 				반환 값이 {@link FOption#empty()}인 경우는 추가 iteration이 더 필요하다는 의미이고,
 	 * 				그렇지 않은 경우는 더 이상의 iteration이 필요없어서 loop Execution이
 	 * 				종료되어야 한다는 의미이다.
 	 * @throws Exception	iteration 작업 중 예외가 발생한 경우.
@@ -62,7 +64,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 	@Override
 	public boolean cancelWork() {
 		try {
-			m_aopGuard.awaitUntil(() -> m_loopFinished);
+			m_aopGuard.awaitCondition(() -> m_loopFinished).andReturn();
 			return true;
 		}
 		catch ( InterruptedException e ) {
@@ -88,7 +90,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 		finally {
 			Try.run(this::finalizeLoop)
 				.ifFailed(this::notifyFailed);
-			m_aopGuard.runAndSignalAll(() -> m_loopFinished = true);
+			m_aopGuard.run(() -> m_loopFinished = true);
 		}
 	}
 	
@@ -105,7 +107,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 			// loop을 종료시킨다.
 			try {
 				FOption<T> result = iterate(++iterCount);
-				if ( result != null && result.isPresent() ) {
+				if ( result.isPresent() ) {
 					notifyCompleted(result.getUnchecked());
 					return;
 				}

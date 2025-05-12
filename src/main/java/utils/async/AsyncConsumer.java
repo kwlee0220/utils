@@ -10,6 +10,7 @@ import java.util.function.Consumer;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
+// FIXME: 삭제 대상
 public class AsyncConsumer<T> implements Consumer<T> {
 	private final Consumer<? super T> m_consumer;
 	private final ExecutorService m_executor;

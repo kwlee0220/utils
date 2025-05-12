@@ -61,10 +61,22 @@ public class SQLDataTypes {
 		CLASS_TO_SQLTYPE.put(Duration.class, DURATION);
 	}
 	
+	/**
+	 * 주어진 SQL 데이터 타입 이름에 해당하는 SQL 데이터 타입 핸들러를 반환한다.
+	 *
+	 * @param typeName SQL 데이터 타입 이름
+	 * @return SQL 데이터 타입 핸들러
+	 */
 	public static SQLDataType<?,?> fromTypeName(String typeName) {
 		return NAME_TO_SQLTYPE.get(typeName);
 	}
 	
+	/**
+	 * 주어진 Java 클래스에 해당하는 SQL 데이터 타입 핸들러를 반환한다.
+	 *
+	 * @param clazz	Java 클래스
+	 * @return	SQL 데이터 타입 핸들러
+	 */
 	public static SQLDataType<?,?> fromClass(Class<?> clazz) {
 		return CLASS_TO_SQLTYPE.get(clazz);
 	}

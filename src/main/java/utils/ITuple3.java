@@ -1,0 +1,12 @@
+package utils;
+
+
+/**
+ *
+ * @author Kang-Woo Lee (ETRI)
+ */
+public interface ITuple3<T1,T2,T3> {
+	public T1 _1();
+	public T2 _2();
+	public T3 _3();
+}

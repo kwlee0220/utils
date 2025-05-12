@@ -1,7 +1,6 @@
 package utils.jdbc.crud;
 
 import java.util.List;
-import java.util.function.Function;
 
 import utils.jdbc.SQLDataType;
 import utils.jdbc.SQLDataTypes;
@@ -61,9 +60,8 @@ public class TableBinding {
 	}
 	
 	public List<ColumnBinding> getKeyColumnBindings() {
-		return FStream.from(this.m_columnBindings)
-						.innerJoin(FStream.from(m_keyColumns), ColumnBinding::getColumnName, Function.identity())
-						.map(t -> t._1)
+		return FStream.from(m_columnBindings)
+						.filter(c -> m_keyColumns.contains(c.getColumnName()))
 						.toList();
 	}
 	

@@ -7,20 +7,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import utils.Throwables;
-import utils.func.CheckedFunctionX;
-import utils.func.FOption;
-import utils.func.Tuple;
-import utils.func.Tuple3;
-import utils.func.Unchecked;
-import utils.stream.FStream;
-import utils.stream.FStreamException;
-import utils.stream.FStreams.AbstractFStream;
-
 import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.ObservableEmitter;
 import io.reactivex.rxjava3.core.ObservableOnSubscribe;
+
+import utils.Throwables;
+import utils.Tuple;
+import utils.Tuple3;
+import utils.func.CheckedFunctionX;
+import utils.func.FOption;
+import utils.func.Unchecked;
+import utils.stream.FStream;
+import utils.stream.FStreamException;
+import utils.stream.FStreams.AbstractFStream;
 
 
 /**
@@ -132,6 +132,7 @@ public class JdbcRowSource<T> {
 			}
 		}
 	}
+	
 	public FStream<T> fstream() {
 		return new RowStream();
 	}

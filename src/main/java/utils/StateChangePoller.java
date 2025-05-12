@@ -35,8 +35,8 @@ public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 	private Logger m_logger;
 	
 	private StateChangePoller(Builder builder) {
-		Preconditions.checkArgument(builder.m_endOfPollingPredicate != null);
-		Preconditions.checkArgument(builder.m_pollInterval != null);
+		Preconditions.checkArgument(builder.m_endOfPollingPredicate != null, "endOfPollingPredicate is not set");
+		Preconditions.checkArgument(builder.m_pollInterval != null, "pollInterval is not set");
 		
 		m_endOfPollingPredicate = builder.m_endOfPollingPredicate;
 		m_pollInterval = builder.m_pollInterval;

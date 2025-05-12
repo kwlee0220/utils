@@ -27,6 +27,7 @@ public class TableBindings  {
 	public void setTableBindings(List<TableBinding> bindings) {
 		LinkedHashMap<String, TableBinding> bindingMaps = Maps.newLinkedHashMap();
 		tableBindingMap = FStream.from(bindings)
-								.toMap(bindingMaps, b -> b.getId(), b -> b);
+				                .toKeyValueStream(b -> b.getTableName(), b -> b)
+								.toMap(bindingMaps);
 	}
 }

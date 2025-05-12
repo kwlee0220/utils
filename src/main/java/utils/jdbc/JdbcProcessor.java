@@ -33,7 +33,7 @@ import utils.func.CheckedConsumerX;
 import utils.func.CheckedFunctionX;
 import utils.func.FOption;
 import utils.stream.FStream;
-import utils.stream.KVFStream;
+import utils.stream.KeyValueFStream;
 
 
 /**
@@ -87,6 +87,11 @@ public class JdbcProcessor implements Serializable {
 		else {
 			return JdbcProcessor.create(config.getJdbcUrl(), config.getUser(), config.getPassword());
 		}
+	}
+	
+	public static JdbcProcessor fromFullJdbcUrl(String fullJdbcUrl) {
+		Map<String,String> parsed = FullJdbcUrlParser.parse(fullJdbcUrl);
+		return create(parsed.get("jdbcUrl"), parsed.get("user"), parsed.get("password"));
 	}
 	
 	/**
@@ -436,10 +441,10 @@ public class JdbcProcessor implements Serializable {
 	private static FOption<JdbcConnectInfo> getJdbcConnectInfoByUrl(String jdbcUrl) {
 		String[] parts = jdbcUrl.split(":");
 		String prefix = String.format("%s:%s", parts[0], parts[1]);
-		return KVFStream.from(JDBC_URLS)
-						.filterValue(info -> info.m_urlFormat.startsWith(prefix))
-						.toValueStream()
-						.findFirst();
+		return KeyValueFStream.from(JDBC_URLS)
+								.filterValue(info -> info.m_urlFormat.startsWith(prefix))
+								.values()
+								.findFirst();
 	}
 	
 	private static class JdbcConnectInfo {

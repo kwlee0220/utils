@@ -29,7 +29,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
 import utils.func.FOption;
-import utils.func.Tuple;
 import utils.io.IOUtils;
 import utils.stream.FStream;
 
@@ -382,8 +381,8 @@ public class Utilities {
 	public static Map<String,String> parseKeyValueMap(String expr, char delim) {
 		return CSV.parseCsv(expr, ';', '"')
 					.map(String::trim)
-					.map(KeyValue::parse)
-					.toMap(KeyValue::key, KeyValue::value);
+					.toKeyValueStream(KeyValue::parse)
+					.toMap();
 	}
 	
 	/**

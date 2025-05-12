@@ -7,9 +7,9 @@ import java.util.function.Function;
 
 import com.google.common.primitives.Doubles;
 
+import utils.Tuple;
 import utils.Utilities;
 import utils.func.FOption;
-import utils.func.Tuple;
 
 /**
  * 

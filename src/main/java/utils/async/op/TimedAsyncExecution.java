@@ -150,7 +150,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T>
 	
 	private void onTargetStarted() {
 		m_future = m_scheduler.schedule(this::onTimeout, m_timeout.toMillis(), TimeUnit.MILLISECONDS);
-		m_guard.runAndSignalAll(() -> m_istate = STATE_RUNNING);
+		m_guard.run(() -> m_istate = STATE_RUNNING);
 		notifyStarted();
 	}
 	

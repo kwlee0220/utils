@@ -3,6 +3,8 @@ package utils.jdbc;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import com.google.common.base.Preconditions;
+
 import utils.func.FOption;
 import utils.stream.FStream;
 import utils.stream.FStreamException;
@@ -15,6 +17,8 @@ class ResultSetFStream implements FStream<ResultSet> {
 	private final ResultSet m_rs;
 	
 	ResultSetFStream(ResultSet rs) {
+		Preconditions.checkNotNull(rs, "ResultSet is null");
+		
 		m_rs = rs;
 	}
 

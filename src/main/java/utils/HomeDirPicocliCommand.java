@@ -11,8 +11,6 @@ import org.slf4j.LoggerFactory;
 import utils.func.FOption;
 import utils.io.FileUtils;
 
-import picocli.CommandLine;
-import picocli.CommandLine.Help.Ansi;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
@@ -109,30 +107,5 @@ public abstract class HomeDirPicocliCommand implements Runnable, LoggerSettable 
 	
 	public Path toAbsolutePath(String path) {
 		return toAbsolutePath(Paths.get(path));
-	}
-
-	protected static final void runCommand(HomeDirPicocliCommand cmd, String[] args) throws Exception {
-		CommandLine commandLine = new CommandLine(cmd)
-										.setUsageHelpWidth(100)
-										.setCaseInsensitiveEnumValuesAllowed(true);
-		try {
-			commandLine.parse(args);
-
-			if ( commandLine.isUsageHelpRequested() ) {
-				commandLine.usage(System.out, Ansi.OFF);
-			}
-			else {
-				try {
-					cmd.run();
-				}
-				catch ( Exception e ) {
-					System.err.println(e);
-				}
-			}
-		}
-		catch ( Throwable e ) {
-			System.err.println(e);
-			commandLine.usage(System.out, Ansi.OFF);
-		}
 	}
 }

@@ -40,7 +40,7 @@ public class Timer {
 	}
 	
 	public void shutdown() {
-		m_guard.runAndSignalAll(() -> m_shutdown=true);
+		m_guard.run(() -> m_shutdown=true);
 	}
 	
 	public void setTimer(Execution<?> task, Date due) {
@@ -49,7 +49,7 @@ public class Timer {
 			Schedule schedule = new Schedule(task, due);
 			m_timerQueue.add(schedule);
 			if ( m_timerQueue.peekFirst() == schedule ) {
-				m_guard.signalAllInGuard();
+				m_guard.signalAll();
 			}
 		}
 		finally {
@@ -82,7 +82,7 @@ public class Timer {
 									schedule.m_exec.cancel(true);
 								}
 								else {
-									m_guard.awaitUntilInGuard(schedule.m_due);
+									m_guard.awaitSignal(schedule.m_due);
 								}
 							}
 							else {
@@ -90,7 +90,7 @@ public class Timer {
 							}
 						}
 						else {
-							m_guard.awaitInGuard();
+							m_guard.awaitSignal();
 						}
 					}
 					catch ( InterruptedException expected ) { }

@@ -12,9 +12,9 @@ import com.google.common.base.Preconditions;
 
 import utils.LoggerSettable;
 import utils.Throwables;
+import utils.Tuple;
 import utils.func.FOption;
 import utils.func.Try;
-import utils.func.Tuple;
 
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
@@ -39,22 +39,9 @@ public class HttpRESTfulClient implements LoggerSettable {
 	private final JsonMapper m_mapper;
 	private Logger m_logger = null;
 	
-	@FunctionalInterface
-	public static interface ResponseBodyDeserializer<T> {
-		public T deserialize(Headers headers, String respBody) throws IOException;
+	public static HttpRESTfulClient newDefaultClient() {
+		return builder().build();
 	}
-	
-	@FunctionalInterface
-	public static interface ErrorEntityDeserializer {
-		public RESTfulErrorEntity deserialize(String respBody) throws IOException;
-	}
-	
-	public static ResponseBodyDeserializer<String> STRING_DESER = new ResponseBodyDeserializer<>() {
-		@Override
-		public String deserialize(Headers headers, String respBody) throws IOException {
-			return respBody;
-		}
-	};
 	
 	private HttpRESTfulClient(Builder builder) {
 		Preconditions.checkNotNull(builder);
@@ -111,6 +98,14 @@ public class HttpRESTfulClient implements LoggerSettable {
 		
 		Request req = new Request.Builder().url(url).put(reqBody).build();
 		return call(req, deser);
+	}
+	public void put(String url, RequestBody reqBody) {
+		if ( getLogger().isDebugEnabled() ) {
+			getLogger().debug("sending: (PUT) {}, body={}", url, reqBody);
+		}
+		
+		Request req = new Request.Builder().url(url).put(reqBody).build();
+		callVoid(req);
 	}
 	
 	public void delete(String url) {
@@ -171,6 +166,9 @@ public class HttpRESTfulClient implements LoggerSettable {
 			if ( m_mapper == null ) {
 				m_mapper = new JsonMapper();
 			}
+			if ( m_deser == null ) {
+				m_deser = new JacksonErrorEntityDeserializer(m_mapper);
+			}
 			
 			return new HttpRESTfulClient(this);
 		}
@@ -190,6 +188,23 @@ public class HttpRESTfulClient implements LoggerSettable {
 			return this;
 		}
 	}
+	
+	@FunctionalInterface
+	public static interface ResponseBodyDeserializer<T> {
+		public T deserialize(Headers headers, String respBody) throws IOException;
+	}
+	
+	@FunctionalInterface
+	public static interface ErrorEntityDeserializer {
+		public RESTfulErrorEntity deserialize(String respBody) throws IOException;
+	}
+	
+	public static ResponseBodyDeserializer<String> STRING_DESER = new ResponseBodyDeserializer<>() {
+		@Override
+		public String deserialize(Headers headers, String respBody) throws IOException {
+			return respBody;
+		}
+	};
 	
 	private Response call(Request req) throws RESTfulIOException {
 		try {

@@ -6,9 +6,9 @@ import java.util.function.Function;
 
 import com.google.common.primitives.Floats;
 
+import utils.Tuple;
 import utils.Utilities;
 import utils.func.FOption;
-import utils.func.Tuple;
 
 /**
  * 

@@ -4,8 +4,8 @@ package utils.stream;
 import org.junit.Assert;
 import org.junit.Test;
 
+import utils.Tuple;
 import utils.func.FOption;
-import utils.func.Tuple;
 
 
 /**

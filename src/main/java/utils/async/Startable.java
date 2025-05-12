@@ -13,9 +13,14 @@ public interface Startable {
 	 */
 	public void start();
 	
-	public static void startIfStartable(Object obj) {
+	public static Startable startIfStartable(Object obj) {
 		if ( obj instanceof Startable ) {
-			((Startable)obj).start();
+			Startable startable = (Startable)obj;
+			startable.start();
+			return startable;
+		}
+		else {
+			return null;
 		}
 	}
 }

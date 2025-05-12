@@ -11,8 +11,8 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import com.google.common.collect.Lists;
 
+import utils.Tuple;
 import utils.func.FOption;
-import utils.func.Tuple;
 
 /**
  * 

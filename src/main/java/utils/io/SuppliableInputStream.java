@@ -65,7 +65,7 @@ public class SuppliableInputStream extends InputStream {
 			m_chunkQueue.clear();
 			m_closed = true;
 			
-			m_guard.signalAllInGuard();
+			m_guard.signalAll();
 		}
 		finally {
 			m_guard.unlock();
@@ -105,7 +105,7 @@ public class SuppliableInputStream extends InputStream {
 		m_guard.lock();
 		try {
 			while ( !isClosed() && m_current < chunkNo ) {
-				if ( !m_guard.awaitUntilInGuard(due) ) {
+				if ( !m_guard.awaitSignal(due) ) {
 					return false;
 				}
 			}
@@ -157,12 +157,12 @@ public class SuppliableInputStream extends InputStream {
 				}
 				if ( m_chunkQueue.size() < m_maxQueueLength ) {
 					m_chunkQueue.add(chunk);
-					m_guard.signalAllInGuard();
+					m_guard.signalAll();
 					
 					return;
 				}
 				
-				m_guard.awaitInGuard();
+				m_guard.awaitSignal();
 			}
 		}
 		finally {
@@ -200,19 +200,19 @@ public class SuppliableInputStream extends InputStream {
 				}
 				if ( m_chunkQueue.size() < m_maxQueueLength ) {
 					m_chunkQueue.add(chunk);
-					m_guard.signalAllInGuard();
+					m_guard.signalAll();
 					
 					return;
 				}
 				
 				if ( timeout < 0 ) {
-					m_guard.awaitInGuard();
+					m_guard.awaitSignal();
 				}
 				else if ( timeout == 0 ) {
 					throw new TimeoutException("supply timeout");
 				}
 				else {
-					if ( !m_guard.awaitUntilInGuard(due) ) {
+					if ( !m_guard.awaitSignal(due) ) {
 						String details = String.format("supply timeout: %s",
 														UnitUtils.toMillisString(unit.toMillis(timeout)));
 						throw new TimeoutException(details);
@@ -226,11 +226,11 @@ public class SuppliableInputStream extends InputStream {
 	}
 	
 	public void endOfSupply() {
-		m_guard.runAndSignalAll(() -> m_eos = true);
+		m_guard.run(() -> m_eos = true);
 	}
 	
 	public void endOfSupply(Throwable cause) {
-		m_guard.runAndSignalAll(() -> {
+		m_guard.run(() -> {
 			if ( !m_eos ) {
 				m_eos = true;
 				m_cause = cause;
@@ -288,13 +288,13 @@ public class SuppliableInputStream extends InputStream {
 				return null;
 			}
 			
-			m_guard.awaitInGuard();
+			m_guard.awaitSignal();
 		}
 
 		ByteBuffer head = m_chunkQueue.get(0);
 		++m_current;
 		s_logger.debug("get_next_chunk: {}", this);
-		m_guard.signalAllInGuard();
+		m_guard.signalAll();
 		
 		return head;
 	}

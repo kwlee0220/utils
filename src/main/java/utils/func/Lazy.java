@@ -1,6 +1,7 @@
 package utils.func;
 
 import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -14,13 +15,25 @@ import net.sf.cglib.proxy.MethodProxy;
  * @author Kang-Woo Lee (ETRI)
  */
 public class Lazy<T> {
-	private FOption<T> m_loaded;
-	private final Supplier<T> m_supplier;
+	private final AtomicReference<FOption<T>> m_ref;
+	private final Supplier<? extends T> m_supplier;
 	
-	public static <T> Lazy<T> of(Supplier<T> supplier) {
+	/**
+     * 주어진 {@link Supplier}를 이용하여 적재된 값을 생성하는 {@link Lazy} 인스턴스를 생성한다.
+     * 
+     * @param supplier	적재된 값을 생성하는 {@link Supplier}
+     * @return	{@link Lazy} 인스턴스.
+     */
+	public static <T> Lazy<T> of(Supplier<? extends T> supplier) {
 		return new Lazy<>(supplier);
 	}
 	
+	/**
+	 * 주어진 값으로 적재된 {@link Lazy} 인스턴스를 생성한다.
+	 * 
+	 * @param value 적재된 값
+	 * @return {@link Lazy} 인스턴스.
+	 */
 	public static <T> Lazy<T> of(T value) {
 		return new Lazy<>(value);
 	}
@@ -35,52 +48,81 @@ public class Lazy<T> {
 	}
 	
 	private Lazy(T value) {
-		m_loaded = FOption.of(value);
+		m_ref = new AtomicReference<>(FOption.of(value));
 		m_supplier = null;
 	}
 	
-	private Lazy(Supplier<T> supplier) {
-		m_loaded = FOption.empty();
+	private Lazy(Supplier<? extends T> supplier) {
+		m_ref = new AtomicReference<>();
 		m_supplier = supplier;
 	}
 	
-	public synchronized boolean isLoaded() {
-		return m_loaded.isPresent();
+	/**
+	 * 적재된 값이 있는지 여부를 반환한다.
+	 *
+	 * @return	적재된 값이 있으면 {@code true}, 그렇지 않으면 {@code false}.
+	 */
+	public boolean isLoaded() {
+		return m_ref.getAcquire().isPresent();
 	}
 	
-	public synchronized void ifLoaded(Consumer<T> job) {
-		m_loaded.ifPresent(job);
-	}
-	
-	public synchronized <X extends Throwable> void ifLoadedOrThrow(CheckedConsumerX<? super T,X> job) throws X {
-		m_loaded.ifPresentOrThrow(job);
-	}
-	
-	public synchronized T get() {
-		if ( m_loaded.isAbsent() ) {
-			m_loaded = FOption.of(m_supplier.get());
+	/**
+	 * 적재된 값을 반환한다.
+	 * <p>
+	 * 적재된 값이 없으면 주어진 {@link Supplier}를 이용하여 값을 적재한 후 반환한다.
+	 *
+	 * @return	적재된 값.
+	 */
+	public T get() {
+		FOption<T> wrapped = m_ref.get();
+		if ( wrapped == null ) {
+			synchronized ( m_ref ) {
+				wrapped = FOption.of(m_supplier.get());
+				if ( !m_ref.compareAndSet(null, wrapped) ) {
+					wrapped = m_ref.get();
+				}
+			}
 		}
-		
-		return m_loaded.get();
+		return wrapped.get();
 	}
 	
-	public synchronized void set(T v) {
-		m_loaded = FOption.of(v);
+	/**
+	 * 주어진 값을 적재시키고, 이전 값을 {@link FOption} 형태로 반환한다.
+	 * <p>
+	 * 설정된 값이 없었으면 {@link FOption#empty()}를 반환한다.
+	 *
+	 * @param value	설정할 값
+	 * @return	이전 값. 설정된 값이 없었으면 {@link FOption#empty()} 반환.
+	 */
+	public FOption<T> set(T value) {
+        return m_ref.getAndSet(FOption.of(value));
 	}
 	
-	public synchronized void unload() {
-		m_loaded = FOption.empty();
+	/**
+	 * 현재	적재된 값을 제거한다.
+	 */
+	public void unload() {
+		m_ref.set(null);
 	}
 	
-	public synchronized void unload(Consumer<T> dtor) {
-		if ( m_loaded.ifPresent(dtor).isPresent() ) {
-			m_loaded = FOption.empty();
+	/**
+	 * 현재 적재된 값을 제거하고, 주어진 소멸자를 이용하여 제거된 값을 소멸시킨다.
+	 *
+	 * @param dtor 소멸자
+	 */
+	public void unload(Consumer<T> dtor) {
+		FOption<T> wrapped = m_ref.getAndSet(null);
+		if ( wrapped != null ) {
+			dtor.accept(wrapped.get());
 		}
 	}
 	
 	@Override
-	public synchronized String toString() {
-		return String.format("Lazy[%s]", m_loaded.map(Object::toString).getOrElse("unloaded"));
+	public String toString() {
+		FOption<T> wrapped = m_ref.get();
+		String vstr = ( wrapped != null ) ? ""+wrapped.get() : "unloaded";
+		
+		return String.format("Lazy[%s]", vstr);
 	}
 
 	private static class Interceptor<T> implements MethodInterceptor {

@@ -2,7 +2,6 @@ package utils.stream;
 
 import static utils.Utilities.checkNotNullArgument;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.function.BiFunction;
@@ -14,11 +13,11 @@ import java.util.function.Supplier;
 import com.google.common.collect.Lists;
 
 import utils.Throwables;
+import utils.Tuple;
 import utils.func.CheckedFunction;
 import utils.func.CheckedFunctionX;
 import utils.func.FOption;
 import utils.func.Try;
-import utils.func.Tuple;
 import utils.func.Unchecked;
 import utils.io.IOUtils;
 
@@ -116,61 +115,6 @@ public class FStreams {
 		@Override
 		protected final FOption<T> nextInGuard() {
 			return getNext(m_src);
-		}
-	}
-	
-	static class IterableFStream<T> extends AbstractFStream<T> {
-		private final Iterable<? extends T> m_iterable;
-		private Iterator<? extends T> m_iter;
-		
-		IterableFStream(Iterable<? extends T> iterable) {
-			m_iterable = iterable;
-		}
-
-		@Override
-		protected void closeInGuard() throws Exception { }
-
-		@Override
-		protected void initialize() {
-			m_iter = m_iterable.iterator();
-		}
-
-		@Override
-		protected FOption<T> nextInGuard() {
-			if ( m_iter.hasNext() ) {
-				return FOption.of(m_iter.next());
-			}
-			else {
-				return FOption.empty();
-			}
-		}
-	}
-	
-	static class TryMapStream<T,R> extends SingleSourceStream<T,Try<R>> {
-		private final CheckedFunction<? super T,? extends R> m_mapper;
-		
-		TryMapStream(FStream<T> base, CheckedFunction<? super T,? extends R> mapper) {
-			super(base);
-			
-			checkNotNullArgument(mapper, "mapper is null");
-			
-			m_mapper = mapper;
-		}
-
-		@Override
-		public FOption<Try<R>> getNext(FStream<T> src) {
-			FOption<T> onext;
-			while ( (onext = src.next()).isPresent() ) {
-				T next = onext.getUnchecked();
-				try {
-					return FOption.of(Try.success(m_mapper.apply(next)));
-				}
-				catch ( Throwable e ) {
-					return FOption.of(Try.failure(e));
-				}
-			}
-			
-			return FOption.empty();
 		}
 	}
 	

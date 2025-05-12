@@ -10,6 +10,7 @@ import utils.func.CheckedFunctionX;
 import utils.io.IOUtils;
 
 /**
+ * JdbcObjectIterator는 ResultSet에서 객체를 읽어오는 Iterator이다.
  * 
  * @author Kang-Woo Lee (ETRI)
  */
@@ -18,8 +19,10 @@ class JdbcObjectIterator<T> implements Iterator<T>, AutoCloseable {
 	private final CheckedFunctionX<ResultSet,T,SQLException> m_functor;
 	private boolean m_hasNext;
 	
-	JdbcObjectIterator(ResultSet rs, CheckedFunctionX<ResultSet,T,SQLException> functor)
-		throws SQLException {
+	JdbcObjectIterator(ResultSet rs, CheckedFunctionX<ResultSet,T,SQLException> functor) throws SQLException {
+		Preconditions.checkNotNull(rs, "ResultSet is null");
+		Preconditions.checkNotNull(functor, "Functor is null");
+		
 		m_rs = rs;
 		m_functor = functor;
 		
@@ -28,6 +31,7 @@ class JdbcObjectIterator<T> implements Iterator<T>, AutoCloseable {
 
 	@Override
 	public void close() throws Exception {
+		// 이미 close()된 경우에는 아무것도 하지 않기 위해 m_rs가 null인가 확인한다.
 		if ( m_rs != null ) {
 			IOUtils.closeQuietly(m_rs);
 			

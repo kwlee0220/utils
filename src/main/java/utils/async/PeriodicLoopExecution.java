@@ -19,7 +19,7 @@ import utils.func.FOption;
 public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> {
 	private Duration m_interval;
 	private Instant m_started;
-	private boolean m_cumulativeInterval = false;
+	private final boolean m_cumulativeInterval;
 	
 	/**
 	 * Iteration 작업을 수행한다.
@@ -119,7 +119,7 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 		if ( result == null || result.isAbsent() ) {
 			// 다음번 iteration 시작 시각까지 대기한다.
 			
-			if ( m_aopGuard.awaitUntil(() -> isCancelRequested(), due) ) {
+			if ( m_aopGuard.awaitCondition(() -> isCancelRequested(), due).andReturn() ) {
 				// 취소 요청이 들어온 경우는 loop 종료
 				return null;
 			}

@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import utils.stream.FStream;
-import utils.stream.KVFStream;
+import utils.stream.KeyValueFStream;
 
 /**
  * 
@@ -62,7 +62,7 @@ public class CIStringMap<T> implements Map<String,T> {
     
 	@Override
 	public Set<Entry<String, T>> entrySet() {
-		 return KVFStream.from(m_map)
+		 return KeyValueFStream.from(m_map)
 				 		.mapKey((k,v) -> k.get())
 				 		.toMap()
 				 		.entrySet();
@@ -75,7 +75,7 @@ public class CIStringMap<T> implements Map<String,T> {
 
 	@Override
 	public void putAll(Map<? extends String, ? extends T> m) {
-		KVFStream.from(m)
+		KeyValueFStream.from(m)
 				.mapKey(CIString::of)
 				.forEach((k,v) -> m_map.put(k, v));
 	}

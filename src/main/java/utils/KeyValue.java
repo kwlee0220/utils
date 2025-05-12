@@ -6,13 +6,12 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import utils.func.Tuple;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class KeyValue<K,V> {
+public final class KeyValue<K,V> implements Keyed<K> {
 	private final K m_key;
 	private final V m_value;
 	
@@ -38,6 +37,7 @@ public final class KeyValue<K,V> {
 	 * 
 	 * @return 키 값.
 	 */
+	@Override
 	public K key() {
 		return m_key;
 	}

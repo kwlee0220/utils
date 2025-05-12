@@ -227,7 +227,10 @@ public class DataUtils {
 	}
 	
 	public static LocalDateTime asDatetime(Object obj) {
-		if ( obj instanceof LocalDateTime ) {
+		if ( obj instanceof Instant ) {
+			return LocalDateTimes.fromInstant((Instant)obj);
+		}
+		else if ( obj instanceof LocalDateTime ) {
 			return (LocalDateTime)obj;
 		}
 		else if ( obj instanceof Date ) {

@@ -6,8 +6,8 @@ import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
+import utils.Tuple;
 import utils.func.FOption;
-import utils.func.Tuple;
 
 /**
  * 
@@ -17,7 +17,7 @@ public class ZipWithTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<String> stream1 = FStream.from(Arrays.asList("a","b", "c", "d"));
-		FStream<Integer> stream2 = FStream.generate(0, FStream::INC);
+		FStream<Integer> stream2 = FStream.generate(0, v -> v + 1);
 		FStream<Tuple<Integer,String>> stream = stream2.zipWith(stream1);
 		
 		FOption<Tuple<Integer,String>> r;

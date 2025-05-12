@@ -9,7 +9,7 @@ import java.util.function.Function;
 import com.google.common.collect.Maps;
 
 import utils.KeyValue;
-import utils.stream.KVFStream;
+import utils.stream.KeyValueFStream;
 import utils.stream.TriConsumer;
 
 /**
@@ -35,7 +35,7 @@ public class MultipleCases<K,V> {
 	}
 	
 	public Otherwise<K,V> otherwise() {
-		return new Otherwise<>(KVFStream.from(m_cases).toList());
+		return new Otherwise<>(KeyValueFStream.from(m_cases).toList());
 	}
 	
 	public <X> ContextedCase<K,V,X> ifCase(K key, X context) {
@@ -46,7 +46,7 @@ public class MultipleCases<K,V> {
 	}
 	
 	public <X> ContextedOtherwise<K,V,X> otherwise(X context) {
-		return new ContextedOtherwise<>(context, KVFStream.from(m_cases).toList());
+		return new ContextedOtherwise<>(context, KeyValueFStream.from(m_cases).toList());
 	}
 	
 	public static class Case<K,V> {

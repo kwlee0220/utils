@@ -30,28 +30,27 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import utils.CSV;
+import utils.ComparableKeyValue;
 import utils.Indexed;
 import utils.KeyValue;
 import utils.Suppliable;
+import utils.Tuple;
+import utils.Tuple3;
 import utils.Utilities;
 import utils.func.CheckedConsumer;
 import utils.func.CheckedConsumerX;
 import utils.func.CheckedFunction;
 import utils.func.CheckedFunctionX;
-import utils.func.ComparableKeyValue;
 import utils.func.FLists;
 import utils.func.FOption;
 import utils.func.Slice;
 import utils.func.Try;
-import utils.func.Tuple;
-import utils.func.Tuple3;
 import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.FlatMapDataSupplier;
 import utils.stream.FStreams.FlatMapTry;
 import utils.stream.FStreams.FoldLeftLeakFStream;
 import utils.stream.FStreams.GeneratedStream;
-import utils.stream.FStreams.IterableFStream;
 import utils.stream.FStreams.MapOrThrowStream;
 import utils.stream.FStreams.MapToBooleanStream;
 import utils.stream.FStreams.MapToDoubleStream;
@@ -64,12 +63,10 @@ import utils.stream.FStreams.ScannedStream;
 import utils.stream.FStreams.SelectiveMapStream;
 import utils.stream.FStreams.SingleSourceStream;
 import utils.stream.FStreams.SplitFStream;
-import utils.stream.FStreams.TryMapStream;
 import utils.stream.FStreams.UnfoldStream;
 import utils.stream.FStreams.UniqueFStream;
 import utils.stream.FStreams.UniqueKeyFStream;
 import utils.stream.IntFStream.RangedStream;
-import utils.stream.KVFStreams.FStreamAdaptor;
 
 
 /**
@@ -77,13 +74,11 @@ import utils.stream.KVFStreams.FStreamAdaptor;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface FStream<T> extends Iterable<T>, AutoCloseable {
-	public static int INC(int v) { return v+1; }
-	public static long INC(long v) { return v+1; }
-	
 	/**
 	 * 스트림에 포함된 다음 데이터를 반환한다.
 	 * <p>
-	 * 더 이상의 데이터가 없는 경우, 또는 이미 close된 경우에는 {@link FOption#empty()}을 반환함.
+	 * 더 이상의 데이터가 없는 경우에는 {@link FOption#empty()}을 반환함.
+	 * 이미 close된 경우에는 {@link IllegalStateException} 예외를 발생시킨다.
 	 * 
 	 * @return	스트림 데이터. 없는 경우는 {@link FOption#empty()}.
 	 */
@@ -101,9 +96,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return Try.run(this::close);
 	}
 	
-	
 	/**
-	 * empty 스트림 객체를 반환한다.
+	 * 데이터가 없는 빈 스트림 객체를 반환한다.
 	 * 
 	 * @param <T> 스트림 원소 객체 타입
 	 * @return	Empty 스트림 객체.
@@ -168,10 +162,24 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param values	입력 {@link Iterable} 객체.
 	 * @return FStream 객체
 	 */
-	public static <T> FStream<T> from(Iterable<? extends T> values) {
+	public static <T> FStream<T> from(final Iterable<? extends T> values) {
 		Preconditions.checkArgument(values != null);
 		
-		return new IterableFStream<T>(values);
+		return new AbstractFStream<T>() {
+			private Iterator<? extends T> m_iter = values.iterator();
+
+			@Override protected void closeInGuard() throws Exception { }
+
+			@Override
+			protected FOption<T> nextInGuard() {
+				if ( m_iter.hasNext() ) {
+					return FOption.of(m_iter.next());
+				}
+				else {
+					return FOption.empty();
+				}
+			}
+		};
 	}
 	
 	/**
@@ -187,22 +195,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return from(stream.iterator());
 	}
 
-	/**
-	 * 주어진 {@link Map}객체에 포함된 모든 key-value pair를 반환하는 {@link FStream}를 생성한다.
-	 * <p>
-	 * 생성된 스트림은 입력 Map객체에 포함된 key-value pair에 해당하는 {@link KeyValue} 객체들을 반환한다.
-	 * 
-	 * @param <K> {@link Map}객체의 key type.
-	 * @param <V> {@link Map}객체의 value type.
-	 * @param map	입력 {@link Map} 객체.
-	 * @return FStream 객체
-	 */
-	public static <K,V> KVFStream<K,V> from(Map<? extends K, ? extends V> map) {
-		Preconditions.checkArgument(map != null, "map is null");
-		
-		return KVFStream.from(map);
-	}
-	
 	/**
 	 * 주어진 값을 무한 반복하여 반환하는 무한 스트림 객체를 반환한다.
 	 * 
@@ -408,7 +400,24 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return		FStream 객체.
 	 */
 	public default <S> FStream<Try<S>> tryMap(CheckedFunction<? super T,? extends S> mapper) {
-		return new TryMapStream<>(this, mapper);
+		return new SingleSourceStream<T,Try<S>>(this) {
+			@Override
+			public FOption<Try<S>> getNext(FStream<T> src) {
+				FOption<T> onext;
+				while ( (onext = src.next()).isPresent() ) {
+					T next = onext.getUnchecked();
+					try {
+						return FOption.of(Try.success(mapper.apply(next)));
+					}
+					catch ( Throwable e ) {
+						return FOption.of(Try.failure(e));
+					}
+				}
+				
+				return FOption.empty();
+			}
+		};
+//		return new TryMapStream<>(this, mapper);
 	}
 	
 	/**
@@ -431,7 +440,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 스트림에 속한 각 데이터에 대해 {@code pred}를 적용한 결과에 따라 선택적으로
 	 * mapper을 적용한 결과로 구성된 출력 스트림을 생성한다.
 	 * <p>
-	 * {@code pred}를 적용한 결과 false인 경우에는 mapper 적용 없이 원래 데이터를 반환하게 된다.
+	 * {@code pred}를 적용한 결과 false인 경우에는 mapper 적용 없이 원래 데이터가
+	 * 다음 단계로 전달된다.
 	 *
 	 * @param pred	{@code mapper} 적용 여부를 결정할 predicate
 	 * @param mapper	적용할 mapper.
@@ -450,17 +460,21 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 스트림에 포함된 데이터들을 주어진 매핑 함수 {@code mapper}에 병렬로 적용하여
 	 * 출력된 결과로 구성된 스트림을 생성한다.
 	 * <p>
-	 * 스트림 데이터에 대해 매핑 함수를 병렬로 적용하기 때문에 함수의 수행 시간이 다른 경우
+	 * 스트림 데이터에 대해 매핑 함수를 병렬로 적용하기 때문에 매핑의 수행 시간이 다른 경우
 	 * 출력 스트림에서의 결과 값 순서는 바뀔 수 있다.
 	 * 만일 입력 데이터 순서와 출력 데이터 순서를 맞추려면
 	 * {@link FStream#mapAsync(Function, AsyncExecutionOptions)} 함수를 사용하되, 입력 인자로
-	 * {@link AsyncExecutionOptions#setKeepOrder(boolean)}를 활용할 수 있다.
-	 * 또한 입력 데이터에 대한 함수 적용은 각각 별도의 쓰레드에 의해 수행되고 동시 실행되는
-	 * 쓰레드의 수는 시스템 내부 default 값을 사용한다.
+	 * {@link AsyncExecutionOptions#setKeepOrder(boolean)}를 활용하여 입력 데이터 순서와
+	 * 출력 데이터 순서를 맞춘다.
+	 * <p>
+	 * 또한 입력 데이터에 대한 매칭 함수 적용은 각각 별도의 쓰레드에 의해 수행되고 동시 실행되는
+	 * 쓰레드의 수는 시스템 내부 default 값을 사용한다. 만일 쓰레드 수를 변경하려면
+	 * {@link FStream#mapAsync(Function, AsyncExecutionOptions)} 함수를 사용한다.
 	 * 
 	 * @param <S>		매핑 결과 데이터의 타입
 	 * @param mapper	매핑 함수 객체.
 	 * @return FStream 객체
+	 * @see FStream#mapAsync(Function, AsyncExecution)
 	 */
 	public default <S> FStream<Try<S>> mapAsync(Function<? super T, ? extends S> mapper) {
 		return mapAsync(mapper, AsyncExecutionOptions.create());
@@ -780,7 +794,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 
 	public default FStream<Indexed<T>> zipWithIndex(int start) {
-		return zipWith(FStream.generate(start, FStream::INC), Indexed::with);
+		return zipWith(FStream.generate(start, v -> v+1), Indexed::with);
 	}
 	public default FStream<Indexed<T>> zipWithIndex() {
 		return zipWithIndex(0);
@@ -915,16 +929,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public static <T> FStream<T> mergeParallel(FStream<? extends FStream<? extends T>> inputStreamFact,
 												int workerCount, @Nullable Executor executor) {
 		return new MergeParallelFStream<>(inputStreamFact, workerCount, executor);
-	}
-	
-	public default <K,R> FStream<Tuple<T,R>>
-	innerJoin(FStream<R> right, Function<T,K> leftKeyer, Function<R,K> rightKeyer) {
-		return new InnerJoinedFStream<>(this, right, leftKeyer, rightKeyer);
-	}
-	
-	public default <K,R> FStream<Tuple<List<T>,List<R>>>
-	outerJoin(FStream<R> right, Function<T,K> leftKeyer, Function<R,K> rightKeyer) {
-		return new OuterJoinedFStream<>(this, right, leftKeyer, rightKeyer);
 	}
 	
 	public default FStream<T> reduceLeak(BiFunction<? super T,? super T,? extends T> combiner) {
@@ -1281,37 +1285,49 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		}
 	}
 	
+	/**
+	 * 스트림에 포함된 모든 데이터를 주어진 {@link Collection}에 추가한다.
+	 * 
+	 * @param <C>	스트림에 포함된 데이터가 추가될 {@link Collection}의 타입.
+	 * @param coll	스트림에 포함된 데이터가 추가될 {@link Collection} 객체.
+	 * @return	스트림에 포함된 데이터가 추가된 {@link Collection} 객체.
+	 */
 	public default <C extends Collection<? super T>> C toCollection(C coll) {
 		return collect(coll, (l,t) -> l.add(t));
 	}
 	
+	/**
+	 * 스트림에 포함된 모든 데이터를 {@link List}로 추가하고 반환한다.
+	 * 
+	 * @return	스트림에 포함된 데이터가 추가된 {@link List} 객체.
+	 */
 	public default ArrayList<T> toList() {
 		return toCollection(Lists.newArrayList());
 	}
 	
+	/**
+	 * 스트림에 포함된 모든 데이터를 {@link Set}으로 추가하고 반환한다.
+	 * 
+	 * @return	스트림에 포함된 데이터가 추가된 {@link Set} 객체.
+	 */
 	public default HashSet<T> toSet() {
 		return toCollection(Sets.newHashSet());
 	}
 	
-	public default <K,V, M extends Map<K,V>> M toMap(M map,
-													Function<? super T,? extends K> toKey,
-													Function<? super T,? extends V> toValue) {
-		return collect(map, (m,kv) -> m.put(toKey.apply(kv), toValue.apply(kv)));
-	}
-	
-	public default <K,V> Map<K,V> toMap(Function<? super T,? extends K> toKey,
-										Function<? super T,? extends V> toValue) {
-		return toMap(Maps.newHashMap(), toKey, toValue);
-	}
-	
-	public default <K> Map<K,T> toMap(Function<? super T,? extends K> toKey) {
-		return toMap(Maps.newHashMap(), toKey, v -> v);
-	}
-	
+	/**
+	 * 스트림에 포함된 모든 데이터를 순환하는 {@link Iterator} 객체를 반환한다.
+	 * 
+	 * @return	스트림에 포함된 데이터 순환을 위한 {@link Iterator} 객체.
+	 */
 	public default Iterator<T> iterator() {
 		return new FStreamIterator<>(this);
 	}
 	
+	/**
+	 * 스트림에 포함된 모든 데이터를 순환하는 {@link Stream} 객체를 반환한다.
+	 * 
+	 * @return	스트림에 포함된 데이터 순환을 위한 {@link Stream} 객체.
+	 */
 	public default Stream<T> stream() {
 		return Utilities.stream(iterator());
 	}
@@ -1431,27 +1447,31 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new PrependableFStream<>(this);
 	}
 	
-	public default <K extends Comparable<K>>
-	KVFStream<K,T> tagKey(Function<? super T,? extends K> keyGen) {
-		return KVFStream.downcast(map(t -> KeyValue.of(keyGen.apply(t), t)));
+	//
+	// KeyValueFStream 관련 메소드들
+	//
+	public default <K> KeyValueFStream<K,T> tagKey(Function<? super T,? extends K> keyer) {
+		return KeyValueFStream.from(map(t -> KeyValue.of(keyer.apply(t), t)));
 	}
 	
-	public default <K extends Comparable<K>,V>
-	KVFStream<K,V> toKeyValueStream(Function<? super T, KeyValue<K,V>> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
+	public default <K,V> KeyValueFStream<K,V> toKeyValueStream(Function<? super T, KeyValue<K,V>> mapper) {
+		Preconditions.checkArgument(mapper != null, "mapper is null");
 		
-		return new FStreamAdaptor<>(map(mapper));
+		return KeyValueFStream.from(map(mapper));
 	}
 	
-	public default <K> KeyedGroups<K,T> groupByKey(Function<? super T,? extends K> keyer) {
-		return collect(KeyedGroups.create(), (g,t) -> g.add(keyer.apply(t), t));
+	public default <K, V> KeyValueFStream<K, V> toKeyValueStream(Function<? super T, ? extends K> keyer,
+																Function<? super T, ? extends V> valuer) {
+		Preconditions.checkArgument(keyer != null, "keyer is null");
+		Preconditions.checkArgument(valuer != null, "valuer is null");
+		
+		Function<? super T, KeyValue<K,V>> mapper = t -> KeyValue.of(keyer.apply(t), valuer.apply(t));
+		return KeyValueFStream.from(map(mapper));
 	}
 	
-	public default <K,V> KeyedGroups<K,V> groupByKey(Function<? super T,? extends K> keySelector,
-												Function<? super T,? extends V> valueSelector) {
-		return collect(KeyedGroups.create(),
-							(g,t) -> g.add(keySelector.apply(t), valueSelector.apply(t)));
-	}
+	//
+	//
+	//
 	
 	public default FStream<T> sort(Comparator<? super T> cmp) {
 		List<T> list = toList();
@@ -1655,8 +1675,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default String join(String delim, String begin, String end) {
 		return zipWithIndex()
 				.fold(new StringBuilder(begin),
-							(b,t) -> (t.index() > 0) ? b.append(delim).append(t.value().toString())
-													: b.append(t.value().toString()))
+							(b,t) -> (t.index() > 0) ? b.append(delim).append(""+t.value())
+													: b.append(""+t.value()))
 					.append(end)
 					.toString();
 	}
@@ -1757,9 +1777,13 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	public default <K extends Comparable<K>, V>
-	KVFStream<K, V> mapToKeyValue(Function<? super T, KeyValue<K, V>> mapper) {
+	KeyValueFStream<K, V> mapToKeyValue(Function<? super T, KeyValue<K, V>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
 
-		return new FStreamAdaptor<>(map(mapper));
+		return KeyValueFStream.from(map(mapper));
 	}
+	
+	public default <S> FStream<S> lift(Function<FStream<T>, FStream<S>> streamFunc) {
+        return streamFunc.apply(this);
+    }
 }

@@ -36,6 +36,7 @@ public class LogTailer implements CheckedRunnable {
 		m_listener = listener;
 	}
 
+	@SuppressWarnings("resource")
 	@Override
 	public void run() throws IOException, InterruptedException, TimeoutException, ExecutionException {
 		Preconditions.checkState(m_listener != null, "LogTailerListener is not set");
@@ -49,16 +50,21 @@ public class LogTailer implements CheckedRunnable {
 		try {
 			// 'm_sampleInterval' 동안 최소 1줄의 파일을 읽었는지 여부를 판단하기 위해 사용함.
 			boolean tailFound = true;
-			
+
+			// raf 변수가 로그 파일이 rewind될 때 다시 열리기 때문에
+			// try-resources 구문을 사용할 수 없다.
 			raf = new RandomAccessFile(m_logFile, "r");
 			while ( true ) {
 				long len = m_logFile.length();
 				if ( len < fpos ) {
 					// Log file의 크기가 마지막으로 확인했던 file position보다 작다면
 					// log file이 rewind한 것으로 간주하여 파일을 재오픈하여 처음부터 읽기 시작한다.
+					raf.close();
 					raf = new RandomAccessFile(m_logFile, "r");
 					fpos = 0L;
 					
+					// rewind 이벤트를 listener에게 알린다.
+					// 만일 listener가 false를 반환하면, log tailing을 중단한다.
 					if ( !m_listener.logFileRewinded(m_logFile) ) {
 						return;
 					}
@@ -67,9 +73,14 @@ public class LogTailer implements CheckedRunnable {
 				if ( len > fpos ) {
 					raf.seek(fpos);
 					
+					// FIXME: 오랜기간동안 log file에 변화가 없으면 계속 대기하여 문제가 발생될 수 있어
+					// 추후 수정이 필요함.
 					String line = raf.readLine();
 					while ( line != null ) {
 						tailFound = true;
+						
+						// 새로운 log line을 listener에게 알린다.
+						// 만일 listener가 false를 반환하면, log tailing을 중단한다.
 						if ( !m_listener.handleLogTail(line) ) {
 							return;
 						}
@@ -79,6 +90,8 @@ public class LogTailer implements CheckedRunnable {
 				}
 				
 				if ( !tailFound ) {
+					// 'm_sampleInterval' 동안 log file에 변화가 없다면, listener에게 알린다.
+					// 만일 listener가 false를 반환하면, log tailing을 중단한다.
 					if ( !m_listener.handleLogFileSilence(m_sampleInterval) ) {
 						return;
 					}

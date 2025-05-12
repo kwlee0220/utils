@@ -1,15 +1,13 @@
-package utils.func;
+package utils;
 
 import java.io.Serializable;
 import java.util.Objects;
-
-import utils.KeyValue;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class Tuple<T1,T2> implements Serializable, Comparable<Tuple<T1,T2>> {
+public final class Tuple<T1,T2> implements Serializable, Comparable<Tuple<T1,T2>>, ITuple<T1,T2> {
 	private static final long serialVersionUID = 1L;
 	
 	public final T1 _1;
@@ -20,7 +18,7 @@ public final class Tuple<T1,T2> implements Serializable, Comparable<Tuple<T1,T2>
 	}
 	
 	public static <T1,T2,T3> Tuple3<T1,T2,T3> of(T1 t1, T2 t2, T3 t3) {
-		return new Tuple3<>(t1, t2, t3);
+		return Tuple3.of(t1, t2, t3);
 	}
 	
 	public static <T1,T2,T3,T4> Tuple4<T1,T2,T3,T4> of(T1 t1, T2 t2, T3 t3, T4 t4) {
@@ -32,22 +30,17 @@ public final class Tuple<T1,T2> implements Serializable, Comparable<Tuple<T1,T2>
 		_2 = t2;
 	}
 	
+	@Override
 	public T1 _1() {
 		return _1;
 	}
-	
+
+	@Override
 	public T2 _2() {
 		return _2;
 	}
-	
-	public T1 left() {
-		return _1;
-	}
-	
-	public T2 right() {
-		return _2;
-	}
-	
+
+	@Override
 	public Tuple<T2,T1> swap() {
 		return Tuple.of(_2, _1);
 	}
