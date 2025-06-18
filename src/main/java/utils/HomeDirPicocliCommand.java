@@ -72,10 +72,9 @@ public abstract class HomeDirPicocliCommand implements Runnable, LoggerSettable 
 		}
 		// 홈 디렉토리가 지정되지 않은 경우에는 사용자 홈 디렉토리를 홈 디렉토리로 설정한다.
 		if ( m_homeDir == null ) {
-			m_homeDir = FileUtils.getUserHomeDir().toPath();
-			if ( getLogger().isDebugEnabled() ) {
-				getLogger().debug("set homeDir '{}' from the user homeDir", m_homeDir);
-			}
+//			m_homeDir = FileUtils.getUserHomeDir().toPath();
+			m_homeDir = FileUtils.getCurrentWorkingDirectory().toPath();
+			getLogger().info("set homeDir '{}", m_homeDir);
 		}
 		
 		return m_homeDir;
