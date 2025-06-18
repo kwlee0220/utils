@@ -51,12 +51,12 @@ public class JacksonUtils {
 		}
 	}
 
-	public static Boolean getBooleanFieldOrNull(JsonNode node, String fieldName) {
+	public static Boolean getBooleanField(JsonNode node, String fieldName, Boolean defaultValue) {
 		Preconditions.checkNotNull(node, "node is null");
 		
 		JsonNode field = node.get(fieldName);
 		if ( field == null || field.isNull()  ) {
-			return null;
+			return defaultValue;
 		}
 		else {
 			return field.asBoolean();
