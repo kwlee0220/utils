@@ -64,7 +64,7 @@ public class Utilities {
 				return FOption.of(file);
 			}
 			else {
-				String msg = String.format("EnvironmentVariable does not have a valid file: %s='%s'",
+				String msg = String.format("EnvironmentVariable does not have a valid file: %s=%s",
 											envVarName, path);
 				throw new IllegalArgumentException(msg);
 			}
@@ -354,9 +354,14 @@ public class Utilities {
 		System.arraycopy(arr2, 0, expanded, arr1.length, arr2.length);
 		return arr2;
 	}
-	
+
+	public static String substributeString(String template, Map<String,String> mappings, boolean failOnUndefined) {
+		return new StringSubstitutor(mappings)
+					.setEnableUndefinedVariableException(failOnUndefined)
+					.replace(template);
+	}
 	public static String substributeString(String template, Map<String,String> mappings) {
-		return new StringSubstitutor(mappings).replace(template);
+		return substributeString(template, mappings, false);
 	}
 	public static void substributeFile(File templateFile, Map<String,String> mappings, File outputFile)
 		throws IOException {
