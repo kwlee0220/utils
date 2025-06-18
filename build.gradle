@@ -45,7 +45,7 @@ repositories {
 }
 
 dependencies {
-	// Logback with SLF4j
+	// Logback
 	implementation "ch.qos.logback:logback-classic:${logback_version}"
 	
 	api "com.google.guava:guava:${guava_version}"
