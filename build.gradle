@@ -18,7 +18,8 @@ java {
 
 ext {
 	logback_version = '1.3.14'
-	guava_version = '33.1.0-jre'
+	guava_version = '33.4.8-jre'
+	checker_version = '3.49.4'
 	rxjava3_version = '3.1.8'
 	picocli_version = '4.6.2'
 	jackson_version = '2.18.2'
@@ -48,6 +49,7 @@ dependencies {
 	implementation "ch.qos.logback:logback-classic:${logback_version}"
 	
 	api "com.google.guava:guava:${guava_version}"
+	implementation("org.checkerframework:checker:${checker_version}")
 	api "io.reactivex.rxjava3:rxjava:${rxjava3_version}"
 
 	// Lombok (from the project :utils)
