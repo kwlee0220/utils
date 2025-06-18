@@ -1,5 +1,7 @@
 package utils;
 
+import java.io.File;
+
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.LoggerContext;
@@ -12,13 +14,16 @@ import ch.qos.logback.core.joran.spi.JoranException;
  * @author Kang-Woo Lee (ETRI)
  */
 public class LogbackConfigLoader {
-    public static void loadLogbackConfigFromFile(String configFilePath) throws JoranException {
+    public static void loadLogbackConfigFromFile(File configFile) throws JoranException {
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
         context.reset(); // 기존 설정을 초기화
 
         JoranConfigurator configurator = new JoranConfigurator();
         configurator.setContext(context);
-		configurator.doConfigure(configFilePath); // 설정 파일 적용
+		configurator.doConfigure(configFile); // 설정 파일 적용
+    }
+    public static void loadLogbackConfigFromFile(String configFilePath) throws JoranException {
+    	loadLogbackConfigFromFile(new File(configFilePath));
     }
     
     public static void loadLogbackConfigFromClass(Class<?> configFileResource) throws JoranException {
