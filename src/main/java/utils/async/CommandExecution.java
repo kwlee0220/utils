@@ -28,7 +28,6 @@ import utils.KeyedValueList;
 import utils.Tuple;
 import utils.Utilities;
 import utils.func.FOption;
-import utils.func.Try;
 import utils.func.Unchecked;
 import utils.io.FileUtils;
 import utils.stream.FStream;
@@ -89,10 +88,12 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 										TimeoutException, ExecutionException {
 		// Command line에 포함된 command variable들을 실제 값으로 치환시킨다.
 		VariableLookup lut = new VariableLookup(m_variables);
-		StringSubstitutor subst = new StringSubstitutor(lut);
+		StringSubstitutor subst = new StringSubstitutor(lut).setEnableUndefinedVariableException(true);
 		List<String> command = FStream.from(m_command)
-										.map(str -> Try.get(() -> subst.replace(str)).getOrElse(str))
-										.map(str -> Utilities.substributeString(str, m_substVariables))
+										.map(str -> {
+											str = Utilities.substributeString(str, m_substVariables);
+											return subst.replace(str);
+										})
 										.toList();
 		
 		ProcessBuilder builder = new ProcessBuilder(command)
