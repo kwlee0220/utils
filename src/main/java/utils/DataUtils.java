@@ -1,5 +1,6 @@
 package utils;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -209,17 +210,13 @@ public class DataUtils {
 	
 	public static Instant asInstant(Object obj) {
 		if ( obj instanceof String ) {
-			String str = (String)obj;
-			if ( str.indexOf('Z') >= 0 ) {
-				return Instant.parse(str);
-			}
-			else {
-				LocalDateTime ldt = LocalDateTime.parse(str);
-				return LocalDateTimes.toInstant(ldt);
-			}
+			return Instants.fromString((String)obj);
 		}
 		else if ( obj instanceof Instant ) {
 			return (Instant)obj;
+		}
+		else if ( obj instanceof Timestamp ) {
+			return Instants.fromTimestamp((Timestamp)obj);
 		}
 		else {
 			throw new IllegalArgumentException("Not Instant object: obj=" + obj);
@@ -227,6 +224,9 @@ public class DataUtils {
 	}
 	
 	public static LocalDateTime asDatetime(Object obj) {
+		if ( obj == null ) {
+			return null;
+		}
 		if ( obj instanceof Instant ) {
 			return LocalDateTimes.fromInstant((Instant)obj);
 		}
