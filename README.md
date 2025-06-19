@@ -2,7 +2,7 @@
 
 ### 1. 사전조건
 
-* Oracle Java (Java8 이상) 설치되어 있어야 한다.
+* Oracle Java (Java21 이상) 설치되어 있어야 한다.
 
 ### 2. Gradle 설치
 * SDKMan을 설치한다
