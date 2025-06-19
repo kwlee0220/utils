@@ -39,5 +39,5 @@ $ gradle assemble
 </code></pre>
 
 Eclipse IDE를 이용하려는 경우 `eclipse` 태스크를 수행시켜 Eclipse 프로젝트 import에
-필요한 `.project` 파일과 `.classpath` 파일을 시킨다.
+필요한 `.project` 파일과 `.classpath` 파일을 생성시킨다.
 <pre><code>$ gradle eclipse</code></pre>
