@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
@@ -28,10 +30,10 @@ public abstract class ResourceUtils {
 			return true;
 		}
 		try {
-			new URL(location);
+			new URI(location).toURL();
 			return true;
 		}
-		catch ( MalformedURLException e ) {
+		catch ( MalformedURLException | URISyntaxException e ) {
 			return false;
 		}
 	}
@@ -46,13 +48,13 @@ public abstract class ResourceUtils {
 			return url;
 		}
 		try {
-			return new URL(location);
+			return new URI(location).toURL();
 		}
-		catch ( MalformedURLException ex ) {
+		catch ( MalformedURLException | URISyntaxException ex ) {
 			try {
-				return new URL("file:" + location);
+				return new URI("file:" + location).toURL();
 			}
-			catch ( MalformedURLException ex2 ) {
+			catch ( MalformedURLException | URISyntaxException ex2 ) {
 				throw new FileNotFoundException("Resource location [" + location
 						+ "] is neither a URL not a well-formed file path");
 			}
@@ -96,7 +98,12 @@ public abstract class ResourceUtils {
 						.openStream();
 		}
 		else if ( location.startsWith(URL_PROTOCOL_FILE) ) {
-			return new URL(location).openStream();
+			try {
+				return new URI(location).toURL().openStream();
+			}
+			catch ( MalformedURLException | URISyntaxException e ) {
+				throw new IllegalArgumentException("invalid resource loc: " + location, e);
+			}
 		}
 		else {
 			throw new IllegalArgumentException("invalid resource loc: " + location);
@@ -113,9 +120,9 @@ public abstract class ResourceUtils {
 			return getFile(url);
 		}
 		try {
-			return getFile(new URL(location));
+			return getFile(new URI(location).toURL());
 		}
-		catch ( MalformedURLException e ) {
+		catch ( MalformedURLException | URISyntaxException e ) {
 			return new File(location);
 		}
 	}
