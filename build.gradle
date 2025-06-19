@@ -3,10 +3,17 @@ plugins {
 	id 'eclipse'
 	// id 'maven-publish'	// Maven 배포 플러그인
 	// id 'signing'		// GPG 서명 플러그인
+//	id 'org.checkerframework' version '0.6.55'
 }
 
+// checkerFramework {
+//	checkers = [
+//		'org.checkerframework.checker.nullness.NullnessChecker'
+//	]
+// }
+
 group = 'etri'
-version = '24.12.25'
+version = '25.06.19'
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_11
@@ -16,8 +23,13 @@ java {
 }
 [compileJava,compileTestJava]*.options*.encoding = 'UTF-8'
 
+tasks.withType(JavaCompile) {
+	options.compilerArgs << "-Xlint:deprecation"
+}
+
 ext {
-	logback_version = '1.3.14'
+	slf4j_version = '2.0.17'
+	logback_version = '1.5.18'
 	guava_version = '33.4.8-jre'
 	checker_version = '3.49.4'
 	rxjava3_version = '3.1.8'
@@ -46,6 +58,7 @@ repositories {
 
 dependencies {
 	// Logback
+	api "org.slf4j:slf4j-api:${slf4j_version}"
 	implementation "ch.qos.logback:logback-classic:${logback_version}"
 	
 	api "com.google.guava:guava:${guava_version}"

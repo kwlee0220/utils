@@ -3,6 +3,8 @@ package utils.jdbc;
 import java.io.File;
 import java.io.Serializable;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.sql.Connection;
@@ -208,11 +210,11 @@ public class JdbcProcessor implements Serializable {
 	public Connection connect() throws SQLException {
 		if ( m_jarFile != null && m_cloader == null ) {
 			try {
-				URL url = new URL(String.format("jar:file:%s!/", m_jarFile));
-				URLClassLoader cloader = new URLClassLoader(new URL[]{url});
+				URI uri = new URI(String.format("jar:file:%s!/", m_jarFile.getAbsolutePath()));
+				URLClassLoader cloader = new URLClassLoader(new URL[]{uri.toURL()});
 				setClassLoader(cloader);
 			}
-			catch ( MalformedURLException e ) {
+			catch ( MalformedURLException | URISyntaxException e ) {
 				throw new SQLException("fails to create " + getClass() + ", invalid jar path=" + m_jarFile);
 			}
 		}
