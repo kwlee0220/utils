@@ -1,6 +1,6 @@
 package utils.async.op;
 
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import org.slf4j.Logger;

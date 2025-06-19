@@ -17,6 +17,8 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import com.google.common.base.Preconditions;
 
 import utils.Throwables;
@@ -65,7 +67,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param value 감쌀 객체
 	 * @return {@link FOption} 객체
 	 */
-	public static <T> FOption<T> ofNullable(T value) {
+	public static <T> FOption<T> ofNullable(@Nullable T value) {
 		return value != null ? of(value) : empty();
 	}
 

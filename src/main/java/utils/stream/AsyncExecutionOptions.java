@@ -5,7 +5,7 @@ import static utils.Utilities.checkArgument;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class AsyncExecutionOptions {
 	private final boolean m_keepOrder;

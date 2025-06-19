@@ -5,7 +5,7 @@ import static utils.Utilities.checkNotNullArgument;
 
 import java.util.concurrent.Executor;
 
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import utils.async.Executions;
