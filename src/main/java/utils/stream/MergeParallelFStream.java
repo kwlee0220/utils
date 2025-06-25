@@ -23,7 +23,7 @@ import utils.stream.FStreams.AbstractFStream;
 class MergeParallelFStream<T> extends AbstractFStream<T> {
 	private final FStream<? extends FStream<? extends T>> m_fact;
 	private final int m_workerCount;
-	@Nullable private final Executor m_executor;
+	private final @Nullable Executor m_executor;
 	
 	private final Guard m_guard = Guard.create();
 	@GuardedBy("m_guard") private final SuppliableFStream<T> m_outChannel;

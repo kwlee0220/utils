@@ -17,7 +17,7 @@ import utils.func.FOption;
  */
 class QuasiSortedFStream<T> implements FStream<T> {
 	private final FStream<T> m_src;
-	@Nullable private PriorityQueue<T> m_queue;	// null인 경우는 본 stream이 close된 것을 의미한다.
+	private @Nullable PriorityQueue<T> m_queue;	// null인 경우는 본 stream이 close된 것을 의미한다.
 	private final int m_queueLength;
 	private boolean m_endOfUpstream;
 	

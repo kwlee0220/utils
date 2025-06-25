@@ -9,7 +9,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class AsyncExecutionOptions {
 	private final boolean m_keepOrder;
-	@Nullable private final Executor m_executor;
+	private final @Nullable Executor m_executor;
 	private final int m_workerCount;
 	private final long m_timeoutMillis;
 	

@@ -78,8 +78,8 @@ public class JdbcProcessor implements Serializable {
 	private final String m_user;
 	private final String m_passwd;
 	private final String m_driverClsName;
-	@Nullable private File m_jarFile;
-	@Nullable private ClassLoader m_cloader;
+	private @Nullable File m_jarFile;
+	private @Nullable ClassLoader m_cloader;
 	
 	public static JdbcProcessor create(JdbcConfiguration config) {
 		if ( config.getDriverClassName() != null ) {

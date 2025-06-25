@@ -26,6 +26,8 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+
 import com.google.common.io.CharStreams;
 
 import utils.Tuple;
@@ -72,7 +74,7 @@ public class IOUtils {
 				.forEach(IOUtils::closeQuietly);
 	}
 	
-    public static long transfer(Reader reader, Writer writer, int bufSize) throws IOException {
+    public static long transfer(@NonNull Reader reader, Writer writer, int bufSize) throws IOException {
     	char[] buf = new char[bufSize];
 
     	long count = 0;
@@ -84,7 +86,7 @@ public class IOUtils {
         return count;
     }
 	
-    public static long transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
+    public static long transfer(@NonNull InputStream is, OutputStream os, int bufSize) throws IOException {
         byte[] buf = new byte[bufSize];
 
         long count = 0;
@@ -96,7 +98,7 @@ public class IOUtils {
         return count;
     }
     
-    public static long transferAndClose(InputStream is, OutputStream os, int bufSize)
+    public static long transferAndClose(@NonNull InputStream is, OutputStream os, int bufSize)
     	throws IOException {
 		try {
 			return transfer(is, os, bufSize);
@@ -106,14 +108,14 @@ public class IOUtils {
 		}
     }
     
-    public static byte[] toBytes(InputStream is) throws IOException {
+    public static byte[] toBytes(@NonNull InputStream is) throws IOException {
     	ByteArrayOutputStream baos = new ByteArrayOutputStream();
     	transfer(is, baos, 4096);
     	baos.close();
     	return baos.toByteArray();
     }
     
-    public static byte[] toBytes(File file) throws IOException {
+    public static byte[] toBytes(@NonNull File file) throws IOException {
     	byte[] bytes = new byte[(int)file.length()];
     	
     	try ( FileInputStream fis = new FileInputStream(file) ) {
@@ -123,41 +125,41 @@ public class IOUtils {
 		}
     }
     
-    public static String toString(File file) throws IOException {
+    public static String toString(@NonNull File file) throws IOException {
     	return new String(Files.readAllBytes(file.toPath()));
     }
     
-    public static String toString(InputStream is, Charset charset) throws IOException {
+    public static String toString(@NonNull InputStream is, Charset charset) throws IOException {
     	return CharStreams.toString(new InputStreamReader(is, charset));
     }
     
-    public static String toString(Reader reader) throws IOException {
+    public static String toString(@NonNull Reader reader) throws IOException {
     	return CharStreams.toString(reader);
     }
     
-    public static String toString(File file, Charset charset) throws IOException {
+    public static String toString(@NonNull File file, Charset charset) throws IOException {
     	return new String(Files.readAllBytes(file.toPath()), charset);
     }
     
-    public static void toFile(String str, File file) throws IOException {
+    public static void toFile(@NonNull String str, File file) throws IOException {
     	try ( BufferedWriter writer = new BufferedWriter(new FileWriter(file)) ) { 
     		writer.write(str);
     	}
     }
-    public static void toFile(String str, Charset charset, File file) throws IOException {
+    public static void toFile(@NonNull String str, Charset charset, File file) throws IOException {
     	try ( BufferedWriter writer = new BufferedWriter(new FileWriter(file, charset)) ) { 
     		writer.write(str);
     	}
     }
     
-    public static void toFile(byte[] bytes, File file) throws IOException {
+    public static void toFile(@NonNull byte[] bytes, File file) throws IOException {
     	try ( FileOutputStream fos = new FileOutputStream(file); 
     		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
     		bos.write(bytes);
     	}
     }
     
-    public static long toFile(InputStream is, File file) throws IOException {
+    public static long toFile(@NonNull InputStream is, File file) throws IOException {
     	try ( InputStream isc = is;
     			FileOutputStream fos = new FileOutputStream(file);
     		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
@@ -165,7 +167,7 @@ public class IOUtils {
     	}
     }
     
-    public static long toFile(InputStream is, File file, int bufSize) throws IOException {
+    public static long toFile(@NonNull InputStream is, File file, int bufSize) throws IOException {
     	try ( InputStream isc = is;
     			FileOutputStream fos = new FileOutputStream(file);
     		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
@@ -173,11 +175,11 @@ public class IOUtils {
     	}
     }
 
-	public static void readFully(InputStream is, byte[] buf) throws IOException {
+	public static void readFully(@NonNull InputStream is, byte[] buf) throws IOException {
 		readFully(is, buf, 0, buf.length);
 	}
 
-	public static void readFully(InputStream is, byte[] buf, int offset, int length)
+	public static void readFully(@NonNull InputStream is, byte[] buf, int offset, int length)
 		throws IOException {
 		while ( length > 0 ) {
 			int nbytes = is.read(buf, offset, length);
@@ -190,11 +192,11 @@ public class IOUtils {
 		}
 	}
 
-	public static int readAtBest(InputStream is, byte[] buf) throws IOException {
+	public static int readAtBest(@NonNull InputStream is, byte[] buf) throws IOException {
 		return IOUtils.readAtBest(is, buf, 0, buf.length);
 	}
 
-	public static int readAtBest(InputStream is, byte[] buf, int offset, int length)
+	public static int readAtBest(@NonNull InputStream is, byte[] buf, int offset, int length)
 		throws IOException {
 		int remains = length;
 		while ( remains > 0 ) {
@@ -211,7 +213,7 @@ public class IOUtils {
 		return length;
 	}
 	
-	public static byte[] compress(byte[] bytes) throws IOException {
+	public static byte[] compress(@NonNull byte[] bytes) throws IOException {
 		Deflater deflater = new Deflater();
 		deflater.setInput(bytes);
 		
@@ -235,7 +237,7 @@ public class IOUtils {
 		return deflateds;
 	}
 	
-	public static byte[] decompress(byte[] bytes) throws IOException, DataFormatException {
+	public static byte[] decompress(@NonNull byte[] bytes) throws IOException, DataFormatException {
 		Inflater inflater = new Inflater();
 		inflater.setInput(bytes);
 		
@@ -252,11 +254,11 @@ public class IOUtils {
 		return output;  
 	}
 	
-	public static String stringify(byte[] bytes) {
+	public static String stringify(@NonNull byte[] bytes) {
 		return Base64.getEncoder().encodeToString(bytes);
 	}
 	
-	public static byte[] destringify(String encoded) {
+	public static byte[] destringify(@NonNull String encoded) {
 		return Base64.getDecoder().decode(encoded);
 	}
 	

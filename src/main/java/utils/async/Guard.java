@@ -421,8 +421,8 @@ public class Guard implements Serializable {
 		protected final Guard m_guard;
 		private final Runnable m_preAction;
 		private Supplier<Boolean> m_precondition;
-		@Nullable private Date m_due;
-		@Nullable private Duration m_timeout;
+		private @Nullable Date m_due;
+		private @Nullable Duration m_timeout;
 		
 		TimedAwaitCondition(Guard guard, Runnable preAction, Supplier<Boolean> precondition) {
 			Preconditions.checkArgument(guard != null, "Guard is null");

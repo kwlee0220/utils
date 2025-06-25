@@ -19,7 +19,7 @@ public class SplitStream implements Iterator<String> {
 	private final String m_str;
 	private final int m_delim;
 	private int m_pos;
-	@Nullable private List<String> m_pusheds = Lists.newArrayList();
+	private @Nullable List<String> m_pusheds = Lists.newArrayList();
 	
 	public static SplitStream of(String str, char delim) {
 		return new SplitStream(str, delim);

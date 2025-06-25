@@ -6,7 +6,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,8 +29,8 @@ public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 	
 	private final CheckedSupplier<Boolean> m_endOfPollingPredicate;
 	private Duration m_pollInterval;
-	@Nullable private Duration m_timeout = null;
-	@Nullable private Instant m_due = null;
+	private @Nullable Duration m_timeout = null;
+	private @Nullable Instant m_due = null;
 	private Logger m_logger;
 	
 	private StateChangePoller(Builder builder) {
@@ -171,8 +170,8 @@ public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 	public static class Builder {
 		private final CheckedSupplier<Boolean> m_endOfPollingPredicate;
 		private Duration m_pollInterval;
-		@Nullable private Duration m_timeout = null;
-		@Nullable private Instant m_due = null;
+		private @Nullable Duration m_timeout = null;
+		private @Nullable Instant m_due = null;
 		
 		private Builder(CheckedSupplier<Boolean> endOfPollingPredicate) {
 			Preconditions.checkArgument(endOfPollingPredicate != null, "endOfPollingPredicate is null");

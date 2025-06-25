@@ -27,7 +27,7 @@ public abstract class HomeDirPicocliCommand implements Runnable, LoggerSettable 
 	@Spec protected CommandSpec m_spec;
 	@Mixin private UsageHelp m_help;
 	
-	@Nullable private final String m_homeDirEnvVarName;
+	private final @Nullable String m_homeDirEnvVarName;
 	private Path m_homeDir = null;
 	private Logger m_logger;
 	

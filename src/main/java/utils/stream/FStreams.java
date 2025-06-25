@@ -10,11 +10,12 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import com.google.common.collect.Lists;
 
 import utils.Throwables;
 import utils.Tuple;
-import utils.func.CheckedFunction;
 import utils.func.CheckedFunctionX;
 import utils.func.FOption;
 import utils.func.Try;
@@ -237,7 +238,7 @@ public class FStreams {
 	
 	static class FoldLeftLeakFStream<S,T> extends SingleSourceStream<T,T> {
 		private S m_state;
-		private T m_last = null;
+		private @Nullable T m_last = null;
 		private final BiFunction<? super S,? super T,? extends Tuple<S,T>> m_combine;
 		
 		FoldLeftLeakFStream(FStream<T> src, S initial,

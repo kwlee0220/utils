@@ -12,7 +12,7 @@ import utils.func.Try;
  */
 class ConcatedStream<T> implements FStream<T> {
 	private final FStream<FStream<T>> m_fact;
-	@Nullable private FStream<T> m_current = FStream.empty();	// null이면 end-of-stream됨을 의미함.
+	private @Nullable FStream<T> m_current = FStream.empty();	// null이면 end-of-stream됨을 의미함.
 	
 	ConcatedStream(FStream<FStream<T>> fact) {
 		Utilities.checkNotNullArgument(fact, "fact is null");

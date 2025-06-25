@@ -31,7 +31,7 @@ public class SuppliableFStream<T> implements TimedFStream<T>, Suppliable<T> {
 	@GuardedBy("m_lock") private final List<T> m_buffer;
 	@GuardedBy("m_lock") private boolean m_closed = false;
 	@GuardedBy("m_lock") private boolean m_eos = false;
-	@GuardedBy("m_lock") @Nullable private Throwable m_error = null;
+	@GuardedBy("m_lock") private @Nullable Throwable m_error = null;
 	
 	public SuppliableFStream(int length) {
 		checkArgument(length > 0, String.format("invalid length: %d", length));
