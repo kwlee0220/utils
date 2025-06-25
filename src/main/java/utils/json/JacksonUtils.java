@@ -3,6 +3,8 @@ package utils.json;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Preconditions;
 
@@ -15,7 +17,7 @@ public class JacksonUtils {
 		throw new AssertionError("Should not be invoked!!: class=" + JacksonUtils.class.getName());
 	}
 
-	public static JsonNode getNullableField(JsonNode node, String fieldName) {
+	public static JsonNode getFieldOrNull(@NonNull JsonNode node, String fieldName) {
 		Preconditions.checkNotNull(node, "node is null");
 		
 		JsonNode field = node.get(fieldName);
@@ -26,32 +28,24 @@ public class JacksonUtils {
 			return field;
 		}
 	}
-
-	public static String getStringField(JsonNode node, String fieldName) {
-		Preconditions.checkNotNull(node, "node is null");
-		
-		JsonNode field = node.get(fieldName);
-		if ( field == null || field.isNull()  ) {
-			throw new IllegalStateException("Invalid field value: field=" + fieldName);
+	public static JsonNode getField(@NonNull JsonNode node, String fieldName) {
+		JsonNode field = getFieldOrNull(node, fieldName);
+		if ( field == null ) {
+			throw new IllegalStateException("Invalid (empty) field value: field=" + fieldName);
 		}
-		else {
-			return field.asText();
-		}
+		return field;
 	}
 
-	public static String getStringFieldOrNull(JsonNode node, String fieldName) {
-		Preconditions.checkNotNull(node, "node is null");
-		
-		JsonNode field = node.get(fieldName);
-		if ( field == null || field.isNull()  ) {
-			return null;
-		}
-		else {
-			return field.asText();
-		}
+	public static String getStringFieldOrNull(@NonNull JsonNode node, String fieldName) {
+		JsonNode field = getFieldOrNull(node, fieldName);
+		return (field != null) ? field.asText() : null;
 	}
 
-	public static Boolean getBooleanField(JsonNode node, String fieldName, Boolean defaultValue) {
+	public static String getStringField(@NonNull JsonNode node, String fieldName) {
+		return getField(node, fieldName).asText();
+	}
+
+	public static Boolean getBooleanField(@NonNull JsonNode node, String fieldName, Boolean defaultValue) {
 		Preconditions.checkNotNull(node, "node is null");
 		
 		JsonNode field = node.get(fieldName);
@@ -63,7 +57,19 @@ public class JacksonUtils {
 		}
 	}
 
-	public static Iterator<JsonNode> getArrayFieldOrNull(JsonNode node, String fieldName) {
+	public static int getIntField(@NonNull JsonNode node, String fieldName, int defaultValue) {
+		Preconditions.checkNotNull(node, "node is null");
+		
+		JsonNode field = node.get(fieldName);
+		if ( field == null || field.isNull()  ) {
+			return defaultValue;
+		}
+		else {
+			return field.asInt();
+		}
+	}
+
+	public static Iterator<JsonNode> getArrayFieldOrNull(@NonNull JsonNode node, String fieldName) {
 		Preconditions.checkNotNull(node, "node is null");
 		
 		JsonNode field = node.get(fieldName);
@@ -75,7 +81,7 @@ public class JacksonUtils {
 		}
 	}
 
-	public static Iterator<Map.Entry<String, JsonNode>> getFieldsOrNull(JsonNode node, String fieldName) {
+	public static Iterator<Map.Entry<String, JsonNode>> getFieldsOrNull(@NonNull JsonNode node, String fieldName) {
 		Preconditions.checkNotNull(node, "node is null");
 		
 		JsonNode field = node.get(fieldName);
