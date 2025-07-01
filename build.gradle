@@ -13,7 +13,7 @@ plugins {
 // }
 
 group = 'etri'
-version = '25.06.19'
+version = '25.07.01'
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_11
