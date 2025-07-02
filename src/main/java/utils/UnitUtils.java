@@ -202,7 +202,7 @@ public class UnitUtils {
 	public static String toMillisString(long millis) {
 		long seconds = millis / 1000;
 		if ( seconds == 0 ) {
-			return String.format("0.%d", millis);
+			return String.format("0.%03d", millis);
 		}
 		millis = millis % 1000;
 		String millisStr = (millis > 0) ? String.format(".%03d", millis) : "";
