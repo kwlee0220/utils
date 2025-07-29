@@ -198,6 +198,41 @@ public class UnitUtils {
 	    
     	return Duration.ofMillis(millis);
 	}
+	
+	public static Duration parseSecondDuration(String durStr) {
+		long millis = -1;
+		
+		if ( durStr == null ) {
+			return null;
+		}
+		if ( durStr.startsWith("PT") ) {
+			return Duration.parse(durStr);
+		}
+	    if ( durStr.endsWith("ms") ) {
+	    	millis = Long.parseLong(durStr.substring(0, durStr.length()-2));
+	    }
+	    else if ( durStr.endsWith("s") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	millis = TimeUnit.SECONDS.toMillis(value);
+	    }
+	    else if ( durStr.endsWith("m") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	millis = TimeUnit.MINUTES.toMillis(value);
+	    }
+	    else if ( durStr.endsWith("h") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	millis = TimeUnit.HOURS.toMillis(value);
+	    }
+	    else if ( durStr.endsWith("d") ) {
+	    	long value = Long.parseLong(durStr.substring(0, durStr.length()-1));
+	    	millis = TimeUnit.DAYS.toMillis(value);
+	    }
+	    else {
+	    	millis = Math.round(Double.parseDouble(durStr) * 1000);
+	    }
+	    
+    	return Duration.ofMillis(millis);
+	}
 
 	public static String toMillisString(long millis) {
 		long seconds = millis / 1000;
