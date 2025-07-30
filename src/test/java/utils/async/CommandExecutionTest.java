@@ -23,7 +23,7 @@ public class CommandExecutionTest {
 		File outFile = new File("out.txt");
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("cmd.exe", "/C", "echo", "a", "b")
-												.redictStdoutToFile(outFile)
+												.redirectStdoutToFile(outFile)
 												.build();
 		exec.start();
 		exec.waitForFinished();
@@ -37,7 +37,7 @@ public class CommandExecutionTest {
 		File outFile = new File("out.txt");
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("cmd.exe", "/C", "echo ${a} b")
-												.redictStdoutToFile(outFile)
+												.redirectStdoutToFile(outFile)
 												.addVariable(new StringVariable("a", "AAA"))
 												.build();
 		exec.start();
@@ -52,7 +52,7 @@ public class CommandExecutionTest {
 		File outFile = new File("out.txt");
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("cmd.exe", "/C", "ping 127.0.0.1 -n 1 > nul & echo a b")
-												.redictStdoutToFile(outFile)
+												.redirectStdoutToFile(outFile)
 												.build();
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
@@ -68,7 +68,7 @@ public class CommandExecutionTest {
 		File outFile = new File("out.txt");
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("cmd.exe", "/C", "ping 127.0.0.1 -n 2 > nul & echo a b")
-												.redictStdoutToFile(outFile)
+												.redirectStdoutToFile(outFile)
 												.build();
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished(300, TimeUnit.MILLISECONDS);
@@ -83,7 +83,7 @@ public class CommandExecutionTest {
 		File outFile = new File("out.txt");
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("cmd.exe", "/C", "ping 127.0.0.1 -n 2 > nul & echo a b")
-												.redictStdoutToFile(outFile)
+												.redirectStdoutToFile(outFile)
 												.setTimeout(Duration.ofMillis(300))
 												.build();
 		exec.start();

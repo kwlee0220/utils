@@ -34,7 +34,7 @@ import utils.stream.FStream;
 
 
 /**
- * <code>CommandExecutor</code>는 주어진 명령어 프로그램을 sub-process를 통해 실행시키는 작업을 수행한다.
+ * <code>CommandExecution</code>는 주어진 명령어 프로그램을 sub-process를 통해 실행시키는 작업을 수행한다.
  * <p>
  *
  * @author Kang-Woo Lee (ETRI)
@@ -67,7 +67,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 		if ( !m_workingDirectory.isDirectory() ) {
 			throw new IllegalArgumentException("Invalid working directory: " + m_workingDirectory);
 		}
-		m_substVariables = Map.of("MDT_OPERATION_HOME", m_workingDirectory.getAbsolutePath());
+		m_substVariables = Map.of("WORKING_DIR", m_workingDirectory.getAbsolutePath());
 		
 		setLogger(s_logger);
 	}
@@ -263,7 +263,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 			return this;
 		}
 		
-		public Builder redictStdoutToFile(File file) {
+		public Builder redirectStdoutToFile(File file) {
 			m_stdout = Redirect.to(file);
 			return this;
 		}
@@ -283,7 +283,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 			return this;
 		}
 		
-		public Builder redictStderrToFile(File file) {
+		public Builder redirectStderrToFile(File file) {
 			m_stderr = Redirect.to(file);
 			return this;
 		}
