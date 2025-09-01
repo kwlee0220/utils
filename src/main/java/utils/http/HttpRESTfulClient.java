@@ -1,6 +1,8 @@
 package utils.http;
 
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -209,6 +211,9 @@ public class HttpRESTfulClient implements LoggerSettable {
 	private Response call(Request req) throws RESTfulIOException {
 		try {
 			return m_client.newCall(req).execute();
+		}
+		catch ( SocketTimeoutException | ConnectException e ) {
+			throw new RESTfulIOException("Failed to connect to the server: endpoint=" + req.url(), e);
 		}
 		catch ( IOException e ) {
 			throw new RESTfulIOException("Failed to call", e);

@@ -36,11 +36,13 @@ public class JacksonUtils {
 		return field;
 	}
 
-	public static String getStringFieldOrNull(@NonNull JsonNode node, String fieldName) {
+	public static String getStringFieldOrDefault(@NonNull JsonNode node, String fieldName, String defaultValue) {
 		JsonNode field = getFieldOrNull(node, fieldName);
-		return (field != null) ? field.asText() : null;
+		return (field != null) ? field.asText() : defaultValue;
 	}
-
+	public static String getStringFieldOrNull(@NonNull JsonNode node, String fieldName) {
+		return getStringFieldOrDefault(node, fieldName, null);
+	}
 	public static String getStringField(@NonNull JsonNode node, String fieldName) {
 		return getField(node, fieldName).asText();
 	}
