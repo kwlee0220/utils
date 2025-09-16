@@ -178,23 +178,23 @@ public final class ProxyUtils {
 	 * @return	확장된 인터페이스의 객체.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> T extend(ClassLoader cloader, Object src, Class<T> intfc, T handler) {
-		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(src.getClass());
+	public static <T> T extend(Class<?> baseCls, Class<T> intfc, T handler) {
+		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(baseCls);
 		intfcSet.add(intfc);
 		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
 		
 		try {
 			Enhancer enhancer = new Enhancer();
-			enhancer.setSuperclass(src.getClass());
+			enhancer.setSuperclass(baseCls);
 			enhancer.setInterfaces(intfcs);
-			enhancer.setCallback(new ExtendedCallHandler<>(src, intfc, handler));
+			enhancer.setCallback(new ExtendedCallHandler<>(intfc, handler));
 			return (T)enhancer.create();
 		}
-		catch ( CodeGenerationException e ) {
-			Throwable cause = Throwables.unwrapThrowable(e.getCause());
-			Throwables.sneakyThrow(cause);
-			
-			throw new AssertionError("should not be here");
+		catch ( Throwable e ) {
+			Throwable cause = Throwables.unwrapThrowable(e);
+			String msg = String.format("Failed to extend the object: baseClass=%s, intfc=%s, handler=%s",
+										baseCls, intfc, handler);
+			throw new InternalException(msg, cause);
 		}
 	}
 				
@@ -268,12 +268,10 @@ public final class ProxyUtils {
 //	}
 
 	private static class ExtendedCallHandler<T> implements MethodInterceptor {
-		private final Object m_src;
 		private final Class<T> m_intfc;
 		private final T m_handler;
 
-		ExtendedCallHandler(Object orgObj, Class<T> intfc, T handler) {
-			m_src = orgObj;
+		ExtendedCallHandler(Class<T> intfc, T handler) {
 			m_intfc = intfc;
 			m_handler = handler;
 		}
@@ -287,7 +285,7 @@ public final class ProxyUtils {
 				return method.invoke(m_handler, args);
 			}
 			else {
-				return proxy.invokeSuper(m_src, args);
+				return proxy.invokeSuper(obj, args);
 			}
 		}
 	}
