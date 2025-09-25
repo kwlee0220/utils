@@ -10,6 +10,12 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.reactivex.rxjava3.core.BackpressureStrategy;
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.core.FlowableEmitter;
+import io.reactivex.rxjava3.core.FlowableOnSubscribe;
+import io.reactivex.rxjava3.disposables.Disposable;
+
 import utils.Utilities;
 import utils.async.Execution;
 import utils.func.CheckedSupplier;
@@ -17,12 +23,6 @@ import utils.func.FOption;
 import utils.func.Unchecked;
 import utils.stream.FStream;
 import utils.stream.SuppliableFStream;
-
-import io.reactivex.rxjava3.core.BackpressureStrategy;
-import io.reactivex.rxjava3.core.Flowable;
-import io.reactivex.rxjava3.core.FlowableEmitter;
-import io.reactivex.rxjava3.core.FlowableOnSubscribe;
-import io.reactivex.rxjava3.disposables.Disposable;
 
 
 /**

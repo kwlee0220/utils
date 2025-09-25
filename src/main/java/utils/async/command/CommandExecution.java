@@ -1,4 +1,4 @@
-package utils.async;
+package utils.async.command;
 
 import java.io.Closeable;
 import java.io.File;
@@ -14,11 +14,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.commons.text.lookup.StringLookup;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +27,10 @@ import com.google.common.collect.Lists;
 import utils.KeyedValueList;
 import utils.Tuple;
 import utils.Utilities;
+import utils.async.AbstractThreadedExecution;
+import utils.async.AsyncState;
+import utils.async.CancellableWork;
+import utils.async.Guard;
 import utils.func.FOption;
 import utils.func.Unchecked;
 import utils.io.FileUtils;
@@ -39,12 +43,12 @@ import utils.stream.FStream;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class CommandExecution extends AbstractThreadedExecution<Void>
-										implements CancellableWork, Closeable {
+public class CommandExecution extends AbstractThreadedExecution<Void> implements CancellableWork, Closeable {
 	private static final Logger s_logger = LoggerFactory.getLogger(CommandExecution.class);
 
 	private final List<String> m_command;
 	private final File m_workingDirectory;
+	private final Map<String,String> m_environmentVariables;
 	private final Map<String,CommandVariable> m_variables;
 	private final Map<String,String> m_substVariables;
 	private final @Nullable Redirect m_stdin;
@@ -57,6 +61,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 	
 	private CommandExecution(Builder builder) {
 		m_command = builder.m_command;
+		m_environmentVariables = builder.m_environmentVariables;
 		m_variables = builder.m_variables.toMap();
 		m_stdin = builder.m_stdin;
 		m_stdout = builder.m_stdout;
@@ -79,6 +84,11 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 				.forEachOrIgnore(CommandVariable::close);
 	}
 	
+	/**
+	 * Command 실행에서 사용 중인 Command variable 맵을 반환한다.
+	 * 
+	 * @return	Command variable 맵
+	 */
 	public Map<String,CommandVariable> getVariableMap() {
 		return m_variables;
 	}
@@ -119,6 +129,9 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 		if ( m_stdin != null ) {
 			builder.redirectInput(m_stdin);
 		}
+		
+		// 환경변수 설정
+		builder.environment().putAll(m_environmentVariables);
 		
 		try {
 			Process process = m_guard.getChecked(() -> m_process = builder.start());
@@ -162,12 +175,13 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 			else {
 				// 무제한 대기
 				int retCode = process.waitFor();
+				getLogger().info("Process terminated: retCode={}", retCode);
 				
 				// 사용자의 강제 종료를 통해 프로그램이 종료되었을 수도 있기 때문에
 				// 이를 확인하여 강제 종료된 경우 CancellationException을 발생시킨다.
 				checkAfterTerminated();
 				
-				if ( retCode == 0 ) {
+				if ( retCode == 0 || retCode == 143 ) {
 					// 프로그램 수행이 성공적으로 마친 경우
 					return null;
 				}
@@ -205,6 +219,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 	
 	private void checkAfterTerminated() throws CancellationException {
 		if ( getState() == AsyncState.CANCELLED ) {
+			getLogger().info("Process is killed by user");
 			throw new CancellationException();
 		}
 	}
@@ -215,6 +230,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 	public static final class Builder {
 		private List<String> m_command = Lists.newArrayList();
 		private File m_workingDirectory;
+		private Map<String,String> m_environmentVariables = Map.of();
 		private KeyedValueList<String,CommandVariable> m_variables = KeyedValueList.with(CommandVariable::getName);
 		private Duration m_timeout;
 		private Redirect m_stdin;
@@ -236,6 +252,11 @@ public class CommandExecution extends AbstractThreadedExecution<Void>
 		
 		public Builder setWorkingDirectory(File dir) {
 			m_workingDirectory = dir;
+			return this;
+		}
+		
+		public Builder setEnvironmentVariables(Map<String,String> envs) {
+			m_environmentVariables = envs;
 			return this;
 		}
 		

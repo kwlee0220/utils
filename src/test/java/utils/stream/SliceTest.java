@@ -8,7 +8,6 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
-import utils.func.FOption;
 import utils.func.Slice;
 
 /**

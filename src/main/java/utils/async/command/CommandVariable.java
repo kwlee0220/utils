@@ -1,8 +1,12 @@
-package utils.async;
+package utils.async.command;
 
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+
+import org.checkerframework.checker.nullness.qual.NonNull;
+
+import com.google.common.base.Preconditions;
 
 import utils.Keyed;
 import utils.io.IOUtils;
@@ -13,7 +17,18 @@ import utils.io.IOUtils;
  * @author Kang-Woo Lee (ETRI)
  */
 public interface CommandVariable extends Keyed<String>, Closeable {
-	public String getName();
+	/**
+	 * Command variable 이름을 반환한다.
+	 *
+	 * @return	Command variable 이름
+	 */
+	public @NonNull String getName();
+	
+	/**
+	 * Command variable 값을 반환한다.
+	 *
+	 * @return	Command variable 값
+	 */
 	public String getValue();
 	
 	public default String key() {
@@ -25,7 +40,15 @@ public interface CommandVariable extends Keyed<String>, Closeable {
 	 */
 	public void close();
 	
-	public default String getValueByModifier(String mod) {
+	/**
+	 * 지정된 modifier에 해당하는 값을 반환한다.
+	 *
+	 * @param mod	modifier. "key", "value" 중 하나여야 한다.
+	 * @return	modifier에 해당하는 값
+	 */
+	public default String getValueByModifier(@NonNull String mod) {
+		Preconditions.checkArgument(mod != null, "mod must be non-null");
+		
 		switch ( mod ) {
 			case "name":
 				return getName();
@@ -36,6 +59,11 @@ public interface CommandVariable extends Keyed<String>, Closeable {
 		}
 	}
 	
+	/**
+	 * String 타입의 Command variable 구현.
+	 *
+	 * @author Kang-Woo Lee (ETRI)
+	 */
 	public static final class StringVariable implements CommandVariable {
 		private final String m_name;
 		private final String m_value;
@@ -59,6 +87,11 @@ public interface CommandVariable extends Keyed<String>, Closeable {
 		public void close() { }
 	}
 	
+	/**
+	 * File 타입의 Command variable 구현.
+	 *
+	 * @author Kang-Woo Lee (ETRI)
+	 */
 	public static class FileVariable implements CommandVariable {
 		private final String m_name;
 		private final File m_file;

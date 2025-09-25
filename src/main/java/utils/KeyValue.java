@@ -6,12 +6,14 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import com.google.common.base.Preconditions;
+
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public final class KeyValue<K,V> implements Keyed<K> {
+public class KeyValue<K,V> implements Keyed<K> {
 	private final K m_key;
 	private final V m_value;
 	
@@ -27,7 +29,9 @@ public final class KeyValue<K,V> implements Keyed<K> {
 		return new KeyValue<>(key, value);
 	}
 	
-	private KeyValue(K key, V value) {
+	protected KeyValue(K key, V value) {
+		Preconditions.checkArgument(key != null);
+		
 		m_key = key;
 		m_value = value;
 	}

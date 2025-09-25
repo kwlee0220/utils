@@ -11,8 +11,9 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import utils.RuntimeInterruptedException;
 import utils.Suppliable;

@@ -2,10 +2,10 @@ package utils.rx;
 
 import javax.annotation.Nonnull;
 
-import utils.async.Execution;
-
 import io.reactivex.rxjava3.core.ObservableEmitter;
 import io.reactivex.rxjava3.core.ObservableOnSubscribe;
+
+import utils.async.Execution;
 
 
 /**

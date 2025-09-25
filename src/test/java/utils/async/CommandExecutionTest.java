@@ -8,7 +8,8 @@ import java.util.concurrent.TimeoutException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import utils.async.CommandVariable.StringVariable;
+import utils.async.command.CommandExecution;
+import utils.async.command.CommandVariable.StringVariable;
 import utils.io.FileUtils;
 import utils.io.IOUtils;
 
