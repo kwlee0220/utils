@@ -19,6 +19,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.commons.text.lookup.StringLookup;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,7 @@ import utils.async.CancellableWork;
 import utils.async.Guard;
 import utils.func.FOption;
 import utils.func.Unchecked;
+import utils.io.EnvironmentFileLoader;
 import utils.io.FileUtils;
 import utils.stream.FStream;
 
@@ -48,6 +50,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 
 	private final List<String> m_command;
 	private final File m_workingDirectory;
+	private final File m_envFile;
 	private final Map<String,String> m_environmentVariables;
 	private final Map<String,CommandVariable> m_variables;
 	private final Map<String,String> m_substVariables;
@@ -61,6 +64,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	
 	private CommandExecution(Builder builder) {
 		m_command = builder.m_command;
+		m_envFile = builder.m_envFile;
 		m_environmentVariables = builder.m_environmentVariables;
 		m_variables = builder.m_variables.toMap();
 		m_stdin = builder.m_stdin;
@@ -130,8 +134,25 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 			builder.redirectInput(m_stdin);
 		}
 		
+		// 환경 변수 파일이 설정되면 해당 파일을 읽어 환경변수로 추가한다.
+		Map<String,String> environments = Maps.newHashMap(m_environmentVariables);
+		if ( m_envFile != null ) {
+			File envFile = ( !m_envFile.isAbsolute() )
+								? new File(m_workingDirectory, m_envFile.getPath())
+								: m_envFile;
+			getLogger().info("Loading environment file: {}", envFile.getAbsolutePath());
+			try {
+				for ( Map.Entry<String,String> ent: EnvironmentFileLoader.from(envFile).load().entrySet() ) {
+					environments.putIfAbsent(ent.getKey(), ent.getValue());
+				}
+			}
+			catch ( IOException ignored ) {
+				getLogger().warn("failed to load environment file: {}", m_envFile.getAbsolutePath());
+			}
+		}
+		
 		// 환경변수 설정
-		builder.environment().putAll(m_environmentVariables);
+		builder.environment().putAll(environments);
 		
 		try {
 			Process process = m_guard.getChecked(() -> m_process = builder.start());
@@ -231,6 +252,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		private List<String> m_command = Lists.newArrayList();
 		private File m_workingDirectory;
 		private Map<String,String> m_environmentVariables = Map.of();
+		private File m_envFile;
 		private KeyedValueList<String,CommandVariable> m_variables = KeyedValueList.with(CommandVariable::getName);
 		private Duration m_timeout;
 		private Redirect m_stdin;
@@ -257,6 +279,11 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		
 		public Builder setEnvironmentVariables(Map<String,String> envs) {
 			m_environmentVariables = envs;
+			return this;
+		}
+		
+		public Builder setEnvironmentFile(File envFile) {
+			m_envFile = envFile;
 			return this;
 		}
 		
