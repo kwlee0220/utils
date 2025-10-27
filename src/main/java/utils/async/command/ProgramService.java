@@ -98,6 +98,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 								.addCommand(m_config.getCommandLine())
 								.setWorkingDirectory(m_config.getWorkingDirectory())
 								.setEnvironmentVariables(m_config.getEnvironmentVariables())
+								.setEnvironmentFile(m_config.getEnvironmentFile())
 								.setTimeout(null)	// 무한대기
 								.redirectErrorStream()
 								.redirectStdoutToFile(logFile)

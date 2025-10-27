@@ -17,7 +17,8 @@ import utils.func.FOption;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-@JsonPropertyOrder({ "commandLine", "workingDirectory", "restartPolicy", "startTimeout" })
+@JsonPropertyOrder({ "commandLine", "workingDirectory", "environmentFile", "environments",
+					"restartPolicy", "startTimeout" })
 public class ProgramServiceConfig {
 	public static final String DEFAULT_START_TIMEOUT = "30s";
 	public static final Duration DEFAULT_RESTART_DELAY = Duration.ofSeconds(0);
@@ -52,6 +53,7 @@ public class ProgramServiceConfig {
 	
 	private List<String> m_commandLine;
 	private File m_workingDirectory;
+	private File m_environmentFile;
 	private Map<String,String> m_environments = Maps.newHashMap();
 	private RestartPolicy m_restartPolicy = RestartPolicy.ALWAYS;
 	private String m_startTimeout = null;		// default: DEFAULT_START_TIMEOUT
@@ -69,6 +71,13 @@ public class ProgramServiceConfig {
 	}
 	public void setWorkingDirectory(File workingDirectory) {
 		m_workingDirectory = workingDirectory;
+	}
+	
+	public File getEnvironmentFile() {
+		return m_environmentFile;
+	}
+	public void setEnvironmentFile(File envFile) {
+		m_environmentFile = envFile;
 	}
 	
 	public Map<String,String> getEnvironmentVariables() {
