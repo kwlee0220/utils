@@ -1,6 +1,7 @@
 package utils.http;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 
@@ -214,6 +215,9 @@ public class HttpRESTfulClient implements LoggerSettable {
 		}
 		catch ( SocketTimeoutException | ConnectException e ) {
 			throw new RESTfulIOException("Failed to connect to the server: endpoint=" + req.url(), e);
+		}
+		catch ( InterruptedIOException e ) {
+			throw new RESTfulIOException("RESTful call interrupted: endpoint=" + req.url(), e);
 		}
 		catch ( IOException e ) {
 			throw new RESTfulIOException("Failed to call", e);
