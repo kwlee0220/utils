@@ -3,6 +3,8 @@ package utils.async;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executor;
 
+import com.google.common.base.Preconditions;
+
 import utils.RuntimeInterruptedException;
 import utils.Throwables;
 import utils.func.FOption;
@@ -27,7 +29,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 	 * Loop의 한 번의 iteration 작업을 수행하여 최종 결과를 생성한다.
 	 * <p>
 	 * 만일 이번 iteration 작업에서 최종 결과를 생성하지 못한 경우는 {@link FOption#empty()}를 반환하며,
-	 * 이 경우에는 다음번 iteration이 필요하다는 의미이다.
+	 * 이 경우에는 다음번 iteration이 필요하다는 의미이다. 그렇지 않은 경우는 loop를 종료한다.
 	 * 
 	 * @param loopIndex		loop 인덱스. 0부터 시작함.
 	 * @return		loop 수행으로 최종적으로 생성된 결과.
@@ -40,6 +42,9 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 	
 	/**
 	 * Loop 작업이 종료된 후 cleanup 작업을 수행한다.
+	 * <p>
+	 * 본 메소드는 {@link AsyncState#COMPLETED}, {@link AsyncState#CANCELLED},
+	 * {@link AsyncState#FAILED} 상태로 전이된 후에 호출되어야 한다.
 	 * 
 	 * @throws Exception	cleanup 작업 중 예외가 발생한 경우.
 	 */
@@ -53,10 +58,10 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 		
 		Executor exector = getExecutor();
 		if ( exector != null ) {
-			exector.execute(this::loop);
+			exector.execute(this::run);
 		}
 		else {
-			Thread thread = new Thread(this::loop);
+			Thread thread = new Thread(this::run);
 			thread.start();
 		}
 	}
@@ -72,7 +77,13 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 		}
 	}
 	
-	private void loop() {
+	public void run() {
+		Preconditions.checkState(getState() == AsyncState.NOT_STARTED,
+								"not in NOT_STARTED state: state=%s", getState());
+		if ( !notifyStarting() ) {
+			throw new IllegalStateException("cannot start loop execution because invalid state: state=" + getState());
+		}
+		
 		try {
 			initializeLoop();
 		}
@@ -85,7 +96,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 		}
 		
 		try {
-			loopCore();
+			loop();
 		}
 		finally {
 			Try.run(this::finalizeLoop)
@@ -94,7 +105,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 		}
 	}
 	
-	private void loopCore() {
+	private void loop() {
 		long iterCount = -1;
 		while ( true ) {
 			if ( isCancelRequested() ) {
@@ -107,6 +118,9 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 			// loop을 종료시킨다.
 			try {
 				FOption<T> result = iterate(++iterCount);
+				if ( result == null ) {
+					throw new InterruptedException("loop execution is interrupted");
+				}
 				if ( result.isPresent() ) {
 					notifyCompleted(result.getUnchecked());
 					return;
