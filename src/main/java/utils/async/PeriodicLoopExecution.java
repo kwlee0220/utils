@@ -85,6 +85,7 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	 * <p>
 	 * Loop 작업 시작 시에 수행할 초기화 작업을 본 메소드를 override하여 구현한다.
 	 * Override한 메소드에서는 반드시 이 메소드를 호출해야 한다.
+	 * 이 메소드는 {@link AsyncState#STARTING} 상태인 경우서만 호출되어야 한다.
 	 */
 	@Override
 	protected void initializeLoop() throws Exception {
