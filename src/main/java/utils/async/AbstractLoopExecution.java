@@ -3,8 +3,6 @@ package utils.async;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executor;
 
-import com.google.common.base.Preconditions;
-
 import utils.RuntimeInterruptedException;
 import utils.Throwables;
 import utils.func.FOption;
@@ -78,8 +76,6 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 	}
 	
 	public void run() {
-		Preconditions.checkState(getState() == AsyncState.NOT_STARTED,
-								"not in NOT_STARTED state: state=%s", getState());
 		if ( !notifyStarting() ) {
 			throw new IllegalStateException("cannot start loop execution because invalid state: state=" + getState());
 		}
