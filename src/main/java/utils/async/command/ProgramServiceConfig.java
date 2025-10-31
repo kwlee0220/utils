@@ -21,7 +21,7 @@ import utils.func.FOption;
 					"restartPolicy", "startTimeout" })
 public class ProgramServiceConfig {
 	public static final String DEFAULT_START_TIMEOUT = "30s";
-	public static final Duration DEFAULT_RESTART_DELAY = Duration.ofSeconds(0);
+	public static final Duration DEFAULT_RESTART_DELAY = Duration.ofSeconds(5);
 	
 	public static enum RestartPolicy {
 		ALWAYS("always"),
