@@ -28,6 +28,13 @@ public class StrSubstitutor {
 		m_substitutor.setEnableUndefinedVariableException(false);
 	}
 	
+	public StrSubstitutor() {
+		m_substitutor = StringSubstitutor.createInterpolator();
+		m_substitutor.setDisableSubstitutionInValues(false);
+		m_substitutor.setEnableUndefinedVariableException(true);
+		m_substitutor.setEnableUndefinedVariableException(false);
+	}
+	
 	public void failOnUndefinedVariable() {
 		m_substitutor.setEnableUndefinedVariableException(true);
 	}
