@@ -2,7 +2,6 @@ package utils.io;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.CopyOption;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
@@ -55,12 +54,20 @@ public class FileUtils {
 						.fold(new File(names[0]), File::new);
 	}
 	
-	public static void copy(File srcFile, File tarFile, CopyOption... opts) throws IOException {
-		Files.copy(srcFile.toPath(), tarFile.toPath(), opts);
+	public static void copyFile(File srcFile, File tarFile) throws IOException {
+		org.apache.commons.io.FileUtils.copyFile(srcFile, tarFile);
 	}
 	
-	public static void move(File srcFile, File tarFile, CopyOption... opts) throws IOException {
-		Files.move(srcFile.toPath(), tarFile.toPath(), opts);
+	public static void copyDirectory(File srcDir, File tarDir) throws IOException {
+		org.apache.commons.io.FileUtils.copyDirectory(srcDir, tarDir);
+	}
+	
+	public static void moveFile(File srcFile, File tarFile) throws IOException {
+		org.apache.commons.io.FileUtils.moveFile(srcFile, tarFile);
+	}
+	
+	public static void moveDirectory(File srcDir, File tarDir) throws IOException {
+		org.apache.commons.io.FileUtils.moveDirectory(srcDir, tarDir);
 	}
 	
 	public static void createDirectory(File dir, FileAttribute<?>... opts) throws IOException {
