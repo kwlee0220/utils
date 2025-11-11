@@ -3,8 +3,10 @@ package utils.async;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang3.time.DurationUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.google.common.base.Preconditions;
 
@@ -19,6 +21,8 @@ import utils.func.FOption;
 public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> {
 	private Duration m_interval;
 	private Instant m_started;
+	private @Nullable Duration m_timeout = null;
+	private @Nullable Instant m_due = null;
 	private final boolean m_cumulativeInterval;
 	
 	/**
@@ -26,9 +30,14 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	 * <p>
 	 * 이 메소드는 {@link #getLoopInterval()} 주기로 반복적으로 호출된다.
 	 * 메소드의 수행 결과에 따라 다음 iteration이 수행될지를 결정한다.
-	 * 수행 결과가 {@link FOption#empty()}가 아닌 경우는 전체 loop 가 종료된다.
-	 * 반대로 수행 결과가 {@code null}이거나 {@link FOption#empty()}인 경우는
-	 * 추가 iteration이 필요하다는 의미이다.
+	 * <dl>
+	 * 	<dt>{@link FOption(T)}:</dt>
+	 * 	<dd>원하는 결과가 생산되어 loop을 중단함.</dd>
+	 * 	<dt>{@link FOption#empty()}:</dt>
+	 * 	<dd>추가 iteration이 필요함.</dd>
+	 * 	<dt>null:</dt>
+	 * 	<dd>Loop 작업이 중단됨..</dd>
+	 * </dl>
 	 * 
 	 * @return	iteration 작업의 수행 결과.
 	 * @throws Exception	iteration 작업 중 예외가 발생한 경우.
@@ -79,6 +88,44 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 		
 		m_interval = interval;
 	}
+	
+	/**
+	 * 실행 제한 시간을 반환합니다.
+	 *
+	 * @return 설정된 실행 제한 시간의 Duration 객체, 설정되지 않은 경우 null
+	 */
+	public Duration getTimeout() {
+		return m_timeout;
+	}
+	
+	/**
+	 * 실행 제한 시간을 설정합니다.
+	 *
+	 * @param timeout 설정할 실행 제한 시간의 Duration 객체,
+	 * 					제한 시간이 없음을 나타내기 위해 null을 지정할 수 있음
+	 */
+	public void setTimeout(@Nullable Duration timeout) {
+		m_timeout = timeout;
+	}
+	
+	/**
+     * Polling 제한 시각을 반환합니다.
+     * 
+     * @return 설정된 Polling 제한 시각의 Instant 객체, 설정되지 않은 경우 null
+     */
+	public Instant getDue() {
+		return m_due;
+	}
+	
+	/**
+	 * Polling 제한 시각을 설정합니다.
+	 * 
+	 * @param due 설정할 Polling 제한 시각의 Instant 객체,
+	 * 				제한 시간이 없음을 나타내기 위해 null을 지정할 수 있음
+	 */
+	public void setDue(@Nullable Instant due) {
+		m_due = due;
+	}
 
 	/**
 	 * Loop 작업이 처음으로 시작될 때 호출된다.
@@ -90,6 +137,10 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	@Override
 	protected void initializeLoop() throws Exception {
 		m_started = Instant.now();
+		
+		if ( m_due == null ) {
+			m_due = FOption.map(m_timeout, to -> m_started.plus(to));
+		}
 	}
 
 	/**
@@ -103,31 +154,52 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 
 	@Override
 	protected FOption<T> iterate(long loopIndex) throws Exception {
-		Date due;
+		// 주기 작업을 수행한다.
+		FOption<T> result = performPeriodicAction(loopIndex);
+		if ( result != null && result.isPresent() ) {
+			return result;
+		}
+		
+		Instant now = Instant.now();
+		
+		// 시간제한이 설정된 경우에는 제한 시간을 넘었는지 검사한다.
+		if ( m_due != null ) {
+			if ( m_due.compareTo(now) < 0 ) {
+				if ( m_timeout != null ) {
+					throw new TimeoutException("timeout=" + m_timeout);
+				}
+				else {
+					throw new TimeoutException("due=" + m_due);
+				}
+			}
+		}
+		
+		// 이번 iteration의 due 시간을 계산한다.
+		Instant iterationDue;
 		if ( !m_cumulativeInterval ) {
 			// 'm_cumulativeInterval'이 false인 경우는 매 iteration마다 시작 시각을 계산해서
 			// due 시간을 결정한다.
-			due = Date.from(Instant.now().plus(m_interval));
+			iterationDue = now.plus(m_interval);
 		}
 		else {
 			// Loop 인덱스를 이용하여 이번 loop외 due 시간을 계산한다.
 			// Due 시간은 interval 기간에 iterate 횟수를 곱해서 전체 지연 시간을 계산해서
 			// loop의 시작 시각에 더해서 결정한다.
-			due = Date.from(m_started.plus(m_interval.multipliedBy(loopIndex+1)));
+			iterationDue = m_started.plus(m_interval.multipliedBy(loopIndex+1));
+		}
+		// 만일 이번 iteration due보다 m_due가 더 이른 경우는 m_due를 iterationDue로 사용한다.
+		if ( m_due != null && iterationDue.compareTo(m_due) > 0 ) {
+			iterationDue = m_due;
 		}
 		
-		FOption<T> result = performPeriodicAction(loopIndex);
-		if ( result == null || result.isAbsent() ) {
-			// 다음번 iteration 시작 시각까지 대기한다.
-			
-			if ( m_aopGuard.awaitCondition(() -> isCancelRequested(), due).andReturn() ) {
-				// 취소 요청이 들어온 경우는 loop 종료
-				return null;
-			}
-			
-			// Iteration 실행 시간을 다 채운 경우, 다음 번 iteration을 수행하도록 한다.
+		// 다음번 iteration 시작 시각까지 대기한다.
+		Date due = Date.from(iterationDue);
+		if ( m_aopGuard.awaitCondition(() -> isCancelRequested(), due).andReturn() ) {
+			// 취소 요청이 들어온 경우는 loop 종료
+			return null;
 		}
 		
-		return result;
+		// Iteration 실행 시간을 다 채운 경우, 다음 번 iteration을 수행하도록 한다.
+		return FOption.empty();
 	}
 }

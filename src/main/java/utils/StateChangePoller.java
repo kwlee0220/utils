@@ -100,9 +100,7 @@ public class StateChangePoller implements CheckedRunnable, LoggerSettable {
 		}
 		
 		while ( true ) {
-			if ( getLogger().isDebugEnabled() ) {
-				getLogger().debug("polling started");
-			}
+			getLogger().debug("polling started");
 			
 			try {
 				boolean endOfPolling = m_endOfPollingPredicate.get();

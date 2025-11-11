@@ -11,6 +11,15 @@ import utils.Throwables;
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecution<T> {
+	private boolean m_isDaemonThread = true;
+	
+	public boolean isDaemonThread() {
+		return m_isDaemonThread;
+	}
+	public void setDaemonThread(boolean isDaemon) {
+		m_isDaemonThread = isDaemon;
+	}
+	
 	/**
 	 * 비동기적으로 작업을 수행한다.
 	 * <p>
@@ -38,7 +47,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 */
 	protected abstract T executeWork() throws InterruptedException, CancellationException, Exception;
 	
-	public final T run() throws CancellationException, InterruptedException, ExecutionException {
+	public T run() throws CancellationException, InterruptedException, ExecutionException {
 		notifyStarted();
 		
 		// 작업을 수행한다.
@@ -77,6 +86,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		}
 		else {
 			Thread thread = new Thread(work);
+			thread.setDaemon(m_isDaemonThread);
 			thread.start();
 		}
 	}

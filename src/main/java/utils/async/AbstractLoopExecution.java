@@ -1,19 +1,16 @@
 package utils.async;
 
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.Executor;
 
 import utils.RuntimeInterruptedException;
-import utils.Throwables;
 import utils.func.FOption;
-import utils.func.Try;
 
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T> implements CancellableWork {
+public abstract class AbstractLoopExecution<T> extends AbstractThreadedExecution<T> implements CancellableWork {
 	private boolean m_loopFinished = false;
 	
 	/**
@@ -48,19 +45,31 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 	 */
 	protected abstract void finalizeLoop() throws Exception;
 	
-	@Override
-	public final void start() {
-		if ( !notifyStarting() ) {
-			throw new IllegalStateException("cannot start because invalid state: state=" + getState());
+	protected T executeWork() throws InterruptedException, CancellationException, Exception {
+		initializeLoop();
+
+		long iterCount = -1;
+		try {
+			while ( true ) {
+				if ( isCancelRequested() ) {
+					throw new CancellationException("loop execution is cancelled");
+				}
+				
+				// 더 이상 loop을 진행할 필요가 있는지 조사하여
+				// 필요없는 경우 (즉, isLoopFinished() 함수가 최종 결과 객체를 반환하는 경우)에는
+				// loop을 종료시킨다.
+				FOption<T> result = iterate(++iterCount);
+				if ( result == null ) {
+					throw new InterruptedException("loop execution is interrupted");
+				}
+				if ( result.isPresent() ) {
+					return result.get();
+				}
+			}
 		}
-		
-		Executor exector = getExecutor();
-		if ( exector != null ) {
-			exector.execute(this::run);
-		}
-		else {
-			Thread thread = new Thread(this::run);
-			thread.start();
+		finally {
+			finalizeLoop();
+			m_aopGuard.run(() -> m_loopFinished = true);
 		}
 	}
 
@@ -72,64 +81,6 @@ public abstract class AbstractLoopExecution<T> extends AbstractAsyncExecution<T>
 		}
 		catch ( InterruptedException e ) {
 			throw new RuntimeInterruptedException(e);
-		}
-	}
-	
-	public void run() {
-		if ( !notifyStarting() ) {
-			throw new IllegalStateException("cannot start loop execution because invalid state: state=" + getState());
-		}
-		
-		try {
-			initializeLoop();
-		}
-		catch ( Exception e ) {
-			notifyFailed(e);
-			return;
-		}
-		if ( !notifyStarted() ) {
-			throw new IllegalStateException("cannot start loop execution because invalid state: state=" + getState());
-		}
-		
-		try {
-			loop();
-		}
-		finally {
-			Try.run(this::finalizeLoop)
-				.ifFailed(this::notifyFailed);
-			m_aopGuard.run(() -> m_loopFinished = true);
-		}
-	}
-	
-	private void loop() {
-		long iterCount = -1;
-		while ( true ) {
-			if ( isCancelRequested() ) {
-				notifyCancelled();
-				return;
-			}
-			
-			// 더 이상 loop을 진행할 필요가 있는지 조사하여
-			// 필요없는 경우 (즉, isLoopFinished() 함수가 최종 결과 객체를 반환하는 경우)에는
-			// loop을 종료시킨다.
-			try {
-				FOption<T> result = iterate(++iterCount);
-				if ( result == null ) {
-					throw new InterruptedException("loop execution is interrupted");
-				}
-				if ( result.isPresent() ) {
-					notifyCompleted(result.getUnchecked());
-					return;
-				}
-			}
-			catch ( InterruptedException | CancellationException e ) {
-				notifyCancelled();
-				return;
-			}
-			catch ( Throwable e ) {
-				notifyFailed(Throwables.unwrapThrowable(e));
-				return;
-			}
 		}
 	}
 }
