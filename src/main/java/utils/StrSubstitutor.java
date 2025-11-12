@@ -22,24 +22,29 @@ public class StrSubstitutor {
 		StringLookupFactory factory = StringLookupFactory.INSTANCE;
 		StringLookup lookup = factory.mapStringLookup(keyValues);
 		StringLookup interpolator = factory.interpolatorStringLookup(Map.of(), lookup, true);
-		m_substitutor = new StringSubstitutor(interpolator);
-		m_substitutor.setDisableSubstitutionInValues(false);
-		m_substitutor.setEnableUndefinedVariableException(true);
+		
+		m_substitutor = new StringSubstitutor(interpolator)
+							.setDisableSubstitutionInValues(false)
+							.setEnableSubstitutionInVariables(true)
+							.setEnableUndefinedVariableException(true);
 	}
 	
 	public StrSubstitutor() {
-		m_substitutor = StringSubstitutor.createInterpolator();
-		m_substitutor.setDisableSubstitutionInValues(false);
-		m_substitutor.setEnableUndefinedVariableException(true);
+		m_substitutor = new StringSubstitutor()
+							.setDisableSubstitutionInValues(false)
+							.setEnableSubstitutionInVariables(true)
+							.setEnableUndefinedVariableException(true);
 	}
 	
-	public void failOnUndefinedVariable() {
-		m_substitutor.setEnableUndefinedVariableException(true);
+	public StrSubstitutor failOnUndefinedVariable(boolean flag) {
+		m_substitutor.setEnableUndefinedVariableException(flag);
+		return this;
 	}
 	
-	public void disableNestedSubstitution(boolean flag) {
-		m_substitutor.setDisableSubstitutionInValues(flag);
-		m_substitutor.setEnableUndefinedVariableException(!flag);
+	public StrSubstitutor enableNestedSubstitution(boolean flag) {
+		m_substitutor.setDisableSubstitutionInValues(!flag)
+					.setEnableSubstitutionInVariables(flag);
+		return this;
 	}
 	
 	public String replace(String template) {
@@ -55,8 +60,6 @@ public class StrSubstitutor {
 			String value = kv.value();
 			
 			StrSubstitutor subst = new StrSubstitutor(expandedFacts);
-			subst.failOnUndefinedVariable();
-			
 			String replaced = subst.replace(value);
 			result.put(key, replaced);
 			expandedFacts.put(key, replaced);

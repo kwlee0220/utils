@@ -19,7 +19,7 @@ public class StrSubstitutorTest {
 	public void testBasic() throws Exception {
 		Map<String,String> facts = Map.of("A", "1", "B", "2", "C", "3");
 		
-		StrSubstitutor subst = new StrSubstitutor(facts);
+		StrSubstitutor subst = new StrSubstitutor(facts).failOnUndefinedVariable(false);
 		
 		Assert.assertEquals("ABC", subst.replace("ABC"));
 		Assert.assertEquals("1", subst.replace("${A}"));
@@ -34,10 +34,10 @@ public class StrSubstitutorTest {
 		Map<String,String> facts = Map.of("A", "1", "B", "${A}a", "C", "B");
 		
 		StrSubstitutor subst = new StrSubstitutor(facts);
-		subst.disableNestedSubstitution(true);
+		subst.enableNestedSubstitution(false);
 		Assert.assertEquals("${A}a", subst.replace("${B}"));
 
-		subst.disableNestedSubstitution(false);
+		subst.enableNestedSubstitution(true);
 		Assert.assertEquals("1a", subst.replace("${B}"));
 	}
 	
@@ -58,7 +58,7 @@ public class StrSubstitutorTest {
 		Map<String,String> facts = Map.of("A", "1", "B", "2", "C", "3");
 		
 		StrSubstitutor subst = new StrSubstitutor(facts);
-		subst.failOnUndefinedVariable();
+		subst.failOnUndefinedVariable(true);
 		subst.replace("${D}");
 	}
 }
