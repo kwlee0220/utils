@@ -30,10 +30,7 @@ public class StrSubstitutor {
 	}
 	
 	public StrSubstitutor() {
-		m_substitutor = new StringSubstitutor()
-							.setDisableSubstitutionInValues(false)
-							.setEnableSubstitutionInVariables(true)
-							.setEnableUndefinedVariableException(true);
+		this(Map.of());
 	}
 	
 	public StrSubstitutor failOnUndefinedVariable(boolean flag) {
