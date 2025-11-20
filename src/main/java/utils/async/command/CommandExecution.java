@@ -140,14 +140,17 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 			File envFile = ( !m_envFile.isAbsolute() )
 								? new File(m_workingDirectory, m_envFile.getPath())
 								: m_envFile;
-			getLogger().info("Loading environment file: {}", envFile.getAbsolutePath());
-			try {
-				for ( Map.Entry<String,String> ent: EnvironmentFileLoader.from(envFile).load().entrySet() ) {
-					environments.putIfAbsent(ent.getKey(), ent.getValue());
+			if ( envFile.exists() && !envFile.isFile() ) {
+				getLogger().info("Loading environment file: {}", envFile.getAbsolutePath());
+				try {
+					for ( Map.Entry<String,String> ent: EnvironmentFileLoader.from(envFile).load().entrySet() ) {
+						environments.putIfAbsent(ent.getKey(), ent.getValue());
+					}
 				}
-			}
-			catch ( IOException ignored ) {
-				getLogger().warn("failed to load environment file: {}", m_envFile.getAbsolutePath());
+				catch ( IOException ignored ) {
+					getLogger().warn("failed to load environment file: {}, cause={}",
+										m_envFile.getAbsolutePath(), ""+ignored);
+				}
 			}
 		}
 		
