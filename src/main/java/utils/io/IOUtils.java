@@ -110,10 +110,6 @@ public class IOUtils {
     
     public static byte[] toBytes(@NonNull InputStream is) throws IOException {
     	return is.readAllBytes();
-//    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//    	transfer(is, baos, 4096);
-//    	baos.close();
-//    	return baos.toByteArray();
     }
     
     public static byte[] toBytes(@NonNull File file) throws IOException {
@@ -161,14 +157,9 @@ public class IOUtils {
     }
     
     public static long toFile(@NonNull InputStream is, File file) throws IOException {
-	    try (is; OutputStream out = new FileOutputStream(file)) {
+	    try ( OutputStream out = new FileOutputStream(file) ) {
 	        return is.transferTo(out);
 	    }
-//    	try ( InputStream isc = is;
-//    			FileOutputStream fos = new FileOutputStream(file);
-//    		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
-//    		return transfer(isc, bos, 16<<10);
-//    	}
     }
     
     public static long toFile(@NonNull InputStream is, File file, int bufSize) throws IOException {
