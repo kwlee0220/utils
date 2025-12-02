@@ -109,10 +109,11 @@ public class IOUtils {
     }
     
     public static byte[] toBytes(@NonNull InputStream is) throws IOException {
-    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    	transfer(is, baos, 4096);
-    	baos.close();
-    	return baos.toByteArray();
+    	return is.readAllBytes();
+//    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//    	transfer(is, baos, 4096);
+//    	baos.close();
+//    	return baos.toByteArray();
     }
     
     public static byte[] toBytes(@NonNull File file) throws IOException {
@@ -160,11 +161,14 @@ public class IOUtils {
     }
     
     public static long toFile(@NonNull InputStream is, File file) throws IOException {
-    	try ( InputStream isc = is;
-    			FileOutputStream fos = new FileOutputStream(file);
-    		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
-    		return transfer(isc, bos, 16<<10);
-    	}
+	    try (is; OutputStream out = new FileOutputStream(file)) {
+	        return is.transferTo(out);
+	    }
+//    	try ( InputStream isc = is;
+//    			FileOutputStream fos = new FileOutputStream(file);
+//    		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
+//    		return transfer(isc, bos, 16<<10);
+//    	}
     }
     
     public static long toFile(@NonNull InputStream is, File file, int bufSize) throws IOException {
@@ -274,15 +278,18 @@ public class IOUtils {
 		}
 	}
 
-	public static CopyStream copy(InputStream from, OutputStream to) {
+	public static CopyStream copyAsync(InputStream from, OutputStream to) {
 		return new CopyStream(from, to);
+	}
+	
+	public static long copy(InputStream from, OutputStream to) throws IOException {
+		return from.transferTo(to);
 	}
 	
 	public static final class CopyStream extends AbstractThreadedExecution<Long>
 											implements CancellableWork {
 		private final InputStream m_from;
 		private final OutputStream m_to;
-		private boolean m_closeInputOnFinished = false;
 		private boolean m_closeOutputOnFinished = false;
 		private int m_bufSize = 4 * 1024;
 		
@@ -292,11 +299,6 @@ public class IOUtils {
 			
 			m_from = from;
 			m_to = to;
-		}
-		
-		public CopyStream closeInputStreamOnFinished(boolean flag) {
-			m_closeInputOnFinished = flag;
-			return this;
 		}
 		
 		public CopyStream closeOutputStreamOnFinished(boolean flag) {
@@ -313,7 +315,7 @@ public class IOUtils {
 		public Long executeWork() throws IOException {
 	        byte[] buf = new byte[m_bufSize];
 	        
-			try {
+			try ( m_from ) {
 		        long total = 0;
 		        for ( int nbytes = m_from.read(buf); nbytes >= 0; nbytes = m_from.read(buf) ) {
 		            m_to.write(buf, 0, nbytes);
@@ -327,9 +329,6 @@ public class IOUtils {
 		        return total;
 			}
 			finally {
-				if ( m_closeInputOnFinished ) {
-					IOUtils.closeQuietly(m_from);
-				}
 				if ( m_closeOutputOnFinished ) {
 					IOUtils.closeQuietly(m_to);
 				}
