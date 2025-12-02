@@ -6,8 +6,8 @@ group = 'etri'
 version = '25.10.27'
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_11
-	targetCompatibility = JavaVersion.VERSION_11
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
 }
 [compileJava,compileTestJava]*.options*.encoding = 'UTF-8'
 
