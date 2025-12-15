@@ -3,6 +3,7 @@ package utils.async;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang3.time.DurationUtils;
@@ -42,7 +43,7 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	 * @return	iteration 작업의 수행 결과.
 	 * @throws Exception	iteration 작업 중 예외가 발생한 경우.
 	 */
-	protected abstract FOption<T> performPeriodicAction(long loopIndex) throws Exception;
+	protected abstract Optional<T> performPeriodicAction(long loopIndex) throws Exception;
 	
 	/**
 	 * 주기적인 loop 작업을 수행하는 객체를 생성한다.
@@ -153,9 +154,9 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	protected void finalizeLoop() throws Exception { }
 
 	@Override
-	protected FOption<T> iterate(long loopIndex) throws Exception {
+	protected Optional<T> iterate(long loopIndex) throws Exception {
 		// 주기 작업을 수행한다.
-		FOption<T> result = performPeriodicAction(loopIndex);
+		Optional<T> result = performPeriodicAction(loopIndex);
 		if ( result != null && result.isPresent() ) {
 			return result;
 		}
@@ -200,6 +201,6 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 		}
 		
 		// Iteration 실행 시간을 다 채운 경우, 다음 번 iteration을 수행하도록 한다.
-		return FOption.empty();
+		return Optional.empty();
 	}
 }

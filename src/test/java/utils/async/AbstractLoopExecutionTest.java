@@ -3,6 +3,7 @@ package utils.async;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 
@@ -11,8 +12,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
-
-import utils.func.FOption;
 
 
 /**
@@ -111,12 +110,12 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected FOption<Integer> iterate(long loopIndex) throws Exception {
+		protected Optional<Integer> iterate(long loopIndex) throws Exception {
 			Assert.assertEquals(loopIndex, m_index);
 			MILLISECONDS.sleep(100);
 			++m_index;
 			
-			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
+			return (m_index >= m_limit) ? Optional.of(m_index) : Optional.empty();
 		}
 
 		@Override
@@ -137,14 +136,14 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected FOption<Integer> iterate(long loopIndex) throws Exception {
+		protected Optional<Integer> iterate(long loopIndex) throws Exception {
 			Assert.assertEquals(loopIndex, m_index);
 			MILLISECONDS.sleep(100);
 			if ( ++m_index == 3 ) {
 				throw new CancellationException();
 			}
 
-			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
+			return (m_index >= m_limit) ? Optional.of(m_index) : Optional.empty();
 		}
 
 		@Override
@@ -165,7 +164,7 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected FOption<Integer> iterate(long loopIndex) throws Exception {
+		protected Optional<Integer> iterate(long loopIndex) throws Exception {
 			Assert.assertEquals(loopIndex, m_index);
 			
 			MILLISECONDS.sleep(100);
@@ -173,7 +172,7 @@ public class AbstractLoopExecutionTest {
 				throw new Exception("test");
 			}
 
-			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
+			return (m_index >= m_limit) ? Optional.of(m_index) : Optional.empty();
 		}
 
 		@Override
@@ -194,7 +193,7 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected FOption<Integer> iterate(long loopIndex) throws Exception {
+		protected Optional<Integer> iterate(long loopIndex) throws Exception {
 			Assert.assertEquals(loopIndex, m_index);
 			
 			MILLISECONDS.sleep(100);
@@ -202,7 +201,7 @@ public class AbstractLoopExecutionTest {
 				throw new Exception("test");
 			}
 
-			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
+			return (m_index >= m_limit) ? Optional.of(m_index) : Optional.empty();
 		}
 
 		@Override

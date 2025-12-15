@@ -2,12 +2,11 @@ package utils.async;
 
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.junit.Assert;
 import org.junit.Test;
-
-import utils.func.FOption;
 
 
 /**
@@ -28,12 +27,12 @@ public class PeriodicLoopExecutionTest {
 		}
 
 		@Override
-		protected FOption<Integer> performPeriodicAction(long loopIndex) throws Exception {
+		protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
 			if ( loopIndex >= m_lastIteration ) {
-				return FOption.of(m_count);
+				return Optional.of(m_count);
 			}
 			++m_count;
-			return FOption.empty();
+			return Optional.empty();
 		}
 	};
 	

@@ -685,6 +685,10 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	public List<T> toList() {
 		return (m_present) ? Arrays.asList(m_value) : Collections.emptyList();
 	}
+	
+	public Optional<T> toOptional() {
+		return (m_present) ? Optional.ofNullable(m_value) : Optional.empty();
+	}
 
 	/**
 	 * 본 {@code FOption}가 포함한 객체를 방문하는 {@link Iterator} 객체를 반환한다.

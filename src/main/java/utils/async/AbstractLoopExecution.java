@@ -1,9 +1,9 @@
 package utils.async;
 
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 
 import utils.RuntimeInterruptedException;
-import utils.func.FOption;
 
 
 /**
@@ -23,17 +23,17 @@ public abstract class AbstractLoopExecution<T> extends AbstractThreadedExecution
 	/**
 	 * Loop의 한 번의 iteration 작업을 수행하여 최종 결과를 생성한다.
 	 * <p>
-	 * 만일 이번 iteration 작업에서 최종 결과를 생성하지 못한 경우는 {@link FOption#empty()}를 반환하며,
+	 * 만일 이번 iteration 작업에서 최종 결과를 생성하지 못한 경우는 {@link Optional#empty()}를 반환하며,
 	 * 이 경우에는 다음번 iteration이 필요하다는 의미이다. 그렇지 않은 경우는 loop를 종료한다.
 	 * 
 	 * @param loopIndex		loop 인덱스. 0부터 시작함.
 	 * @return		loop 수행으로 최종적으로 생성된 결과.
-	 * 				반환 값이 {@link FOption#empty()}인 경우는 추가 iteration이 더 필요하다는 의미이고,
+	 * 				반환 값이 {@link Optional#empty()}인 경우는 추가 iteration이 더 필요하다는 의미이고,
 	 * 				그렇지 않은 경우는 더 이상의 iteration이 필요없어서 loop Execution이
 	 * 				종료되어야 한다는 의미이다.
 	 * @throws Exception	iteration 작업 중 예외가 발생한 경우.
 	 */
-	protected abstract FOption<T> iterate(long loopIndex) throws Exception;
+	protected abstract Optional<T> iterate(long loopIndex) throws Exception;
 	
 	/**
 	 * Loop 작업이 종료된 후 cleanup 작업을 수행한다.
@@ -58,7 +58,7 @@ public abstract class AbstractLoopExecution<T> extends AbstractThreadedExecution
 				// 더 이상 loop을 진행할 필요가 있는지 조사하여
 				// 필요없는 경우 (즉, isLoopFinished() 함수가 최종 결과 객체를 반환하는 경우)에는
 				// loop을 종료시킨다.
-				FOption<T> result = iterate(++iterCount);
+				Optional<T> result = iterate(++iterCount);
 				if ( result == null ) {
 					throw new InterruptedException("loop execution is interrupted");
 				}
