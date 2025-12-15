@@ -22,10 +22,10 @@ public class ExistsTest {
 		Assert.assertEquals(false, stream.exists(i -> i > 4));
 		
 		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		Assert.assertEquals(true, stream.forAll(i -> i >= 1));
+		Assert.assertEquals(true, stream.allMatch(i -> i >= 1));
 		
 		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		Assert.assertEquals(false, stream.forAll(i -> i >= 2));
+		Assert.assertEquals(false, stream.allMatch(i -> i >= 2));
 	}
 
 	@Test
@@ -36,7 +36,7 @@ public class ExistsTest {
 		Assert.assertEquals(false, stream.exists(i -> i > 3));
 		
 		stream = FStream.empty();
-		Assert.assertEquals(true, stream.forAll(i -> i > 3));
+		Assert.assertEquals(true, stream.allMatch(i -> i > 3));
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -52,7 +52,7 @@ public class ExistsTest {
 		FStream<Integer> stream;
 		
 		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream.forAll(null);
+		stream.allMatch(null);
 	}
 
 	@Test(expected=RuntimeException.class)
@@ -65,6 +65,6 @@ public class ExistsTest {
 		Assert.assertEquals(false, stream.exists(s -> {throw error;}));
 		
 		stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
-		Assert.assertEquals(false, stream.forAll(s -> {throw error;}));
+		Assert.assertEquals(false, stream.allMatch(s -> {throw error;}));
 	}
 }

@@ -65,7 +65,7 @@ public class MapAsyncTest {
 										.mapAsync(mapper, AsyncExecutionOptions.WORKER_COUNT(3))
 										.toList();
 		Assert.assertEquals(8, result.size());
-		Assert.assertEquals(true, FStream.from(result).forAll(t -> t.isSuccessful()));
+		Assert.assertEquals(true, FStream.from(result).allMatch(t -> t.isSuccessful()));
 		
 		long[] endTss = FStream.from(result)
 								.flatMapTry(t -> t)
