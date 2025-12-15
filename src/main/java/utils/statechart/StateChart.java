@@ -1,11 +1,14 @@
 package utils.statechart;
 
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import utils.LoggerSettable;
@@ -13,7 +16,6 @@ import utils.Throwables;
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
 import utils.async.Guard;
-import utils.func.FOption;
 import utils.func.Unchecked;
 
 
@@ -21,11 +23,12 @@ import utils.func.Unchecked;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class StateMachine<C extends StateContext> extends AbstractAsyncExecution<C>
+public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C>
 													implements CancellableWork, LoggerSettable {
-	private static final Logger s_logger = LoggerFactory.getLogger(StateMachine.class);
+	private static final Logger s_logger = LoggerFactory.getLogger(StateChart.class);
 	
 	private final C m_context;
+	private final Map<String,utils.statechart.State<C>> m_states = Maps.newHashMap();
 	
 	protected final Guard m_guard = Guard.create();
 	private utils.statechart.State<C> m_initialState;
@@ -33,30 +36,57 @@ public class StateMachine<C extends StateContext> extends AbstractAsyncExecution
 	private utils.statechart.State<C> m_currentState;
 	private Logger m_logger = s_logger;
 	
-	public StateMachine(C context) {
+	public StateChart(C context) {
 		Preconditions.checkNotNull(context, "StateContext is null");
 		
 		m_context = context;
+		m_context.setStateMachine(this);
+	}
+	
+	protected Guard getMachineLock() {
+		return m_guard;
 	}
 	
 	public C getContext() {
 		return m_context;
 	}
 	
+	public utils.statechart.State<C> getState(String path) {
+		Preconditions.checkNotNull(path, "path is null");
+
+		return m_states.get(path);
+	}
+	
+	public void addState(utils.statechart.State<C> state) {
+		Preconditions.checkNotNull(state, "state is null");
+
+		m_states.put(state.getPath(), state);
+	}
+	
 	public utils.statechart.State<C> getInitialState() {
 		return m_initialState;
 	}
 	
-	public void setInitialState(utils.statechart.State<C> initialState) {
-		Preconditions.checkNotNull(initialState, "initialState is null");
+	public void setInitialState(String initialStatePath) {
+		Preconditions.checkNotNull(initialStatePath, "initialState is null");
+		
+		utils.statechart.State<C> initialState = m_states.get(initialStatePath);
+		if ( initialState == null ) {
+			throw new IllegalArgumentException("initialState is not registered: " + initialState);
+		}
 
 		m_initialState = initialState;
 	}
 	
-	public void addFinalState(utils.statechart.State<C> state) {
-		Preconditions.checkNotNull(state, "state is null");
+	public void addFinalState(String path) {
+		Preconditions.checkNotNull(path, "state path is null");
+		
+		utils.statechart.State<C> finalState = m_states.get(path);
+		if ( finalState == null ) {
+			throw new IllegalArgumentException("finalState is not registered: " + finalState);
+		}
 
-		m_finalStates.add(state);
+		m_finalStates.add(finalState);
 	}
 	
 	public utils.statechart.State<C> getCurrentState() {
@@ -95,20 +125,34 @@ public class StateMachine<C extends StateContext> extends AbstractAsyncExecution
 		}
 	}
 	
-	public FOption<Transition<C>> handleSignal(Signal signal) {
+	/**
+	 * 주어진 신호를 처리한다.
+	 * <p>
+	 * 신호 처리 과정에서 내부 상태가 전의될 수 있다.
+	 * 신호 처리 과정에서 사용된 transition이 반환된다.
+	 * 만일 상태 전이가 발생되지 않으면 {@link Optional#empty()}을 반환한다.
+	 * <p>
+	 * 만일 상태머신이 실행 중이 아니면 신호는 무시되고 {@link Optional#empty()}이 반환된다.
+	 *
+	 * @param signal	처리할 신호
+	 * @return 신호 처리 과정에서 사용된 최종 {@link Transition} 객체.
+	 */
+	public Optional<Transition<C>> handleSignal(Signal signal) {
 		Preconditions.checkNotNull(signal, "signal is null");
 
 		m_guard.lock();
 		try {
 			if ( !isRunning() ) {
 				getLogger().warn("ignoring signal: {} in non-running state", signal);
-				return FOption.empty();
+				return Optional.empty();
 			}
-			getLogger().info("received signal: {} in state {}", signal, m_currentState);
+			getLogger().info("received signal: {}, state={}", signal, m_currentState);
 
-			// Transition이 선택되면 해당 전이로 상태 전이 수행
-	        return m_currentState.selectTransition(signal)
-		        				.ifPresent(trans -> traverse(trans, FOption.of(signal)));
+			// Signal에 따른 transition을 선택하고, 해당 전이로 이동
+			Optional<Transition<C>> selected = m_currentState.selectTransition(signal);
+			selected.ifPresent(trans -> traverse(trans, signal));
+			
+			return selected;
 		}
 		finally {
 			m_guard.unlock();
@@ -167,7 +211,7 @@ public class StateMachine<C extends StateContext> extends AbstractAsyncExecution
 
 	@Override
 	public Logger getLogger() {
-		return FOption.getOrElse(m_logger, s_logger);
+		return (m_logger != null) ? m_logger : s_logger;
 	}
 
 	@Override
@@ -181,27 +225,36 @@ public class StateMachine<C extends StateContext> extends AbstractAsyncExecution
 							getClass().getSimpleName(), getState(), getCurrentState());
 	}
 	
-	protected void traverse(Transition<C> transition, FOption<Signal> osignal) {
-		Preconditions.checkState(m_currentState.equals(transition.getSourceState()),
-								"invalid transition: %s", transition);
-		
-		if ( transition.getSourceState() == transition.getTargetState()
-			&& transition.getAction().isAbsent() ) {
-			getLogger().debug("no state change (noop transition)");
+	protected void traverse(Transition<C> transition, Signal signal) {
+		if ( transition.getTargetStatePath().isEmpty() ) {
+			getLogger().debug("no state change (self transition)");
 			return;
 		}
-		getLogger().info("transition: {} -> {}", transition.getSourceState(), transition.getTargetState());
+		
+		String targetStatePath = transition.getTargetStatePath().get();
+		utils.statechart.State<C> targetState = m_states.get(targetStatePath);
+		if ( targetState == null ) {
+			throw new IllegalStateException("no state found for path: " + targetStatePath);
+		}
+	
+		if ( getLogger().isInfoEnabled() ) {
+			String targetStr = transition.getTargetStatePath()
+										.map(path -> " -> " + path)
+										.orElse("");
+			getLogger().info("selected transition: {}{}", m_currentState.getPath(), targetStr);
+		}
 		
 		try {
+			// 현재 상태에서 진출한다.
 			exitInGuard();
 			
-			// 선택된 전이로 상태 전이 연산 수행
-			transition.execute(m_context, osignal);
+			// 인자로 주어진 transition으로 전이 연산 수행
+			transition.execute(m_context, signal);
 			
-			// 목표 상태로 진입 연산 수행
-			transition.getTargetState().enter();
-			m_currentState = transition.getTargetState();
-			getLogger().info("entered {}", m_currentState);
+			// 목표 상태로 진입한다.
+			targetState.enter();
+			m_currentState = targetState;
+			getLogger().info("entered state: {}", m_currentState.getPath());
 			
 			// 최종 상태에 도달했으면 완료 통지
 			if ( m_finalStates.contains(m_currentState) ) {
@@ -224,7 +277,7 @@ public class StateMachine<C extends StateContext> extends AbstractAsyncExecution
 		// 현재 상태에서 exit 연산 수행
 		if ( m_currentState != null ) {
 			m_currentState.exit();
-			getLogger().info("left {}", m_currentState);
+			getLogger().info("left state: {}", m_currentState.getPath());
 			m_currentState = null;
 		}
 	}

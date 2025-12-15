@@ -1,8 +1,8 @@
 package utils.statechart;
 
-import com.google.common.base.Preconditions;
+import java.util.Optional;
 
-import utils.func.FOption;
+import com.google.common.base.Preconditions;
 
 /**
  *
@@ -49,7 +49,7 @@ public class DefaultCompositeState<C extends StateContext> extends AbstractState
 	}
 
 	@Override
-	public FOption<Transition<C>> selectTransition(Signal signal)  {
+	public Optional<Transition<C>> selectTransition(Signal signal)  {
         return m_currentState.selectTransition(signal);
 	}
 }

@@ -1,8 +1,8 @@
 package utils.websocket;
 
-import java.net.http.WebSocket;
-
 import utils.statechart.StateContext;
+import utils.statechart.StateChart;
+
 
 /**
  *
@@ -10,7 +10,7 @@ import utils.statechart.StateContext;
  */
 public class WebSocketContext implements StateContext {
 	private final String m_serverUrl;
-	private WebSocket m_webSocket;
+	private WebSocketStateChart<WebSocketContext> m_machine;
 
 	public WebSocketContext(String serverUrl) {
 		m_serverUrl = serverUrl;
@@ -20,11 +20,15 @@ public class WebSocketContext implements StateContext {
 		return m_serverUrl;
 	}
 
-	public WebSocket getWebSocket() {
-		return m_webSocket;
+	public WebSocketStateChart<WebSocketContext> getStateMachine() {
+		return m_machine;
 	}
 
-	public void setWebSocket(WebSocket webSocket) {
-		m_webSocket = webSocket;
+	@Override
+	public void setStateMachine(StateChart<? extends StateContext> machine) {
+		@SuppressWarnings("unchecked")
+		WebSocketStateChart<WebSocketContext> wsMachine
+							= (WebSocketStateChart<WebSocketContext>)machine;
+		m_machine = wsMachine;
 	}
 }

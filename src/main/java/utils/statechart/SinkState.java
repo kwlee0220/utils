@@ -1,6 +1,6 @@
 package utils.statechart;
 
-import utils.func.FOption;
+import java.util.Optional;
 
 
 /**
@@ -18,7 +18,7 @@ public class SinkState<C extends StateContext> extends AbstractState<C> {
 	}
 
 	@Override
-	public FOption<Transition<C>> selectTransition(Signal signal) {
+	public Optional<Transition<C>> selectTransition(Signal signal) {
 		throw new UnsupportedOperationException("SinkState does not handle any signal");
 	}
 }

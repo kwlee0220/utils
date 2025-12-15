@@ -1,8 +1,7 @@
 package utils.statechart;
 
+import java.util.Optional;
 import java.util.function.Supplier;
-
-import utils.func.FOption;
 
 
 /**
@@ -25,12 +24,12 @@ public class SingleOutState<C extends StateContext> extends AbstractState<C> {
 	}
 
 	@Override
-	public FOption<Transition<C>> selectTransition(Signal signal) {
+	public Optional<Transition<C>> selectTransition(Signal signal) {
 		if ( m_trigger == signal ) {
-			return FOption.of(m_outTransitionSupplier.get());
+			return Optional.of(m_outTransitionSupplier.get());
 		}
 		else {
-			return FOption.empty();
+			return Optional.empty();
 		}
 	}
 }

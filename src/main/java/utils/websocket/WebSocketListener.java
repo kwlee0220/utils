@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import utils.statechart.StateMachine;
+import utils.statechart.StateChart;
 import utils.websocket.Signals.BinaryMessage;
 import utils.websocket.Signals.ConnectionClosed;
 import utils.websocket.Signals.ErrorMessage;
@@ -25,14 +25,14 @@ import utils.websocket.Signals.TextMessage;
 class WebSocketListener implements WebSocket.Listener {
 	private static final Logger s_logger = LoggerFactory.getLogger(WebSocketListener.class);
 	
-	private final StateMachine<?> m_stateMachine;
+	private final StateChart<?> m_stateMachine;
 	
 	private Duration m_pingInterval;
 	private Duration m_pongTimeout;
 	private Timer m_pingTimer;
 	private final AtomicLong m_lastPongTime = new AtomicLong(0);
 	
-	WebSocketListener(WebSocketStateMachine<?> machine) {
+	WebSocketListener(WebSocketStateChart<?> machine) {
 		m_stateMachine = machine;
 	}
 	
@@ -108,11 +108,20 @@ class WebSocketListener implements WebSocket.Listener {
 		webSocket.request(1);
 		return null;
 	}
+
+	@Override
+	public CompletionStage<?> onPing(WebSocket webSocket, ByteBuffer message) {
+		s_logger.debug("received PING: {}", new String(message.array()));
+		
+		webSocket.sendPong(message);
+        return WebSocket.Listener.super.onPing(webSocket, message);
+    }
 	
 	@Override
 	public CompletionStage<?> onPong(WebSocket webSocket, ByteBuffer message) {
+		s_logger.debug("recevied PONG: {}", message);
+		
 		m_lastPongTime.set(System.currentTimeMillis());
-		s_logger.info("onPong: {}", message);
 
 		webSocket.request(1);
 		return null;

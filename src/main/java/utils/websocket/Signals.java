@@ -4,6 +4,9 @@ import java.net.http.WebSocket;
 
 import lombok.experimental.UtilityClass;
 
+import utils.statechart.Signal;
+
+
 /**
  *
  * @author Kang-Woo Lee (ETRI)
@@ -18,6 +21,18 @@ public class Signals {
 		@Override
 		public String toString() {
 			return "Connected";
+		}
+	}
+	public static class ConnectionFailed implements Signal {
+		private final Throwable m_cause;
+		
+		public ConnectionFailed(Throwable cause) {
+			m_cause = cause;
+		}
+		
+		@Override
+		public String toString() {
+			return "ConnectionFailed: cause=" + m_cause;
 		}
 	}
 	

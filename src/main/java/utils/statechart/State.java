@@ -1,8 +1,10 @@
 package utils.statechart;
 
-import utils.func.FOption;
+import java.util.Optional;
+
 
 /**
+ * {@code StateChart}의 상태를 나타내는 인터페이스.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -34,10 +36,10 @@ public interface State<C extends StateContext> {
 	/**
 	 * 주어진 신호를 처리할 전이를 선택한다.
 	 * <p>
-	 * 신호를 처리할 전이가 없으면 {@link FOption#empty()}을 반환한다.
+	 * 신호를 처리할 전이가 없으면 {@link Optional#empty()}을 반환한다.
 	 *
 	 * @param signal	처리할 신호
 	 * @return	신호를 처리할 전이
 	 */
-	public FOption<Transition<C>> selectTransition(Signal signal);
+	public Optional<Transition<C>> selectTransition(Signal signal);
 }
