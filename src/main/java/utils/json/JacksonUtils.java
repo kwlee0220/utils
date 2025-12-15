@@ -6,6 +6,9 @@ import java.util.Map;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.base.Preconditions;
 
 /**
@@ -15,6 +18,16 @@ import com.google.common.base.Preconditions;
 public class JacksonUtils {
 	private JacksonUtils() {
 		throw new AssertionError("Should not be invoked!!: class=" + JacksonUtils.class.getName());
+	}
+	
+	public static final JsonMapper newJsonMapper(boolean prettyPrint) {
+		JsonMapper.Builder builder = JsonMapper.builder()
+												.addModule(new JavaTimeModule())
+												.findAndAddModules();
+		if ( prettyPrint ) {
+			builder = builder.enable(SerializationFeature.INDENT_OUTPUT);
+		}
+		return builder.build();
 	}
 
 	public static JsonNode getFieldOrNull(@NonNull JsonNode node, String fieldName) {
