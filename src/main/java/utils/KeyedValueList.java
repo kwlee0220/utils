@@ -213,7 +213,7 @@ public class KeyedValueList<K,V> implements List<V> {
 		
 		return Funcs.findFirstIndexed(m_values, v -> m_keyer.apply(v).equals(key))
 					.map(Indexed::index)
-					.getOrElse(-1);
+					.orElse(-1);
 	}
 	
 	/**

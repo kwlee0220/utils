@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
@@ -51,11 +52,12 @@ public class Funcs {
 	 * @param pred	검색 조건
 	 * @return	조건을 만족하는 목록. 만일 조건을 만족하는 것이 없는 경우에는 {@code null}.
 	 */
-	public static <T> FOption<Indexed<T>> findFirstIndexed(Iterable<T> list, Predicate<? super T> pred) {
+	public static <T> Optional<Indexed<T>> findFirstIndexed(Iterable<T> list, Predicate<? super T> pred) {
 		return FStream.from(list)
 						.zipWithIndex()
 						.map(t -> Indexed.with(t.value(), t.index()))
-						.findFirst(idxed -> pred.test(idxed.value()));
+						.findFirst(idxed -> pred.test(idxed.value()))
+						.toOptional();
 	}
 
 	/**
@@ -65,12 +67,12 @@ public class Funcs {
 	 * @param iterable	목록 리스트.
 	 * @return	첫번째 목록. 리스트가 빈 경우에는 {@code FOption.empty()}이 반환된다.
 	 */
-	public static <T> FOption<T> getFirst(Iterable<T> iterable) {
+	public static <T> Optional<T> getFirst(Iterable<T> iterable) {
 		Iterator<T> iter = iterable.iterator();
-		return iter.hasNext() ? FOption.of(iter.next()) : FOption.empty();
+		return iter.hasNext() ? Optional.of(iter.next()) : Optional.empty();
 	}
-	public static <T> FOption<T> getFirst(Iterator<T> iter) {
-		return iter.hasNext() ? FOption.of(iter.next()) : FOption.empty();
+	public static <T> Optional<T> getFirst(Iterator<T> iter) {
+		return iter.hasNext() ? Optional.of(iter.next()) : Optional.empty();
 	}
 
 	/**
@@ -358,12 +360,12 @@ public class Funcs {
 	}
 	
 	public static <T, K extends Comparable<K>>
-	FOption<? extends T> min(Iterable<? extends T> list, Function<? super T,? extends K> keyer) {
+	Optional<? extends T> min(Iterable<? extends T> list, Function<? super T,? extends K> keyer) {
 		return FStream.from(list).min(keyer);
 	}
 	
 	public static <T, K extends Comparable<K>>
-	FOption<? extends T> max(Iterable<? extends T> list, Function<? super T,? extends K> keyer) {
+	Optional<? extends T> max(Iterable<? extends T> list, Function<? super T,? extends K> keyer) {
 		return FStream.from(list).max(keyer);
 	}
 	
