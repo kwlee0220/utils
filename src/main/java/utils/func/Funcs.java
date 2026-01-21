@@ -8,11 +8,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -39,8 +40,13 @@ public class Funcs {
 	 * @param pred	검색 조건
 	 * @return	조건을 만족하는 목록. 만일 조건을 만족하는 것이 없는 경우에는 {@code null}.
 	 */
-	public static <T> FOption<T> findFirst(Iterable<T> coll, Predicate<? super T> pred) {
-		return FStream.from(coll).findFirst(pred);
+	public static <T> Optional<T> findFirst(Iterable<T> coll, Predicate<? super T> pred) {
+		for ( T v : coll ) {
+			if ( pred.test(v) ) {
+				return Optional.of(v);
+			}
+		}
+		return Optional.empty();
 	}
 
 	/**
@@ -53,11 +59,14 @@ public class Funcs {
 	 * @return	조건을 만족하는 목록. 만일 조건을 만족하는 것이 없는 경우에는 {@code null}.
 	 */
 	public static <T> Optional<Indexed<T>> findFirstIndexed(Iterable<T> list, Predicate<? super T> pred) {
-		return FStream.from(list)
-						.zipWithIndex()
-						.map(t -> Indexed.with(t.value(), t.index()))
-						.findFirst(idxed -> pred.test(idxed.value()))
-						.toOptional();
+		int idx = 0;
+		for ( T v : list ) {
+			if ( pred.test(v) ) {
+				return Optional.of(Indexed.with(v, idx));
+			}
+			++idx;
+		}
+		return Optional.empty();
 	}
 
 	/**
@@ -65,7 +74,7 @@ public class Funcs {
 	 *
 	 * @param <T>
 	 * @param iterable	목록 리스트.
-	 * @return	첫번째 목록. 리스트가 빈 경우에는 {@code FOption.empty()}이 반환된다.
+	 * @return	첫번째 목록. 리스트가 빈 경우에는 {@link Optional#empty()}이 반환된다.
 	 */
 	public static <T> Optional<T> getFirst(Iterable<T> iterable) {
 		Iterator<T> iter = iterable.iterator();
@@ -76,85 +85,109 @@ public class Funcs {
 	}
 
 	/**
-	 * 주어진 목록들 중에서 첫번재 목록을 반환한다.
-	 *
-	 * @param <T>
-	 * @param iterable	목록 리스트.
-	 * @return	첫번째 목록. 리스트가 빈 경우에는 {@code null}이 반환된다.
-	 */
-	public static <T> T getFirstOrNull(Iterable<T> iterable) {
-		Iterator<T> iter = iterable.iterator();
-		return iter.hasNext() ? iter.next() : null;
-	}
-
-	/**
 	 * 주어진 목록들 중에서 마지막 목록을 반환한다.
 	 *
-	 * @param <T>
+	 * @param <T>	목록의 원소 타입.
 	 * @param list	목록 리스트.
 	 * @return	마지막 목록. 리스트가 빈 경우에는 {@code null}이 반환된다.
 	 */
-	public static <T> T getLast(Iterable<T> list) {
-		return com.google.common.collect.Iterables.getLast(list, null);
+	public static <T> Optional<T> getLast(Iterable<T> list) {
+		return Optional.ofNullable(com.google.common.collect.Iterables.getLast(list, null));
 	}
 	
 	/**
 	 * 주어진 목록에서 주어진 조건을 만족하는 목록의 존재 여부를 반환한다.
 	 *
-	 * @param <T>
+	 * @param <T>	목록의 원소 타입.
 	 * @param iterable	검색 대상 목록들.
 	 * @param pred		검색 조건
 	 * @return	존재하는 경우에는 {@code true}, 그렇지 않은 경우에는 {@code false}.
 	 */
 	public static <T> boolean exists(Iterable<T> iterable, Predicate<? super T> pred) {
-		return FStream.from(iterable).exists(pred);
+		return Iterables.any(iterable, pred::test);
+	}
+	public static <T> boolean exists(Iterator<T> iter, Predicate<? super T> pred) {
+		return Iterators.any(iter, pred::test);
 	}
 	
+	/**
+	 * 주어진 목록에서 모든 목록이 주어진 조건을 만족하는지 여부를 반환한다.
+	 *
+	 * @param <T>	목록의 원소 타입.
+	 * @param iterable 검색 대상 목록들.
+	 * @param pred     검색 조건
+	 * @return 모든 목록이 조건을 만족하는 경우에는 {@code true}, 그렇지 않은 경우에는 {@code false}.
+	 */
 	public static <T> boolean all(Iterable<T> iterable, Predicate<? super T> pred) {
-		return !FStream.from(iterable).exists(v -> !pred.test(v));
+		return Iterables.all(iterable, pred::test);
 	}
 	
 	public static <T> List<T> slice(Iterable<T> iterable, Slice slice) {
 		return FStream.from(iterable).slice(slice).toList();
 	}
 	
+	/**
+	 * 주어진 목록들에 대해 주어진 조건을 만족하는 element로 구성된 목록들을 반환한다.
+	 *
+	 * @param <T>  목록의 원소 타입.
+	 * @param list Iterable 객체.
+	 * @param pred 목록의 필터링을 수행할 Predicate 객체.
+	 * @return 필터링된 목록들의 리스트.
+	 */
 	public static <T> List<T> filter(Iterable<T> list, Predicate<? super T> pred) {
-		return FStream.from(list).filter(pred).toList();
+		List<T> mapped = Lists.newArrayList();
+		for ( T item : list ) {
+			if ( pred.test(item) ) {
+				mapped.add(item);
+			}
+		}
+		return mapped;
 	}
+	
+	/**
+	 * 주어진 집합들에 대해 주어진 조건을 만족하는 element로 구성된 집합들을 반환한다.
+	 *
+	 * @param <T>  집합의 원소 타입.
+	 * @param list Set 객체.
+	 * @param pred 집합의 필터링을 수행할 Predicate 객체.
+	 * @return 필터링된 집합들의 집합.
+	 */
 	public static <T> Set<T> filter(Set<T> list, Predicate<? super T> pred) {
 		return FStream.from(list).filter(pred).toSet();
 	}
 	
+	/**
+	 * 주어진 목록들에 대해 주어진 매퍼 함수를 적용한 결과 목록들을 반환한다.
+	 *
+	 * @param <T>	입력 목록의 원소 타입.
+	 * @param <S>	출력 목록의 원소 타입.
+	 * @param list   Iterable 객체.
+	 * @param mapper 목록의 매핑을 수행할 Function 객체.
+	 * @return 매핑된 목록들의 리스트.
+	 */
 	public static <T,S> List<S> map(Iterable<T> list, Function<? super T, ? extends S> mapper) {
-		List<S> coll = Lists.newArrayList();
-		return FStream.from(list).map(mapper).toCollection(coll);
-	}
-	public static <T,S> Set<S> map(Set<T> set, Function<? super T, ? extends S> mapper) {
-		Set<S> result = Sets.newHashSet();
-		return FStream.from(set).map(mapper).toCollection(result);
+		List<S> mapped = Lists.newArrayList();
+		for ( T item : list ) {
+			mapped.add(mapper.apply(item));
+		}
+		return mapped;
 	}
 
 	/**
-	 * 주어진 목록들 중에서 주어진 조건을 만족하는 모든 element를 주어진 목록으로 대체시킨다.
+	 * 주어진 집합들에 대해 주어진 매퍼 함수를 적용한 결과 집합들을 반환한다.
 	 *
-	 * @param <T>
-	 * @param list	Iterable 객체.
-	 * @param pred		목록의 대체 여부를 판달할 Predicate 객체.
-	 * @param supplier	대체할 새 객체를 제공할 Supplier 객체
-	 * @return	대체되기 이전 목록들의 리스트.
+	 * @param <T>    입력 집합의 원소 타입.
+	 * @param <S>    출력 집합의 원소 타입.
+	 * @param set    Set 객체.
+	 * @param mapper 집합의 매핑을 수행할 Function 객체.
+	 * @return 매핑된 집합들의 집합.
 	 */
-	public static <T> List<T> replaceIf(List<T> list, Predicate<? super T> pred,
-											Function<? super T, ? extends T> supplier) {
-		List<T> replaceds = Lists.newArrayList();
-		for ( int i =0; i < list.size(); ++i ) {
-			T v = list.get(i);
-			if ( pred.test(v) ) {
-				replaceds.add(v);
-				list.set(i, supplier.apply(v));
-			}
+	public static <T,S> Set<S> map(Set<T> set, Function<? super T, ? extends S> mapper) {
+		Set<S> result = Sets.newHashSet();
+		for ( T item : set ) {
+			result.add(mapper.apply(item));
 		}
-		
-		return replaceds;
+		return result;
 	}
 
 	/**
@@ -271,7 +304,7 @@ public class Funcs {
 	 * @param pred		Element의 삭제 여부를 판달할 Predicate 객체.
 	 * @return	삭제된 목록들의 리스트.
 	 */
-	public static <T> List<T> removeIf(Iterable<T> iterable, Predicate<? super T> pred) {
+	public static <T> List<T> removeAndReturnIf(Iterable<T> iterable, Predicate<? super T> pred) {
 		List<T> removeds = Lists.newArrayList();
 		
 		Iterator<T> iter = iterable.iterator();
@@ -296,7 +329,7 @@ public class Funcs {
 	 * @return		삭제된 {@link Map.Entry} 객체들.
 	 */
 	public static <K,V>
-	List<KeyValue<K,V>> removeIf(Map<K,V> map, BiPredicate<? super K, ? super V> pred) {
+	List<KeyValue<K,V>> removeAndReturnIf(Map<K,V> map, BiPredicate<? super K, ? super V> pred) {
 		List<KeyValue<K,V>> removeds = Lists.newArrayList();
 		
 		Iterator<Map.Entry<K, V>> iter = map.entrySet().iterator();
@@ -310,29 +343,105 @@ public class Funcs {
 
 		return removeds;
 	}
-
-	/**
-	 * 주어진 목록들 중에서 주어진 조건을 만족하는 모든 element를 주어진 consumer를 통해 apply를 호출한다.
-	 *
-	 * @param <T>
-	 * @param list	Iterable 객체.
-	 * @param pred	Element의 apply 여부를 판달할 Predicate 객체.
-	 * @param consumer	consumer 객체.
-	 * @return	apply된 객체 갯수.
-	 */
-	public static <T> int acceptIf(Iterable<T> list, Predicate<? super T> pred,
-									Consumer<? super T> consumer) {
-		return (int)FStream.from(list)
-							.filter(pred)
-							.peek(consumer)
-							.count();
-	}
 	
 	public static <K,V> void acceptIfPresent(Map<K,V> map, K key, BiConsumer<K, V> consumer) {
 		V value = map.get(key);
 		if ( value != null ) {
 			consumer.accept(key, value);
 		}
+	}
+	
+	public static <K, V, S> Map<K, V> toMap(Iterable<S> iter,
+											Function<S, KeyValue<K,V>> kvMapper) {
+		return FStream.from(iter).mapToKeyValue(kvMapper).toMap();
+	}
+	
+	/**
+	 * 두 개의 {@link Map} 객체를 내부 조인(inner join)한다.
+	 * 
+	 * @param <K>      키 타입
+	 * @param <V1>     왼쪽 맵의 값 타입
+	 * @param <V2>     오른쪽 맵의 값 타입
+	 * @param leftMap  왼쪽 맵 객체
+	 * @param rightMap 오른쪽 맵 객체
+	 * @return 조인된 맵 객체
+	 */
+	public static <K,V1,V2> Map<K,Tuple<V1,V2>> innerJoin(Map<K,V1> leftMap, Map<K,V2> rightMap) {
+		Map<K, Tuple<V1, V2>> joined = com.google.common.collect.Maps.newHashMap();
+		for ( Map.Entry<K, V1> leftEnt : leftMap.entrySet() ) {
+			V2 rightVal = rightMap.get(leftEnt.getKey());
+			if ( rightVal != null ) {
+				joined.put(leftEnt.getKey(), Tuple.of(leftEnt.getValue(), rightVal));
+			}
+		}
+
+		return joined;
+	}
+	
+	/**
+	 * 두 개의 {@link Map} 객체를 왼쪽 외부 조인(left outer join)한다.
+	 * 
+	 * @param <K>      키 타입
+	 * @param <V1>     왼쪽 맵의 값 타입
+	 * @param <V2>     오른쪽 맵의 값 타입
+	 * @param leftMap  왼쪽 맵 객체
+	 * @param rightMap 오른쪽 맵 객체
+	 * @return 조인된 맵 객체
+	 */
+	public static <K, V1, V2> Map<K, Tuple<V1, V2>> leftOuterJoin(Map<K, V1> leftMap, Map<K, V2> rightMap) {
+		Map<K, Tuple<V1, V2>> joined = com.google.common.collect.Maps.newHashMap();
+		for ( Map.Entry<K, V1> leftEnt : leftMap.entrySet() ) {
+			V2 rightVal = rightMap.get(leftEnt.getKey());
+			joined.put(leftEnt.getKey(), Tuple.of(leftEnt.getValue(), rightVal));
+		}
+
+		return joined;
+	}
+	
+	/**
+	 * 두 개의 {@link Map} 객체를 오른쪽 외부 조인(right outer join)한다.
+	 * 
+	 * @param <K>      키 타입
+	 * @param <V1>     왼쪽 맵의 값 타입
+	 * @param <V2>     오른쪽 맵의 값 타입
+	 * @param leftMap  왼쪽 맵 객체
+	 * @param rightMap 오른쪽 맵 객체
+	 * @return 조인된 맵 객체
+	 */
+	public static <K, V1, V2> Map<K, Tuple<V1, V2>> rightOuterJoin(Map<K, V1> leftMap, Map<K, V2> rightMap) {
+		Map<K, Tuple<V1, V2>> joined = com.google.common.collect.Maps.newHashMap();
+		for ( Map.Entry<K, V2> rightEnt : rightMap.entrySet() ) {
+			V1 leftVal = leftMap.get(rightEnt.getKey());
+			joined.put(rightEnt.getKey(), Tuple.of(leftVal, rightEnt.getValue()));
+		}
+
+		return joined;
+	}
+	
+	/**
+	 * 두 개의 {@link Map} 객체를 완전 외부 조인(full outer join)한다.
+	 * 
+	 * @param <K>      키 타입
+	 * @param <V1>     왼쪽 맵의 값 타입
+	 * @param <V2>     오른쪽 맵의 값 타입
+	 * @param leftMap  왼쪽 맵 객체
+	 * @param rightMap 오른쪽 맵 객체
+	 * @return 조인된 맵 객체
+	 */
+	public static <K, V1, V2> Map<K, Tuple<V1, V2>> fullOuterJoin(Map<K, V1> leftMap, Map<K, V2> rightMap) {
+		Map<K, Tuple<V1, V2>> joined = com.google.common.collect.Maps.newHashMap();
+		for ( Map.Entry<K, V1> leftEnt : leftMap.entrySet() ) {
+			V2 rightVal = rightMap.get(leftEnt.getKey());
+			joined.put(leftEnt.getKey(), Tuple.of(leftEnt.getValue(), rightVal));
+		}
+		for ( Map.Entry<K, V2> rightEnt : rightMap.entrySet() ) {
+			if ( !joined.containsKey(rightEnt.getKey()) ) {
+				V1 leftVal = leftMap.get(rightEnt.getKey());
+				joined.put(rightEnt.getKey(), Tuple.of(leftVal, rightEnt.getValue()));
+			}
+		}
+
+		return joined;
 	}
 	
 	public static <T> Set<T> addCopy(Set<T> set, T elm) {

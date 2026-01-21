@@ -21,38 +21,6 @@ public class FuncTest {
 	}
 	
 	@Test
-	public void testReplaceIf_1() throws Exception {
-		List<Integer> list = Lists.newArrayList(1, 2, 3, 1);
-		
-		Function<Integer,Integer> func = v -> -v;
-		List<Integer> old = Funcs.replaceIf(list, i -> i == 3, func);
-		Assert.assertEquals(1, old.size());
-		Assert.assertEquals(3, (int)old.get(0));
-		Assert.assertEquals(List.of(1, 2, -3, 1), list);
-	}
-	
-	@Test
-	public void testReplaceIf_2() throws Exception {
-		List<Integer> list = Lists.newArrayList(1, 2, 3, 1);
-		
-		Function<Integer,Integer> func = v -> -v;
-		List<Integer> old = Funcs.replaceIf(list, i -> i == 4, func);
-		Assert.assertEquals(0, old.size());
-		Assert.assertEquals(List.of(1, 2, 3, 1), list);
-	}
-	
-	@Test
-	public void testReplaceIf_3() throws Exception {
-		List<Integer> list = Lists.newArrayList(1, 2, 3, 4);
-		
-		Function<Integer,Integer> func = v -> -v;
-		List<Integer> old = Funcs.replaceIf(list, i -> i%2 == 1, func);
-		Assert.assertEquals(2, old.size());
-		Assert.assertEquals(List.of(1, 3), old);
-		Assert.assertEquals(List.of(-1, 2, -3, 4), list);
-	}
-	
-	@Test
 	public void testReplaceFirst1_1() throws Exception {
 		List<Integer> list = Lists.newArrayList(1, 2, 3, 4, 3);
 		

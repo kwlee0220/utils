@@ -15,7 +15,7 @@ import com.google.common.util.concurrent.AbstractService;
 
 import utils.LoggerSettable;
 import utils.async.Guard;
-import utils.func.FOption;
+import utils.func.Optionals;
 import utils.io.IOUtils;
 
 
@@ -57,7 +57,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	
 	@Override
 	public Logger getLogger() {
-		return FOption.getOrElse(m_logger, s_logger);
+		return Optionals.getOrElse(m_logger, s_logger);
 	}
 	
 	@Override

@@ -16,8 +16,6 @@ import java.util.Iterator;
 import java.util.concurrent.CancellationException;
 import java.util.stream.Stream;
 
-import javax.annotation.Nonnull;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +44,7 @@ public class Observables {
 		throw new AssertionError("Should not be called: class=" + Observables.class);
 	}
 	
-	public static final <T> Observable<T> from(@Nonnull CheckedSupplier<Iterator<? extends T>> iterSuppl) {
+	public static final <T> Observable<T> from(CheckedSupplier<Iterator<? extends T>> iterSuppl) {
 		checkNotNullArgument(iterSuppl);
 		
 		return Observable.create(emitter -> {
@@ -73,7 +71,7 @@ public class Observables {
 		});
 	}
 	
-	public static final <T> Observable<T> from(@Nonnull Stream<T> stream) {
+	public static final <T> Observable<T> from(Stream<T> stream) {
 		return Observable.fromIterable(() -> stream.iterator());
 	}
 	
@@ -84,7 +82,7 @@ public class Observables {
 	 * @param stream	변환시킬 {@code FStream} 객체
 	 * @return	변환된 {@link Observable} 객체.
 	 */
-	public static <T> Observable<T> from(@Nonnull FStream<T> stream) {
+	public static <T> Observable<T> from(FStream<T> stream) {
 		return Observable.create(emitter -> {
 			try {
 				stream.takeWhile(v -> !emitter.isDisposed())

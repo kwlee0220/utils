@@ -17,9 +17,9 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import com.google.common.base.Preconditions;
+
+import javax.annotation.Nullable;
 
 import utils.Throwables;
 import utils.stream.FStream;
@@ -81,34 +81,6 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		checkNotNullArgument(opt, "Optional is null");
 
 		return opt.isPresent() ? of(opt.get()) : empty();
-	}
-
-	/**
-	 * 주어진 {@code flag}가 {@code true}인 경우에만 주어진 객체를 감싸는 {@link FOption} 객체를 생성한다.
-	 * <p>
-	 * 주어진 {@code flag}가 {@code false}인 경우에는 {@link FOption.empty()}를 반환한다.
-	 * 
-	 * @param flag	주어진 객체를 감쌀지 여부를 나타내는 플래그.
-	 * @param value 감쌀 객체
-	 * @return {@link FOption} 객체
-	 */
-	public static <T> FOption<T> when(boolean flag, T value) {
-		return flag ? of(value) : empty();
-	}
-
-	/**
-	 * 주어진 {@code flag}가 {@code true}인 경우에만 주어진 {@link Supplier}로부터 객체를 생성하여
-	 * 감싸는 {@link FOption} 객체를 생성한다.
-	 * <p>
-	 * 주어진 {@code flag}가 {@code false}인 경우에는 {@link FOption.empty()}를 반환한다.
-	 * 
-	 * @param flag      주어진 객체를 감쌀지 여부를 나타내는 플래그.
-	 * @param value		감쌀 객체를 생성하는 함수
-	 * @return {@link FOption} 객체
-	 * @see #when(boolean, Object)
-	 */
-	public static <T> FOption<T> when(boolean flag, Supplier<T> value) {
-		return flag ? of(value.get()) : empty();
 	}
 
 	public static FOption<Long> gtz(long value) {
@@ -200,7 +172,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	/**
 	 * 값이 존재하는 경우 해당 객체를 반환하고, 그렇지 않은 경우 주어진 {@code elseSupplier}로부터 값을 반환한다.
 	 * 
-	 * @param elseValue 	값이 존재하지 않을 경우 반환 값을 생성하는 함수.
+	 * @param elseSupplier 	값이 존재하지 않을 경우 반환 값을 생성하는 함수.
 	 * @return	존재하는 값. 없는 경우 주어진 {@code elseSupplier}로부터 생성된 값.
 	 * @see #getOrElse
 	 */
@@ -219,7 +191,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 그렇지 않은 경우 주어진 {@code elseSupplier}로부터 값을 반환한다.
 	 * 
 	 * @param value		{@code null} 여부를 판단할 값.
-	 * @param elseValue 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
+	 * @param elseSupplier 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
 	 * @return	존재하는 값. 없는 경우 주어진 {@code elseSupplier}로부터 생성된 값.
 	 * @see #getOrElse
 	 */
@@ -439,7 +411,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 값이 존재하는 경우 해당 객체를 활용하여 {@code mapper} 함수를 호출하여
 	 * 그 결과 값을 반환하고, 그렇지 않은 경우 객체 자신을 반환한다.
 	 * 
-	 * @param pred 값이 존재하는 경우 호출할 매핑 함수.
+	 * @param mapper 값이 존재하는 경우 호출할 매핑 함수.
 	 * @return 값이 존재하는 경우 @code mapper} 함수를 호출한 결과 값,
 	 * 			그렇지 않은 경우는 객체 자신을 반환한다.
 	 */
@@ -495,7 +467,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 이 값은 {@code FOption#empty()}와는 구별된다
 	 * 
 	 * @param nullable {@code null} 여부를 판단할 객체.
-	 * @param mapper   값이 존재하는 경우 호출할 매핑 함수.
+	 * @param func   값이 존재하는 경우 호출할 매핑 함수.
 	 * @param elsePart 값이 존재하지 않을 경우 반환할 값 생성 함수.
 	 * @return 값이 존재하는 경우 @code mapper} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code elsePart}.
 	 */
@@ -660,7 +632,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * <p>
 	 * {@code orElseSupplier} 함수 호출 중 예외가 발생되면 해당 예외를 throw 시킨다.
 	 * 
-	 * @param orElseSupplier 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
+	 * @param errorSupplier 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
 	 * @return 값이 존재하는 경우 해당 객체, 그렇지 않은 경우 주어진 {@code orElseSupplier}로부터 생성된 값.
 	 * @throws X	{@code orElseSupplier} 함수 호출 중 예외가 발생된 경우.
 	 */

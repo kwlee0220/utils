@@ -64,7 +64,7 @@ class OuterJoinedFStream<K,TL,TR> extends AbstractKeyValueFStream<K,Tuple<List<T
 			return FOption.of(KeyValue.of(key, Tuple.of(leftBucket, rightBucket)));
 		}
 		else {
-			K unmatchedKey = Funcs.getFirstOrNull(m_rightDict.keySet());
+			K unmatchedKey = Funcs.getFirst(m_rightDict.keySet()).orElse(null);
 			if ( unmatchedKey != null ) {
 				List<TR> rightBucket = m_rightDict.remove(unmatchedKey);
 				return FOption.of(KeyValue.of(unmatchedKey, Tuple.of(Collections.emptyList(), rightBucket)));

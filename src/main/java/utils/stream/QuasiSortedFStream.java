@@ -5,7 +5,7 @@ import static utils.Utilities.checkState;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import javax.annotation.Nullable;
 
 import utils.Utilities;
 import utils.func.FOption;

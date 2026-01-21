@@ -6,8 +6,8 @@ group = 'etri'
 version = '25.10.27'
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
 }
 [compileJava,compileTestJava]*.options*.encoding = 'UTF-8'
 
@@ -25,11 +25,11 @@ ext {
 	slf4j_version = '2.0.17'
 	logback_version = '1.5.18'
 	guava_version = '33.4.8-jre'
-	checker_version = '3.49.4'
 	rxjava3_version = '3.1.8'
 	picocli_version = '4.6.2'
 	jackson_version = '2.18.2'
 	lombok_version = '1.18.32'
+	findbugs_version = '3.0.2'
 	
 	cglib_version = '3.3.0'
 	commons_io_version = '2.11.0'
@@ -37,6 +37,7 @@ ext {
 	okhttp_version = '4.12.0'
 	
 	jakarta_persistence_version = '3.1.0'
+	jakarta_annotation_version = '2.1.1'
 	
 	junit_version = '4.13.2'
 	mockito_version = '3.12.4'
@@ -55,8 +56,9 @@ dependencies {
 	api "org.slf4j:slf4j-api:${slf4j_version}"
 	implementation "ch.qos.logback:logback-classic:${logback_version}"
 	
+	compileOnly "com.google.code.findbugs:jsr305:${findbugs_version}"
+	
 	api "com.google.guava:guava:${guava_version}"
-	api "org.checkerframework:checker:${checker_version}"
 	api "io.reactivex.rxjava3:rxjava:${rxjava3_version}"
 
 	// Lombok (from the project :utils)
@@ -66,9 +68,9 @@ dependencies {
 	// command line parser
 	implementation "info.picocli:picocli:${picocli_version}"
 
-	// jackson json parser
+	// // jackson json parser
 	implementation "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
-	implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
+	compileOnly "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
 	
 	implementation "commons-io:commons-io:${commons_io_version}"
 	implementation "org.apache.commons:commons-text:${commons_text_version}"
@@ -82,8 +84,9 @@ dependencies {
 	// HTTP Client
 	implementation "com.squareup.okhttp3:okhttp:${okhttp_version}"
 	
-	// jakarta api
+	// // jakarta api
 	implementation "jakarta.persistence:jakarta.persistence-api:${jakarta_persistence_version}"
+	implementation "jakarta.annotation:jakarta.annotation-api:${jakarta_annotation_version}"
 	
 	testImplementation "junit:junit:${junit_version}"
 	testImplementation "org.mockito:mockito-core:${mockito_version}"

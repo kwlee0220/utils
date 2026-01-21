@@ -1,7 +1,5 @@
 package utils.rx;
 
-import javax.annotation.Nonnull;
-
 import io.reactivex.rxjava3.core.ObservableEmitter;
 import io.reactivex.rxjava3.core.ObservableOnSubscribe;
 
@@ -22,7 +20,7 @@ class ExecutionProgressReport<T> implements ObservableOnSubscribe<ExecutionProgr
 	}
 
 	@Override
-	public void subscribe(@Nonnull ObservableEmitter<ExecutionProgress<T>> emitter) throws Exception {
+	public void subscribe(ObservableEmitter<ExecutionProgress<T>> emitter) throws Exception {
 		if ( m_cancelOnDispose ) {
 			emitter.setCancellable(() -> m_exec.cancel(true));
 		}

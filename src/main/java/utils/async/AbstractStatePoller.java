@@ -28,12 +28,23 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractStatePoller<R> extends PeriodicLoopExecution<R> {
 	private final Logger s_logger = LoggerFactory.getLogger(AbstractStatePoller.class);
 	
-	protected void initializePoller() throws Exception { super.initializeLoop(); };
-	protected abstract Optional<R> pollState() throws Exception;
-	protected void finalizePoller() throws Exception { super.finalizeLoop(); };
+	private R m_result;
 	
-	protected final void initializeLoop() throws Exception { super.initializeLoop(); }
-	protected final void finalizeLoop() throws Exception { super.finalizeLoop(); }
+	protected void initializePoller() throws Exception { };
+	protected abstract Optional<R> pollState() throws Exception;
+	protected void finalizePoller(R state) throws Exception { };
+	
+	@Override
+	protected void initializeLoop() throws Exception {
+		initializePoller();
+		super.initializeLoop();
+	}
+	
+	@Override
+	protected void finalizeLoop() throws Exception {
+		finalizePoller(m_result);
+		super.finalizeLoop();
+	}
 	
 	protected AbstractStatePoller(Duration pollInterval, boolean cumulativeInterval) {
 		super(pollInterval, cumulativeInterval);
@@ -49,6 +60,11 @@ public abstract class AbstractStatePoller<R> extends PeriodicLoopExecution<R> {
 
 	@Override
 	protected final Optional<R> performPeriodicAction(long loopIndex) throws Exception {
-		return pollState();
+		Optional<R> ostate = pollState();
+		if ( ostate != null && ostate.isPresent() ) {
+			m_result = ostate.get();
+		}
+		
+		return ostate;
 	}
 }

@@ -1,6 +1,7 @@
 package utils.func;
 
 import java.lang.reflect.Method;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -15,7 +16,7 @@ import net.sf.cglib.proxy.MethodProxy;
  * @author Kang-Woo Lee (ETRI)
  */
 public class Lazy<T> {
-	private final AtomicReference<FOption<T>> m_ref;
+	private final AtomicReference<Optional<T>> m_ref;
 	private final Supplier<? extends T> m_supplier;
 	
 	/**
@@ -48,7 +49,7 @@ public class Lazy<T> {
 	}
 	
 	private Lazy(T value) {
-		m_ref = new AtomicReference<>(FOption.of(value));
+		m_ref = new AtomicReference<>(Optional.of(value));
 		m_supplier = null;
 	}
 	
@@ -63,7 +64,7 @@ public class Lazy<T> {
 	 * @return	적재된 값이 있으면 {@code true}, 그렇지 않으면 {@code false}.
 	 */
 	public boolean isLoaded() {
-		return m_ref.getAcquire().isPresent();
+		return m_ref.getAcquire() != null;
 	}
 	
 	/**
@@ -74,10 +75,10 @@ public class Lazy<T> {
 	 * @return	적재된 값.
 	 */
 	public T get() {
-		FOption<T> wrapped = m_ref.get();
+		Optional<T> wrapped = m_ref.get();
 		if ( wrapped == null ) {
 			synchronized ( m_ref ) {
-				wrapped = FOption.of(m_supplier.get());
+				wrapped = Optional.of(m_supplier.get());
 				if ( !m_ref.compareAndSet(null, wrapped) ) {
 					wrapped = m_ref.get();
 				}
@@ -94,8 +95,8 @@ public class Lazy<T> {
 	 * @param value	설정할 값
 	 * @return	이전 값. 설정된 값이 없었으면 {@link FOption#empty()} 반환.
 	 */
-	public FOption<T> set(T value) {
-        return m_ref.getAndSet(FOption.of(value));
+	public Optional<T> set(T value) {
+        return m_ref.getAndSet(Optional.of(value));
 	}
 	
 	/**
@@ -111,7 +112,7 @@ public class Lazy<T> {
 	 * @param dtor 소멸자
 	 */
 	public void unload(Consumer<T> dtor) {
-		FOption<T> wrapped = m_ref.getAndSet(null);
+		Optional<T> wrapped = m_ref.getAndSet(null);
 		if ( wrapped != null ) {
 			dtor.accept(wrapped.get());
 		}
@@ -119,7 +120,7 @@ public class Lazy<T> {
 	
 	@Override
 	public String toString() {
-		FOption<T> wrapped = m_ref.get();
+		Optional<T> wrapped = m_ref.get();
 		String vstr = ( wrapped != null ) ? ""+wrapped.get() : "unloaded";
 		
 		return String.format("Lazy[%s]", vstr);

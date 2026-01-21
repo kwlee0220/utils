@@ -5,9 +5,11 @@ import static utils.Utilities.checkNotNullArgument;
 
 import java.io.File;
 import java.util.List;
+import java.util.Optional;
+
+import javax.annotation.Nullable;
 
 import utils.CSV;
-import utils.func.FOption;
 
 import picocli.CommandLine.Option;
 
@@ -23,7 +25,7 @@ public class JdbcParameters {
 	private String m_user;
 	private String m_passwd;
 	private String m_dbName;
-	private FOption<String> m_jdbcJarPath = FOption.empty();
+	@Nullable private String m_jdbcJarPath = null;
 	
 	public JdbcParameters() { }
 	
@@ -38,7 +40,9 @@ public class JdbcParameters {
 	
 	public JdbcProcessor createJdbcProcessor() {
 		JdbcProcessor jdbc = JdbcProcessor.create(m_system, m_host, m_port, m_user, m_passwd, m_dbName);
-		m_jdbcJarPath.map(File::new).ifPresent(jdbc::setJdbcJarFile);
+		if ( m_jdbcJarPath != null ) {
+			jdbc.setJdbcJarFile(new File(m_jdbcJarPath));
+		}
 		
 		return jdbc;
 	}
@@ -87,14 +91,14 @@ public class JdbcParameters {
 		return m_dbName;
 	}
 	
-	public FOption<String> jdbcJarPath() {
-		return m_jdbcJarPath;
+	public Optional<String> jdbcJarPath() {
+		return Optional.ofNullable(m_jdbcJarPath);
 	}
 
 	@Option(names={"--jdbc_jar"}, paramLabel="jdbc_jar_path", required=false,
 			description={"the path to JDBC driver jar"})
 	public void jdbcJarPath(String jarPath) {
-		m_jdbcJarPath = FOption.ofNullable(jarPath);
+		m_jdbcJarPath = jarPath;
 	}
 	
 	public JdbcParameters duplicate() {

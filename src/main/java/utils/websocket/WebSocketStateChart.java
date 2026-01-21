@@ -78,16 +78,12 @@ public class WebSocketStateChart<C extends WebSocketContext> extends StateChart<
 			// 해당 이벤트가 처리되지 않은 경우에 대비하여 fall-back 처리를 수행함.
 			// 	onError: 상태머신을 실패 상태로 전이시킴.
 			// 	onClose: 상태머신을 취소 상태로 전이시킴.
-			switch ( signal ) {
-				case ErrorMessage errMsg:		// onError 메시지가 도착한 경우
-					fail(errMsg.getError());
-					break;
-                case ConnectionClosed closed:	// onClose 메시지가 도착한 경우
-                	cancel(true);
-                	break;
-                default:
-                	break;
-			};
+			if ( signal instanceof ErrorMessage errMsg ) {	// onError 메시지가 도착한 경우
+				fail(errMsg.getError());
+			}
+			else if ( signal instanceof ConnectionClosed ) {	// onClose 메시지가 도착한 경우
+				cancel(true);
+			}
 		}
 		return otrans;
 	}

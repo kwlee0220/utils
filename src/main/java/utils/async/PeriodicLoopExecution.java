@@ -7,15 +7,28 @@ import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang3.time.DurationUtils;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.google.common.base.Preconditions;
+
+import javax.annotation.Nullable;
 
 import utils.func.FOption;
 
 
 /**
- * 주어진 iteration 작업을 주어진 주기로 반복적으로 수행하는 {@link StartableExecution}을 구현한다.
+ * 주어진 iteration 작업을 지정된 주기로 반복적으로 수행하는 {@link StartableExecution}을 구현한다.
+ * <p>
+ * 본 execution을 사용하기 위해서는 다음의 메소드를 override하여 구현할 수 있다.
+ * <ul>
+ *  <li>{@link #initializeLoop()}: loop 작업이 처음으로 시작될 때 호출된다.
+ *  Loop 작업 시작 시에 수행할 초기화 작업을 구현한다. 본 메소드를 override한 경우에는 반드시
+ *  {@code super.initializeLoop()} 메소드를 호출해야 한다.
+ *  <li>{@link #finalizeLoop()}: loop 작업이 종료된 후 필요한 종료 작업을 수행한다.
+ *  Loop 작업 종료 시에 수행할 종료 작업을 구현한다. 본 메소드를 override한 경우에는 반드시
+ *  {@code super.finalizeLoop()} 메소드를 호출해야 한다.
+ * 	<li>{@link #performPeriodicAction(long)}: 주기적으로 반복 수행할 iteration 작업을 구현한다.
+ *  이 메소드는 {@link #getLoopInterval()} 주기로 반복적으로 호출되고, 반드시 구현해야 한다.
+ * </ul>
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -32,12 +45,12 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	 * 이 메소드는 {@link #getLoopInterval()} 주기로 반복적으로 호출된다.
 	 * 메소드의 수행 결과에 따라 다음 iteration이 수행될지를 결정한다.
 	 * <dl>
-	 * 	<dt>{@link FOption(T)}:</dt>
+	 * 	<dt>Optional:</dt>
 	 * 	<dd>원하는 결과가 생산되어 loop을 중단함.</dd>
 	 * 	<dt>{@link FOption#empty()}:</dt>
 	 * 	<dd>추가 iteration이 필요함.</dd>
-	 * 	<dt>null:</dt>
-	 * 	<dd>Loop 작업이 중단됨..</dd>
+	 * 	<dt>{@code null}:</dt>
+	 * 	<dd>Loop 작업이 중단됨.</dd>
 	 * </dl>
 	 * 
 	 * @return	iteration 작업의 수행 결과.
@@ -154,9 +167,11 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	protected void finalizeLoop() throws Exception { }
 
 	@Override
-	protected Optional<T> iterate(long loopIndex) throws Exception {
+	final protected Optional<T> iterate(long loopIndex) throws Exception {
 		// 주기 작업을 수행한다.
 		Optional<T> result = performPeriodicAction(loopIndex);
+		
+		// 원하는 결과가 생산된 경우는 loop 종료
 		if ( result != null && result.isPresent() ) {
 			return result;
 		}
@@ -175,7 +190,10 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 			}
 		}
 		
-		// 이번 iteration의 due 시간을 계산한다.
+		//
+		// 이번 iteration의 due 시간을 계산하고, 그 due 시간까지 대기한다.
+		//
+		
 		Instant iterationDue;
 		if ( !m_cumulativeInterval ) {
 			// 'm_cumulativeInterval'이 false인 경우는 매 iteration마다 시작 시각을 계산해서
@@ -188,7 +206,7 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 			// loop의 시작 시각에 더해서 결정한다.
 			iterationDue = m_started.plus(m_interval.multipliedBy(loopIndex+1));
 		}
-		// 만일 이번 iteration due보다 m_due가 더 이른 경우는 m_due를 iterationDue로 사용한다.
+		// 만일 이번 iteration의 due보다 m_due가 더 이른 경우는 m_due를 iterationDue로 사용한다.
 		if ( m_due != null && iterationDue.compareTo(m_due) > 0 ) {
 			iterationDue = m_due;
 		}

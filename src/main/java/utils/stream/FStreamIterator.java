@@ -3,7 +3,7 @@ package utils.stream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import utils.func.FOption;
+import javax.annotation.Nullable;
 
 
 /**
@@ -12,12 +12,12 @@ import utils.func.FOption;
  */
 class FStreamIterator<T> implements Iterator<T>, AutoCloseable {
 	private final FStream<T> m_strm;
-	private FOption<T> m_next;
+	@Nullable private T m_next;	// 다음 요소가 없는 경우는 null
 	private boolean m_closed = false;
 	
 	FStreamIterator(FStream<T> strm) {
 		m_strm = strm;
-		m_next = m_strm.next();
+		m_next = m_strm.next().getOrNull();
 	}
 
 	@Override
@@ -31,17 +31,17 @@ class FStreamIterator<T> implements Iterator<T>, AutoCloseable {
 	
 	@Override
 	public boolean hasNext() {
-		return m_next.isPresent();
+		return m_next != null;
 	}
 
 	@Override
 	public T next() {
-		if ( m_next.isAbsent() ) {
+		if ( m_next == null ) {
 			throw new NoSuchElementException();
 		}
 		
-		T next = m_next.get();
-		m_next = m_strm.next().ifAbsent(m_strm::closeQuietly);
+		T next = m_next;
+		m_next = m_strm.next().ifAbsent(m_strm::closeQuietly).getOrNull();
 		
 		return next;
 	}

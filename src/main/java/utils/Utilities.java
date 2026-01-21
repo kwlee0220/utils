@@ -11,6 +11,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.Spliterator;
@@ -28,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
-import utils.func.FOption;
 import utils.io.IOUtils;
 import utils.stream.FStream;
 
@@ -48,30 +48,31 @@ public class Utilities {
 					.fold(1, (accum,code) -> 31 * accum + code);
 	}
 	
+	public static Optional<String> getEnvironmentVariable(String envVarName) {
+		return Optional.ofNullable(System.getenv(envVarName));
+	}
+	
 	/**
 	 * 주어진 환경 변수에 이름에 기술된 파일 객체를 반환한다.
 	 * <p>
-	 * 만일 환경 변수에 지정된 경로의 파일이 존재하지 않는 경우에는 {@link FOption#empty()}가 반환된다.
+	 * 만일 환경 변수에 지정된 경로의 파일이 존재하지 않는 경우에는 {@link Optional#empty()}가 반환된다.
 	 * 
 	 * @param	envVarName	환경 변수 이름
-	 * @return	{@link FOption} 객체.
+	 * @return	{@link Optional} 객체.
 	 */
-	public static FOption<File> getEnvironmentVariableFile(String envVarName) {
-		String path = System.getenv(envVarName);
-		if ( path != null ) {
-			File file = new File(path);
-			if ( file.exists() ) {
-				return FOption.of(file);
-			}
-			else {
-				String msg = String.format("EnvironmentVariable does not have a valid file: %s=%s",
-											envVarName, path);
-				throw new IllegalArgumentException(msg);
-			}
-		}
-		else {
-			return FOption.empty();
-		}
+	public static Optional<File> getEnvironmentVariableFile(String envVarName) {
+		return getEnvironmentVariable(envVarName)
+					.flatMap(path -> {
+						File file = new File(path);
+						if ( file.exists() ) {
+							return Optional.of(file);
+						}
+						else {
+							String msg = String.format("EnvironmentVariable does not have a valid file: %s=%s",
+														envVarName, path);
+							throw new IllegalArgumentException(msg);
+						}
+					});
 	}
 	
 	public static String getLineSeparator() {
@@ -410,6 +411,15 @@ public class Utilities {
 			return defValue;
 		}
 	}
+	public static Tuple<String,String> split(String str, String delim, Tuple<String,String> defValue) {
+		int delimIndex = str.indexOf(delim);
+		if ( delimIndex >= 0 ) {
+			return Tuple.of(str.substring(0, delimIndex), str.substring(delimIndex+delim.length()));
+		}
+		else {
+			return defValue;
+		}
+	}
 	
 	/**
 	 * 주어진 문자열을 주어진 구분자로 분리하여 반환한다.
@@ -422,6 +432,9 @@ public class Utilities {
 	 * @return 분리된 문자열의 쌍
 	 */
 	public static Tuple<String,String> split(String str, char delim) {
+		return split(str, delim, null);
+	}
+	public static Tuple<String,String> split(String str, String delim) {
 		return split(str, delim, null);
 	}
 	

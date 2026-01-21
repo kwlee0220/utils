@@ -1,7 +1,5 @@
 package utils;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 /**
  *
  * @author Kang-Woo Lee (ETRI)
@@ -12,5 +10,5 @@ public interface Keyed<T> {
 	 * 
 	 * @return 키 값
 	 */
-    public @NonNull T key();
+    public T key();
 }

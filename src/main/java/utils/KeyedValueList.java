@@ -5,13 +5,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import lombok.experimental.Delegate;
+
+import javax.annotation.Nullable;
 
 import utils.func.Funcs;
 import utils.stream.FStream;
@@ -42,7 +42,7 @@ public class KeyedValueList<K,V> implements List<V> {
 	 * 
 	 * @param <K> 키 값의 타입.
 	 * @param <V> 값의 타입.
-	 * @param values 값의 {@link Iterable} 객체.
+	 * @param keyer 키 값을 추출하는 함수.
 	 */
 	public static <K, V> KeyedValueList<K, V> with(Function<V,K> keyer) {
 		Preconditions.checkArgument(keyer != null, "Function<V,K> keyer is null");
@@ -197,7 +197,7 @@ public class KeyedValueList<K,V> implements List<V> {
 		Preconditions.checkArgument(key != null, "key is null");
 		
 		return Funcs.findFirst(m_values, v -> m_keyer.apply(v).equals(key))
-					.getOrNull();
+					.orElse(null);
 	}
 	
 	/**

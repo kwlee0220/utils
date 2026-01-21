@@ -34,7 +34,6 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 * 	<dt>CancellationException</dt>
 	 * 	<dd>비동기 작업이 수행 중단된 것으로 간주된다.
 	 * 		{@link Execution#isCancelled()} 가 {@code true} 가 됨.</dd>
-	 * </dl>
 	 * 	<dt>Exception</dt>
 	 * 	<dd>비동기 작업이 수행 중에 오류 발생으로 실패한 것으로 간주된다.
 	 * 		{@link Execution#isFailed()} 가 {@code true} 가 됨.</dd>

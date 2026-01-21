@@ -9,9 +9,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import com.google.common.base.Preconditions;
+
+import javax.annotation.Nullable;
 
 import utils.func.CheckedRunnable;
 import utils.func.CheckedSupplier;

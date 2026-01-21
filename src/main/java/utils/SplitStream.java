@@ -4,9 +4,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import com.google.common.collect.Lists;
+
+import javax.annotation.Nullable;
 
 import utils.func.FOption;
 import utils.stream.FStream;

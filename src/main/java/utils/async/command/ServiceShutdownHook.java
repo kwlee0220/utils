@@ -5,7 +5,7 @@ import org.slf4j.Logger;
 import com.google.common.util.concurrent.Service;
 
 import utils.LoggerSettable;
-import utils.func.FOption;
+import utils.func.Optionals;
 
 /**
  *
@@ -41,7 +41,7 @@ public class ServiceShutdownHook implements Runnable, LoggerSettable {
 
 	@Override
 	public Logger getLogger() {
-		return FOption.getOrElse(m_logger, s_logger);
+		return Optionals.getOrElse(m_logger, s_logger);
 	}
 
 	@Override

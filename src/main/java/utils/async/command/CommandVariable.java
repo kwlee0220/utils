@@ -4,8 +4,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 import com.google.common.base.Preconditions;
 
 import utils.Keyed;
@@ -22,7 +20,7 @@ public interface CommandVariable extends Keyed<String>, Closeable {
 	 *
 	 * @return	Command variable 이름
 	 */
-	public @NonNull String getName();
+	public String getName();
 	
 	/**
 	 * Command variable 값을 반환한다.
@@ -46,7 +44,7 @@ public interface CommandVariable extends Keyed<String>, Closeable {
 	 * @param mod	modifier. "key", "value" 중 하나여야 한다.
 	 * @return	modifier에 해당하는 값
 	 */
-	public default String getValueByModifier(@NonNull String mod) {
+	public default String getValueByModifier(String mod) {
 		Preconditions.checkArgument(mod != null, "mod must be non-null");
 		
 		switch ( mod ) {

@@ -14,11 +14,14 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import utils.KeyValue;
 import utils.Keyed;
 import utils.Tuple;
+import utils.func.CheckedBiConsumerX;
+import utils.func.FOption;
 import utils.stream.FStreams.PeekedStream;
 
 /**
@@ -144,6 +147,22 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 		forEach(kv -> effect.accept(kv.key(), kv.value()));
 	}
 	
+	public default <X extends Throwable>
+	void forEachOrThrow(CheckedBiConsumerX<? super K,? super V,X> effect) throws X {
+		checkNotNullArgument(effect, "effect is null");
+		
+		try {
+			FOption<KeyValue<K,V>> next;
+			while ( (next = next()).isPresent() ) {
+				KeyValue<K,V> kv = next.get();
+				effect.accept(kv.key(), kv.value());
+			}
+		}
+		finally {
+			closeQuietly();
+		}
+	}
+	
 	public default KeyValueFStream<K,V> peek(Consumer<? super KeyValue<K,V>> effect) {
 		checkNotNullArgument(effect, "effect is null");
 		
@@ -160,12 +179,30 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return from(sorted);
 	}
 	
-	public default <R> KeyValueFStream<K,Tuple<V,R>> innerJoin(KeyValueFStream<K,R> right) {
-		return new InnerJoinedFStream<>(this, right);
-	}
+//	public default <R> KeyValueFStream<K,Tuple<List<V>,List<R>>> outerJoin(KeyValueFStream<K,R> right) {
+//		return new OuterJoinedFStream<>(this, right);
+//	}
 	
-	public default <R> KeyValueFStream<K,Tuple<List<V>,List<R>>> outerJoin(KeyValueFStream<K,R> right) {
-		return new OuterJoinedFStream<>(this, right);
+	public default <R> KeyValueFStream<K,Tuple<V,R>> match(Map<K,R> lut, boolean keepUnmatched) {
+		return new MatchKVFStream<>(this, lut, keepUnmatched);
+	}
+	public default <R> KeyValueFStream<K,Tuple<V,R>> match(Map<K,R> lut) {
+		return match(lut, false);
+	}
+	public default <R> KeyValueFStream<K,Tuple<V,R>> flatMatch(Map<K,? extends Iterable<R>> lut, boolean keepUnmatched) {
+		var tmpStream = match(lut, keepUnmatched)
+						.flatMap((k,v) -> {
+							if ( v._2 != null ) {
+                                return FStream.from(v._2).map(v2 -> KeyValue.of(k, Tuple.of(v._1, v2)));
+                            }
+                            else {
+                                return FStream.of(KeyValue.of(k,  Tuple.of(v._1, (R)null)));
+                            }
+						});
+		return KeyValueFStream.from(tmpStream);
+	}
+	public default <R> KeyValueFStream<K,Tuple<V,R>> flatMatch(Map<K,? extends Iterable<R>> lut) {
+		return flatMatch(lut, false);
 	}
 	
 	public default <M extends Map<K,V>> M toMap(M map) {
@@ -174,6 +211,15 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	
 	public default HashMap<K,V> toMap() {
 		return toMap(Maps.newHashMap());
+	}
+	
+	public default HashMap<K,List<V>> toListMap() {
+		HashMap<K,List<V>> collapsed = Maps.newHashMap();
+		for ( KeyValue<K, V> kv : this ) {
+			collapsed.computeIfAbsent(kv.key(), k -> Lists.newArrayList())
+					.add(kv.value());
+		}
+		return collapsed;
 	}
 	
 	public default <K2,V2>

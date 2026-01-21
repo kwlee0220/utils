@@ -74,7 +74,7 @@ public class CompletionFStream<T> extends SuppliableFStream<Result<T>> {
 	 * <p>
 	 * 이미 close되었거나 isEndOfSupply 상태인 경우에는 {@link IllegalStateException} 예외가 발생된다.
 	 * 
-	 * @param supplier 수행할 작업 {@link Callable} 객체
+	 * @param callable 수행할 작업 {@link Callable} 객체
 	 * @param executor 작업을 수행할 {@link Executor} 객체.
 	 * 					{@code null}인 경우는 별도의 Executor를 사용하지 않는다.
 	 * @return 작업 수행 상태를 확인할 수 있는 {@link Execution} 객체

@@ -47,7 +47,6 @@ public interface FilePath {
 	 * 본 파일 proxy에 해당하는 파일의 실제 존재 여부를 반환한다.
 	 *
 	 * @return	존재하는 경우에는 {@code true}, 그렇지 않은 경우는 {@code false}.
-	 * @throws IOException	I/O 오류가 발생된 경우.
 	 */
 	public boolean exists();
 	
@@ -132,7 +131,6 @@ public interface FilePath {
 	 *
 	 * @return	본 메소드로 디렉토리가 생성된 경우는 {@code true}가 반환되고,
 	 * 			그렇지 않으면 {@code false} 반환됨.
-	 * @throws IOException	I/O 오류가 발생된 경우.
 	 */
 	public boolean mkdirs();
 	

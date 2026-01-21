@@ -10,9 +10,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import com.google.common.collect.Lists;
+
+import javax.annotation.Nullable;
 
 import utils.Throwables;
 import utils.Tuple;

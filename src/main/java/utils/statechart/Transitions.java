@@ -13,7 +13,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class Transitions {
 	public static <C extends StateContext> Transition<C> create(String targetStatePath,
-																TransitionAction action) {
+																TransitionAction<C> action) {
 		return new DefaultTransition<C>(targetStatePath, action);
 	}
 

@@ -11,6 +11,7 @@ import com.google.common.collect.Maps;
 
 import utils.UnitUtils;
 import utils.func.FOption;
+import utils.func.Optionals;
 
 
 /**
@@ -84,7 +85,7 @@ public class ProgramServiceConfig {
 		return m_environments;
 	}
 	public void setEnvironments(Map<String,String> environments) {
-		m_environments = FOption.getOrElse(environments, Maps.newHashMap());
+		m_environments = Optionals.getOrElse(environments, Maps::newHashMap);
 	}
 	
 	public RestartPolicy getRestartPolicy() {
@@ -98,21 +99,21 @@ public class ProgramServiceConfig {
 		return m_startTimeout;
 	}
 	public Duration getStartTimeoutAsDuration() {
-		return FOption.map(m_startTimeout, UnitUtils::parseSecondDuration);
+		return FOption.map(m_startTimeout, UnitUtils::parseDuration);
 	}
 	public void setStartTimeout(String startTimeout) {
-		m_startTimeout = FOption.getOrElse(startTimeout, DEFAULT_START_TIMEOUT);
+		m_startTimeout = Optionals.getOrElse(startTimeout, DEFAULT_START_TIMEOUT);
 	}
 	
 	public Duration getRestartDelay() {
 		return m_restartDelay;
 	}
 	public void setRestartDelayString(Duration restartDelay) {
-		m_restartDelay = FOption.getOrElse(restartDelay, DEFAULT_RESTART_DELAY);
+		m_restartDelay = Optionals.getOrElse(restartDelay, DEFAULT_RESTART_DELAY);
 	}
 	@JsonProperty("restartDelay")
 	public void setRestartDelayString(String restartDelay) {
-		m_restartDelay = FOption.mapOrElse(restartDelay, UnitUtils::parseSecondDuration, DEFAULT_RESTART_DELAY);
+		m_restartDelay = FOption.mapOrElse(restartDelay, UnitUtils::parseDuration, DEFAULT_RESTART_DELAY);
 	}
 	
 	@Override

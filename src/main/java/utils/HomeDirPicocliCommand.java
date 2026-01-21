@@ -3,11 +3,12 @@ package utils;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import utils.func.FOption;
+import javax.annotation.Nullable;
+
+import utils.func.Optionals;
 import utils.io.FileUtils;
 
 import picocli.CommandLine.Mixin;
@@ -86,7 +87,7 @@ public abstract class HomeDirPicocliCommand implements Runnable, LoggerSettable 
 
 	@Override
 	public Logger getLogger() {
-		return FOption.getOrElse(m_logger, s_logger);
+		return Optionals.getOrElse(m_logger, s_logger);
 	}
 
 	@Override

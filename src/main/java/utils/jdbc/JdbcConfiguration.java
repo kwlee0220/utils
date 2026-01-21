@@ -28,7 +28,7 @@ public class JdbcConfiguration {
 	/**
 	 * JDBC 드라이버 클래스 이름을 설정한다.
 	 *
-	 * @param 설정을 JDBC 드라이버 클래스 이름
+	 * @param name  JDBC 드라이버 클래스 이름
 	 */
 	public void setDriverClassName(String name) {
 		Preconditions.checkArgument(name != null, "null driver class name");

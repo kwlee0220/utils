@@ -10,8 +10,9 @@ import java.util.concurrent.TimeoutException;
 
 import com.google.common.base.Preconditions;
 
+import javax.annotation.Nullable;
+
 import utils.func.CheckedRunnable;
-import utils.func.FOption;
 import utils.func.Unchecked;
 
 /**
@@ -21,7 +22,7 @@ import utils.func.Unchecked;
 public class LogTailer implements CheckedRunnable {
 	private final File m_logFile;
 	private final Duration m_sampleInterval;
-	private final FOption<Duration> m_timeout;
+	@Nullable private final Duration m_timeout;		// 무한 대기인 경우에는 null
 	private final boolean m_startAtBeginning;
 	private volatile LogTailerListener m_listener;
 	
@@ -98,11 +99,11 @@ public class LogTailer implements CheckedRunnable {
 				}
 				
 				Thread.sleep(m_sampleInterval.toMillis());
-				m_timeout.ifPresentOrThrow(timeout -> {
-					if ( Duration.between(started, Instant.now()).compareTo(timeout) >= 0 ) {
-						throw new TimeoutException("" + timeout);
+				if ( m_timeout != null ) {
+					if ( Duration.between(started, Instant.now()).compareTo(m_timeout) >= 0 ) {
+						throw new TimeoutException("" + m_timeout);
 					}
-				});
+				}
 				tailFound = false;
 			}
 		}
@@ -125,7 +126,7 @@ public class LogTailer implements CheckedRunnable {
 	public static final class Builder {
 		private File m_logFile;
 		private Duration m_sampleInterval = Duration.ofSeconds(5);
-		private FOption<Duration> m_timeout = FOption.empty();
+		@Nullable private Duration m_timeout = null;	// 무한 대기인 경우는 null
 		private boolean m_startAtBeginning = false;
 		
 		public Builder file(File logFile) {
@@ -143,12 +144,6 @@ public class LogTailer implements CheckedRunnable {
 		}
 		
 		public Builder timeout(Duration timeout) {
-			m_timeout = FOption.ofNullable(timeout);
-			
-			return this;
-		}
-		
-		public Builder timeout(FOption<Duration> timeout) {
 			m_timeout = timeout;
 			
 			return this;

@@ -14,25 +14,26 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.commons.text.lookup.StringLookup;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import utils.KeyedValueList;
+import utils.StrSubstitutor;
 import utils.Tuple;
 import utils.Utilities;
 import utils.async.AbstractThreadedExecution;
 import utils.async.AsyncState;
 import utils.async.CancellableWork;
 import utils.async.Guard;
-import utils.func.FOption;
+import utils.func.Optionals;
 import utils.func.Unchecked;
 import utils.io.EnvironmentFileLoader;
 import utils.io.FileUtils;
@@ -53,7 +54,6 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	private final File m_envFile;
 	private final Map<String,String> m_environmentVariables;
 	private final Map<String,CommandVariable> m_variables;
-	private final Map<String,String> m_substVariables;
 	private final @Nullable Redirect m_stdin;
 	private final @Nullable Redirect m_stdout;
 	private final @Nullable Redirect m_stderr;
@@ -72,11 +72,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		m_stderr = builder.m_stderr;
 		m_timeout = builder.m_timeout;
 		
-		m_workingDirectory = FOption.getOrElse(builder.m_workingDirectory, FileUtils.getCurrentWorkingDirectory());
+		m_workingDirectory = Optionals.getOrElse(builder.m_workingDirectory, FileUtils::getCurrentWorkingDirectory);
 		if ( !m_workingDirectory.isDirectory() ) {
 			throw new IllegalArgumentException("Invalid working directory: " + m_workingDirectory);
 		}
-		m_substVariables = Map.of("WORKING_DIR", m_workingDirectory.getAbsolutePath());
 		
 		setLogger(s_logger);
 	}
@@ -101,12 +100,17 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	public Void executeWork() throws InterruptedException, CancellationException,
 										TimeoutException, ExecutionException {
 		// Command line에 포함된 command variable들을 실제 값으로 치환시킨다.
-		VariableLookup lut = new VariableLookup(m_variables);
-		StringSubstitutor subst = new StringSubstitutor(lut).setEnableUndefinedVariableException(true);
+		CommandVariableLookup lut = new CommandVariableLookup(m_variables);
+		StringSubstitutor cmdVarSubst = new StringSubstitutor(lut).setEnableUndefinedVariableException(true);
+		
+		// Command line에 포함된 일반 변수들을 실제 값으로 치환한다.
+		StrSubstitutor subst = new StrSubstitutor(Map.of("WORKING_DIR", m_workingDirectory.getAbsolutePath()))
+									.failOnUndefinedVariable(false)
+									.enableNestedSubstitution(true);
 		List<String> command = FStream.from(m_command)
-										.map(str -> {
-											str = Utilities.substributeString(str, m_substVariables);
-											return subst.replace(str);
+										.map(cmd -> {
+											cmd = subst.replace(cmd);
+											return cmdVarSubst.replace(cmd);
 										})
 										.toList();
 		
@@ -355,10 +359,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 	}
 	
-	private static final class VariableLookup implements StringLookup {
+	private static final class CommandVariableLookup implements StringLookup {
 		private final Map<String,CommandVariable> m_varMap;
 		
-		private VariableLookup(Map<String,CommandVariable> vars) {
+		private CommandVariableLookup(Map<String,CommandVariable> vars) {
 			m_varMap = vars;
 		}
 

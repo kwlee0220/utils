@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,12 +14,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.base.Preconditions;
-
-import utils.LoggerSettable;
-import utils.Throwables;
-import utils.Tuple;
-import utils.func.FOption;
-import utils.func.Try;
+import com.google.common.collect.Maps;
 
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
@@ -26,6 +23,12 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+
+import utils.LoggerSettable;
+import utils.Throwables;
+import utils.Tuple;
+import utils.func.Optionals;
+import utils.func.Try;
 
 
 /**
@@ -38,6 +41,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 	public static final MediaType MEDIA_TYPE_JSON = MediaType.parse("application/json; charset=utf-8");
 	
 	private final OkHttpClient m_client;
+	private final LinkedHashMap<String,String> m_headers;
 	private final ErrorEntityDeserializer m_errorEntityDeser;
 	private final JsonMapper m_mapper;
 	private Logger m_logger = null;
@@ -52,6 +56,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 		Preconditions.checkNotNull(builder.m_deser);
 		
 		m_client = builder.m_httpClient;
+		m_headers = Maps.newLinkedHashMap(builder.m_headers);
 		m_errorEntityDeser = builder.m_deser;
 		m_mapper = builder.m_mapper;
 	}
@@ -64,24 +69,36 @@ public class HttpRESTfulClient implements LoggerSettable {
 		if ( getLogger().isDebugEnabled() ) {
 			getLogger().debug("sending: (GET) {}", url);
 		}
-		
-		Request req = new Request.Builder().url(url).get().build();
+
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.get().build();
 		return call(req, deser);
 	}
 	public void get(String url) {
 		if ( getLogger().isDebugEnabled() ) {
 			getLogger().debug("sending: (GET) {}", url);
 		}
-		
-		Request req = new Request.Builder().url(url).get().build();
+
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.get().build();
 		callVoid(req);
 	}
 	public <T> T get(HttpUrl url, ResponseBodyDeserializer<T> deser) {
 		if ( getLogger().isDebugEnabled() ) {
 			getLogger().debug("sending: (GET) {}", url);
 		}
-		
-		Request req = new Request.Builder().url(url).get().build();
+
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.get().build();
 		return call(req, deser);
 	}
 	
@@ -90,24 +107,61 @@ public class HttpRESTfulClient implements LoggerSettable {
 			getLogger().debug("sending: (POST) {}, body={}", url, reqBody);
 		}
 		
-		Request req = new Request.Builder().url(url).post(reqBody).build();
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.post(reqBody).build();
 		return call(req, deser);
+	}
+	public void post(String url, RequestBody reqBody) {
+		if ( getLogger().isDebugEnabled() ) {
+			getLogger().debug("sending: (POST) {}, body={}", url, reqBody);
+		}
+		
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.post(reqBody).build();
+		callVoid(req);
 	}
 	
 	public <T> T put(String url, RequestBody reqBody, ResponseBodyDeserializer<T> deser) {
 		if ( getLogger().isDebugEnabled() ) {
 			getLogger().debug("sending: (PUT) {}, body={}", url, reqBody);
 		}
-		
-		Request req = new Request.Builder().url(url).put(reqBody).build();
+
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.put(reqBody).build();
 		return call(req, deser);
 	}
 	public void put(String url, RequestBody reqBody) {
 		if ( getLogger().isDebugEnabled() ) {
 			getLogger().debug("sending: (PUT) {}, body={}", url, reqBody);
 		}
-		
-		Request req = new Request.Builder().url(url).put(reqBody).build();
+
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.put(reqBody).build();
+		callVoid(req);
+	}
+	
+	public void patch(String url, RequestBody reqBody) {
+		if ( getLogger().isDebugEnabled() ) {
+			getLogger().debug("sending: (PATCH) {}, body={}", url, reqBody);
+		}
+
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.patch(reqBody).build();
 		callVoid(req);
 	}
 	
@@ -115,7 +169,12 @@ public class HttpRESTfulClient implements LoggerSettable {
 		if ( getLogger().isDebugEnabled() ) {
 			getLogger().debug("sending: (DELETE) {}", url);
 		}
-		Request req = new Request.Builder().url(url).delete().build();
+		
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.delete().build();
 		callVoid(req);
 	}
 	
@@ -123,8 +182,12 @@ public class HttpRESTfulClient implements LoggerSettable {
 		if ( getLogger().isDebugEnabled() ) {
 			getLogger().debug("sending: (DELETE) {}", url);
 		}
-		
-		Request req = new Request.Builder().url(url).delete().build();
+
+		Request.Builder builder = new Request.Builder().url(url);
+		for ( Map.Entry<String, String> ent : m_headers.entrySet() ) {
+			builder = builder.addHeader(ent.getKey(), ent.getValue());
+		}
+		Request req = builder.delete().build();
 		return call(req, deser);
 	}
 	
@@ -146,7 +209,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 
 	@Override
 	public Logger getLogger() {
-		return FOption.getOrElse(m_logger, s_logger);
+		return Optionals.getOrElse(m_logger, s_logger);
 	}
 
 	@Override
@@ -159,13 +222,14 @@ public class HttpRESTfulClient implements LoggerSettable {
 	}
 	public static class Builder {
 		private OkHttpClient m_httpClient;
+		private LinkedHashMap<String,String> m_headers = Maps.newLinkedHashMap();
 		private ErrorEntityDeserializer m_deser;
 		private JsonMapper m_mapper;
 		
 		private Builder() { }
 		
 		public HttpRESTfulClient build() {
-			m_httpClient = FOption.getOrElse(m_httpClient, OkHttpClientUtils.newClient());
+			m_httpClient = Optionals.getOrElse(m_httpClient, OkHttpClientUtils.newClient());
 			if ( m_mapper == null ) {
 				m_mapper = new JsonMapper();
 			}
@@ -178,6 +242,11 @@ public class HttpRESTfulClient implements LoggerSettable {
 		
 		public Builder httpClient(OkHttpClient client) {
 			m_httpClient = client;
+			return this;
+		}
+		
+		public Builder header(String name, String value) {
+			m_headers.put(name, value);
 			return this;
 		}
 		

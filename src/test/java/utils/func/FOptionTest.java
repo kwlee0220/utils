@@ -112,12 +112,12 @@ public class FOptionTest {
 	
 	@Test
 	public void testWhen1() throws Exception {
-		FOption<String> opt = FOption.when(true, "a");
+		Optional<String> opt = Optionals.whenTrue(true, "a");
 		Assert.assertEquals(true, opt.isPresent());
 		Assert.assertEquals("a", opt.get());
 		
-		opt = FOption.when(false, "a");
-		Assert.assertEquals(true, opt.isAbsent());
+		opt = Optionals.whenTrue(false, "a");
+		Assert.assertEquals(true, opt.isEmpty());
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -126,14 +126,14 @@ public class FOptionTest {
 		Supplier<String> suppl = mock(Supplier.class);
 		when(suppl.get()).thenReturn("a");
 		
-		FOption<String> opt = FOption.when(true, suppl);
+		Optional<String> opt = Optionals.whenTrue(true, suppl);
 		
 		verify(suppl, times(1)).get();
 		Assert.assertEquals(true, opt.isPresent());
 		Assert.assertEquals("a", opt.get());
 		
 		reset(suppl);
-		opt = FOption.when(false, suppl);
+		opt = Optionals.whenTrue(false, suppl);
 		
 		verify(suppl, times(0)).get();
 		Assert.assertEquals(false, opt.isPresent());

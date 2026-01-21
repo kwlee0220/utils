@@ -49,10 +49,10 @@ public class MultipleCases<K,V> {
 		return new ContextedOtherwise<>(context, KeyValueFStream.from(m_cases).toList());
 	}
 	
-	public static class Case<K,V> {
-		private K m_key;
-		private V m_value;
-		private Map<K,V> m_others;
+	public static final class Case<K,V> {
+		private final K m_key;
+		private final V m_value;
+		private final Map<K,V> m_others;
 		
 		private Case(K key, V value, Map<K,V> others) {
 			m_key = key;
@@ -77,9 +77,9 @@ public class MultipleCases<K,V> {
 	
 	public static class ContextedCase<K,V,X> {
 		private final X m_context;
-		private K m_key;
-		private V m_value;
-		private Map<K,V> m_remains;
+		private final K m_key;
+		private final V m_value;
+		private final Map<K,V> m_remains;
 		
 		private ContextedCase(X context, K key, V value, Map<K,V> remains) {
 			m_context = context;
@@ -102,7 +102,7 @@ public class MultipleCases<K,V> {
 	}
 	
 	public static class Otherwise<K,V> {
-		private List<KeyValue<K,V>> m_remaining;
+		private final List<KeyValue<K,V>> m_remaining;
 		
 		private Otherwise(List<KeyValue<K,V>> remaining) {
 			m_remaining = remaining;

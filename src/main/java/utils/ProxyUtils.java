@@ -169,10 +169,8 @@ public final class ProxyUtils {
 	 * 만일 확장 인터페이스를 기존의 객체가 이미 지원하는 경우, 해당 인터페이스의 메소드가 호출되는
 	 * 경우는 확장 핸들러 객체의 메소드가 호출된다.
 	 * 
-	 * @param <T>		확장된 객체의 대표 타입.
-	 * @param cloader	생성된 확장 객체의 클래스를 적재할 클래스 로더. <code>null</code>인 경우는
-	 * 					<code>toBeExtended</code> 객체의 클래스 로더를 사용한다. 
-	 * @param src		확장시킬 객체.
+	 * @param <T>		확장된 객체의 대표 타입. 
+	 * @param baseCls   확장될 객체의 클래스.
 	 * @param intfc		추가될 인터페이스. 인터페이스 클래스만 사용 가능하다.
 	 * @param handler	확장 인터페이스 호출을 처리할 핸들러 객체.
 	 * @return	확장된 인터페이스의 객체.

@@ -8,7 +8,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import utils.func.FOption;
+import javax.annotation.Nullable;
+
 import utils.func.Try;
 
 /**
@@ -140,7 +141,7 @@ public class AsyncsTest {
 
 	private static class ActiveTask extends AbstractThreadedExecution<Void> implements CancellableWork {
 		private Guard m_guard = Guard.create();
-		@GuardedBy("m_guard") private FOption<Thread> m_thread = FOption.empty();
+		@Nullable @GuardedBy("m_guard") private Thread m_thread = null;
 		private RuntimeException m_error;
 		
 		ActiveTask(RuntimeException error) {
@@ -149,7 +150,7 @@ public class AsyncsTest {
 
 		@Override
 		public Void executeWork() throws Exception {
-			m_guard.run(() -> m_thread = FOption.of(Thread.currentThread()));
+			m_guard.run(() -> m_thread = Thread.currentThread());
 			
 			if ( m_error != null ) {
 				throw m_error;
@@ -162,7 +163,9 @@ public class AsyncsTest {
 		@Override
 		public boolean cancelWork() {
 			return m_guard.get(() -> {
-				m_thread.ifPresent(Thread::interrupt);
+				if ( m_thread != null ) {
+					m_thread.interrupt();
+				}
 				return Try.run(() -> waitForFinished()).isSuccessful();
 			});
 		}

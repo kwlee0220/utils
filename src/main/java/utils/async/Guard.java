@@ -13,9 +13,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import com.google.common.base.Preconditions;
+
+import javax.annotation.Nullable;
 
 import utils.RuntimeExecutionException;
 import utils.RuntimeTimeoutException;
@@ -245,7 +245,6 @@ public class Guard implements Serializable {
 		 * Waits until the precondition is satisfied.
 		 * 
 		 * @param condition precondition
-		 * @throws InterruptedException if the current thread is interrupted while waiting.
 		 */
 		public AwaitCondition awaitCondition(Supplier<Boolean> condition) {
 			return new AwaitCondition(m_guard, m_action, condition);
@@ -373,7 +372,6 @@ public class Guard implements Serializable {
 		 * @return 작업의 결과 값.
 		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우.
 		 * @throws ExecutionException 		대기 제한 시각을 경과한 경우.
-		 * @throws TimeoutException	작업 ({@code supplier}) 수행 중 예외가 발생한 경우.
 		 */
 		public <T> T andGetChecked(CheckedSupplier<T> supplier) throws InterruptedException, ExecutionException {
 			m_guard.lock();

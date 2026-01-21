@@ -2,6 +2,8 @@ package utils.func;
 
 import static utils.Utilities.checkNotNullArgument;
 
+import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -35,7 +37,7 @@ public class Optionals {
 	 * 그렇지 않은 경우 주어진 {@code elseSupplier}로부터 값을 반환한다.
 	 * 
 	 * @param value		{@code null} 여부를 판단할 값.
-	 * @param elseValue 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
+	 * @param elseSupplier 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
 	 * @return	존재하는 값. 없는 경우 주어진 {@code elseSupplier}로부터 생성된 값.
 	 * @see #getOrElse
 	 */
@@ -69,6 +71,13 @@ public class Optionals {
 			return elseSupplier.get();
 		}
 	}
+	
+	public static <T> Optional<T> orElse(Optional<T> opt, Optional<T> fallback) {
+		return opt.isPresent() ? opt : fallback;
+	}
+	public static <T> Optional<T> orElse(Optional<T> opt, Supplier<Optional<T>> fallback) {
+		return opt.isPresent() ? opt : fallback.get();
+	}
 
 	/**
 	 * 주어진 {@code value} 값이 {@code null}이 아닌 경우 주어진 {@code effect} 함수를 호출한다.
@@ -90,6 +99,13 @@ public class Optionals {
 	 */
 	public static <T> void ifAbsent(T value, @Nonnull Runnable nullAction) {
 		FOption.ofNullable(value).ifAbsent(nullAction);
+	}
+	
+	public static <T> Optional<T> doIfPresent(Optional<T> opt, @Nonnull Consumer<? super T> effect) {
+		if ( opt.isPresent() ) {
+			effect.accept(opt.get());
+		}
+		return opt;
 	}
 
 	/**
@@ -138,7 +154,7 @@ public class Optionals {
 	 * 이 값은 {@code FOption#empty()}와는 구별된다
 	 * 
 	 * @param nullable {@code null} 여부를 판단할 객체.
-	 * @param mapper   값이 존재하는 경우 호출할 매핑 함수.
+	 * @param func   	값이 존재하는 경우 호출할 매핑 함수.
 	 * @param elsePart 값이 존재하지 않을 경우 반환할 값 생성 함수.
 	 * @return 값이 존재하는 경우 @code mapper} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code elsePart}.
 	 */
@@ -148,6 +164,16 @@ public class Optionals {
 		}
 		else {
 			return elsePart.get();
+		}
+	}
+	
+	public static <T,S,X extends Throwable>
+	Optional<S> mapOrThrow(Optional<T> opt, CheckedFunctionX<? super T,? extends S,X> mapper) throws X {
+		if ( opt.isPresent() ) {
+			return Optional.of(mapper.apply(opt.get()));
+		}
+		else {
+			return Optional.empty();
 		}
 	}
 
@@ -189,5 +215,38 @@ public class Optionals {
 		if ( nullable != null ) {
 			consumer.accept(nullable);
 		}
+	}
+
+	/**
+	 * 주어진 {@code flag}가 {@code true}인 경우에만 주어진 객체를 감싸는 {@link Optional} 객체를 생성한다.
+	 * <p>
+	 * 주어진 {@code flag}가 {@code false}인 경우에는 {@link Optional#empty()}를 반환한다.
+	 * 
+	 * @param flag	주어진 객체를 감쌀지 여부를 나타내는 플래그.
+	 * @param value 감쌀 객체
+	 * @return {@link Optional} 객체
+	 */
+	public static <T> Optional<T> whenTrue(boolean flag, T value) {
+		return flag ? Optional.of(value) : Optional.empty();
+	}
+	
+	/**
+	 * 주어진 {@code flag}가 {@code true}인 경우에만 {@link Supplier}로부터 생성된 객체를 감싸는
+	 * {@link Optional} 객체를 생성한다.
+	 * <p>
+	 * 주어진 {@code flag}가 {@code false}인 경우에는 {@link Optional#empty()}를 반환한다.
+	 * 
+	 * @param flag     주어진 객체를 감쌀지 여부를 나타내는 플래그.
+	 * @param supplier 감쌀 객체를 생성하는 {@link Supplier}
+	 * @return {@link Optional} 객체
+	 */
+	public static <T> Optional<T> whenTrue(boolean flag, Supplier<? extends T> supplier) {
+		return flag ? Optional.of(supplier.get()) : Optional.empty();
+	}
+
+	public static <T,S> S transform(Optional<T> opt, S src, BiFunction<S,T,? extends S> mapper) {
+		checkNotNullArgument(mapper, "mapper BiFunction");
+
+		return (opt.isPresent()) ? mapper.apply(src, opt.get()) : src;
 	}
 }

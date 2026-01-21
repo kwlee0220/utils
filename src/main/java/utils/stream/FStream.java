@@ -23,7 +23,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import javax.annotation.Nullable;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -861,10 +861,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return	{@code FStream} 객체.
 	 */
 	@SafeVarargs
-	public static <T> FStream<T> concat(Iterable<? extends T>... iterables) {
+	public static <T> FStream<T> concat(Iterable<T>... iterables) {
 		Preconditions.checkArgument(iterables != null, "source iterables");
-		return FStream.of(iterables)
-						.flatMap(iter -> FStream.from(iter));
+		FStream<FStream<T>> streamOfStreams = FStream.of(iterables).map((Iterable<T> it) -> FStream.from(it));
+		return FStream.concat(streamOfStreams);
 	}
 
 	@SafeVarargs
@@ -896,6 +896,11 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		Preconditions.checkArgument(follower != null, "follower is null");
 		
 		return concat(FStream.of(this, follower));
+	}
+	public default FStream<T> concatWith(Iterable<T> follower) {
+		Preconditions.checkArgument(follower != null, "follower is null");
+		
+		return concat(FStream.of(this, FStream.from(follower)));
 	}
 	
 	/**
@@ -1794,13 +1799,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return new MapToBooleanStream<>(this, mapper);
 	}
 	
-	public default <K extends Comparable<K>, V>
-	KeyValueFStream<K, V> mapToKeyValue(Function<? super T, KeyValue<K, V>> mapper) {
+	public default <K, V> KeyValueFStream<K, V> mapToKeyValue(Function<T, KeyValue<K, V>> mapper) {
 		checkNotNullArgument(mapper, "mapper is null");
-
 		return KeyValueFStream.from(map(mapper));
 	}
-	
+	public default <K, V, X extends Throwable> KeyValueFStream<K, V>
+	mapToKeyValueOrThrow(CheckedFunctionX<? super T, ? extends KeyValue<K, V>,X> mapper) throws X {
+		checkNotNullArgument(mapper, "mapper is null");
+		return KeyValueFStream.from(mapOrThrow(mapper));
+	}
+
 	public default <S> FStream<S> lift(Function<FStream<T>, FStream<S>> streamFunc) {
         return streamFunc.apply(this);
     }
