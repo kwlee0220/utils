@@ -85,7 +85,7 @@ public class CommandExecutionTest {
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("cmd.exe", "/C", "ping 127.0.0.1 -n 2 > nul & echo a b")
 												.redirectStdoutToFile(outFile)
-												.setTimeout(Duration.ofMillis(300))
+												.timeout(Duration.ofMillis(300))
 												.build();
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();

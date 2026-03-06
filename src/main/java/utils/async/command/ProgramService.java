@@ -96,10 +96,10 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 		File logFile = new File(m_config.getWorkingDirectory(), APPLICATION_LOG.getName());
 		m_exec = CommandExecution.builder()
 								.addCommand(m_config.getCommandLine())
-								.setWorkingDirectory(m_config.getWorkingDirectory())
-								.setEnvironmentVariables(m_config.getEnvironmentVariables())
-								.setEnvironmentFile(m_config.getEnvironmentFile())
-								.setTimeout(null)	// 무한대기
+								.workingDirectory(m_config.getWorkingDirectory())
+								.environmentVariables(m_config.getEnvironmentVariables())
+								.environmentFile(m_config.getEnvironmentFile())
+								.timeout(null)	// 무한대기
 								.redirectErrorStream()
 								.redirectStdoutToFile(logFile)
 								.build();

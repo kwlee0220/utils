@@ -279,17 +279,17 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 			return addCommand(Arrays.asList(command));
 		}
 		
-		public Builder setWorkingDirectory(File dir) {
+		public Builder workingDirectory(File dir) {
 			m_workingDirectory = dir;
 			return this;
 		}
 		
-		public Builder setEnvironmentVariables(Map<String,String> envs) {
+		public Builder environmentVariables(Map<String,String> envs) {
 			m_environmentVariables = envs;
 			return this;
 		}
 		
-		public Builder setEnvironmentFile(File envFile) {
+		public Builder environmentFile(File envFile) {
 			m_envFile = envFile;
 			return this;
 		}
@@ -353,7 +353,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 			return this;
 		}
 		
-		public Builder setTimeout(Duration timeout) {
+		public Builder timeout(Duration timeout) {
 			m_timeout = timeout;
 			return this;
 		}
