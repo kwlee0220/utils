@@ -4,6 +4,7 @@ import static utils.Utilities.checkState;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import utils.Throwables;
 
@@ -23,7 +24,16 @@ public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExec
 		if ( notifyStarting() ) {
 			try {
 				m_future = startExecution();
-				m_future.whenComplete((ret,ex) -> {
+				m_future.whenCompleteAsync((ret,ex) -> {
+					try {
+						// 'STARTED' 상태로 전이되기 전에 작업이 종료되면,
+						// 문제를 일으키기 때문에 1초 정도 대기한다.
+						waitForStarted(1L, TimeUnit.SECONDS);
+					}
+					catch ( InterruptedException expected ) {
+						Thread.currentThread().interrupt();
+					}
+					
 					if ( ex == null ) {
 						notifyCompleted(ret);
 					}
