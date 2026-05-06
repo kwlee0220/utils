@@ -20,8 +20,8 @@ class ZippedFStream<T,S,Z> extends AbstractFStream<Z> {
 	
 	ZippedFStream(FStream<? extends T> src, FStream<? extends S> src2,
 					BiFunction<T, S, Z> zipper, boolean longest) {
-		Utilities.checkNotNullArgument(src);
-		Utilities.checkNotNullArgument(src2);
+		Utilities.checkNotNullArgument(src, "src is null");
+		Utilities.checkNotNullArgument(src2, "src2 is null");
 		
 		m_src1 = src;
 		m_src2 = src2;

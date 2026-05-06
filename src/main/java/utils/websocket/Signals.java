@@ -30,6 +30,10 @@ public class Signals {
 			m_cause = cause;
 		}
 		
+		public Throwable getCause() {
+			return m_cause;
+		}
+		
 		@Override
 		public String toString() {
 			return "ConnectionFailed: cause=" + m_cause;

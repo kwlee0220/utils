@@ -7,8 +7,9 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.function.Function;
 
+import com.google.common.base.Preconditions;
+
 import utils.Tuple;
-import utils.Utilities;
 import utils.async.Execution;
 
 /**
@@ -23,8 +24,8 @@ public class InputStreamFromOutputStream extends InputStream {
 	private Throwable m_error;
 	
 	public InputStreamFromOutputStream(Function<OutputStream,Execution<Void>> pump, int pipeSize) {
-		Utilities.checkNotNullArgument(pump, "pump");
-		Utilities.checkArgument(pipeSize > 0, "invalid pipe size: " + pipeSize);
+		Preconditions.checkNotNull(pump, "pump is null");
+		Preconditions.checkArgument(pipeSize > 0, "invalid pipe size: " + pipeSize);
 		
 		try {
 			Tuple<PipedOutputStream, PipedInputStream> pipe = IOUtils.pipe(pipeSize);

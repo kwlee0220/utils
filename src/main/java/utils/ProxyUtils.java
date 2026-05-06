@@ -30,10 +30,10 @@ public final class ProxyUtils {
 	@SafeVarargs
 	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(ClassLoader loader, T obj, CallHandler... handlers) {
-		checkNotNullArgument(loader, "ClassLoader is null");
-		checkNotNullArgument(obj, "target object is null");
-		checkNotNullArgument(handlers, "CallHandler is null");
-		checkArgument(handlers.length > 0, "Zero CallHandler" );
+		Preconditions.checkNotNull(loader, "ClassLoader is null");
+		Preconditions.checkNotNull(obj, "target object is null");
+		Preconditions.checkNotNull(handlers, "CallHandler is null");
+		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
 		
 		Callback[] callbacks = new Callback[handlers.length+1];
 		for ( int i =0; i < handlers.length; ++i ) {
@@ -43,7 +43,7 @@ public final class ProxyUtils {
 		
 		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(obj.getClass());
 		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
-		checkArgument(intfcs.length > 0, () -> "object implements no interfaces: obj=" + obj);
+		Preconditions.checkArgument(intfcs.length > 0, "object implements no interfaces: obj=%s", obj);
 		
 		try {
 			Enhancer enhancer = new Enhancer();

@@ -7,7 +7,7 @@ import java.util.Optional;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class SinkState<C extends StateContext> extends AbstractState<C> {
+public class SinkState<C extends StateContext<C>> extends AbstractState<C> {
 	public SinkState(String path, C context) {
 		super(path, context);
 	}

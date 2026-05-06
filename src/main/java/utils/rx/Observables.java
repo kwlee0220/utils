@@ -1,7 +1,5 @@
 package utils.rx;
 
-import static utils.Utilities.checkNotNullArgument;
-
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.ClosedWatchServiceException;
@@ -19,13 +17,14 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.ObservableEmitter;
 import io.reactivex.rxjava3.core.ObservableOnSubscribe;
 import io.reactivex.rxjava3.disposables.Disposable;
 
-import utils.Utilities;
 import utils.async.Execution;
 import utils.func.CheckedSupplier;
 import utils.func.FOption;
@@ -45,7 +44,7 @@ public class Observables {
 	}
 	
 	public static final <T> Observable<T> from(CheckedSupplier<Iterator<? extends T>> iterSuppl) {
-		checkNotNullArgument(iterSuppl);
+		Preconditions.checkNotNull(iterSuppl, "iterSuppl is null");
 		
 		return Observable.create(emitter -> {
 			Iterator<? extends T> iter = null;
@@ -105,7 +104,7 @@ public class Observables {
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(Observable<? extends T> ob) {
-		checkNotNullArgument(ob, "Observable is null");
+		Preconditions.checkNotNull(ob, "Observable is null");
 		
 		return new ObservableStream<>(ob);
 	}
@@ -149,7 +148,8 @@ public class Observables {
 		private final SuppliableFStream<T> m_output;
 		
 		ObservableStream(Observable<? extends T> ob, int queueLength) {
-			Utilities.checkArgument(queueLength > 0, "queueLength > 0, but: " + queueLength);
+			Preconditions.checkArgument(queueLength > 0, "queueLength > 0, but: %s", queueLength);
+			Preconditions.checkNotNull(ob, "Observable is null");
 			
 			m_ob = ob;
 			m_output = new SuppliableFStream<>(queueLength);

@@ -4,6 +4,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import javax.annotation.concurrent.GuardedBy;
+
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,8 +14,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import utils.LoggerSettable;
 import utils.Throwables;
+import utils.Utilities;
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
 import utils.async.Guard;
@@ -23,8 +26,8 @@ import utils.func.Unchecked;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C>
-													implements CancellableWork, LoggerSettable {
+public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecution<C>
+												implements CancellableWork {
 	private static final Logger s_logger = LoggerFactory.getLogger(StateChart.class);
 	
 	private final C m_context;
@@ -33,14 +36,14 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 	protected final Guard m_guard = Guard.create();
 	private utils.statechart.State<C> m_initialState;
 	private Set<utils.statechart.State<C>> m_finalStates = Sets.newHashSet();
-	private utils.statechart.State<C> m_currentState;
+	@GuardedBy("m_guard") private utils.statechart.State<C> m_currentState;
 	private Logger m_logger = s_logger;
 	
 	public StateChart(C context) {
 		Preconditions.checkNotNull(context, "StateContext is null");
 		
 		m_context = context;
-		m_context.setStateMachine(this);
+		m_context.setStateChart(this);
 	}
 	
 	protected Guard getMachineLock() {
@@ -52,13 +55,14 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 	}
 	
 	public utils.statechart.State<C> getState(String path) {
-		Preconditions.checkNotNull(path, "path is null");
+		Utilities.checkNotNull(path, "path is null");
 
 		return m_states.get(path);
 	}
 	
 	public void addState(utils.statechart.State<C> state) {
-		Preconditions.checkNotNull(state, "state is null");
+		Utilities.checkNotNull(state, "state is null");
+		Utilities.checkState(isNotStarted(), "StateChart is already started");
 
 		m_states.put(state.getPath(), state);
 	}
@@ -67,36 +71,41 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 		return m_initialState;
 	}
 	
-	public void setInitialState(String initialStatePath) {
-		Preconditions.checkNotNull(initialStatePath, "initialState is null");
+	public void setInitialState(@NotNull String initialStatePath) {
+		Utilities.checkNotNull(initialStatePath, "initialState is null");
+		Utilities.checkState(isNotStarted(), "StateChart is already started");
 		
 		utils.statechart.State<C> initialState = m_states.get(initialStatePath);
 		if ( initialState == null ) {
-			throw new IllegalArgumentException("initialState is not registered: " + initialState);
+			throw new IllegalArgumentException("initialState is not registered: " + initialStatePath);
 		}
 
 		m_initialState = initialState;
 	}
 	
 	public void addFinalState(String path) {
-		Preconditions.checkNotNull(path, "state path is null");
+		Utilities.checkNotNull(path, "state path is null");
+		Utilities.checkState(isNotStarted(), "StateChart is already started");
 		
 		utils.statechart.State<C> finalState = m_states.get(path);
 		if ( finalState == null ) {
-			throw new IllegalArgumentException("finalState is not registered: " + finalState);
+			throw new IllegalArgumentException("finalState is not registered: " + path);
 		}
 
 		m_finalStates.add(finalState);
 	}
 	
 	public utils.statechart.State<C> getCurrentState() {
-		return m_currentState;
+		return m_guard.get(() -> m_currentState);
 	}
 
 	@Override
 	public void start() {
-		Preconditions.checkArgument(m_finalStates != null && m_finalStates.size() > 0, "finalState should not be empty");
-		Preconditions.checkArgument(!m_finalStates.contains(m_initialState), "initialState should not be a finalState");
+		Utilities.checkNotNull(m_initialState, "initialState is not set");
+		Utilities.checkState(m_finalStates != null && m_finalStates.size() > 0,
+							"finalState should not be empty");
+		Utilities.checkState(!m_finalStates.contains(m_initialState),
+							"initialState should not be a finalState");
 		
 		m_guard.lock();
 		try {
@@ -107,15 +116,17 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 			try {
 	            // 초기 상태로 진입
 	            m_initialState.enter();
-	            m_currentState = m_initialState;
 	        }
 	        catch ( Exception e ) {
 	            Throwable cause = Throwables.unwrapThrowable(e);
 	            notifyFailed(cause);
 	            throw new IllegalStateException("failed to start the StateMachine", cause);
 	        }
-			
+
+            m_currentState = m_initialState;
 			if ( !notifyStarted() ) {
+				Unchecked.runOrIgnore(m_initialState::exit);
+				
 	            notifyFailed(new IllegalStateException("failed to start the StateMachine"));
 				throw new IllegalStateException("failed to start the StateMachine");
 			}
@@ -138,7 +149,7 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 	 * @return 신호 처리 과정에서 사용된 최종 {@link Transition} 객체.
 	 */
 	public Optional<Transition<C>> handleSignal(Signal signal) {
-		Preconditions.checkNotNull(signal, "signal is null");
+		Utilities.checkNotNull(signal, "signal is null");
 
 		m_guard.lock();
 		try {
@@ -153,6 +164,13 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 			selected.ifPresent(trans -> traverse(trans, signal));
 			
 			return selected;
+		}
+		catch ( Exception e ) {
+			Throwable cause = Throwables.unwrapThrowable(e);
+			getLogger().error("failed to handle signal: {}, state={}", signal, m_currentState, cause);
+			
+			notifyFailed(cause);
+			throw e;
 		}
 		finally {
 			m_guard.unlock();
@@ -201,7 +219,11 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 	public boolean cancelWork() {
 		m_guard.lock();
 		try {
-			Unchecked.runOrIgnore(() -> m_currentState.exit());
+			if ( m_currentState == null ) {
+				return true;
+			}
+			
+			Unchecked.runOrIgnore(this::exitInGuard);
 			return true;
 		}
 		finally {
@@ -226,7 +248,7 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 	}
 	
 	protected void traverse(Transition<C> transition, Signal signal) {
-		if ( transition.getTargetStatePath().isEmpty() ) {
+		if ( transition.isSelfTransition() ) {
 			getLogger().debug("no state change (self transition)");
 			return;
 		}
@@ -243,7 +265,9 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 										.orElse("");
 			getLogger().info("selected transition: {}{}", m_currentState.getPath(), targetStr);
 		}
-		
+
+		utils.statechart.State<C> srcState = m_currentState;
+		utils.statechart.State<C> dstState = targetState;
 		try {
 			// 현재 상태에서 진출한다.
 			exitInGuard();
@@ -269,6 +293,9 @@ public class StateChart<C extends StateContext> extends AbstractAsyncExecution<C
 		}
 		catch ( Exception e ) {
 			Throwable cause = Throwables.unwrapThrowable(e);
+			getLogger().error("failed to traverse transition: {} -> {}",
+								srcState.getPath(), dstState.getPath(), cause);
+			
 			notifyFailed(cause);
 		}
 	}

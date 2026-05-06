@@ -8,7 +8,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;

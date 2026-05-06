@@ -1,41 +1,45 @@
 package utils;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
+
+import org.jetbrains.annotations.Nullable;
 
 /**
- * 
+ * 값과 그 타임스탬프(milliseconds)를 함께 보관하는 불변(immutable) 페어.
+ *
+ * @param <T> 값의 타입
  * @author Kang-Woo Lee (ETRI)
  */
 public final class Timestamped<T> {
 	private final long m_ts;
-	private final T m_data;
-	
+	private @Nullable final T m_value;
+
 	public static <T> Timestamped<T> of(T data, long ts) {
-		return new Timestamped<>(ts, data);
+		return new Timestamped<>(data, ts);
 	}
-	
+
 	public static <T> Timestamped<T> of(T data) {
-		return new Timestamped<>(System.currentTimeMillis(), data);
+		return new Timestamped<>(data, System.currentTimeMillis());
 	}
-	
-	private Timestamped(long ts, T data) {
+
+	private Timestamped(T data, long ts) {
 		m_ts = ts;
-		m_data = data;
+		m_value = data;
 	}
-	
+
 	public long timestamp() {
 		return m_ts;
 	}
-	
-	public T value() {
-		return m_data;
+
+	public @Nullable T value() {
+		return m_value;
 	}
-	
+
 	@Override
 	public int hashCode() {
-		return Objects.hashCode(m_ts, m_data);
+		return Objects.hash(m_ts, m_value);
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if ( this == obj ) {
@@ -44,13 +48,13 @@ public final class Timestamped<T> {
 		else if ( obj == null  || obj.getClass() != Timestamped.class ) {
 			return false;
 		}
-		
+
 		Timestamped<?> other = (Timestamped<?>)obj;
-		return m_ts == other.m_ts && m_data.equals(other.m_data);
+		return m_ts == other.m_ts && Objects.equals(m_value, other.m_value);
 	}
-	
+
 	@Override
 	public String toString() {
-		return String.format("%s(%s)", m_data, m_ts);
+		return String.format("%s(%d)", m_value, m_ts);
 	}
 }

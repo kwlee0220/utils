@@ -15,11 +15,11 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import javax.annotation.Nonnull;
+import org.jetbrains.annotations.Nullable;
+
+import org.jetbrains.annotations.NotNull;
 
 import com.google.common.base.Preconditions;
-
-import javax.annotation.Nullable;
 
 import utils.Throwables;
 import utils.stream.FStream;
@@ -270,7 +270,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param effect	값이 존재하는 경우 호출할 함수.
 	 * @return	{@link FOption} 객체 자신.
 	 */
-	public FOption<T> ifPresent(@Nonnull Consumer<? super T> effect) {
+	public FOption<T> ifPresent(@NotNull Consumer<? super T> effect) {
 		checkNotNullArgument(effect, "present consumer is null");
 
 		if ( m_present ) {
@@ -286,7 +286,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param value  {@code null} 여부를 판단할 값.
 	 * @param effect 값이 존재하는 경우 호출할 함수.
 	 */
-	public static <T> void ifPresent(T value, @Nonnull Consumer<? super T> effect) {
+	public static <T> void ifPresent(T value, @NotNull Consumer<? super T> effect) {
 		if ( value != null ) {
 			effect.accept(value);
 		}
@@ -333,7 +333,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param value      {@code null} 여부를 판단할 값.
 	 * @param nullAction 값이 존재하지 않을 경우 호출할 함수.
 	 */
-	public static <T> void ifAbsent(T value, @Nonnull Runnable nullAction) {
+	public static <T> void ifAbsent(T value, @NotNull Runnable nullAction) {
 		FOption.ofNullable(value).ifAbsent(nullAction);
 	}
 

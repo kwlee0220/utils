@@ -1,13 +1,12 @@
 package utils.stream;
 
-import static utils.Utilities.checkArgument;
-import static utils.Utilities.checkNotNullArgument;
-
 import java.util.concurrent.Executor;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import javax.annotation.Nullable;
+import com.google.common.base.Preconditions;
+
+import org.jetbrains.annotations.Nullable;
 
 import utils.async.Executions;
 import utils.async.Guard;
@@ -32,8 +31,8 @@ class MergeParallelFStream<T> extends AbstractFStream<T> {
 	
 	MergeParallelFStream(FStream<? extends FStream<? extends T>> fact,
 							int workerCount, @Nullable Executor executor) {
-		checkNotNullArgument(fact, "mapper is null");
-		checkArgument(workerCount > 0);
+		Preconditions.checkNotNull(fact, "mapper is null");
+		Preconditions.checkArgument(workerCount > 0, "workerCount should be positive: " + workerCount);
 
 		m_fact = fact;
 		m_workerCount = workerCount;

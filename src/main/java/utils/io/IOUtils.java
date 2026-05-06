@@ -26,6 +26,7 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
+import com.google.common.base.Preconditions;
 import com.google.common.io.CharStreams;
 
 import utils.Tuple;
@@ -256,7 +257,7 @@ public class IOUtils {
 	}
 	
 	public static Tuple<PipedOutputStream, PipedInputStream> pipe(int pipeSize) {
-		Utilities.checkArgument(pipeSize > 0, "invalid pipe size: " + pipeSize);
+		Preconditions.checkArgument(pipeSize > 0, "invalid pipe size: " + pipeSize);
 		
 		try {
 			PipedOutputStream pipeOut = new PipedOutputStream();

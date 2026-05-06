@@ -1,6 +1,5 @@
 package utils.io;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
@@ -15,6 +14,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import utils.stream.FStream;
+import utils.Utilities;
 
 /**
  * 
@@ -34,19 +34,23 @@ public class ZipFile {
 	private final URI m_uri;
 	
 	public ZipFile(Path path) {
-		m_uri = URI.create("jar:file:" + path.toUri().getPath());
+		Utilities.checkNotNullArgument(path, "path is null");
+
+		m_uri = URI.create("jar:" + path.toUri());
 	}
-	
+
 	public List<Path> listEntries() throws IOException {
 		final List<Path> pathList = Lists.newArrayList();
 		traverse(path -> pathList.add(path));
-		
+
 		return pathList;
 	}
-	
+
 	public void traverse(Consumer<Path> visitor) throws IOException {
+		Utilities.checkNotNullArgument(visitor, "visitor is null");
+
 		final Map<String,String> env = Maps.newHashMap();
-		
+
 		try ( FileSystem zipFs = FileSystems.newFileSystem(m_uri, env) ) {
 			Files.walkFileTree(zipFs.getPath("/"), new SimpleFileVisitor<Path>() {
 				@Override
@@ -65,19 +69,28 @@ public class ZipFile {
 			});
 		}
 	}
-	
+
 	public static ZipFile zipDirectory(Path zipFile, Path dir) throws IOException {
-		List<Path> files = FStream.of(dir.toFile().listFiles())
-									.map(File::toPath)
-									.toList();
-		return zip(zipFile, "", files);
+		Utilities.checkNotNullArgument(zipFile, "zipFile is null");
+		Utilities.checkNotNullArgument(dir, "dir is null");
+
+		// dir.toFile().listFiles()는 null을 반환할 수 있고 default FileSystem만 지원하므로
+		// Files.list()로 대체. Path가 디렉토리가 아니면 NotDirectoryException이 의미 있게 전파된다.
+		try ( Stream<Path> entries = Files.list(dir) ) {
+			List<Path> files = entries.toList();
+			return zip(zipFile, "", files);
+		}
 	}
-	
+
 	public static ZipFile zip(Path zipFile, String baseName, List<Path> files) throws IOException {
+		Utilities.checkNotNullArgument(zipFile, "zipFile is null");
+		Utilities.checkNotNullArgument(baseName, "baseName is null");
+		Utilities.checkNotNullArgument(files, "files is null");
+
 		final Map<String,String> env = Maps.newHashMap();
 		env.put("create", "true");
 
-		URI uri = URI.create("jar:file:" + zipFile.toUri().getPath());
+		URI uri = URI.create("jar:" + zipFile.toUri());
 		try ( FileSystem zipFs = FileSystems.newFileSystem(uri, env) ) {
 			baseName = baseName.trim();
 			final Path root = (baseName.length() > 0) ? zipFs.getPath("/", baseName)

@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
 import utils.io.IOUtils;
@@ -89,21 +90,41 @@ public class Utilities {
 		}
 	}
 	
+	public static void checkArgument(boolean pred, String msgTemplate, Object... msgArgs) {
+		if ( !pred ) {
+			throw new IllegalArgumentException(Strings.lenientFormat(msgTemplate, msgArgs));
+		}
+	}
+	
 	public static void checkArgument(boolean pred, Supplier<String> msg) {
 		if ( !pred ) {
 			throw new IllegalArgumentException(msg.get());
 		}
 	}
 	
-	public static void checkNotNullArgument(Object obj) {
+	public static <T> T checkNotNull(T obj) {
 		if ( obj == null ) {
-			throw new IllegalArgumentException("null argument");
+			throw new NullPointerException(String.format("%s should not be null", obj));
 		}
+		return obj;
+	}
+	
+	public static <T> T checkNotNull(T obj, String msgTemplate, Object... msgArgs) {
+		if ( obj == null ) {
+			throw new NullPointerException(Strings.lenientFormat(msgTemplate, msgArgs));
+		}
+		return obj;
 	}
 	
 	public static void checkNotNullArgument(Object obj, String msg) {
 		if ( obj == null ) {
-			throw new IllegalArgumentException("null argument: " + msg);
+			throw new IllegalArgumentException(msg);
+		}
+	}
+	
+	public static void checkNotNullArgument(Object obj, String msgTemplate, Object... msgArgs) {
+		if ( obj == null ) {
+			throw new IllegalArgumentException(Strings.lenientFormat(msgTemplate, msgArgs));
 		}
 	}
 	
@@ -118,7 +139,7 @@ public class Utilities {
 			throw new IllegalArgumentException(msg);
 		}
 		for ( Object obj: objs ) {
-			Preconditions.checkArgument(obj != null, msg);
+			checkNotNullArgument(obj, msg);
 		}
 	}
 	
@@ -158,6 +179,12 @@ public class Utilities {
 	public static void checkState(boolean pred, String msg) {
 		if ( !pred ) {
 			throw new IllegalStateException(msg);
+		}
+	}
+	
+	public static void checkState(boolean pred, String msgTemplate, Object... msgArgs) {
+		if ( !pred ) {
+			throw new IllegalStateException(Strings.lenientFormat(msgTemplate, msgArgs));
 		}
 	}
 	

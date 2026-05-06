@@ -8,7 +8,7 @@ import com.google.common.base.Preconditions;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class DefaultCompositeState<C extends StateContext> extends AbstractState<C> implements CompositeState<C> {
+public class DefaultCompositeState<C extends StateContext<C>> extends AbstractState<C> implements CompositeState<C> {
 	private State<C> m_initialState;
 	private State<C> m_currentState;
 	

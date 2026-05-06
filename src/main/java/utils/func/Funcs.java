@@ -541,4 +541,18 @@ public class Funcs {
 		
 		return Tuple.of(trueCollection, falseCollection);
 	}
+	
+	public static <T> List<T> removeIf(Iterable<T> values, Predicate<? super T> pred) {
+		List<T> removed = Lists.newArrayList();
+		Iterator<T> iter = values.iterator();
+		while ( iter.hasNext() ) {
+			T elm = iter.next();
+			if ( pred.test(elm) ) {
+				iter.remove();
+				removed.add(elm);
+			}
+		}
+
+		return removed;
+	}
 }

@@ -61,7 +61,7 @@ public class EnvironmentFileLoader {
 	 */
 	public LinkedHashMap<String,String> load() throws IOException {
 		List<KeyValue<String, String>> keyValues = readEnvironmentFile(m_envFile);
-		return StrSubstitutor.replaceIncrementally(keyValues, m_facts);
+		return new StrSubstitutor().replaceIncrementally(keyValues, m_facts);
 	}
 	
 	/**

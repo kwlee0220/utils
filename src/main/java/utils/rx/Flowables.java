@@ -1,12 +1,12 @@
 package utils.rx;
 
-import static utils.Utilities.checkNotNullArgument;
-
 import java.util.Iterator;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 import io.reactivex.rxjava3.core.BackpressureStrategy;
 import io.reactivex.rxjava3.core.Flowable;
@@ -14,7 +14,6 @@ import io.reactivex.rxjava3.core.FlowableEmitter;
 import io.reactivex.rxjava3.core.FlowableOnSubscribe;
 import io.reactivex.rxjava3.disposables.Disposable;
 
-import utils.Utilities;
 import utils.async.Execution;
 import utils.func.CheckedSupplier;
 import utils.func.FOption;
@@ -42,7 +41,7 @@ public class Flowables {
 	 * @return	변환된 {@link Flowable} 객체.
 	 */
 	public static <T> Flowable<T> from(FStream<? extends T> stream) {
-		checkNotNullArgument(stream);
+		Preconditions.checkNotNull(stream, "stream is null");
 		
 		return Flowable.generate(
 					() -> stream,
@@ -55,7 +54,7 @@ public class Flowables {
 	}
 	
 	public static <T> Flowable<T> from(CheckedSupplier<Iterator<? extends T>> iterSuppl) {
-		checkNotNullArgument(iterSuppl);
+		Preconditions.checkNotNull(iterSuppl, "iterSuppl is null");
 		
 		return Flowable.generate(
 					() -> iterSuppl.get(),
@@ -86,7 +85,7 @@ public class Flowables {
 	 * @return FStream 객체
 	 */
 	public static <T> FStream<T> from(Flowable<? extends T> flowable) {
-		checkNotNullArgument(flowable, "flowable is null");
+		Preconditions.checkNotNull(flowable, "flowable is null");
 		
 		return new FlowableFStream<>(flowable);
 	}
@@ -99,8 +98,8 @@ public class Flowables {
 		private final SuppliableFStream<T> m_output;
 		
 		FlowableFStream(Flowable<? extends T> flowable, int queueLength) {
-			checkNotNullArgument(flowable);
-			Utilities.checkArgument(queueLength > 0, "queueLength > 0, but: " + queueLength);
+			Preconditions.checkNotNull(flowable, "flowable is null");
+			Preconditions.checkArgument(queueLength > 0, "queueLength > 0, but: %s", queueLength);
 			
 			m_flowable = flowable;
 			m_output = new SuppliableFStream<>(queueLength);

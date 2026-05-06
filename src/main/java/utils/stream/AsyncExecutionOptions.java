@@ -1,11 +1,11 @@
 package utils.stream;
 
-import static utils.Utilities.checkArgument;
-
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
+
+import com.google.common.base.Preconditions;
 
 
 public class AsyncExecutionOptions {
@@ -36,7 +36,7 @@ public class AsyncExecutionOptions {
 	
 	private AsyncExecutionOptions(boolean keepOrder, long timeoutMillis, @Nullable Executor executor,
 									int workerCount) {
-		checkArgument(workerCount >= 1);
+		Preconditions.checkArgument(workerCount >= 1, "workerCount should be at least 1");
 		
 		m_keepOrder = keepOrder;
 		m_timeoutMillis = timeoutMillis;

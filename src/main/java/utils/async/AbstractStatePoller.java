@@ -2,6 +2,10 @@ package utils.async;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeoutException;
+
+import org.jetbrains.annotations.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,58 +17,110 @@ import org.slf4j.LoggerFactory;
  * 목표 상태 도달 여부는 abstract method {@link #pollState()}를 사용한다.
  * {@link #pollState()} 메소드는 결과 값에 따라 다음과 같이 동작한다:
  * <dl>
- * 		<dt>{@code Optional<R>}:</dt>
+ * 		<dt>값이 있는 {@code Optional<R>}:</dt>
  * 		<dd>목표 상태에 도달한 경우이고, polling 과정이 종료된다.</dd>
- * 		<dt>{@code Optional.empty()}:</dt>
+ * 		<dt>{@link Optional#empty()}:</dt>
  * 		<dd>아직 목표 상태에 도달하지 않은 경우이고, 다음 polling이 진행된다.</dd>
- * 		<dt>{@code null}:</dt>
- * 		<dd>polling 과정에서 어떤 이유에 의해서 중단경이고, polling 과정이 중단된다.</dd>
  * </dl>
- * 만일 주어진 제한 시간 내에 목표 상태가 되지 않는 경우에는 {@code TimeoutException} 예외가
- * 발생한다.
+ * 만일 메소드 호출시 {@link InterruptedException} 또는 {@link CancellationException}이
+ * 발생하는 경우에는 polling 과정이 중단된다.
+ * {@code null}을 반환하면 {@link NullPointerException}이 발생하여 작업이
+ * {@link AsyncState#FAILED} 상태로 전이되므로 반환값으로 사용해서는 안 된다.
+ * <p>
+ * Polling의 시간 제한은 부모 클래스의
+ * {@link PeriodicLoopExecution#setTimeout(java.time.Duration) setTimeout}
+ * 또는 {@link PeriodicLoopExecution#setDue(java.time.Instant) setDue}를 통해 설정한다.
+ * 제한 시간 내에 목표 상태가 되지 않으면 {@link TimeoutException}이 발생한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class AbstractStatePoller<R> extends PeriodicLoopExecution<R> {
-	private final Logger s_logger = LoggerFactory.getLogger(AbstractStatePoller.class);
-	
-	private R m_result;
-	
-	protected void initializePoller() throws Exception { };
-	protected abstract Optional<R> pollState() throws Exception;
-	protected void finalizePoller(R state) throws Exception { };
-	
-	@Override
-	protected void initializeLoop() throws Exception {
-		initializePoller();
-		super.initializeLoop();
-	}
-	
-	@Override
-	protected void finalizeLoop() throws Exception {
-		finalizePoller(m_result);
-		super.finalizeLoop();
-	}
-	
+	private static final Logger s_logger = LoggerFactory.getLogger(AbstractStatePoller.class);
+
+	private @Nullable R m_result = null;
+
+	/**
+	 * Poller 객체를 생성한다.
+	 *
+	 * @param pollInterval			Polling 주기.
+	 * @param cumulativeInterval	부모 클래스의 누적 주기 모드 사용 여부.
+	 * 								자세한 의미는 {@link PeriodicLoopExecution} 참조.
+	 */
 	protected AbstractStatePoller(Duration pollInterval, boolean cumulativeInterval) {
 		super(pollInterval, cumulativeInterval);
-		
+
 		setLogger(s_logger);
 	}
-	
+
+	/**
+	 * Poller 객체를 생성한다.
+	 * <p>
+	 * 부모 클래스 {@link PeriodicLoopExecution}의 기본값에 따라 누적 주기 모드는 사용하지 않는다.
+	 *
+	 * @param pollInterval Polling 주기.
+	 */
 	protected AbstractStatePoller(Duration pollInterval) {
-		super(pollInterval, true);
-		
+		super(pollInterval);
+
 		setLogger(s_logger);
+	}
+
+	/**
+	 * Polling 시작 시 1회 호출되는 초기화 작업.
+	 * <p>
+	 * 본 메소드 호출 시점에는 부모 클래스의 시작 관련 상태가 모두 설정된 상태이다
+	 * (예: {@link PeriodicLoopExecution#getDue()}로 마감 시각 조회 가능).
+	 * 본 메소드에서 예외가 발생하면 {@link #finalizePoller(Object) finalizePoller}는 호출되지 않으므로,
+	 * 일부 초기화만 성공한 경우의 cleanup은 본 메소드 내부에서 직접 처리해야 한다.
+	 *
+	 * @throws Exception 초기화 과정에서 예외가 발생한 경우.
+	 */
+	protected void initializePoller() throws Exception { }
+
+	/**
+	 * 목표 상태 도달 여부를 확인한다.
+	 * <p>
+	 * 본 메소드는 {@link PeriodicLoopExecution#getLoopInterval() interval} 주기로 반복 호출된다.
+	 * 반환값에 따른 동작은 클래스 Javadoc 참조.
+	 *
+	 * @return	목표 상태에 도달한 경우 그 값을 담은 {@link Optional},
+	 * 			아직 도달하지 않은 경우 {@link Optional#empty()}. {@code null}을 반환해서는 안 된다.
+	 * @throws InterruptedException		polling이 인터럽트된 경우.
+	 * @throws CancellationException	polling이 취소된 경우.
+	 * @throws Exception		polling 중 예외가 발생한 경우.
+	 */
+	protected abstract Optional<R> pollState() throws Exception;
+
+	/**
+	 * Polling이 종료될 때 호출되는 정리 작업.
+	 * <p>
+	 * 초기화({@link #initializeLoop()})가 성공적으로 완료된 이후라면 polling의 종료 사유와
+	 * 무관하게 항상 1회 호출된다.
+	 *
+	 * @param state {@link #pollState()}가 값이 있는 {@link Optional}을 반환하여 정상적으로
+	 * 				목표 상태에 도달한 경우 그 값. 취소/timeout/예외 등 비정상 종료 시에는 {@code null}.
+	 */
+	protected void finalizePoller(@Nullable R state) { }
+
+	@Override
+	protected final void initializeLoop() throws Exception {
+		super.initializeLoop();
+		initializePoller();
+	}
+
+	@Override
+	protected final void finalizeLoop() {
+		finalizePoller(m_result);
+		super.finalizeLoop();
 	}
 
 	@Override
 	protected final Optional<R> performPeriodicAction(long loopIndex) throws Exception {
 		Optional<R> ostate = pollState();
-		if ( ostate != null && ostate.isPresent() ) {
+		if ( ostate.isPresent() ) {
 			m_result = ostate.get();
 		}
-		
+
 		return ostate;
 	}
 }

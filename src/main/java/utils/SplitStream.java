@@ -6,7 +6,7 @@ import java.util.NoSuchElementException;
 
 import com.google.common.collect.Lists;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import utils.func.FOption;
 import utils.stream.FStream;

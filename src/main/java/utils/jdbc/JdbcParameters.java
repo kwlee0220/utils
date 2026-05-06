@@ -1,13 +1,12 @@
 package utils.jdbc;
 
-import static utils.Utilities.checkArgument;
-import static utils.Utilities.checkNotNullArgument;
-
 import java.io.File;
 import java.util.List;
 import java.util.Optional;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
+
+import com.google.common.base.Preconditions;
 
 import utils.CSV;
 
@@ -56,10 +55,10 @@ public class JdbcParameters {
 			required=true,
 			description={"JDBC locator, (eg. 'mysql:localhost:3306:sbdata:<passwd>:<db-name>')"})
 	public JdbcParameters jdbcLoc(String loc) {
-		checkNotNullArgument(loc, "JDBC locator is null");
+		Preconditions.checkNotNull(loc, "JDBC locator is null");
 		
 		List<String> parts = CSV.parseCsv(loc, ':').toList();
-		checkArgument(parts.size() == 6, "invalid JDBC locator: " + loc);
+		Preconditions.checkArgument(parts.size() == 6, "invalid JDBC locator: %s", loc);
 		
 		m_system = parts.get(0);
 		m_host = parts.get(1);

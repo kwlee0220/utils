@@ -1,6 +1,6 @@
 package utils.stream;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import utils.Utilities;
 import utils.func.FOption;

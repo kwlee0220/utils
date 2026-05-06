@@ -16,8 +16,9 @@ import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
 import java.util.Objects;
 
-import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
+
+import org.jetbrains.annotations.NotNull;
 
 
 
@@ -28,8 +29,8 @@ import javax.annotation.concurrent.GuardedBy;
 public class BufferedImageConvas implements Convas {
 	private static final AffineTransform NULL_TRANS = new AffineTransform();
 	
-	@Nonnull private final Dimension m_size;
-	@Nonnull @GuardedBy("this") private BufferedImage m_bi;
+	@NotNull private final Dimension m_size;
+	@NotNull @GuardedBy("this") private BufferedImage m_bi;
 	
 	public static BufferedImageConvas createRGBConvas(Dimension size) {
 		return new BufferedImageConvas(new BufferedImage(size.width, size.height,

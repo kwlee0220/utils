@@ -212,7 +212,7 @@ public class ExecutionFlatMapTest {
 
 	@Test
 	public void test21() throws Exception {
-		Execution<Integer> exec = m_leader.flatMap(r -> m_follower);
+		Execution<Integer> exec = m_leader.flatMapOnFinished(r -> m_follower);
 		assertEquals(exec.getState(), AsyncState.NOT_STARTED);
 
 		assertTrue(m_leader.notifyStarted());
@@ -232,7 +232,7 @@ public class ExecutionFlatMapTest {
 
 	@Test
 	public void test22() throws Exception {
-		Execution<Integer> exec = m_leader.flatMap(r -> m_follower);
+		Execution<Integer> exec = m_leader.flatMapOnFinished(r -> m_follower);
 		assertEquals(exec.getState(), AsyncState.NOT_STARTED);
 
 		assertTrue(m_leader.notifyStarted());
@@ -252,7 +252,7 @@ public class ExecutionFlatMapTest {
 
 	@Test
 	public void test23() throws Exception {
-		Execution<Integer> exec = m_leader.flatMap(r -> m_follower);
+		Execution<Integer> exec = m_leader.flatMapOnFinished(r -> m_follower);
 		assertEquals(exec.getState(), AsyncState.NOT_STARTED);
 
 		assertTrue(m_leader.notifyStarted());
@@ -272,7 +272,7 @@ public class ExecutionFlatMapTest {
 
 	@Test
 	public void test31() throws Exception {
-		Execution<Integer> exec = m_leader.flatMap(r -> m_follower);
+		Execution<Integer> exec = m_leader.flatMapOnFinished(r -> m_follower);
 		assertEquals(exec.getState(), AsyncState.NOT_STARTED);
 
 		assertTrue(m_leader.notifyStarted());
@@ -292,7 +292,7 @@ public class ExecutionFlatMapTest {
 
 	@Test
 	public void test32() throws Exception {
-		Execution<Integer> exec = m_leader.flatMap(r -> m_follower);
+		Execution<Integer> exec = m_leader.flatMapOnFinished(r -> m_follower);
 		assertEquals(exec.getState(), AsyncState.NOT_STARTED);
 
 		assertTrue(m_leader.notifyStarted());
@@ -336,7 +336,7 @@ public class ExecutionFlatMapTest {
 	@Test
 	public void test41() throws Exception {
 		EventDrivenExecution<Integer> follower = new EventDrivenExecution<>();
-		Execution<Integer> comp = m_leader.flatMap(r -> follower);
+		Execution<Integer> comp = m_leader.flatMapOnFinished(r -> follower);
 		
 		boolean ret;
 		
@@ -362,7 +362,7 @@ public class ExecutionFlatMapTest {
 
 	@Test
 	public void test42() throws Exception {
-		Execution<Integer> comp = m_leader.flatMap(r -> startCount(r));
+		Execution<Integer> comp = m_leader.flatMapOnFinished(r -> startCount(r));
 		
 		boolean ret;
 		
@@ -386,7 +386,7 @@ public class ExecutionFlatMapTest {
 
 	@Test
 	public void test43() throws Exception {
-		Execution<Integer> comp = m_leader.flatMap(r -> startCount(r));
+		Execution<Integer> comp = m_leader.flatMapOnFinished(r -> startCount(r));
 		
 		boolean ret;
 		
@@ -407,7 +407,7 @@ public class ExecutionFlatMapTest {
 
 	@Test
 	public void test44() throws Exception {
-		Execution<Integer> comp = m_leader.flatMap(r -> startCount(r));
+		Execution<Integer> comp = m_leader.flatMapOnFinished(r -> startCount(r));
 		
 		boolean ret;
 		
@@ -485,7 +485,7 @@ public class ExecutionFlatMapTest {
 	@Test
 	public void test45() throws Exception {
 		EventDrivenExecution<Person> leader = new EventDrivenExecution<>();
-		Execution<Integer> comp = leader.flatMap(r -> nameLength(r));
+		Execution<Integer> comp = leader.flatMapOnFinished(r -> nameLength(r));
 		
 		boolean ret;
 		
@@ -512,7 +512,7 @@ public class ExecutionFlatMapTest {
 	@Test
 	public void test46() throws Exception {
 		EventDrivenExecution<Person> leader = new EventDrivenExecution<>();
-		Execution<Integer> comp = leader.flatMap(r -> nameLength(r));
+		Execution<Integer> comp = leader.flatMapOnFinished(r -> nameLength(r));
 		
 		boolean ret;
 		

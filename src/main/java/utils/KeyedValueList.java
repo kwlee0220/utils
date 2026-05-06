@@ -11,7 +11,7 @@ import com.google.common.collect.Sets;
 
 import lombok.experimental.Delegate;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import utils.func.Funcs;
 import utils.stream.FStream;
@@ -94,7 +94,7 @@ public class KeyedValueList<K,V> implements List<V> {
 	 * 
 	 * @param value 추가할 값.
 	 */
-	public boolean addIfAbscent(V value) {
+	public boolean addIfAbsent(V value) {
 		Preconditions.checkArgument(value != null, "value is null");
 
 		K key = m_keyer.apply(value);

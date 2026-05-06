@@ -20,40 +20,40 @@ public class Throwables {
 	}
 
 	public static Throwable unwrapThrowable(Throwable e) {
+		Throwable cause = null;
+		
 		while ( true ) {
 			if ( e instanceof InvocationTargetException ) {
-				e = ((InvocationTargetException)e).getTargetException();
+				cause = ((InvocationTargetException)e).getTargetException();
 			}
 			else if ( e instanceof UndeclaredThrowableException ) {
-				e = ((UndeclaredThrowableException)e).getUndeclaredThrowable();
+				cause = ((UndeclaredThrowableException)e).getUndeclaredThrowable();
 			}
 			else if ( e instanceof ExecutionException ) {
-				e = ((ExecutionException)e).getCause();
+				cause = ((ExecutionException)e).getCause();
 			}
 			else if ( e instanceof RuntimeExecutionException ) {
-				e = ((RuntimeExecutionException)e).getCause();
+				cause = ((RuntimeExecutionException)e).getCause();
 			}
 			else if ( e instanceof RuntimeInterruptedException ) {
-				e = ((RuntimeInterruptedException)e).getCause();
+				cause = ((RuntimeInterruptedException)e).getCause();
 			}
 			else if ( e instanceof RuntimeTimeoutException ) {
-				e = ((RuntimeTimeoutException)e).getCause();
+				cause = ((RuntimeTimeoutException)e).getCause();
 			}
 			else if ( e instanceof CompletionException ) {
-				e = ((CompletionException)e).getCause();
+				cause = ((CompletionException)e).getCause();
 			}
-			else if ( RuntimeException.class == e.getClass() ) {
-				Throwable cause = ((RuntimeException)e).getCause();
-				if ( cause != null ) {
-					e = cause;
-				}
-				else {
-					return e;
-				}
+			else if ( e instanceof RuntimeException ) {
+				cause = ((RuntimeException)e).getCause();
 			}
 			else {
 				return e;
 			}
+			if ( cause == null ) {
+				return e;
+			}
+			e = cause;
 		}
 	}
 	

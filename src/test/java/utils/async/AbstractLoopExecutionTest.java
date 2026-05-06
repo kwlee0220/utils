@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -30,6 +31,7 @@ public class AbstractLoopExecutionTest {
 		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
+		exec.waitForStarted();
 		Assert.assertEquals(true, exec.isStarted());
 		Assert.assertEquals(false, exec.isDone());
 		
@@ -52,6 +54,10 @@ public class AbstractLoopExecutionTest {
 		boolean done;
 		done = exec.cancel(true);
 		Assert.assertEquals(true, done);
+		
+		AsyncResult<Integer> result;
+		result = exec.waitForFinished();
+		Assert.assertEquals(true, result.isCancelled());
 		Assert.assertEquals(true, exec.isDone());
 	}
 	
@@ -63,6 +69,7 @@ public class AbstractLoopExecutionTest {
 		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
+		exec.waitForStarted();
 		Assert.assertEquals(true, exec.isStarted());
 		Assert.assertEquals(false, exec.isDone());
 		
@@ -96,6 +103,172 @@ public class AbstractLoopExecutionTest {
 		Assert.assertEquals("test", result.getFailureCause().getMessage());
 	}
 	
+	// ---------- finalize 라이프사이클 ----------
+
+	@Test(timeout = 5_000)
+	public void finalizeLoop_called_on_normal_completion() throws Exception {
+		LifecycleLoop loop = new LifecycleLoop(3);
+		loop.start();
+		AsyncResult<Integer> result = loop.waitForFinished();
+
+		Assert.assertTrue(result.isCompleted());
+		Assert.assertEquals(1, loop.initCalls.get());
+		Assert.assertEquals(3, loop.iterateCalls.get());
+		Assert.assertEquals(1, loop.finalizeCalls.get());
+	}
+
+	@Test(timeout = 5_000)
+	public void finalizeLoop_called_on_external_cancel() throws Exception {
+		LifecycleLoop loop = new LifecycleLoop(1000);
+		loop.iterationDelayMs = 50;
+		loop.start();
+		loop.waitForStarted();
+		MILLISECONDS.sleep(120);   // 적어도 한 번의 iterate 진입 보장
+
+		Assert.assertTrue(loop.cancel(true));
+		AsyncResult<Integer> result = loop.waitForFinished();
+
+		Assert.assertTrue(result.isCancelled());
+		Assert.assertEquals(1, loop.initCalls.get());
+		Assert.assertEquals(1, loop.finalizeCalls.get());
+	}
+
+	@Test(timeout = 5_000)
+	public void finalizeLoop_called_on_iterate_failure() throws Exception {
+		LifecycleLoop loop = new LifecycleLoop(10);
+		loop.iterateThrowAt = 2L;
+		loop.iterateThrow = new IllegalStateException("boom");
+		loop.start();
+		AsyncResult<Integer> result = loop.waitForFinished();
+
+		Assert.assertTrue(result.isFailed());
+		Assert.assertEquals(1, loop.initCalls.get());
+		Assert.assertEquals(1, loop.finalizeCalls.get());
+	}
+
+	@Test(timeout = 5_000)
+	public void finalizeLoop_NOT_called_when_initializeLoop_fails() throws Exception {
+		LifecycleLoop loop = new LifecycleLoop(3);
+		loop.initThrow = new IllegalStateException("init");
+		loop.start();
+		AsyncResult<Integer> result = loop.waitForFinished();
+
+		Assert.assertTrue(result.isFailed());
+		Assert.assertEquals(1, loop.initCalls.get());
+		Assert.assertEquals(0, loop.iterateCalls.get());
+		Assert.assertEquals(0, loop.finalizeCalls.get());
+	}
+
+	@Test(timeout = 5_000)
+	public void finalizeLoop_exception_swallowed_completion_unaffected() throws Exception {
+		LifecycleLoop loop = new LifecycleLoop(2);
+		loop.finalizeThrow = new IllegalStateException("finalize-boom");
+		loop.start();
+		AsyncResult<Integer> result = loop.waitForFinished();
+
+		Assert.assertTrue("finalizeLoop의 예외는 무시되어야 함", result.isCompleted());
+		Assert.assertEquals(2, (int)result.get());
+		Assert.assertEquals(1, loop.finalizeCalls.get());
+	}
+
+	// ---------- iterate 동작 ----------
+
+	@Test(timeout = 5_000)
+	public void iterate_throws_InterruptedException_transitions_to_CANCELLED() throws Exception {
+		LifecycleLoop loop = new LifecycleLoop(10);
+		loop.iterateThrowAt = 1L;
+		loop.iterateThrow = new InterruptedException("ie");
+		loop.start();
+		AsyncResult<Integer> result = loop.waitForFinished();
+
+		Assert.assertTrue(result.isCancelled());
+		Assert.assertEquals(1, loop.finalizeCalls.get());
+	}
+
+	// ---------- cancel 동작 ----------
+
+	@Test(timeout = 5_000)
+	public void cancel_before_start_skips_initialize_and_iterate() throws Exception {
+		LifecycleLoop loop = new LifecycleLoop(3);
+
+		Assert.assertTrue(loop.cancel(true));
+		Assert.assertEquals(AsyncState.CANCELLED, loop.getState());
+		Assert.assertEquals(0, loop.initCalls.get());
+		Assert.assertEquals(0, loop.iterateCalls.get());
+		Assert.assertEquals(0, loop.finalizeCalls.get());
+	}
+
+	// ---------- helper task classes ----------
+
+	/**
+	 * {@link AbstractLoopExecution}의 라이프사이클 (초기화/iteration/finalize) 호출 횟수와
+	 * 동작을 외부에서 제어/관찰할 수 있게 한 테스트용 구현체.
+	 */
+	private static class LifecycleLoop extends AbstractLoopExecution<Integer> {
+		final AtomicInteger initCalls = new AtomicInteger();
+		final AtomicInteger iterateCalls = new AtomicInteger();
+		final AtomicInteger finalizeCalls = new AtomicInteger();
+
+		private final int m_targetIterations;
+		Throwable initThrow;
+		Throwable iterateThrow;
+		Long iterateThrowAt;       // null이면 iterateThrow가 설정되었을 때 매 호출마다 throw
+		Throwable finalizeThrow;
+		long iterationDelayMs = 0;
+
+		LifecycleLoop(int targetIterations) {
+			m_targetIterations = targetIterations;
+		}
+
+		@Override
+		protected void initializeLoop() throws Exception {
+			initCalls.incrementAndGet();
+			if ( initThrow != null ) {
+				throwAs(initThrow);
+			}
+		}
+
+		@Override
+		protected Optional<Integer> iterate(long loopIndex) throws Exception {
+			int n = iterateCalls.incrementAndGet();
+			if ( iterationDelayMs > 0 ) {
+				MILLISECONDS.sleep(iterationDelayMs);
+			}
+			if ( iterateThrow != null
+					&& (iterateThrowAt == null || iterateThrowAt == loopIndex) ) {
+				throwAs(iterateThrow);
+			}
+			return n >= m_targetIterations ? Optional.of(n) : Optional.empty();
+		}
+
+		@Override
+		protected void finalizeLoop() {
+			finalizeCalls.incrementAndGet();
+			if ( finalizeThrow != null ) {
+				if ( finalizeThrow instanceof RuntimeException ) {
+					throw (RuntimeException)finalizeThrow;
+				}
+				if ( finalizeThrow instanceof Error ) {
+					throw (Error)finalizeThrow;
+				}
+				throw new RuntimeException(finalizeThrow);
+			}
+		}
+
+		private static void throwAs(Throwable t) throws Exception {
+			if ( t instanceof RuntimeException ) {
+				throw (RuntimeException)t;
+			}
+			if ( t instanceof Error ) {
+				throw (Error)t;
+			}
+			if ( t instanceof Exception ) {
+				throw (Exception)t;
+			}
+			throw new RuntimeException(t);
+		}
+	}
+
 	private static class TestExecution1 extends AbstractLoopExecution<Integer> {
 		private final int m_limit;
 		private int m_index;
@@ -119,7 +292,7 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected void finalizeLoop() throws Exception { }
+		protected void finalizeLoop() { }
 	}
 	
 	private static class TestExecution2 extends AbstractLoopExecution<Integer> {
@@ -147,7 +320,7 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected void finalizeLoop() throws Exception { }
+		protected void finalizeLoop() { }
 	}
 	
 	private static class TestExecution3 extends AbstractLoopExecution<Integer> {
@@ -176,7 +349,7 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected void finalizeLoop() throws Exception { }
+		protected void finalizeLoop() { }
 	}
 	
 	private static class TestExecution4 extends AbstractLoopExecution<Integer> {
@@ -205,6 +378,6 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected void finalizeLoop() throws Exception { }
+		protected void finalizeLoop() { }
 	}
 }

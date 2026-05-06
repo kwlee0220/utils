@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import utils.RuntimeInterruptedException;
 import utils.Suppliable;
