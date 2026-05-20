@@ -3,8 +3,8 @@ package utils.stream;
 
 import java.util.function.Function;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import utils.func.FOption;
 
@@ -20,61 +20,67 @@ public class GenerateTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(0), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(0), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 
-	@Test(expected=RuntimeException.class)
+	@Test
 	public void test1() throws Exception {
-		Function<Integer,Integer> gen = (Integer i) -> {
-			if ( i < 2 ) {
-				return i+1;
-			}
-			else {
-				throw new RuntimeException();
-			}
-		};
-		FStream<Integer> stream = FStream.generate(0, gen);
+		Assertions.assertThrows(RuntimeException.class, () -> {
+			Function<Integer,Integer> gen = (Integer i) -> {
+				if ( i < 2 ) {
+					return i+1;
+				}
+				else {
+					throw new RuntimeException();
+				}
+			};
+			FStream<Integer> stream = FStream.generate(0, gen);
 		
-		FOption<Integer> r;
+			FOption<Integer> r;
 		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(0), r.get());
+			r = stream.next();
+			Assertions.assertEquals(true, r.isPresent());
+			Assertions.assertEquals(Integer.valueOf(0), r.get());
 		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+			r = stream.next();
+			Assertions.assertEquals(true, r.isPresent());
+			Assertions.assertEquals(Integer.valueOf(1), r.get());
 		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+			r = stream.next();
+			Assertions.assertEquals(true, r.isPresent());
+			Assertions.assertEquals(Integer.valueOf(2), r.get());
 		
-		r = stream.next();
+			r = stream.next();
+			});
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test2() throws Exception {
-		FStream.generate(0, null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream.generate(0, null);
+			});
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test3() throws Exception {
-		Function<String,String> gen = s -> s;
-		FStream.generate(null, gen);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Function<String,String> gen = s -> s;
+			FStream.generate(null, gen);
+			});
 	}
 }

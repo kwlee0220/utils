@@ -1,8 +1,8 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import utils.func.FOption;
 
@@ -21,25 +21,25 @@ public class ReduceLeakTest {
 		FOption<String> r;
 		
 		r = stream.next();
-		Assert.assertEquals("A", r.get());
+		Assertions.assertEquals("A", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals("AB", r.get());
+		Assertions.assertEquals("AB", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals("ABC", r.get());
+		Assertions.assertEquals("ABC", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals("ABCD", r.get());
+		Assertions.assertEquals("ABCD", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals("ABCDE", r.get());
+		Assertions.assertEquals("ABCDE", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -50,15 +50,17 @@ public class ReduceLeakTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test2() throws Exception {
-		FStream<Integer> stream = FStream.empty();
-		stream = stream.reduceLeak(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> stream = FStream.empty();
+			stream = stream.reduceLeak(null);
+			});
 	}
 }

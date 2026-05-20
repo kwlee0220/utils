@@ -6,10 +6,11 @@ import java.util.List;
 import java.util.Random;
 import java.util.function.Function;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import utils.Tuple;
 import utils.UnitUtils;
 import utils.func.Try;
 import utils.func.Unchecked;
@@ -45,7 +46,7 @@ public class MapAsyncTest {
 		}
 	};
 	
-	@Before
+	@BeforeEach
 	public void setup() {
 		m_random = new Random(System.nanoTime());
 	}
@@ -63,9 +64,10 @@ public class MapAsyncTest {
 		List<Try<Desc>> result = FStream.range(0, 8)
 										.map(i -> generate(i))
 										.mapAsync(mapper, AsyncExecutionOptions.WORKER_COUNT(3))
+										.map(Tuple::_2)
 										.toList();
-		Assert.assertEquals(8, result.size());
-		Assert.assertEquals(true, FStream.from(result).allMatch(t -> t.isSuccessful()));
+		Assertions.assertEquals(8, result.size());
+		Assertions.assertEquals(true, FStream.from(result).allMatch(t -> t.isSuccessful()));
 		
 		long[] endTss = FStream.from(result)
 								.flatMapTry(t -> t)
@@ -73,26 +75,30 @@ public class MapAsyncTest {
 								.toArray();
 		long[] sorteds = Arrays.copyOf(endTss, endTss.length);
 		Arrays.sort(sorteds);
-		Assert.assertArrayEquals(sorteds, endTss);
+		Assertions.assertArrayEquals(sorteds, endTss);
 	}
 	
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void test1() throws Exception {
-		long started = System.currentTimeMillis();
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			long started = System.currentTimeMillis();
 		
-		Function<Desc,Desc> mapper = (desc) -> {
-			long now = System.currentTimeMillis();
-			Unchecked.runOrRTE(() -> Thread.sleep(desc.m_sleepMillis));
-			return new Desc(desc.m_seqNo, now, desc.m_sleepMillis, System.currentTimeMillis()-started);
-		};
+			Function<Desc,Desc> mapper = (desc) -> {
+				long now = System.currentTimeMillis();
+				Unchecked.runOrRTE(() -> Thread.sleep(desc.m_sleepMillis));
+				return new Desc(desc.m_seqNo, now, desc.m_sleepMillis, System.currentTimeMillis()-started);
+			};
 		
-		FStream<Try<Desc>> result
-			= FStream.range(0, 16).map(i -> generate(i)).mapAsync(mapper, AsyncExecutionOptions.WORKER_COUNT(3));
-		result.next();
-		result.next();
-		result.close();
-		result.next();
+			FStream<Try<Desc>> result
+				= FStream.range(0, 16).map(i -> generate(i))
+						.mapAsync(mapper, AsyncExecutionOptions.WORKER_COUNT(3))
+						.map(Tuple::_2);
+			result.next();
+			result.next();
+			result.close();
+			result.next();
 		
+			});
 	}
 	
 	@Test
@@ -116,16 +122,17 @@ public class MapAsyncTest {
 			= FStream.range(0, 16)
 					.map(i -> generate(i))
 					.mapAsync(mapper, AsyncExecutionOptions.WORKER_COUNT(3))
+					.map(Tuple::_2)
 					.toList();
 
-		Assert.assertEquals(16, result.size());
+		Assertions.assertEquals(16, result.size());
 		
-		Assert.assertEquals(11, FStream.from(result).flatMapTry(t -> t).count());
+		Assertions.assertEquals(11, FStream.from(result).flatMapTry(t -> t).count());
 		FStream.from(result)
 				.filter(t -> t.isFailed())
 				.map(t -> t.getCause().getLocalizedMessage())
 				.map(msg -> Integer.parseInt(msg))
-				.forEach(m -> Assert.assertTrue(m%3 == 1));
+				.forEach(m -> Assertions.assertTrue(m%3 == 1));
 	}
 	
 	private Desc generate(int idx) {
@@ -144,40 +151,43 @@ public class MapAsyncTest {
 		int[] result = FStream.of(100L, 200L, 300L, 400L, 500L, 600L, 700L)
 								.zipWithIndex()
 								.mapAsync(t -> sleepAndReturn(t.index(), t.value()), options)
-								.peek(t -> Assert.assertTrue(t.isSuccessful()))
+								.map(Tuple::_2)
+								.peek(t -> Assertions.assertTrue(t.isSuccessful()))
 								.flatMapTry(t -> t)
 								.mapToInt(v -> v)
 								.toArray();
 		int[] answer = FStream.range(0, 7).toArray();
-		Assert.assertArrayEquals(answer, result);
+		Assertions.assertArrayEquals(answer, result);
 	}
-	
+
 	@Test
 	public void test11() throws Exception {
 		AsyncExecutionOptions options = AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(3);
-		
+
 		int[] result = FStream.of(700L, 600L, 500L, 400L, 300L, 200L, 100L, 0L)
 								.zipWithIndex()
 								.mapAsync(t -> sleepAndReturn(t.index(), t.value()), options)
-								.peek(t -> Assert.assertTrue(t.isSuccessful()))
+								.map(Tuple::_2)
+								.peek(t -> Assertions.assertTrue(t.isSuccessful()))
 								.flatMapTry(t -> t)
 								.mapToInt(v -> v)
 								.toArray();
 		int[] answer = FStream.range(0, 8).toArray();
-		Assert.assertArrayEquals(answer, result);
+		Assertions.assertArrayEquals(answer, result);
 	}
-	
+
 	@Test
 	public void test12() throws Exception {
 		AsyncExecutionOptions options = AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(3);
-		
+
 		int[] result = FStream.<Long>of()
 								.zipWithIndex()
 								.mapAsync(t -> sleepAndReturn(t.index(), t.value()), options)
-								.peek(t -> Assert.assertTrue(t.isSuccessful()))
+								.map(Tuple::_2)
+								.peek(t -> Assertions.assertTrue(t.isSuccessful()))
 								.flatMapTry(t -> t)
 								.mapToInt(v -> v)
 								.toArray();
-		Assert.assertArrayEquals(new int[0], result);
+		Assertions.assertArrayEquals(new int[0], result);
 	}
 }

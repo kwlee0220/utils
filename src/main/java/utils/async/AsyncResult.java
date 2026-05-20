@@ -9,7 +9,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import utils.Utilities;
+import utils.Preconditions;
 
 /**
  * 
@@ -73,7 +73,7 @@ public abstract class AsyncResult<T> {
     }
 	
 	public T getOrElse(Supplier<? extends T> supplier) {
-        Utilities.checkNotNullArgument(supplier, "supplier is null");
+        Preconditions.checkNotNullArgument(supplier, "supplier is null");
 
 		return supplier.get();
     }
@@ -137,20 +137,20 @@ public abstract class AsyncResult<T> {
 
 		@Override
 		public AsyncResult<T> filter(Predicate<? super T> predicate) {
-	        Utilities.checkNotNullArgument(predicate, "predicate is null");
+	        Preconditions.checkNotNullArgument(predicate, "predicate is null");
 			return predicate.test(m_value) ? this : cancelled();
 		}
 
 		@Override
 	    public <S> AsyncResult<S> map(Function<? super T, ? extends S> mapper) {
-	        Utilities.checkNotNullArgument(mapper, "mapper is null");
+	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
 	        
 			return completed(mapper.apply(m_value));
 	    }
 
 		@Override
 	    public AsyncResult<T> ifCompleted(Consumer<? super T> handler) {
-	        Utilities.checkNotNullArgument(handler, "handler is null");
+	        Preconditions.checkNotNullArgument(handler, "handler is null");
 
 			handler.accept(m_value);
 			return this;
@@ -215,7 +215,7 @@ public abstract class AsyncResult<T> {
 
 		@Override
 	    public AsyncResult<T> ifFailed(Consumer<Throwable> handler) {
-	        Utilities.checkNotNullArgument(handler, "handler is null");
+	        Preconditions.checkNotNullArgument(handler, "handler is null");
 
 			handler.accept(m_cause);
 			return this;
@@ -271,7 +271,7 @@ public abstract class AsyncResult<T> {
 
 		@Override
 	    public AsyncResult<T> ifCancelled(Runnable handler) {
-	        Utilities.checkNotNullArgument(handler, "handler is null");
+	        Preconditions.checkNotNullArgument(handler, "handler is null");
 
 			handler.run();
 			return this;

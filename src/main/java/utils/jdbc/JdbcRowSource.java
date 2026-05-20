@@ -1,6 +1,5 @@
 package utils.jdbc;
 
-import static utils.Utilities.checkState;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -12,6 +11,7 @@ import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.ObservableEmitter;
 import io.reactivex.rxjava3.core.ObservableOnSubscribe;
 
+import utils.Preconditions;
 import utils.Throwables;
 import utils.Tuple;
 import utils.Tuple3;
@@ -78,10 +78,10 @@ public class JdbcRowSource<T> {
 			try {
 				if ( m_rs == null ) {
 					if ( m_conn == null ) {
-						checkState(m_proc != null, "Connection has not set.");
+						Preconditions.checkState(m_proc != null, "Connection has not set.");
 						m_conn = m_proc.connect();
 					}
-					checkState(m_exector != null, "Query executor has not set.");
+					Preconditions.checkState(m_exector != null, "Query executor has not set.");
 					m_rs = m_exector.apply(m_conn);
 				}
 				
@@ -114,10 +114,10 @@ public class JdbcRowSource<T> {
 				// 처음으로 레코드를 fetch할 때 SQL 처리를 수행하여 ResultSet 객체를 생성한다.
 				if ( m_rs == null ) {
 					if ( m_conn == null ) {
-						checkState(m_proc != null, "Connection has not set.");
+						Preconditions.checkState(m_proc != null, "Connection has not set.");
 						m_conn = m_proc.connect();
 					}
-					checkState(m_exector != null, "Query executor has not set.");
+					Preconditions.checkState(m_exector != null, "Query executor has not set.");
 					m_rs = m_exector.apply(m_conn);
 				}
 				

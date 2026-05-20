@@ -3,7 +3,6 @@ package utils.async;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -12,10 +11,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Assert;
-import org.junit.Test;
+import utils.func.FOption;
 
 
 /**
@@ -27,9 +27,9 @@ public class AbstractStatePollerTest {
 	private static final Duration INTERVAL_100MS = Duration.ofMillis(100);
 
 	/**
-	 * 지정된 iteration 수만큼 Optional.empty()를 반환한 뒤 목표 상태(value)를 반환하는 폴러.
+	 * 지정된 iteration 수만큼 FOption.empty()를 반환한 뒤 목표 상태(value)를 반환하는 폴러.
 	 */
-	static class CountingPoller extends AbstractStatePoller<Integer> {
+	static class CountingPoller extends AbstractPeriodicPoller<Integer> {
 		private final int m_targetIteration;
 		private final int m_resultValue;
 		final AtomicInteger m_initCount = new AtomicInteger(0);
@@ -55,12 +55,12 @@ public class AbstractStatePollerTest {
 		}
 
 		@Override
-		protected Optional<Integer> pollState() throws Exception {
+		protected FOption<Integer> tryPoll() {
 			int n = m_pollCount.incrementAndGet();
 			if ( n >= m_targetIteration ) {
-				return Optional.of(m_resultValue);
+				return FOption.of(m_resultValue);
 			}
-			return Optional.empty();
+			return FOption.empty();
 		}
 
 		@Override
@@ -82,10 +82,10 @@ public class AbstractStatePollerTest {
 		int result = poller.waitForFinished().get();
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertEquals(42, result);
-		Assert.assertEquals(3, poller.m_pollCount.get());
+		Assertions.assertEquals(42, result);
+		Assertions.assertEquals(3, poller.m_pollCount.get());
 		// 첫 polling 즉시 + 2번 더 = 약 2 * 50ms ~ 100ms (non-cumulative).
-		Assert.assertTrue("elapsed=" + elapsed, elapsed < 250);
+		Assertions.assertTrue(elapsed < 250, "elapsed=" + elapsed);
 	}
 
 	@Test
@@ -98,10 +98,10 @@ public class AbstractStatePollerTest {
 		int result = poller.waitForFinished().get();
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertEquals(7, result);
-		Assert.assertEquals(1, poller.m_pollCount.get());
+		Assertions.assertEquals(7, result);
+		Assertions.assertEquals(1, poller.m_pollCount.get());
 		// interval 만큼 sleep하지 않고 곧바로 종료되어야 한다.
-		Assert.assertTrue("elapsed=" + elapsed, elapsed < 100);
+		Assertions.assertTrue(elapsed < 100, "elapsed=" + elapsed);
 	}
 
 	// ----- 라이프사이클 훅 -----
@@ -113,11 +113,11 @@ public class AbstractStatePollerTest {
 		poller.start();
 		poller.waitForFinished().get();
 
-		Assert.assertEquals(1, poller.m_initCount.get());
-		Assert.assertEquals(2, poller.m_pollCount.get());
-		Assert.assertEquals(1, poller.m_finalizeCount.get());
+		Assertions.assertEquals(1, poller.m_initCount.get());
+		Assertions.assertEquals(2, poller.m_pollCount.get());
+		Assertions.assertEquals(1, poller.m_finalizeCount.get());
 		// 정상 종료 시 finalizePoller에 결과값이 전달되어야 한다.
-		Assert.assertEquals(Integer.valueOf(99), poller.m_finalizedState.get());
+		Assertions.assertEquals(Integer.valueOf(99), poller.m_finalizedState.get());
 	}
 
 	@Test
@@ -135,9 +135,9 @@ public class AbstractStatePollerTest {
 		});
 		AsyncResult<Integer> result = poller.waitForFinished();
 
-		Assert.assertTrue(result.isCancelled());
-		Assert.assertEquals(1, poller.m_finalizeCount.get());
-		Assert.assertNull(poller.m_finalizedState.get());
+		Assertions.assertTrue(result.isCancelled());
+		Assertions.assertEquals(1, poller.m_finalizeCount.get());
+		Assertions.assertNull(poller.m_finalizedState.get());
 	}
 
 	@Test
@@ -148,10 +148,10 @@ public class AbstractStatePollerTest {
 		poller.start();
 		AsyncResult<Integer> result = poller.waitForFinished(2, TimeUnit.SECONDS);
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof TimeoutException);
-		Assert.assertEquals(1, poller.m_finalizeCount.get());
-		Assert.assertNull(poller.m_finalizedState.get());
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
+		Assertions.assertEquals(1, poller.m_finalizeCount.get());
+		Assertions.assertNull(poller.m_finalizedState.get());
 	}
 
 	@Test
@@ -159,9 +159,9 @@ public class AbstractStatePollerTest {
 		AtomicReference<Integer> finalized = new AtomicReference<>();
 		AtomicInteger finalizeCount = new AtomicInteger(0);
 
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
+			protected FOption<Integer> tryPoll() {
 				throw new IllegalStateException("boom");
 			}
 			@Override
@@ -174,9 +174,9 @@ public class AbstractStatePollerTest {
 		poller.start();
 		AsyncResult<Integer> result = poller.waitForFinished(2, TimeUnit.SECONDS);
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertEquals(1, finalizeCount.get());
-		Assert.assertNull(finalized.get());
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertEquals(1, finalizeCount.get());
+		Assertions.assertNull(finalized.get());
 	}
 
 	@Test
@@ -185,16 +185,16 @@ public class AbstractStatePollerTest {
 		AtomicInteger pollCount = new AtomicInteger(0);
 		AtomicInteger finalizeCount = new AtomicInteger(0);
 
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
 			@Override
 			protected void initializePoller() throws Exception {
 				initCount.incrementAndGet();
 				throw new RuntimeException("init failed");
 			}
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
+			protected FOption<Integer> tryPoll() {
 				pollCount.incrementAndGet();
-				return Optional.empty();
+				return FOption.empty();
 			}
 			@Override
 			protected void finalizePoller(@Nullable Integer state) {
@@ -205,11 +205,11 @@ public class AbstractStatePollerTest {
 		poller.start();
 		AsyncResult<Integer> result = poller.waitForFinished(2, TimeUnit.SECONDS);
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertEquals(1, initCount.get());
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertEquals(1, initCount.get());
 		// pollState도 finalizePoller도 호출되지 않아야 한다.
-		Assert.assertEquals(0, pollCount.get());
-		Assert.assertEquals(0, finalizeCount.get());
+		Assertions.assertEquals(0, pollCount.get());
+		Assertions.assertEquals(0, finalizeCount.get());
 	}
 
 	@Test
@@ -217,14 +217,14 @@ public class AbstractStatePollerTest {
 		// initializePoller 호출 시점에 부모의 setTimeout으로부터 파생된 m_due가 설정되어 있어야 한다.
 		AtomicReference<Instant> dueInsideInit = new AtomicReference<>();
 
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
 			@Override
 			protected void initializePoller() throws Exception {
 				dueInsideInit.set(getDue());
 			}
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
-				return Optional.of(1);
+			protected FOption<Integer> tryPoll() {
+				return FOption.of(1);
 			}
 		};
 		poller.setTimeout(Duration.ofSeconds(5));
@@ -233,17 +233,17 @@ public class AbstractStatePollerTest {
 		poller.waitForFinished().get();
 
 		// initializePoller에서 본 getDue()가 non-null이어야 한다 (super.initializeLoop이 먼저 실행됐음).
-		Assert.assertNotNull(dueInsideInit.get());
-		Assert.assertTrue(dueInsideInit.get().isAfter(Instant.now().minusSeconds(10)));
+		Assertions.assertNotNull(dueInsideInit.get());
+		Assertions.assertTrue(dueInsideInit.get().isAfter(Instant.now().minusSeconds(10)));
 	}
 
 	// ----- 예외 / 취소 / null 반환 -----
 
 	@Test
 	public void testNullReturnFromPollStateFails() throws Exception {
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
+			protected FOption<Integer> tryPoll() {
 				return null;
 			}
 		};
@@ -251,15 +251,15 @@ public class AbstractStatePollerTest {
 		poller.start();
 		AsyncResult<Integer> result = poller.waitForFinished(2, TimeUnit.SECONDS);
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof NullPointerException);
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.getFailureCause() instanceof NullPointerException);
 	}
 
 	@Test
 	public void testPollStateThrowsCancellationCancelsPoller() throws Exception {
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
+			protected FOption<Integer> tryPoll() throws CancellationException {
 				throw new CancellationException("stop");
 			}
 		};
@@ -267,14 +267,14 @@ public class AbstractStatePollerTest {
 		poller.start();
 		AsyncResult<Integer> result = poller.waitForFinished(2, TimeUnit.SECONDS);
 
-		Assert.assertTrue(result.isCancelled());
+		Assertions.assertTrue(result.isCancelled());
 	}
 
 	@Test
 	public void testPollStateThrowsExceptionFails() throws Exception {
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
+			protected FOption<Integer> tryPoll() {
 				throw new IllegalArgumentException("bad");
 			}
 		};
@@ -282,9 +282,9 @@ public class AbstractStatePollerTest {
 		poller.start();
 		AsyncResult<Integer> result = poller.waitForFinished(2, TimeUnit.SECONDS);
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof IllegalArgumentException);
-		Assert.assertEquals("bad", result.getFailureCause().getMessage());
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.getFailureCause() instanceof IllegalArgumentException);
+		Assertions.assertEquals("bad", result.getFailureCause().getMessage());
 	}
 
 	// ----- timeout / due -----
@@ -300,19 +300,19 @@ public class AbstractStatePollerTest {
 		AsyncResult<Integer> result = poller.waitForFinished(2, TimeUnit.SECONDS);
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof TimeoutException);
-		Assert.assertTrue("elapsed=" + elapsed, elapsed >= 150 && elapsed < 400);
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
+		Assertions.assertTrue(elapsed >= 150 && elapsed < 400, "elapsed=" + elapsed);
 	}
 
 	@Test
 	public void testDueInPastImmediateTimeout() throws Exception {
 		AtomicInteger pollCount = new AtomicInteger(0);
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
+			protected FOption<Integer> tryPoll() {
 				pollCount.incrementAndGet();
-				return Optional.empty();
+				return FOption.empty();
 			}
 		};
 		poller.setDue(Instant.now().minusSeconds(1));
@@ -320,10 +320,10 @@ public class AbstractStatePollerTest {
 		poller.start();
 		AsyncResult<Integer> result = poller.waitForFinished(1, TimeUnit.SECONDS);
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof TimeoutException);
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
 		// pollState가 한 번도 호출되지 않아야 한다 (부모 클래스의 iteration 진입 시점 검사로 인해).
-		Assert.assertEquals(0, pollCount.get());
+		Assertions.assertEquals(0, pollCount.get());
 	}
 
 	// ----- cancel -----
@@ -334,14 +334,14 @@ public class AbstractStatePollerTest {
 		AtomicInteger pollCount = new AtomicInteger(0);
 		AtomicBoolean cancelled = new AtomicBoolean(false);
 
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
+			protected FOption<Integer> tryPoll() {
 				if ( cancelled.get() ) {
 					polledAfterCancel.set(true);
 				}
 				pollCount.incrementAndGet();
-				return Optional.empty();
+				return FOption.empty();
 			}
 		};
 
@@ -356,8 +356,8 @@ public class AbstractStatePollerTest {
 		});
 		AsyncResult<Integer> result = poller.waitForFinished();
 
-		Assert.assertTrue(result.isCancelled());
-		Assert.assertTrue("적어도 한 번은 polling되었어야 한다", pollCount.get() > 0);
+		Assertions.assertTrue(result.isCancelled());
+		Assertions.assertTrue(pollCount.get() > 0, "적어도 한 번은 polling되었어야 한다");
 	}
 
 	// ----- cumulative 모드 -----
@@ -367,12 +367,12 @@ public class AbstractStatePollerTest {
 		// pollState가 interval보다 오래 걸리면 누적 모드에서는 catch-up.
 		// interval=50ms, action=80ms, target=4 → 약 4 * 80ms = 320ms.
 		AtomicInteger pollCount = new AtomicInteger(0);
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS, true) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS, true) {
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
+			protected FOption<Integer> tryPoll() throws InterruptedException {
 				int n = pollCount.incrementAndGet();
 				Thread.sleep(80);
-				return n >= 4 ? Optional.of(n) : Optional.empty();
+				return n >= 4 ? FOption.of(n) : FOption.empty();
 			}
 		};
 
@@ -381,9 +381,9 @@ public class AbstractStatePollerTest {
 		int result = poller.waitForFinished().get();
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertEquals(4, result);
+		Assertions.assertEquals(4, result);
 		// catch-up이라 interval 대기가 거의 없음. 너그럽게 검사.
-		Assert.assertTrue("elapsed=" + elapsed, elapsed >= 280 && elapsed < 600);
+		Assertions.assertTrue(elapsed >= 280 && elapsed < 600, "elapsed=" + elapsed);
 	}
 
 	@Test
@@ -391,12 +391,12 @@ public class AbstractStatePollerTest {
 		// 1-arg 생성자는 부모의 기본값(false)을 따른다.
 		// interval=50ms, action=10ms, target=4: non-cumulative이면 약 3 * 50 + action ≈ 160ms.
 		AtomicInteger pollCount = new AtomicInteger(0);
-		AbstractStatePoller<Integer> poller = new AbstractStatePoller<Integer>(INTERVAL_50MS) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> pollState() throws Exception {
+			protected FOption<Integer> tryPoll() throws InterruptedException {
 				int n = pollCount.incrementAndGet();
 				Thread.sleep(10);
-				return n >= 4 ? Optional.of(n) : Optional.empty();
+				return n >= 4 ? FOption.of(n) : FOption.empty();
 			}
 		};
 
@@ -406,7 +406,7 @@ public class AbstractStatePollerTest {
 		long elapsed = System.currentTimeMillis() - started;
 
 		// non-cumulative이라 마지막 sleep 이후 결과를 받아 종료. ~150-180ms 예상.
-		Assert.assertTrue("elapsed=" + elapsed, elapsed >= 130 && elapsed < 350);
+		Assertions.assertTrue(elapsed >= 130 && elapsed < 350, "elapsed=" + elapsed);
 	}
 
 	// ----- 인덱스 / 호출 횟수 -----
@@ -416,22 +416,24 @@ public class AbstractStatePollerTest {
 		CountingPoller poller = new CountingPoller(INTERVAL_50MS, 5, 123);
 
 		poller.start();
-		Assert.assertEquals(123, (int)poller.waitForFinished().get());
-		Assert.assertEquals(5, poller.m_pollCount.get());
+		Assertions.assertEquals(123, (int)poller.waitForFinished().get());
+		Assertions.assertEquals(5, poller.m_pollCount.get());
 	}
 
 	// ----- setter 호출 후 시작 시 부모 검증 동작 -----
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void testSetTimeoutAfterStart() throws Exception {
-		CountingPoller poller = new CountingPoller(INTERVAL_50MS, 100, 0);
-		poller.start();
-		try {
-			poller.setTimeout(Duration.ofSeconds(1));
-		}
-		finally {
-			poller.cancel(true);
-			poller.waitForFinished();
-		}
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			CountingPoller poller = new CountingPoller(INTERVAL_50MS, 100, 0);
+			poller.start();
+			try {
+				poller.setTimeout(Duration.ofSeconds(1));
+			}
+			finally {
+				poller.cancel(true);
+				poller.waitForFinished();
+			}
+			});
 	}
 }

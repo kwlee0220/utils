@@ -5,8 +5,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * 상태 구현체들의 동작을 검증한다:
@@ -31,32 +31,40 @@ public class StatesTest {
 	public void abstractState_path_context_segments() {
 		SinkState<TestCtx> s = new SinkState<>("a.b.c", m_ctx);
 
-		Assert.assertEquals("a.b.c", s.getPath());
-		Assert.assertSame(m_ctx, s.getContext());
-		Assert.assertEquals(List.of("a", "b", "c"), s.getPathSegments());
-		Assert.assertTrue(s.toString().contains("a.b.c"));
+		Assertions.assertEquals("a.b.c", s.getPath());
+		Assertions.assertSame(m_ctx, s.getContext());
+		Assertions.assertEquals(List.of("a", "b", "c"), s.getPathSegments());
+		Assertions.assertTrue(s.toString().contains("a.b.c"));
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void abstractState_null_path_rejected() {
-		new SinkState<TestCtx>(null, m_ctx);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new SinkState<TestCtx>(null, m_ctx);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void abstractState_null_context_rejected() {
-		new SinkState<TestCtx>("x", null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new SinkState<TestCtx>("x", null);
+			});
 	}
 
 	// ---- SinkState ----
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void sinkState_exit_throws() {
-		new SinkState<>("x", m_ctx).exit();
+		Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+			new SinkState<>("x", m_ctx).exit();
+			});
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void sinkState_selectTransition_throws() {
-		new SinkState<>("x", m_ctx).selectTransition(new Signal() {});
+		Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+			new SinkState<>("x", m_ctx).selectTransition(new Signal() {});
+			});
 	}
 
 	@Test
@@ -68,7 +76,7 @@ public class StatesTest {
 
 	@Test
 	public void exceptionState_failureCause_default_null() {
-		Assert.assertNull(new ExceptionState<>("err", m_ctx).getFailureCause());
+		Assertions.assertNull(new ExceptionState<>("err", m_ctx).getFailureCause());
 	}
 
 	@Test
@@ -78,12 +86,14 @@ public class StatesTest {
 
 		s.setFailureCause(cause);
 
-		Assert.assertSame(cause, s.getFailureCause());
+		Assertions.assertSame(cause, s.getFailureCause());
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void exceptionState_inherits_sink_exit() {
-		new ExceptionState<>("err", m_ctx).exit();
+		Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+			new ExceptionState<>("err", m_ctx).exit();
+			});
 	}
 
 	// ---- SingleOutState ----
@@ -95,8 +105,8 @@ public class StatesTest {
 		SingleOutState<TestCtx> s = new SingleOutState<>("x", m_ctx, trigger, t);
 
 		Optional<Transition<TestCtx>> result = s.selectTransition(trigger);
-		Assert.assertTrue(result.isPresent());
-		Assert.assertSame(t, result.get());
+		Assertions.assertTrue(result.isPresent());
+		Assertions.assertSame(t, result.get());
 	}
 
 	@Test
@@ -106,24 +116,30 @@ public class StatesTest {
 		SingleOutState<TestCtx> s = new SingleOutState<>("x", m_ctx, trigger,
 									Transitions.<TestCtx>noop("next"));
 
-		Assert.assertTrue(s.selectTransition(other).isEmpty());
+		Assertions.assertTrue(s.selectTransition(other).isEmpty());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void singleOutState_null_signal_to_select_rejected() {
-		new SingleOutState<>("x", m_ctx, new Signal() {},
-							Transitions.<TestCtx>noop("y")).selectTransition(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new SingleOutState<>("x", m_ctx, new Signal() {},
+								Transitions.<TestCtx>noop("y")).selectTransition(null);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void singleOutState_null_trigger_rejected() {
-		new SingleOutState<>("x", m_ctx, null, Transitions.<TestCtx>noop("y"));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new SingleOutState<>("x", m_ctx, null, Transitions.<TestCtx>noop("y"));
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void singleOutState_null_supplier_rejected() {
-		new SingleOutState<>("x", m_ctx, new Signal() {},
-							(Supplier<Transition<TestCtx>>) null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new SingleOutState<>("x", m_ctx, new Signal() {},
+								(Supplier<Transition<TestCtx>>) null);
+			});
 	}
 
 	@Test
@@ -139,7 +155,7 @@ public class StatesTest {
 		s.selectTransition(trigger);
 		s.selectTransition(trigger);
 
-		Assert.assertEquals(2, calls.get());
+		Assertions.assertEquals(2, calls.get());
 	}
 
 	@Test
@@ -154,7 +170,7 @@ public class StatesTest {
 
 		s.selectTransition(other);
 
-		Assert.assertEquals(0, calls.get());
+		Assertions.assertEquals(0, calls.get());
 	}
 
 	// ---- DefaultCompositeState ----
@@ -173,31 +189,35 @@ public class StatesTest {
 		DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("comp", m_ctx);
 		comp.setInitialState(child);
 
-		Assert.assertSame(child, comp.getInitialState());
-		Assert.assertNull(comp.getCurrentState());
+		Assertions.assertSame(child, comp.getInitialState());
+		Assertions.assertNull(comp.getCurrentState());
 
 		comp.enter();
-		Assert.assertEquals(1, childEnter.get());
-		Assert.assertSame(child, comp.getCurrentState());
+		Assertions.assertEquals(1, childEnter.get());
+		Assertions.assertSame(child, comp.getCurrentState());
 
 		comp.exit();
-		Assert.assertEquals(1, childExit.get());
-		Assert.assertNull(comp.getCurrentState());
+		Assertions.assertEquals(1, childExit.get());
+		Assertions.assertNull(comp.getCurrentState());
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void compositeState_double_enter_rejected() {
-		DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("comp", m_ctx);
-		comp.setInitialState(new SinkState<>("child", m_ctx));   // SinkState.enter()는 no-op
-		comp.enter();
-		comp.enter();
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("comp", m_ctx);
+			comp.setInitialState(new SinkState<>("child", m_ctx));   // SinkState.enter()는 no-op
+			comp.enter();
+			comp.enter();
+			});
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void compositeState_exit_before_enter_rejected() {
-		DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("comp", m_ctx);
-		comp.setInitialState(new SinkState<>("child", m_ctx));
-		comp.exit();
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("comp", m_ctx);
+			comp.setInitialState(new SinkState<>("child", m_ctx));
+			comp.exit();
+			});
 	}
 
 	@Test
@@ -211,7 +231,7 @@ public class StatesTest {
 
 		Optional<Transition<TestCtx>> sel = comp.selectTransition(trigger);
 
-		Assert.assertTrue(sel.isPresent());
-		Assert.assertSame(tt, sel.get());
+		Assertions.assertTrue(sel.isPresent());
+		Assertions.assertSame(tt, sel.get());
 	}
 }

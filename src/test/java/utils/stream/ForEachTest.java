@@ -1,9 +1,9 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -14,7 +14,7 @@ import com.google.common.collect.Lists;
 public class ForEachTest {
 	private int m_total = 0;
 	
-	@Before
+	@BeforeEach
 	public void setUp() {
 		m_total = 0;
 	}
@@ -24,7 +24,7 @@ public class ForEachTest {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4));
 		
 		stream.forEach(v -> m_total += v);
-		Assert.assertEquals(7, m_total);
+		Assertions.assertEquals(7, m_total);
 	}
 	
 	@Test
@@ -32,6 +32,6 @@ public class ForEachTest {
 		FStream<Integer> stream = FStream.empty();
 		
 		stream.forEach(v -> m_total += v);
-		Assert.assertEquals(0, m_total);
+		Assertions.assertEquals(0, m_total);
 	}
 }

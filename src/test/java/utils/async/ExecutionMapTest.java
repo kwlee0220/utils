@@ -1,14 +1,14 @@
 package utils.async;
 
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.function.Function;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import utils.Holder;
 
@@ -30,7 +30,7 @@ public class ExecutionMapTest {
 		}
 	}
 	
-	@Before
+	@BeforeEach
 	public void setup() {
 		m_leader = new EventDrivenExecution<>();
 	}
@@ -53,7 +53,7 @@ public class ExecutionMapTest {
 	@Test
 	public void test02() throws Exception {
 		Execution<Integer> exec = m_leader.map(new Action());
-		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
+		Assertions.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);
@@ -69,7 +69,7 @@ public class ExecutionMapTest {
 	@Test
 	public void test03() throws Exception {
 		Execution<Integer> exec = m_leader.map(new Action());
-		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
+		Assertions.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 
 		assertTrue(m_leader.notifyStarted());
 		sleep(100);

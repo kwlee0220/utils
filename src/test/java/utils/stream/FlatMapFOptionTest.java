@@ -1,9 +1,9 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import utils.func.FOption;
 
@@ -12,7 +12,7 @@ import utils.func.FOption;
  * @author Kang-Woo Lee (ETRI)
  */
 public class FlatMapFOptionTest {
-	@Before
+	@BeforeEach
 	public void setUp() {
 	}
 	
@@ -24,18 +24,18 @@ public class FlatMapFOptionTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(-1), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(-1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(-3), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(-3), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -46,9 +46,9 @@ public class FlatMapFOptionTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 }

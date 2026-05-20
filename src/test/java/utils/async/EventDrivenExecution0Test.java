@@ -9,18 +9,18 @@ import static org.mockito.Mockito.verify;
 
 import java.util.function.Consumer;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class EventDrivenExecution0Test {
 	private EventDrivenExecution<String> m_exec;
 	private final Exception m_cause = new Exception();
@@ -30,7 +30,7 @@ public class EventDrivenExecution0Test {
 	@Mock Runnable m_cancelListener;
 	@Mock Consumer<Throwable> m_failureListener;
 	
-	@Before
+	@BeforeEach
 	public void setup() {
 		m_exec = new EventDrivenExecution<>();
 		m_exec.whenStartedAsync(m_startListener);
@@ -44,8 +44,8 @@ public class EventDrivenExecution0Test {
 	@Test
 	public void test_NOT_STARTED_01() throws Exception {
 		boolean ret = m_exec.notifyStarting();
-		Assert.assertEquals(true, ret);
-		Assert.assertEquals(AsyncState.STARTING, m_exec.getState());
+		Assertions.assertEquals(true, ret);
+		Assertions.assertEquals(AsyncState.STARTING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();
@@ -56,8 +56,8 @@ public class EventDrivenExecution0Test {
 	@Test
 	public void test_NOT_STARTED_02() throws Exception {
 		boolean ret = m_exec.notifyStarted();
-		Assert.assertEquals(true, ret);
-		Assert.assertEquals(AsyncState.RUNNING, m_exec.getState());
+		Assertions.assertEquals(true, ret);
+		Assertions.assertEquals(AsyncState.RUNNING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();
@@ -69,8 +69,8 @@ public class EventDrivenExecution0Test {
 	@Test
 	public void test_NOT_STARTED_03() throws Exception {
 		boolean ret = m_exec.notifyCancelling();
-		Assert.assertEquals(true, ret);
-		Assert.assertEquals(AsyncState.CANCELLING, m_exec.getState());
+		Assertions.assertEquals(true, ret);
+		Assertions.assertEquals(AsyncState.CANCELLING, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();
@@ -82,8 +82,8 @@ public class EventDrivenExecution0Test {
 	@Test
 	public void test_NOT_STARTED_04() throws Exception {
 		boolean ret = m_exec.notifyCancelled();
-		Assert.assertEquals(true, ret);
-		Assert.assertEquals(AsyncState.CANCELLED, m_exec.getState());
+		Assertions.assertEquals(true, ret);
+		Assertions.assertEquals(AsyncState.CANCELLED, m_exec.getState());
 		
 		Thread.sleep(100);
 		verify(m_startListener, never()).run();
@@ -91,13 +91,17 @@ public class EventDrivenExecution0Test {
 		verify(m_cancelListener, times(1)).run();
 	}
 	
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void test_NOT_STARTED_05() throws Exception {
-		m_exec.notifyCompleted("ok");
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			m_exec.notifyCompleted("ok");
+			});
 	}
 	
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void test_NOT_STARTED_06() throws Exception {
-		m_exec.notifyFailed(m_cause);
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			m_exec.notifyFailed(m_cause);
+			});
 	}
 }

@@ -6,6 +6,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import utils.Preconditions;
 import utils.Throwables;
 
 /**
@@ -29,6 +30,7 @@ import utils.Throwables;
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecution<T> {
+	private String m_threadNamePrefix = getClass().getSimpleName();
 	private volatile boolean m_isDaemonThread = true;
 	
 	/**
@@ -57,7 +59,9 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 * <p>
 	 * 진입점에 따라 {@link #start()}로 시작하면 별도 스레드(또는 외부 주입된
 	 * {@link Executor})에서, {@link #run()}으로 시작하면 호출 스레드에서 호출된다.
-	 * 메소드가 예외 없이 반환되면 작업이 완료된 것으로 간주된다.
+	 * 메소드가 예외 없이 반환되면 작업이 완료된 것으로 간주되어, 호출자가
+	 * {@link #notifyCompleted(Object)}를 호출하여 {@code COMPLETED}로 전이한다.
+	 * 이때 반환된 결과 값이 {@code notifyCompleted()}의 인자로 전달된다.
 	 * <p>
 	 * 메소드 수행 중 발생하는 예외에 따라 작업의 종료 상태가 결정된다.
 	 * <dl>
@@ -106,6 +110,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		}
 		
 		try {
+			// STARTING 상태에서 호출
 			initializeThread();
 		}
 		catch ( CancellationException | InterruptedException e ) {
@@ -162,6 +167,16 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		}
 	}
 	
+	public String getThreadNamePrefix() {
+		return m_threadNamePrefix;
+	}
+	
+	public void setThreadNamePrefix(String prefix) {
+		Preconditions.checkNotNullArgument(prefix, "threadNamePrefix must not be null");
+		
+		m_threadNamePrefix = prefix;
+	}
+	
 	/**
 	 * 별도 스레드(또는 외부 주입된 {@link Executor})에서 작업 수행을 시작한다.
 	 * <p>
@@ -189,7 +204,8 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 				executor.execute(this::runInThread);
 			}
 			else {
-				Thread thread = new Thread(this::runInThread, getClass().getSimpleName());
+				String threadName = m_threadNamePrefix +"@"+Integer.toHexString(System.identityHashCode(this));
+				Thread thread = new Thread(this::runInThread, threadName);
 				thread.setDaemon(m_isDaemonThread);
 				thread.start();
 			}
@@ -200,6 +216,18 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 			notifyFailed(Throwables.unwrapThrowable(e));
 			Throwables.sneakyThrow(e);   // 원인 예외를 호출자에게 그대로 전파
 		}
+	}
+	
+	public boolean isDaemonThread() {
+		return m_isDaemonThread;
+	}
+	public void setDaemonThread(boolean isDaemon) {
+		m_isDaemonThread = isDaemon;
+	}
+	
+	@Override
+	public String toString() {
+		return m_threadNamePrefix +"@"+Integer.toHexString(System.identityHashCode(this));
 	}
 
 	private void runInThread() {
@@ -247,12 +275,5 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		}
 		// executeWork()가 정상 반환되었으나 두 전이 모두 실패 — 외부에서 이미 종료(주로 notifyFailed) 처리된 경우.
 		getLogger().debug("execution finished by external party: {}", this);
-	}
-	
-	public boolean isDaemonThread() {
-		return m_isDaemonThread;
-	}
-	public void setDaemonThread(boolean isDaemon) {
-		m_isDaemonThread = isDaemon;
 	}
 }

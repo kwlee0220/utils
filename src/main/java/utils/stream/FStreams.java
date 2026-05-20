@@ -1,6 +1,5 @@
 package utils.stream;
 
-import static utils.Utilities.checkNotNullArgument;
 
 import java.util.List;
 import java.util.Random;
@@ -10,14 +9,19 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Lists;
 
-import org.jetbrains.annotations.Nullable;
-
+import utils.LoggerSettable;
+import utils.Preconditions;
 import utils.Throwables;
 import utils.Tuple;
 import utils.func.CheckedFunctionX;
 import utils.func.FOption;
+import utils.func.Optionals;
 import utils.func.Try;
 import utils.func.Unchecked;
 import utils.io.IOUtils;
@@ -45,10 +49,13 @@ public class FStreams {
 		}
 	}
 	
-	public static abstract class AbstractFStream<T> implements FStream<T> {
+	public static abstract class AbstractFStream<T> implements FStream<T>, LoggerSettable {
+		private final static Logger s_logger = LoggerFactory.getLogger(AbstractFStream.class);
+		
 		private boolean m_closed = false;
 		private boolean m_eos = false;
 		private boolean m_initialized = false;
+		private Logger m_logger = s_logger;
 		
 		abstract protected void closeInGuard() throws Exception;
 		abstract protected FOption<T> nextInGuard();
@@ -95,6 +102,16 @@ public class FStreams {
 		public boolean isEndOfStream() {
 			return m_eos;
 		}
+		
+		@Override
+		public Logger getLogger() {
+			return Optionals.getOrElse(m_logger, s_logger);
+		}
+		
+		@Override
+		public void setLogger(Logger logger) {
+			m_logger = logger;
+		}
 	}
 	
 	static abstract class SingleSourceStream<S,T> extends AbstractFStream<T> {
@@ -103,7 +120,7 @@ public class FStreams {
 		abstract protected FOption<T> getNext(FStream<S> src);
 		
 		protected SingleSourceStream(FStream<S> src) {
-			checkNotNullArgument(src, "source FStream");
+			Preconditions.checkNotNullArgument(src, "source FStream");
 			
 			m_src = src;
 		}
@@ -125,7 +142,7 @@ public class FStreams {
 		MapOrThrowStream(FStream<T> base, CheckedFunctionX<? super T,? extends R,X> mapper) {
 			super(base);
 			
-			checkNotNullArgument(mapper, "mapper is null");
+			Preconditions.checkNotNullArgument(mapper, "mapper is null");
 			
 			m_mapper = mapper;
 		}
@@ -153,7 +170,7 @@ public class FStreams {
 		
 		MappedStream(FStream<S> base, Function<? super S,? extends T> mapper) {
 			super(base);
-			checkNotNullArgument(mapper, "mapper is null");
+			Preconditions.checkNotNullArgument(mapper, "mapper is null");
 			
 			m_mapper = mapper;
 		}
@@ -457,7 +474,7 @@ public class FStreams {
 		
 		FlatMapTry(FStream<S> base, Function<? super S, Try<T>> mapper) {
 			super(base);
-			checkNotNullArgument(mapper, "mapper is null");
+			Preconditions.checkNotNullArgument(mapper, "mapper is null");
 			
 			m_mapper = mapper;
 		}
@@ -484,8 +501,8 @@ public class FStreams {
 							Function<? super T,? extends T> mapper) {
 			super(src);
 			
-			checkNotNullArgument(pred, "predicate is null");
-			checkNotNullArgument(mapper, "mapper is null");
+			Preconditions.checkNotNullArgument(pred, "predicate is null");
+			Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 			m_pred = pred;
 			m_mapper = mapper;
@@ -514,7 +531,7 @@ public class FStreams {
 		SplitFStream(FStream<T> src, Predicate<? super T> delimiter) {
 			super(src);
 			
-			checkNotNullArgument(delimiter, "predicate is null");
+			Preconditions.checkNotNullArgument(delimiter, "predicate is null");
 			m_delimiter = delimiter;
 		}
 

@@ -4,8 +4,8 @@ package utils.stream;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -30,7 +30,7 @@ public class FlatMapTest {
 		FStream<Integer> stream = strm.flatMap(i -> strmList.get(i));
 		
 		String ret = toString(stream);
-		Assert.assertEquals("01234567", ret);
+		Assertions.assertEquals("01234567", ret);
 	}
 	
 	@Test
@@ -41,7 +41,7 @@ public class FlatMapTest {
 		FStream<Integer> stream = strm.flatMap(i -> strmList.get(i));
 		
 		String ret = toString(stream);
-		Assert.assertEquals("", ret);
+		Assertions.assertEquals("", ret);
 	}
 	
 	@Test
@@ -56,22 +56,24 @@ public class FlatMapTest {
 		FOption<Integer> r;
 		for ( int i =0; i <= 2; ++i ) {
 			r = stream.next();
-			Assert.assertEquals(true, r.isPresent());
-			Assert.assertEquals(Integer.valueOf(i), r.get());
+			Assertions.assertEquals(true, r.isPresent());
+			Assertions.assertEquals(Integer.valueOf(i), r.get());
 		}
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test3() throws Exception {
-		List<FStream<Integer>> strmList = Lists.newArrayList();
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			List<FStream<Integer>> strmList = Lists.newArrayList();
 		
-		strmList.add(FStream.from(Lists.newArrayList(0, 1, 2)));
+			strmList.add(FStream.from(Lists.newArrayList(0, 1, 2)));
 		
-		FStream<Integer> strm = FStream.of(0);
-		strm.flatMap(null);
+			FStream<Integer> strm = FStream.of(0);
+			strm.flatMap(null);
+			});
 	}
 	
 	@Test
@@ -82,15 +84,15 @@ public class FlatMapTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals((long)0, (long)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals((long)0, (long)r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals((long)2, (long)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals((long)2, (long)r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -103,6 +105,6 @@ public class FlatMapTest {
 		FStream<Integer> stream = strm.flatMap(i -> FStream.from(strmList.get(i)));
 		
 		String ret = toString(stream);
-		Assert.assertEquals("01234567", ret);
+		Assertions.assertEquals("01234567", ret);
 	}
 }

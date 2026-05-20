@@ -13,9 +13,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import utils.KeyValue;
+import utils.Split;
 import utils.StrSubstitutor;
-import utils.Tuple;
-import utils.Utilities;
 
 /**
  *
@@ -90,17 +89,17 @@ public class EnvironmentFileLoader {
 				continue;
 			}
 			
-			Tuple<String,String> splits = Utilities.split(line, '=');
-			if ( splits == null ) {
+			Split split = Split.split(line, "=");
+			if ( split.tail().isEmpty() ) {
 				throw new IOException("Ill-formed line in the environment file: " + line + ", line" + count);
 			}
-			String value = splits._2;
+			String value = split.tail().get();
 			
 			// 따옴표 제거
 			if ( value.startsWith("\"") && value.endsWith("\"") && value.length() > 1 ) {
 				value = value.substring(1, value.length() - 1);
 			}
-			keyValues.add(KeyValue.of(splits._1, value));
+			keyValues.add(KeyValue.of(split.head(), value));
 		}
 		
 		return keyValues;

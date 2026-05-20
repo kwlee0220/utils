@@ -2,7 +2,7 @@ package utils.websocket;
 
 import java.net.http.WebSocket;
 
-import utils.Utilities;
+import utils.Preconditions;
 import utils.statechart.Signal;
 
 
@@ -14,7 +14,7 @@ public class WebSocketSignal implements Signal {
 	private final WebSocket m_webSocket;
 	
 	public WebSocketSignal(WebSocket webSocket) {
-		Utilities.checkNotNullArgument(webSocket, "webSocket is null");
+		Preconditions.checkNotNullArgument(webSocket, "webSocket is null");
 		
 		m_webSocket = webSocket;
 	}

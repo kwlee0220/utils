@@ -5,8 +5,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -21,7 +21,7 @@ public class OnCloseTest {
 		
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4))
 										.onClose(task);
-		Assert.assertEquals(3, stream.count());
+		Assertions.assertEquals(3, stream.count());
 		verify(task, times(1)).run();
 	}
 }

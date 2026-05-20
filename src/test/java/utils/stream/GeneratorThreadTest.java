@@ -2,12 +2,13 @@ package utils.stream;
 
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import utils.Holder;
 import utils.Suppliable;
@@ -16,9 +17,9 @@ import utils.Suppliable;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class GeneratorThreadTest {
-	@Before
+	@BeforeEach
 	public void setup() {
 	}
 
@@ -26,7 +27,7 @@ public class GeneratorThreadTest {
 	public void test00() throws Exception {
 		Generator<String> generator = new Generator<String>() {
 			@Override
-			public void generate(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) throws InterruptedException, ExecutionException {
 				channel.supply("a");
 				channel.supply("b");
 				channel.supply("c");
@@ -36,14 +37,14 @@ public class GeneratorThreadTest {
 		FStream<String> stream = FStream.generate(generator, 4);
 		String ret = stream.join("");
 		
-		Assert.assertEquals("abc", ret);
+		Assertions.assertEquals("abc", ret);
 	}
 
 	@Test
 	public void test01() throws Exception {
 		Generator<String> generator = new Generator<String>() {
 			@Override
-			public void generate(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) throws InterruptedException, ExecutionException {
 				channel.supply("a");
 				channel.supply("b");
 				channel.supply("c");
@@ -53,14 +54,14 @@ public class GeneratorThreadTest {
 		FStream<String> stream = FStream.generate(generator, 1);
 		String ret = stream.join("");
 		
-		Assert.assertEquals("abc", ret);
+		Assertions.assertEquals("abc", ret);
 	}
 
 	@Test
 	public void test10() throws Exception {
 		Generator<String> generator = new Generator<String>() {
 			@Override
-			public void generate(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) throws InterruptedException, ExecutionException {
 				channel.supply("a");
 				channel.supply("b");
 				channel.supply("c");
@@ -69,14 +70,14 @@ public class GeneratorThreadTest {
 		FStream<String> stream = FStream.generate(generator, 1);
 		String ret = stream.join("");
 		
-		Assert.assertEquals("abc", ret);
+		Assertions.assertEquals("abc", ret);
 	}
 
 	@Test
 	public void test11() throws Exception {
 		Generator<String> generator = new Generator<String>() {
 			@Override
-			public void generate(Suppliable<String> channel) throws InterruptedException {
+			public void generate(Suppliable<String> channel) throws InterruptedException, ExecutionException {
 				channel.supply("a");
 				channel.supply("b");
 				throw new InterruptedException();
@@ -85,14 +86,14 @@ public class GeneratorThreadTest {
 		FStream<String> stream = FStream.generate(generator, 1);
 		String ret = stream.join("");
 		
-		Assert.assertEquals("ab", ret);
+		Assertions.assertEquals("ab", ret);
 	}
 
 	@Test
 	public void test12() throws Exception {
 		Generator<String> generator = new Generator<String>() {
 			@Override
-			public void generate(Suppliable<String> channel) {
+			public void generate(Suppliable<String> channel) throws InterruptedException, ExecutionException {
 				channel.supply("a");
 				channel.supply("b");
 				throw new CancellationException();
@@ -101,23 +102,25 @@ public class GeneratorThreadTest {
 		FStream<String> stream = FStream.generate(generator, 1);
 		String ret = stream.join("");
 		
-		Assert.assertEquals("ab", ret);
+		Assertions.assertEquals("ab", ret);
 	}
 
-	@Test(expected=RuntimeException.class)
+	@Test
 	public void test13() throws Exception {
-		Generator<String> generator = new Generator<String>() {
-			@Override
-			public void generate(Suppliable<String> channel) {
-				channel.supply("a");
-				channel.supply("b");
-				throw new RuntimeException();
-			}
-		};
-		FStream<String> stream = FStream.generate(generator, 1);
-		String ret = stream.join("");
+		Assertions.assertThrows(RuntimeException.class, () -> {
+			Generator<String> generator = new Generator<String>() {
+				@Override
+				public void generate(Suppliable<String> channel) throws InterruptedException, ExecutionException {
+					channel.supply("a");
+					channel.supply("b");
+					throw new RuntimeException();
+				}
+			};
+			FStream<String> stream = FStream.generate(generator, 1);
+			String ret = stream.join("");
 		
-		Assert.assertEquals("abc", ret);
+			Assertions.assertEquals("abc", ret);
+			});
 	}
 
 	@Test
@@ -127,7 +130,7 @@ public class GeneratorThreadTest {
 		long started = System.currentTimeMillis();
 		Generator<String> generator = new Generator<String>() {
 			@Override
-			public void generate(Suppliable<String> channel) throws InterruptedException {
+			public void generate(Suppliable<String> channel) throws InterruptedException, ExecutionException {
 				Thread.sleep(200);
 				state.set(1);
 				channel.supply("a");
@@ -143,36 +146,40 @@ public class GeneratorThreadTest {
 		};
 		FStream<String> stream = FStream.generate(generator, 3);
 
-		Assert.assertEquals(0, (int)state.get());
+		Assertions.assertEquals(0, (int)state.get());
 		stream.next();
-		Assert.assertEquals(1, (int)state.get());
-		Assert.assertTrue((System.currentTimeMillis()-started) >= 200);
+		Assertions.assertEquals(1, (int)state.get());
+		Assertions.assertTrue((System.currentTimeMillis()-started) >= 200);
 		
 		stream.next();
-		Assert.assertEquals(2, (int)state.get());
-		Assert.assertTrue((System.currentTimeMillis()-started) >= 400);
+		Assertions.assertEquals(2, (int)state.get());
+		Assertions.assertTrue((System.currentTimeMillis()-started) >= 400);
 		
 		stream.forEach(r -> {});
-		Assert.assertTrue((System.currentTimeMillis()-started) >= 600);
+		Assertions.assertTrue((System.currentTimeMillis()-started) >= 600);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test90() throws Exception {
-		Generator<String> generator = null;
-		FStream.generate(generator, 1);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Generator<String> generator = null;
+			FStream.generate(generator, 1);
+			});
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test91() throws Exception {
-		Generator<String> generator = new Generator<String>() {
-			@Override
-			public void generate(Suppliable<String> channel) {
-				channel.supply("a");
-				channel.supply("b");
-				channel.supply("c");
-				channel.endOfSupply();
-			}
-		};
-		FStream.generate(generator, 0);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Generator<String> generator = new Generator<String>() {
+				@Override
+				public void generate(Suppliable<String> channel) throws InterruptedException, ExecutionException {
+					channel.supply("a");
+					channel.supply("b");
+					channel.supply("c");
+					channel.endOfSupply();
+				}
+			};
+			FStream.generate(generator, 0);
+			});
 	}
 }

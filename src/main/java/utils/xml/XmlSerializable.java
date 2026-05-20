@@ -7,8 +7,8 @@ import java.lang.reflect.Modifier;
 
 import org.xml.sax.SAXException;
 
+import utils.ReflectionUtils;
 import utils.Throwables;
-import utils.Utilities;
 
 /**
  * 
@@ -127,7 +127,7 @@ public interface XmlSerializable {
 		}
 		catch ( NoSuchMethodException e ) {
 			try {
-				return Utilities.callPrivateConstructor(cls);
+				return ReflectionUtils.newInstance(cls);
 			}
 			catch ( Throwable e1 ) {
 				throw new XmlSerializationException("fails to load class from Element: class="
@@ -143,7 +143,7 @@ public interface XmlSerializable {
 	
 	public static <T extends LoadableXmlSerializable> T loadLoadableXmlSerializable(Class<T> cls, FluentElement elm) {
 		try {
-			T obj = Utilities.callPrivateConstructor(cls);
+			T obj = ReflectionUtils.newInstance(cls);
 			obj.loadFromXml(elm);
 			
 			return obj;

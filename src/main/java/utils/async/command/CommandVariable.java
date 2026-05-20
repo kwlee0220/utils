@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import utils.Keyed;
-import utils.Utilities;
+import utils.Preconditions;
 import utils.func.Lazy;
 import utils.io.IOUtils;
 
@@ -79,7 +79,7 @@ public interface CommandVariable extends Keyed<String> {
 	 * @throws IllegalArgumentException 지원되지 않는 modifier가 전달된 경우.
 	 */
 	public default String getValueByModifier(@NotNull String mod) {
-		Utilities.checkNotNullArgument(mod, "mod must be non-null");
+		Preconditions.checkNotNullArgument(mod, "modifier must be non-null");
 		
 		switch ( mod ) {
 			case "name":
@@ -101,8 +101,8 @@ public interface CommandVariable extends Keyed<String> {
 		private final String m_value;
 		
 		public StringVariable(String name, String value) {
-			Utilities.checkNotNullArgument(name, "name");
-			Utilities.checkNotNullArgument(value, "value");
+			Preconditions.checkNotNullArgument(name, "name");
+			Preconditions.checkNotNullArgument(value, "value");
 
 			m_name = name;
 			m_value = value;
@@ -153,8 +153,8 @@ public interface CommandVariable extends Keyed<String> {
 		 * @param file	이 변수가 소유할 파일. {@code close()} 시 삭제된다.
 		 */
 		public FileVariable(String name, File file) {
-			Utilities.checkNotNullArgument(name, "name");
-			Utilities.checkNotNullArgument(file, "file");
+			Preconditions.checkNotNullArgument(name, "name");
+			Preconditions.checkNotNullArgument(file, "file");
 
 			m_name = name;
 			m_file = file;

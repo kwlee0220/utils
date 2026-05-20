@@ -1,8 +1,8 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import utils.Tuple;
 import utils.func.FOption;
@@ -20,52 +20,58 @@ public class UnfoldTest {
 										.take(3);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals("0", r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals("0", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals("1", r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals("1", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals("2", r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals("2", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
-	@Test(expected=RuntimeException.class)
+	@Test
 	public void test1() throws Exception {
-		FStream<String> stream = FStream.unfold((Integer)0, (Integer i) -> {
-			if ( i < 2 ) {
-				return Tuple.of(i+1, ""+i);
-			}
-			else {
-				throw new RuntimeException();
-			}
-		});
+		Assertions.assertThrows(RuntimeException.class, () -> {
+			FStream<String> stream = FStream.unfold((Integer)0, (Integer i) -> {
+				if ( i < 2 ) {
+					return Tuple.of(i+1, ""+i);
+				}
+				else {
+					throw new RuntimeException();
+				}
+			});
 		
-		FOption<String> r;
+			FOption<String> r;
 		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals("0", r.get());
+			r = stream.next();
+			Assertions.assertEquals(true, r.isPresent());
+			Assertions.assertEquals("0", r.get());
 		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals("1", r.get());
+			r = stream.next();
+			Assertions.assertEquals(true, r.isPresent());
+			Assertions.assertEquals("1", r.get());
 		
-		r = stream.next();
+			r = stream.next();
+			});
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test2() throws Exception {
-		FStream.unfold(0, null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream.unfold(0, null);
+			});
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test3() throws Exception {
-		FStream.unfold((Integer)null, i -> Tuple.of(i+1, ""+i));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream.unfold((Integer)null, i -> Tuple.of(i+1, ""+i));
+			});
 	}
 }

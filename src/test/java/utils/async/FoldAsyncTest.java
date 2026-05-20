@@ -9,12 +9,12 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import utils.async.op.AsyncExecutions;
 import utils.func.Result;
@@ -25,7 +25,7 @@ import utils.stream.FStream;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class FoldAsyncTest {
 	private FStream<StartableExecution<Integer>> m_gen;
 	private FStream<StartableExecution<Integer>> m_gen2;
@@ -34,7 +34,7 @@ public class FoldAsyncTest {
 	
 	@Mock Consumer<Result<Integer>> m_doneListener;
 	
-	@Before
+	@BeforeEach
 	public void setup() {
 		m_gen = FStream.range(0, 5)
 						.map(idx -> AsyncExecutions.idle(idx, Duration.ofMillis(100)));
@@ -46,16 +46,16 @@ public class FoldAsyncTest {
 	public void test01() throws Exception {
 		StartableExecution<Integer> exec = AsyncExecutions.fold(m_gen, 0, (a,n) -> a+n);
 		
-		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
+		Assertions.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
-		Assert.assertEquals(true, exec.isStarted());
+		Assertions.assertEquals(true, exec.isStarted());
 		
 		MILLISECONDS.sleep(50);
-		Assert.assertEquals(true, exec.isStarted());
+		Assertions.assertEquals(true, exec.isStarted());
 		
 		exec.waitForFinished();
-		Assert.assertEquals(10, (int)exec.get());
+		Assertions.assertEquals(10, (int)exec.get());
 	}
 	
 	@Test
@@ -75,7 +75,7 @@ public class FoldAsyncTest {
 		exec.whenFinishedAsync(m_doneListener);
 		
 		exec.start();
-		Assert.assertEquals(true, exec.waitForFinished(230, TimeUnit.MILLISECONDS).isRunning());
+		Assertions.assertEquals(true, exec.waitForFinished(230, TimeUnit.MILLISECONDS).isRunning());
 		
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
@@ -90,8 +90,8 @@ public class FoldAsyncTest {
 		exec.start();
 		exec.waitForFinished();
 		
-		Assert.assertEquals(true, exec.isFailed());
-		Assert.assertEquals(m_error, exec.poll().getFailureCause());
+		Assertions.assertEquals(true, exec.isFailed());
+		Assertions.assertEquals(m_error, exec.poll().getFailureCause());
 		MILLISECONDS.sleep(50);
 		verify(m_doneListener, times(1)).accept(Result.failure(m_error));
 	}
@@ -104,7 +104,7 @@ public class FoldAsyncTest {
 		exec.start();
 		exec.waitForFinished();
 		
-		Assert.assertEquals(true, exec.isCancelled());
+		Assertions.assertEquals(true, exec.isCancelled());
 		MILLISECONDS.sleep(50);
 		verify(m_doneListener, times(1)).accept(Result.none());
 	}

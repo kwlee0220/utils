@@ -28,7 +28,7 @@ public final class ProcessTree {
 	private final Set<ProcessHandle> m_descendants = ConcurrentHashMap.newKeySet();
 
 	private ProcessTree(Process root) {
-		Utilities.checkNotNullArgument(root, "root process must not be null");
+		Preconditions.checkNotNullArgument(root, "root process must not be null");
 
 		m_root = root;
 	}
@@ -74,8 +74,8 @@ public final class ProcessTree {
 	 * @throws InterruptedException 대기 중 인터럽트된 경우.
 	 */
 	public void waitForRootTerminated(Duration refreshInterval) throws InterruptedException {
-		Utilities.checkNotNullArgument(refreshInterval, "refreshInterval must not be null");
-		Utilities.checkArgument(!refreshInterval.isNegative() && !refreshInterval.isZero(),
+		Preconditions.checkNotNullArgument(refreshInterval, "refreshInterval must not be null");
+		Preconditions.checkArgument(!refreshInterval.isNegative() && !refreshInterval.isZero(),
 								"refreshInterval must be positive: %s", refreshInterval);
 
 		while ( true ) {
@@ -100,11 +100,11 @@ public final class ProcessTree {
 	 */
 	public boolean waitForRootTerminated(Duration refreshInterval, Duration timeout)
 		throws InterruptedException {
-		Utilities.checkNotNullArgument(refreshInterval, "refreshInterval must not be null");
-		Utilities.checkArgument(!refreshInterval.isNegative() && !refreshInterval.isZero(),
+		Preconditions.checkNotNullArgument(refreshInterval, "refreshInterval must not be null");
+		Preconditions.checkArgument(!refreshInterval.isNegative() && !refreshInterval.isZero(),
 								"refreshInterval must be positive: %s", refreshInterval);
-		Utilities.checkNotNullArgument(timeout, "timeout must not be null");
-		Utilities.checkArgument(!timeout.isNegative(), "timeout must not be negative: %s", timeout);
+		Preconditions.checkNotNullArgument(timeout, "timeout must not be null");
+		Preconditions.checkArgument(!timeout.isNegative(), "timeout must not be negative: %s", timeout);
 
 		long dueNanos = System.nanoTime() + timeout.toNanos();
 		while ( true ) {
@@ -165,8 +165,8 @@ public final class ProcessTree {
 	 * @throws InterruptedException 대기 중 인터럽트된 경우.
 	 */
 	public boolean waitForTerminated(Duration timeout) throws InterruptedException {
-		Utilities.checkNotNullArgument(timeout, "timeout must not be null");
-		Utilities.checkArgument(!timeout.isNegative(), "timeout must not be negative: %s", timeout);
+		Preconditions.checkNotNullArgument(timeout, "timeout must not be null");
+		Preconditions.checkArgument(!timeout.isNegative(), "timeout must not be negative: %s", timeout);
 
 		long dueNanos = System.nanoTime() + timeout.toNanos();
 		while ( isAlive() ) {
@@ -199,8 +199,8 @@ public final class ProcessTree {
 	 * @throws IllegalArgumentException	{@code grace}가 {@code null}이거나 음수인 경우
 	 */
 	public void terminate(Duration grace) {
-		Utilities.checkNotNullArgument(grace, "grace must not be null");
-		Utilities.checkArgument(!grace.isNegative(), "grace must not be negative: %s", grace);
+		Preconditions.checkNotNullArgument(grace, "grace must not be null");
+		Preconditions.checkArgument(!grace.isNegative(), "grace must not be negative: %s", grace);
 
 		if ( !isAlive() ) {
 			return;

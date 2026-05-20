@@ -17,7 +17,7 @@ import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Observer;
 import io.reactivex.rxjava3.disposables.Disposable;
 
-import utils.Utilities;
+import utils.Preconditions;
 import utils.websocket.WebSocketObservable.Message;
 
 
@@ -58,7 +58,7 @@ public final class WebSocketObservable extends Observable<Message> {
 	private final boolean m_collectBinaryFragments;
 
 	private WebSocketObservable(Builder builder) {
-		Utilities.checkNotNullArgument(builder, "builder is null");
+		Preconditions.checkNotNullArgument(builder, "builder is null");
 
 		m_uri = builder.m_uri;
 		m_client = builder.m_client;
@@ -161,7 +161,7 @@ public final class WebSocketObservable extends Observable<Message> {
 		 * @throws IllegalArgumentException {@link #uri(String)}이 호출되지 않은 경우
 		 */
 		public WebSocketObservable build() {
-			Utilities.checkNotNullArgument(m_uri, "uri should be set");
+			Preconditions.checkNotNullArgument(m_uri, "uri should be set");
 			return new WebSocketObservable(this);
 		}
 	}

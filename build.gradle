@@ -1,5 +1,6 @@
 plugins {
 	id 'java-library'
+	id 'eclipse'
 }
 
 group = 'etri'
@@ -15,12 +16,6 @@ tasks.withType(JavaCompile) {
 	options.compilerArgs << "-Xlint:deprecation"
 }
 
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
-}
-
 ext {
 	slf4j_version = '2.0.17'
 	logback_version = '1.5.18'
@@ -28,24 +23,23 @@ ext {
 	rxjava3_version = '3.1.8'
 	picocli_version = '4.6.2'
 	jackson_version = '2.18.2'
-	lombok_version = '1.18.32'
+	lombok_version = '1.18.46'
 	findbugs_version = '3.0.2'
 	
 	cglib_version = '3.3.0'
-	commons_io_version = '2.11.0'
-	commons_text_version = '1.12.0'
+	bytebuddy_version = '1.15.10'
+	commons_io_version = '2.22.0'
+	commons_text_version = '1.15.0'
+	commons_lang3_version = '3.20.0'
 	okhttp_version = '4.12.0'
 	
 	jakarta_persistence_version = '3.1.0'
-	jakarta_annotation_version = '2.1.1'
-	
+
 	junit_version = '4.13.2'
-	mockito_version = '3.12.4'
-	hamcrest_version = '1.3'
 	junit_jupiter_version = '5.10.2'
+	mockito_version = '4.11.0'
 	
 	commons_beanutils_version = '1.9.4'
-	commons_logging_version = '1.3.5'
 }
 
 repositories {
@@ -72,11 +66,13 @@ dependencies {
 
 	// // jackson json parser
 	implementation "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
-	compileOnly "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
+	implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
 	
 	implementation "commons-io:commons-io:${commons_io_version}"
-	implementation "org.apache.commons:commons-text:${commons_text_version}"
+	api "org.apache.commons:commons-text:${commons_text_version}"
+	api "org.apache.commons:commons-lang3:${commons_lang3_version}"
 	implementation "cglib:cglib:${cglib_version}"
+	implementation "net.bytebuddy:byte-buddy:${bytebuddy_version}"
 	
 	// Apache Commons BeanUtils
 	implementation ("commons-beanutils:commons-beanutils:${commons_beanutils_version}") {
@@ -86,16 +82,45 @@ dependencies {
 	// HTTP Client
 	implementation "com.squareup.okhttp3:okhttp:${okhttp_version}"
 	
-	// // jakarta api
+	// jakarta api
 	implementation "jakarta.persistence:jakarta.persistence-api:${jakarta_persistence_version}"
-	implementation "jakarta.annotation:jakarta.annotation-api:${jakarta_annotation_version}"
-	
+
+	// test
+	// JUnit 4 → 5 점진 전환 중:
+	//  - 신규 테스트는 JUnit 5(Jupiter)로 작성
+	//  - 기존 JUnit 4 테스트는 vintage-engine 으로 같이 실행
+	// 모든 테스트 변환이 끝나면 junit:junit 과 junit-vintage-engine 두 줄을 제거.
+	testImplementation "org.junit.jupiter:junit-jupiter:${junit_jupiter_version}"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 	testImplementation "junit:junit:${junit_version}"
-	testImplementation "org.mockito:mockito-core:${mockito_version}"
-	testImplementation "org.junit.platform:junit-platform-launcher:${junit_jupiter_version}"
 	testRuntimeOnly "org.junit.vintage:junit-vintage-engine:${junit_jupiter_version}"
+
+	testImplementation "org.mockito:mockito-core:${mockito_version}"
+	testImplementation "org.mockito:mockito-junit-jupiter:${mockito_version}"
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+	jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED'
+}
+
+eclipse {
+	classpath {
+		defaultOutputDir = file('build/classes/java/main')
+		file {
+			whenMerged { cp ->
+				cp.entries.each { entry ->
+					if (entry.kind == 'src' && entry.path == 'src/main/java') {
+						entry.output = 'build/classes/java/main'
+					}
+					if (entry.kind == 'src' && entry.path == 'src/main/resources') {
+						entry.output = 'build/classes/java/main'
+					}
+					if (entry.kind == 'src' && entry.path == 'src/test/java') {
+						entry.output = 'build/classes/java/test'
+					}
+				}
+			}
+		}
+	}
 }

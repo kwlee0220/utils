@@ -1,8 +1,8 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -16,7 +16,7 @@ public class FoldLeftTest {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
 		
 		int sum = stream.fold(0, (s,t) -> s+t);
-		Assert.assertEquals(8, sum);
+		Assertions.assertEquals(8, sum);
 	}
 	
 	@Test
@@ -24,7 +24,7 @@ public class FoldLeftTest {
 		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		
 		String c = stream.fold("", (s,t) -> s+t);
-		Assert.assertEquals("this", c);
+		Assertions.assertEquals("this", c);
 	}
 
 	@Test
@@ -32,7 +32,7 @@ public class FoldLeftTest {
 		FStream<Integer> stream = FStream.empty();
 
 		int sum = stream.fold(0, (s,t) -> s+t);
-		Assert.assertEquals(0, sum);
+		Assertions.assertEquals(0, sum);
 	}
 	
 //	@Test(expected=IllegalArgumentException.class)
@@ -42,18 +42,22 @@ public class FoldLeftTest {
 //		String c = stream.fold(null, (s,t) -> s+t);
 //	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test4() throws Exception {
-		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 
-		stream.fold("", null);
+			stream.fold("", null);
+			});
 	}
 
-	@Test(expected=RuntimeException.class)
+	@Test
 	public void test5() throws Exception {
-		FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
+		Assertions.assertThrows(RuntimeException.class, () -> {
+			FStream<String> stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
 		
-		RuntimeException error = new RuntimeException();
-		stream.fold("", (s,t) -> {throw error;});
+			RuntimeException error = new RuntimeException();
+			stream.fold("", (s,t) -> {throw error;});
+			});
 	}
 }

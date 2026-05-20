@@ -5,8 +5,8 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -27,19 +27,19 @@ public class FindLastTest {
 		
 		stream = FStream.from(Lists.newArrayList(1, 2, 4)).onClose(task);
 		last = stream.findLast();
-		Assert.assertEquals(4, (int)last.get());
+		Assertions.assertEquals(4, (int)last.get());
 		verify(task, times(1)).run();
 		
 		reset(task);
 		stream = FStream.from(Lists.newArrayList(1)).onClose(task);
 		last = stream.findLast();
-		Assert.assertEquals(1, (int)last.get());
+		Assertions.assertEquals(1, (int)last.get());
 		verify(task, times(1)).run();
 
 		reset(task);
 		stream = FStream.<Integer>empty().onClose(task);
 		last = stream.findLast();
-		Assert.assertTrue(last.isAbsent());
+		Assertions.assertTrue(last.isAbsent());
 		verify(task, times(1)).run();
 	}
 }

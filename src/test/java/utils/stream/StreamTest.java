@@ -3,11 +3,13 @@ package utils.stream;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import com.google.common.collect.Lists;
 
@@ -23,10 +25,11 @@ public class StreamTest {
 		FStream<Integer> stream = FStream.from(list);
 		Stream<Integer> jstrm = stream.stream();
 		
-		Assert.assertEquals(list, jstrm.collect(Collectors.toList()));
+		Assertions.assertEquals(list, jstrm.collect(Collectors.toList()));
 	}
 	
-	@Test(timeout = 1000)
+	@Test
+	@Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
 	public void test1() throws Exception {
 		Stream<Integer> jstrm = Stream.iterate(0, seed -> {
 			try { Thread.sleep(50); } catch ( InterruptedException e ) { }
@@ -36,18 +39,20 @@ public class StreamTest {
 		
 		Iterator<Integer> iter = strm.stream().limit(16).iterator();
 		for ( int i =0; i < 8; ++i ) {
-			Assert.assertEquals((Integer)i, iter.next());
+			Assertions.assertEquals((Integer)i, iter.next());
 		}
 	}
 
-	@Test(expected=IllegalStateException.class)
+	@Test
 	public void test2() throws Exception {
-		FStream<String> strm = FStream.range(0, 10).mapToObj(idx -> "" + idx);
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			FStream<String> strm = FStream.range(0, 10).mapToObj(idx -> "" + idx);
 		
-		Assert.assertEquals("0", strm.next().get());
-		Assert.assertEquals("1", strm.next().get());
+			Assertions.assertEquals("0", strm.next().get());
+			Assertions.assertEquals("1", strm.next().get());
 		
-		strm.close();
-		strm.next();
+			strm.close();
+			strm.next();
+			});
 	}
 }

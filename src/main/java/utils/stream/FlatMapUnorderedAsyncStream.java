@@ -1,13 +1,13 @@
 package utils.stream;
 
-import static utils.Utilities.checkNotNullArgument;
 
 import java.util.function.Function;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import utils.Preconditions;
 import utils.async.Executions;
-import utils.async.Guard;
+import utils.thread.Guard;
 import utils.async.StartableExecution;
 import utils.func.FOption;
 import utils.func.Unchecked;
@@ -28,7 +28,7 @@ class FlatMapUnorderedAsyncStream<S,T> extends AbstractFStream<T> {
 	
 	FlatMapUnorderedAsyncStream(FStream<S> src, Function<? super S, ? extends FStream<T>> mapper,
 								AsyncExecutionOptions options) {
-		checkNotNullArgument(mapper, "mapper is null");
+		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 		
 		m_options = options;
 		m_execStream = src.map((S input) -> Executions.supplyAsync(() -> mapper.apply(input),
@@ -61,7 +61,17 @@ class FlatMapUnorderedAsyncStream<S,T> extends AbstractFStream<T> {
 			StartableExecution<FStream<T>> next = m_execStream.next().getOrNull();
 			if ( next != null ) {
 				next.whenFinished(ret -> {
-					ret.ifSuccessful(strm -> strm.forEach(m_outChannel::supply));
+					ret.ifSuccessful(strm -> {
+						try {
+							strm.forEachOrThrow(m_outChannel::supply);
+						}
+						catch ( InterruptedException e ) {
+                            Thread.currentThread().interrupt();
+                        }
+                        finally {
+                            Unchecked.runOrIgnore(strm::close);
+                        }
+					});
 					startNext();
 				});
 				next.start();

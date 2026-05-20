@@ -1,5 +1,11 @@
 package utils;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +15,8 @@ import org.apache.commons.text.lookup.StringLookup;
 import org.apache.commons.text.lookup.StringLookupFactory;
 
 import com.google.common.collect.Maps;
+
+import utils.io.IOUtils;
 
 
 /**
@@ -34,6 +42,15 @@ import com.google.common.collect.Maps;
  * </ul>
  * 각각은 {@link #enableNestedSubstitution(boolean)}, {@link #failOnUndefinedVariable(boolean)}로
  * 전환할 수 있다.
+ *
+ * <h3>사용 패턴</h3>
+ * <ul>
+ *   <li>키-값 매핑이 있을 때: {@link #with(Map)} 또는 {@link #with(String, String)}로 인스턴스를
+ *       생성하고, chaining 으로 설정 후 {@link #replace(String)} 또는 {@link #replace(File, File)}을 호출.</li>
+ *   <li>매핑 없이 내장 lookup({@code env}, {@code sys} 등)만 필요할 때: 무인자 {@link #StrSubstitutor()} 사용.</li>
+ *   <li>환경 파일처럼 앞선 정의를 뒤에서 재사용하는 누적 확장이 필요할 때:
+ *       {@link #replaceIncrementally(List, Map)} 사용.</li>
+ * </ul>
  * <p>
  * 이 클래스는 스레드 안전하지 않다.
  *
@@ -44,17 +61,51 @@ public final class StrSubstitutor {
 	// 설정 상속을 위해 인스턴스 필드로 보관 (Apache StringSubstitutor에 일부 getter가 누락됨).
 	private boolean m_failOnUndefined = true;
 	private boolean m_nestedSubstitution = true;
-
+	
 	/**
-	 * 주어진 키-값 맵을 lookup 소스로 하는 {@code StrSubstitutor}를 생성한다.
+	 * 주어진 키-값 맵을 lookup 소스로 하는 {@code StrSubstitutor} 인스턴스를 생성한다.
+	 * <p>
+	 * 사용자 키-값 lookup 외에도 {@code ${env:...}}, {@code ${sys:...}}, {@code ${date:...}}
+	 * 등 Apache 내장 interpolator lookup이 자동으로 동작한다.
 	 * <p>
 	 * 내부적으로 전달된 맵을 참조로 보관하므로, 생성 이후 맵을 변경하면
 	 * 이후의 {@link #replace(String)} 호출에 그 변화가 반영된다.
 	 *
+	 * @param keyValues	치환에 사용할 키-값 맵. {@code null}이면 안 된다.
+	 * @return	생성된 {@code StrSubstitutor} 인스턴스.
+	 */
+	public static StrSubstitutor with(Map<String, String> keyValues) {
+		return new StrSubstitutor(keyValues);
+	}
+
+	/**
+	 * 단일 키-값을 lookup 소스로 하는 {@code StrSubstitutor} 인스턴스를 생성한다.
+	 * <p>
+	 * 단일 변수만 치환하는 간단한 케이스를 위한 편의 메소드이다.
+	 * 내부적으로 {@link Map#of(Object, Object)}로 불변 맵을 만들어 보관한다.
+	 * 사용자 키-값 외에 Apache 내장 lookup({@code env}, {@code sys}, {@code date} 등)도 동작한다.
+	 *
+	 * @param key	치환할 단일 변수 이름. {@code null}이면 안 된다.
+	 * @param value	해당 변수의 값. {@code null}이면 안 된다.
+	 * @return	생성된 {@code StrSubstitutor} 인스턴스.
+	 */
+	public static StrSubstitutor with(String key, String value) {
+		Preconditions.checkNotNullArgument(key, "key must not be null");
+		Preconditions.checkNotNullArgument(value, "value must not be null");
+		return new StrSubstitutor(Map.of(key, value));
+	}
+
+	/**
+	 * 주어진 키-값 맵을 lookup 소스로 하는 {@code StrSubstitutor}를 생성한다.
+	 * <p>
+	 * 외부에서는 {@link #with(Map)} 또는 {@link #with(String, String)} 정적 팩토리를 사용해
+	 * 인스턴스를 생성한다. 내부적으로 전달된 맵을 참조로 보관하므로 생성 이후 맵을 변경하면
+	 * 이후의 {@link #replace(String)} 호출에 그 변화가 반영된다.
+	 *
 	 * @param keyValues	치환에 사용할 키-값 맵.
 	 */
-	public StrSubstitutor(Map<String,String> keyValues) {
-		Utilities.checkNotNullArgument(keyValues, "keyValues must not be null");
+	private StrSubstitutor(Map<String,String> keyValues) {
+		Preconditions.checkNotNullArgument(keyValues, "keyValues must not be null");
 
 		StringLookupFactory factory = StringLookupFactory.INSTANCE;
 		StringLookup lookup = factory.mapStringLookup(keyValues);
@@ -123,6 +174,9 @@ public final class StrSubstitutor {
 	 * 									(기본값)인 상태에서 미정의 변수가 참조된 경우.
 	 */
 	public String replace(String template) {
+		if ( template == null ) {
+			return null;
+		}
 		return m_substitutor.replace(template);
 	}
 
@@ -147,13 +201,13 @@ public final class StrSubstitutor {
 	 */
 	public LinkedHashMap<String,String> replaceIncrementally(List<KeyValue<String,String>> keyValues,
 																Map<String,String> facts) {
-		Utilities.checkNotNullArgument(keyValues, "keyValues must not be null");
-		Utilities.checkNotNullArgument(facts, "facts must not be null");
+		Preconditions.checkNotNullArgument(keyValues, "keyValues must not be null");
+		Preconditions.checkNotNullArgument(facts, "facts must not be null");
 
 		// expandedFacts는 mapStringLookup이 reference로 보관하므로, 아래 루프에서 추가되는
 		// 키-값 쌍은 즉시 후속 iteration의 lookup에 반영된다 — incremental 누적의 핵심 트릭.
 		Map<String,String> expandedFacts = Maps.newHashMap(facts);
-		StrSubstitutor subst = new StrSubstitutor(expandedFacts)
+		StrSubstitutor subst = with(expandedFacts)
 									.failOnUndefinedVariable(m_failOnUndefined)
 									.enableNestedSubstitution(m_nestedSubstitution);
 
@@ -165,5 +219,53 @@ public final class StrSubstitutor {
 		}
 
 		return result;
+	}
+
+	/**
+	 * 템플릿 파일을 읽어 변수 치환을 적용한 결과를 출력 파일에 쓴다.
+	 * <p>
+	 * 치환 동작은 현재 인스턴스의 설정({@link #failOnUndefinedVariable(boolean)},
+	 * {@link #enableNestedSubstitution(boolean)})을 그대로 따른다. {@code templateFile}과
+	 * {@code outputFile}이 같은 파일이어도 안전하다.
+	 * <p>
+	 * 출력은 같은 디렉토리에 임시 파일로 먼저 작성된 뒤 atomic move 로 최종 위치로 옮겨지므로,
+	 * 치환 또는 쓰기 도중 예외가 발생해도 출력 파일이 부분 변경 상태로 남지 않는다.
+	 * (atomic move 가 지원되지 않는 환경에서는 일반 replace fallback 으로 동작한다.)
+	 * <p>
+	 * 임시 파일은 POSIX 환경에서 {@code 0600} 권한으로 생성되므로 atomic move 후 출력 파일의
+	 * 권한이 원본보다 제한될 수 있다. 보안에 민감한 컨텍스트에서는 이 점을 유의한다.
+	 *
+	 * @param templateFile	치환 대상 템플릿 파일. {@code null}이면 안 된다.
+	 * @param outputFile	치환 결과를 쓸 파일. {@code null}이면 안 된다.
+	 * 						{@code templateFile}과 같아도 된다.
+	 * @throws IOException	파일 입출력 실패.
+	 */
+	public void replace(File templateFile, File outputFile) throws IOException {
+		Preconditions.checkNotNullArgument(templateFile, "templateFile must not be null");
+		Preconditions.checkNotNullArgument(outputFile, "outputFile must not be null");
+
+		String template = IOUtils.toString(templateFile);
+		String substituted = replace(template);
+
+		Path target = outputFile.toPath();
+		Path parent = target.toAbsolutePath().getParent();
+		// outputFile이 root 자체인 가장자리 케이스 — system temp dir 으로 fallback.
+		// (이 경우 atomic move 가 다른 파일시스템 mount 라 fallback 분기로 빠질 수 있음.)
+		if ( parent == null ) {
+			parent = Path.of(System.getProperty("java.io.tmpdir"));
+		}
+		Path tmp = Files.createTempFile(parent, ".strsubst-", ".tmp");
+		try {
+			IOUtils.toFile(substituted, tmp.toFile());
+			try {
+				Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			}
+			catch ( AtomicMoveNotSupportedException e ) {
+				Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+			}
+		}
+		finally {
+			Files.deleteIfExists(tmp);
+		}
 	}
 }

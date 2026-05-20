@@ -4,13 +4,14 @@ import java.util.concurrent.CancellationException;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import org.jetbrains.annotations.Nullable;
 
 import utils.func.Try;
+import utils.thread.Guard;
 
 /**
  * 
@@ -19,7 +20,7 @@ import utils.func.Try;
 public class AsyncsTest {
 	private boolean m_done = false;
 	
-	@Before
+	@BeforeEach
 	public void setup() {
 		m_done = false;
 	}
@@ -28,43 +29,43 @@ public class AsyncsTest {
 	public void test01() throws Exception {
 		ActiveTask task = new ActiveTask(null);
 		
-		Assert.assertTrue(!task.isStarted());
+		Assertions.assertTrue(!task.isStarted());
 
 		task.whenCompleted(r -> m_done = true);
 		task.start();
 		task.waitForStarted();
-		Assert.assertTrue(task.isStarted());
+		Assertions.assertTrue(task.isStarted());
 		
 		AsyncResult<Void> result = task.waitForFinished();
-		Assert.assertTrue(result.isCompleted());
+		Assertions.assertTrue(result.isCompleted());
 		Thread.sleep(100);
-		Assert.assertEquals(true, m_done);
+		Assertions.assertEquals(true, m_done);
 	}
 	
 	@Test
 	public void test02() throws Exception {
 		ActiveTask task = new ActiveTask(null);
 
-		Assert.assertTrue(!task.isStarted());
+		Assertions.assertTrue(!task.isStarted());
 
 		task.whenCancelled(() -> m_done = true);
 		task.start();
 		task.waitForStarted();
-		Assert.assertTrue(task.isStarted());
+		Assertions.assertTrue(task.isStarted());
 		
-		Assert.assertEquals(true, task.cancel(true));
+		Assertions.assertEquals(true, task.cancel(true));
 
 		AsyncResult<Void> result = task.waitForFinished();
-		Assert.assertEquals(true, result.isCancelled());
+		Assertions.assertEquals(true, result.isCancelled());
 		Thread.sleep(100);
-		Assert.assertEquals(true, m_done);
+		Assertions.assertEquals(true, m_done);
 	}
 	
 	@Test
 	public void test03() throws Exception {
 		ActiveTask task = new ActiveTask(new IllegalStateException("aaa"));
 
-		Assert.assertTrue(!task.isStarted());
+		Assertions.assertTrue(!task.isStarted());
 
 		task.whenFailed(e -> {
 			if ( e instanceof IllegalStateException ) {
@@ -73,54 +74,54 @@ public class AsyncsTest {
 		});
 		task.start();
 		task.waitForStarted();
-		Assert.assertTrue(task.isStarted());
+		Assertions.assertTrue(task.isStarted());
 
 		AsyncResult<Void> result = task.waitForFinished();
-		Assert.assertEquals(true, result.isFailed());
-		Assert.assertEquals(IllegalStateException.class, result.getFailureCause().getClass());
-		Assert.assertEquals("aaa", result.getFailureCause().getMessage());
+		Assertions.assertEquals(true, result.isFailed());
+		Assertions.assertEquals(IllegalStateException.class, result.getFailureCause().getClass());
+		Assertions.assertEquals("aaa", result.getFailureCause().getMessage());
 		Thread.sleep(100);
-		Assert.assertEquals(true, m_done);
+		Assertions.assertEquals(true, m_done);
 	}
 	
 	@Test
 	public void test11() throws Exception {
 		PassiveTask task = new PassiveTask(null);
-		Assert.assertTrue(!task.isStarted());
+		Assertions.assertTrue(!task.isStarted());
 
 		task.whenCompleted(r -> m_done = true);
 		task.start();
 		task.waitForStarted();
-		Assert.assertTrue(task.isStarted());
+		Assertions.assertTrue(task.isStarted());
 		
 		AsyncResult<Void> result = task.waitForFinished();
-		Assert.assertEquals(true, result.isCompleted());
+		Assertions.assertEquals(true, result.isCompleted());
 		Thread.sleep(100);
-		Assert.assertEquals(true, m_done);
+		Assertions.assertEquals(true, m_done);
 	}
 	
 	@Test
 	public void test12() throws Exception {
 		PassiveTask task = new PassiveTask(null);
-		Assert.assertTrue(!task.isStarted());
+		Assertions.assertTrue(!task.isStarted());
 
 		task.whenCancelled(() -> m_done = true);
 		task.start();
 		task.waitForStarted();
-		Assert.assertTrue(task.isStarted());
+		Assertions.assertTrue(task.isStarted());
 		
-		Assert.assertEquals(true, task.cancel(true));
+		Assertions.assertEquals(true, task.cancel(true));
 
 		AsyncResult<Void> result = task.waitForFinished();
-		Assert.assertEquals(true, result.isCancelled());
+		Assertions.assertEquals(true, result.isCancelled());
 		Thread.sleep(100);
-		Assert.assertEquals(true, m_done);
+		Assertions.assertEquals(true, m_done);
 	}
 	
 	@Test
 	public void test13() throws Exception {
 		PassiveTask task = new PassiveTask(new IllegalStateException("aaa"));
-		Assert.assertTrue(!task.isStarted());
+		Assertions.assertTrue(!task.isStarted());
 		
 		task.whenFailed(e -> {
 			if ( e instanceof IllegalStateException ) {
@@ -129,14 +130,14 @@ public class AsyncsTest {
 		});
 		task.start();
 		task.waitForStarted();
-		Assert.assertTrue(task.isStarted());
+		Assertions.assertTrue(task.isStarted());
 
 		AsyncResult<Void> result = task.waitForFinished();
-		Assert.assertEquals(true, result.isFailed());
-		Assert.assertEquals(IllegalStateException.class, result.getFailureCause().getClass());
-		Assert.assertEquals("aaa", result.getFailureCause().getMessage());
+		Assertions.assertEquals(true, result.isFailed());
+		Assertions.assertEquals(IllegalStateException.class, result.getFailureCause().getClass());
+		Assertions.assertEquals("aaa", result.getFailureCause().getMessage());
 		Thread.sleep(100);
-		Assert.assertEquals(true, m_done);
+		Assertions.assertEquals(true, m_done);
 	}
 
 	private static class ActiveTask extends AbstractThreadedExecution<Void> implements CancellableWork {

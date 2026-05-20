@@ -1,8 +1,8 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -23,7 +23,7 @@ public class TakeWhileTest {
 		String ret;
 		
 		ret = toString(stream.takeWhile(i -> i <= 3));
-		Assert.assertEquals("12", ret);
+		Assertions.assertEquals("12", ret);
 	}
 	
 	@Test
@@ -32,7 +32,7 @@ public class TakeWhileTest {
 		String ret;
 		
 		ret = toString(stream.takeWhile(i -> i <= 5));
-		Assert.assertEquals("1241", ret);
+		Assertions.assertEquals("1241", ret);
 	}
 	
 	@Test
@@ -41,7 +41,7 @@ public class TakeWhileTest {
 		String ret;
 		
 		ret = toString(stream.takeWhile(i -> i <= 0));
-		Assert.assertEquals("", ret);
+		Assertions.assertEquals("", ret);
 	}
 	
 	@Test
@@ -52,20 +52,24 @@ public class TakeWhileTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 
-	@Test(expected=RuntimeException.class)
+	@Test
 	public void test4() throws Exception {
-		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream = stream.takeWhile(i -> { throw new RuntimeException(); });
+		Assertions.assertThrows(RuntimeException.class, () -> {
+			FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
+			stream = stream.takeWhile(i -> { throw new RuntimeException(); });
 		
-		stream.next();
+			stream.next();
+			});
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test5() throws Exception {
-		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream = stream.takeWhile(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
+			stream = stream.takeWhile(null);
+			});
 	}
 }

@@ -1,8 +1,6 @@
-package utils.async;
+package utils.thread;
 
-import java.io.Serializable;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Date;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -13,18 +11,15 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import com.google.common.base.Preconditions;
-
 import org.jetbrains.annotations.Nullable;
 
+import utils.Preconditions;
 import utils.Throwables;
-import utils.Utilities;
 import utils.func.CheckedConsumerX;
 import utils.func.CheckedRunnable;
 import utils.func.CheckedRunnableX;
 import utils.func.CheckedSupplier;
 import utils.func.CheckedSupplierX;
-import utils.func.FOption;
 
 
 /**
@@ -49,15 +44,10 @@ import utils.func.FOption;
  * signal 호출 시점을 직접 책임져야 한다.
  * <p>
  * <b>재진입성</b>: 내부 lock은 {@link ReentrantLock}이므로 같은 쓰레드에서의 재진입을 허용한다.
- * <p>
- * <b>{@link Serializable}</b>: 직렬화 인터페이스를 구현하지만 {@link Lock} / {@link Condition}은
- * 일반적으로 직렬화 의미가 없으므로 실제 직렬화 용도로 사용하지 않는 것이 좋다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class Guard implements Serializable {
-	private static final long serialVersionUID = 1L;
-
+public class Guard {
 	private final Lock m_lock;
 	private final Condition m_cond;
 
@@ -74,8 +64,8 @@ public class Guard implements Serializable {
 	}
 	
 	private Guard(Lock lock, Condition cond) {
-		Preconditions.checkArgument(lock != null, "lock is null");
-		Preconditions.checkArgument(cond != null, "Condition is null");
+		Preconditions.checkNotNullArgument(lock, "lock is null");
+		Preconditions.checkNotNullArgument(cond, "Condition is null");
 		
 		m_lock = lock;
 		m_cond = cond;
@@ -133,7 +123,7 @@ public class Guard implements Serializable {
 	 * @throws InterruptedException	대기 중에 현재 쓰레드가 interrupt된 경우.
 	 */
 	public boolean awaitSignal(Date due) throws InterruptedException {
-		Preconditions.checkArgument(due != null, "due is null");
+		Preconditions.checkNotNullArgument(due, "due is null");
 		
 		return m_cond.awaitUntil(due);
 	}
@@ -142,19 +132,32 @@ public class Guard implements Serializable {
 	 * Guard가 signal을 받거나 주어진 제한 시간이 도달할 때까지 대기한다.
 	 * <p>
 	 * 본 메소드는 반드시 lock을 획득한 상태에서 호출해야 한다.
-	 * 
+	 *
 	 * @param dur	대기 제한 기간
 	 * @return	대기 제한 시각이 경과하기 전에 signal을 받아 대기가 멈춘 경우는 {@code true},
 	 * 			그렇지 않고 시간 제한으로 대기가 멈춘 경우는 {@code false}.
 	 * @throws InterruptedException	대기 중에 현재 쓰레드가 interrupt된 경우.
 	 */
 	public boolean awaitSignal(Duration dur) throws InterruptedException {
-		Preconditions.checkArgument(dur != null, "duration is null");
+		Preconditions.checkNotNullArgument(dur, "duration is null");
 		Preconditions.checkArgument(!dur.isZero() && !dur.isNegative(),
 									"duration must be positive: %s", dur);
 
-		Instant due = Instant.now().plus(dur);
-		return m_cond.awaitUntil(Date.from(due));
+		return m_cond.awaitNanos(dur.toNanos()) > 0;
+	}
+
+	/**
+	 * Guard가 signal을 받거나 주어진 nanosecond 단위 제한 시간이 경과할 때까지 대기한다.
+	 * <p>
+	 * 본 메소드는 반드시 lock을 획득한 상태에서 호출해야 한다.
+	 *
+	 * @param nanosTimeout	대기 제한 시간 (nanosecond)
+	 * @return	{@link Condition#awaitNanos(long)}와 동일하게, 남은 대기 시간(nanos)을 반환한다.
+	 * 			{@code 0} 이하이면 시간 제한으로 대기가 종료된 것으로 간주.
+	 * @throws InterruptedException	대기 중에 현재 쓰레드가 interrupt된 경우.
+	 */
+	public long awaitSignalNanos(long nanosTimeout) throws InterruptedException {
+		return m_cond.awaitNanos(nanosTimeout);
 	}
 	
 	/**
@@ -193,6 +196,8 @@ public class Guard implements Serializable {
 	 * 주어진 조건이 만족될 때까지 지정된 시각까지 대기하는 {@link TimedAwaitCondition} 빌더를 반환한다.
 	 * <p>
 	 * 주어진 시각이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
+	 * 만일 {@code due}가 이미 과거 시각인 경우에는 condition이 만족하지 않으면
+	 * 즉시 {@link TimeoutException}을 발생시킨다.
 	 *
 	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다.
 	 * @param due		대기 제한 시각 (non-null)
@@ -206,11 +211,15 @@ public class Guard implements Serializable {
 	 * 주어진 조건이 만족될 때까지 지정된 기간 동안 대기하는 {@link TimedAwaitCondition} 빌더를 반환한다.
 	 * <p>
 	 * 기간이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
+	 * <p>
+	 * 만일 {@code timeout.isZero()} 경우에는 condition이 만족하지 않으면
+	 * 즉시 {@link TimeoutException}을 발생시킨다.
+	 * timeout이 음수인 경우에는 {@link IllegalArgumentException}이 발생한다.
 	 *
 	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다.
-	 * @param timeout	대기 제한 기간 (양수)
+	 * @param timeout	대기 제한 기간 ({@code 0} 이상)
 	 * @return	{@link TimedAwaitCondition} 빌더
-	 * @throws IllegalArgumentException	{@code timeout}이 {@code null}이거나 0 이하인 경우
+	 * @throws IllegalArgumentException	{@code timeout}이 {@code null}이거나 음수인 경우
 	 */
 	public TimedAwaitCondition awaitCondition(Supplier<Boolean> condition, Duration timeout) {
 		return new TimedAwaitCondition(this, null, condition, timeout);
@@ -220,12 +229,15 @@ public class Guard implements Serializable {
 	 * 주어진 조건이 만족될 때까지 지정된 기간 동안 대기하는 {@link TimedAwaitCondition} 빌더를 반환한다.
 	 * <p>
 	 * 기간이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
+	 * <p>
+	 * 만일 timeout이 0인 경우에는 condition이 만족하지 않으면 즉시 {@link TimeoutException}을 발생시킨다.
+	 * timeout이 음수인 경우에는 {@link IllegalArgumentException}이 발생한다.
 	 *
 	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다.
-	 * @param timeout	대기 제한 기간 (양수)
+	 * @param timeout	대기 제한 기간 ({@code 0} 이상)
 	 * @param unit		{@code timeout}의 시간 단위 (non-null)
 	 * @return	{@link TimedAwaitCondition} 빌더
-	 * @throws IllegalArgumentException	{@code timeout}이 0 이하이거나 {@code unit}이 {@code null}인 경우
+	 * @throws IllegalArgumentException	{@code timeout}이 음수이거나 {@code unit}이 {@code null}인 경우
 	 */
 	public TimedAwaitCondition awaitCondition(Supplier<Boolean> condition, long timeout, TimeUnit unit) {
 		return new TimedAwaitCondition(this, null, condition, timeout, unit);
@@ -241,7 +253,7 @@ public class Guard implements Serializable {
 	 * @throws IllegalArgumentException	{@code work}가 {@code null}인 경우
 	 */
 	public void run(Runnable work) {
-		Preconditions.checkArgument(work != null, "work is null");
+		Preconditions.checkNotNullArgument(work, "work is null");
 
 		m_lock.lock();
 		try {
@@ -265,7 +277,7 @@ public class Guard implements Serializable {
 	 * @throws IllegalArgumentException	{@code work}가 {@code null}인 경우
 	 */
 	public <X extends Throwable> void runChecked(CheckedRunnableX<X> work) throws X {
-		Preconditions.checkArgument(work != null, "work is null");
+		Preconditions.checkNotNullArgument(work, "work is null");
 
 		m_lock.lock();
 		try {
@@ -379,15 +391,13 @@ public class Guard implements Serializable {
 	 *      .andReturn();
 	 * }</pre>
 	 */
-	public static class PreAction implements Serializable {
-		private static final long serialVersionUID = 1L;
-
+	public static class PreAction {
 		protected final Guard m_guard;
 		private final Runnable m_action;
 
 		PreAction(Guard guard, Runnable action) {
-			Preconditions.checkArgument(guard != null, "Guard is null");
-			Preconditions.checkArgument(action != null, "action is null");
+			Preconditions.checkNotNullArgument(guard, "Guard is null");
+			Preconditions.checkNotNullArgument(action, "action is null");
 
 	        m_guard = guard;
 	        m_action = action;
@@ -453,16 +463,14 @@ public class Guard implements Serializable {
 	 *   <li>지정된 작업 수행. 정상/예외 종료 모두 finally에서 signal과 lock 해제.</li>
 	 * </ol>
 	 */
-	public static class AwaitCondition implements Serializable {
-		private static final long serialVersionUID = 1L;
-
+	public static final class AwaitCondition {
 		protected final Guard m_guard;
 		private final Runnable m_preAction;
-		private Supplier<Boolean> m_precondition;
+		private final Supplier<Boolean> m_precondition;
 
 		AwaitCondition(Guard guard, Runnable preAction, Supplier<Boolean> precondition) {
-			Preconditions.checkArgument(guard != null, "Guard is null");
-			Preconditions.checkArgument(precondition != null, "precondition is null");
+			Preconditions.checkNotNullArgument(guard, "Guard is null");
+			Preconditions.checkNotNullArgument(precondition, "precondition is null");
 
 	        m_guard = guard;
 			m_preAction = preAction;
@@ -638,50 +646,50 @@ public class Guard implements Serializable {
 	 * {@link AwaitCondition}과의 차이점은 시각/기간 만료 시 {@link TimeoutException}이 발생한다는 점이다.
 	 * {@link #andReturn()}만 예외 대신 {@code false}를 반환한다.
 	 */
-	public static class TimedAwaitCondition implements Serializable {
-		private static final long serialVersionUID = 1L;
-
+	public static final class TimedAwaitCondition {
 		protected final Guard m_guard;
 		private final Runnable m_preAction;
-		private Supplier<Boolean> m_precondition;
-		private @Nullable Date m_due;
-		private @Nullable Duration m_timeout;
+		private final Supplier<Boolean> m_precondition;
+		private final @Nullable Date m_due;
+		private final @Nullable Duration m_timeout;
 
 		TimedAwaitCondition(Guard guard, Runnable preAction, Supplier<Boolean> precondition, Date due) {
-			Utilities.checkNotNullArgument(guard, "Guard is null");
-			Utilities.checkNotNullArgument(precondition, "Precondition is null");
-			Utilities.checkNotNullArgument(due, "Due is null");
+			Preconditions.checkNotNullArgument(guard, "Guard is null");
+			Preconditions.checkNotNullArgument(precondition, "Precondition is null");
+			Preconditions.checkNotNullArgument(due, "Due is null");
 			
 	        m_guard = guard;
 	        m_preAction = preAction;
 	        m_precondition = precondition;
 	        m_due = due;
+	        m_timeout = null;
 		}
 		
 		TimedAwaitCondition(Guard guard, Runnable preAction, Supplier<Boolean> precondition,
 							Duration timeout) {
-			Utilities.checkNotNullArgument(guard, "Guard is null");
-			Utilities.checkNotNullArgument(precondition, "Precondition is null");
-			Utilities.checkNotNullArgument(timeout, "Timeout is null");
-			Utilities.checkArgument(!timeout.isNegative() && !timeout.isZero(),
-									"Timeout is negative or zero");
+			Preconditions.checkNotNullArgument(guard, "Guard is null");
+			Preconditions.checkNotNullArgument(precondition, "Precondition is null");
+			Preconditions.checkNotNullArgument(timeout, "Timeout is null");
+			Preconditions.checkArgument(!timeout.isNegative(), "Timeout is negative");
 			
 	        m_guard = guard;
 	        m_preAction = preAction;
 	        m_precondition = precondition;
+	        m_due = null;
 	        m_timeout = timeout;
 		}
 		
 		TimedAwaitCondition(Guard guard, Runnable preAction, Supplier<Boolean> precondition, long timeout,
 							TimeUnit unit) {
-			Utilities.checkNotNullArgument(guard, "Guard is null");
-			Utilities.checkNotNullArgument(precondition, "Precondition is null");
-			Utilities.checkArgument(timeout > 0, "Timeout is larger than zero");
-			Utilities.checkNotNullArgument(unit, "TimeUnit is null");
+			Preconditions.checkNotNullArgument(guard, "Guard is null");
+			Preconditions.checkNotNullArgument(precondition, "Precondition is null");
+			Preconditions.checkArgument(timeout >= 0, "Timeout must be non-negative: %d", timeout);
+			Preconditions.checkNotNullArgument(unit, "TimeUnit is null");
 			
 	        m_guard = guard;
 	        m_preAction = preAction;
 	        m_precondition = precondition;
+	        m_due = null;
 	        m_timeout = Duration.ofNanos(unit.toNanos(timeout));
 		}
 	
@@ -845,11 +853,6 @@ public class Guard implements Serializable {
 		 * @throws InterruptedException	대기 중에 interrupt가 발생한 경우.
 		 */
 		private void awaitPreconditionSatisfied() throws InterruptedException, TimeoutException {
-			Date due = m_due;
-			if ( m_due == null ) {
-				due = FOption.map(m_timeout, ts -> Date.from(Instant.now().plus(ts)));
-			}
-			
 			if ( m_preAction != null ) {
 				try {
 					m_preAction.run();
@@ -860,13 +863,30 @@ public class Guard implements Serializable {
 					throw t;
 				}
 			}
-			
-			while ( !m_precondition.get() ) {
-				if ( !m_guard.awaitSignal(due) ) {
-					String msg = (m_due != null) ? String.format("due=%s", due)
-													: String.format("timeout=%s", m_timeout);
-					throw new TimeoutException(msg);
+
+			try {
+				if ( m_due != null ) {
+					// 절대 시각 기반 대기.
+					while ( !m_precondition.get() ) {
+						if ( !m_guard.awaitSignal(m_due) ) {
+							throw new TimeoutException(String.format("due=%s", m_due));
+						}
+					}
 				}
+				else {
+					// 상대 기간 기반 대기. nanos 단위로 카운트다운.
+					long remainingNanos = m_timeout.toNanos();
+					while ( !m_precondition.get() ) {
+						if ( remainingNanos <= 0 ) {
+							throw new TimeoutException(String.format("timeout=%s", m_timeout));
+						}
+						remainingNanos = m_guard.awaitSignalNanos(remainingNanos);
+					}
+				}
+			}
+			catch ( InterruptedException e ) {
+				Thread.currentThread().interrupt();
+				throw e;
 			}
 		}
 	}

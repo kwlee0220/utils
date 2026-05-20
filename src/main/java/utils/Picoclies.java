@@ -2,8 +2,6 @@ package utils;
 
 import java.time.Duration;
 
-import lombok.experimental.UtilityClass;
-
 import ch.qos.logback.classic.Level;
 import picocli.CommandLine.ITypeConverter;
 
@@ -11,8 +9,11 @@ import picocli.CommandLine.ITypeConverter;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-@UtilityClass
-public class Picoclies {
+public final class Picoclies {
+	private Picoclies() {
+		throw new AssertionError("Should not be called: class=" + getClass().getName());
+	}
+	
 	public static class DurationConverter implements ITypeConverter<Duration> {
 		@Override
 		public Duration convert(String value) throws Exception {

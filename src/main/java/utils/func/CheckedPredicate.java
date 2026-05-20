@@ -7,7 +7,7 @@ package utils.func;
  */
 @FunctionalInterface
 public interface CheckedPredicate<T> {
-	public boolean test(T data) throws Throwable;
+	public boolean test(T data) throws Exception;
 	
 	public default Try<Boolean> tryTest(T input) {
 		try {

@@ -12,9 +12,9 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import utils.Preconditions;
 import utils.RuntimeExecutionException;
 import utils.Throwables;
-import utils.Utilities;
 import utils.statechart.Signal;
 import utils.statechart.StateChart;
 import utils.statechart.Transition;
@@ -95,8 +95,8 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 * @throws IllegalStateException	이미 WebSocket이 등록된 경우
 	 */
 	protected void setWebSocket(WebSocket ws) {
-		Utilities.checkNotNullArgument(ws, "ws is null");
-		Utilities.checkState(m_webSocket == null, "WebSocket is already set on this chart");
+		Preconditions.checkNotNullArgument(ws, "ws is null");
+		Preconditions.checkState(m_webSocket == null, "WebSocket is already set on this chart");
 
 		m_webSocket = ws;
 	}
@@ -123,8 +123,8 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 * @throws IllegalArgumentException	{@code interval}이 {@code null}이거나 양수가 아닌 경우
 	 */
 	public void setPingInterval(Duration interval) {
-		Utilities.checkNotNullArgument(interval, "interval is null");
-		Utilities.checkArgument(DurationUtils.isPositive(interval),
+		Preconditions.checkNotNullArgument(interval, "interval is null");
+		Preconditions.checkArgument(DurationUtils.isPositive(interval),
 								"interval must be positive: %s", interval);
 
 		m_socketListener.setPingInterval(interval);
@@ -141,8 +141,8 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 * @throws IllegalArgumentException	{@code timeout}이 {@code null}이거나 양수가 아닌 경우
 	 */
 	public void setPongTimeout(Duration timeout) {
-		Utilities.checkNotNullArgument(timeout, "timeout is null");
-		Utilities.checkArgument(DurationUtils.isPositive(timeout),
+		Preconditions.checkNotNullArgument(timeout, "timeout is null");
+		Preconditions.checkArgument(DurationUtils.isPositive(timeout),
 								"timeout must be positive: %s", timeout);
 
 		m_socketListener.setPongTimeout(timeout);
@@ -160,9 +160,9 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 * @throws IllegalStateException	차트가 실행 중이 아니거나 WebSocket이 연결되지 않은 경우
 	 */
 	public CompletableFuture<WebSocket> sendText(String text, boolean last) {
-		Utilities.checkNotNullArgument(text, "text is null");
-		Utilities.checkState(isRunning(), "WebSocketStateMachine is not running");
-		Utilities.checkState(m_webSocket != null, "WebSocket is not connected");
+		Preconditions.checkNotNullArgument(text, "text is null");
+		Preconditions.checkState(isRunning(), "WebSocketStateMachine is not running");
+		Preconditions.checkState(m_webSocket != null, "WebSocket is not connected");
 
 		getLogger().debug("sending text: {}", text);
 		return m_webSocket.sendText(text, last);
@@ -201,9 +201,9 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 * @throws IllegalStateException	차트가 실행 중이 아니거나 WebSocket이 연결되지 않은 경우
 	 */
 	public CompletableFuture<WebSocket> sendBinary(byte[] binary, boolean last) {
-		Utilities.checkNotNullArgument(binary, "binary is null");
-		Utilities.checkState(isRunning(), "WebSocketStateMachine is not running");
-		Utilities.checkState(m_webSocket != null, "WebSocket is not connected");
+		Preconditions.checkNotNullArgument(binary, "binary is null");
+		Preconditions.checkState(isRunning(), "WebSocketStateMachine is not running");
+		Preconditions.checkState(m_webSocket != null, "WebSocket is not connected");
 
 		getLogger().debug("sending binary: len={}", binary.length);
 		return m_webSocket.sendBinary(ByteBuffer.wrap(binary), last);
@@ -248,7 +248,7 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 */
 	@Override
 	public Optional<Transition<C>> handleSignal(Signal signal) {
-		Utilities.checkNotNullArgument(signal, "signal is null");
+		Preconditions.checkNotNullArgument(signal, "signal is null");
 
 		Optional<Transition<C>> otrans = super.handleSignal(signal);
 		if ( otrans.isEmpty() && isRunning() ) {

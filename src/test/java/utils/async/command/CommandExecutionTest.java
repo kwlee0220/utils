@@ -11,11 +11,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.After;
-import org.junit.Assert;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.Assume;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import utils.async.AsyncResult;
 import utils.async.AsyncState;
@@ -31,7 +31,7 @@ public class CommandExecutionTest {
 	private File m_workDir;
 	private File m_outFile;
 
-	@Before
+	@BeforeEach
 	public void setup() throws Exception {
 		Assume.assumeTrue("Linux 환경에서만 동작",
 							System.getProperty("os.name").toLowerCase().contains("linux"));
@@ -39,7 +39,7 @@ public class CommandExecutionTest {
 		m_outFile = new File(m_workDir, "out.txt");
 	}
 
-	@After
+	@AfterEach
 	public void cleanup() {
 		if ( m_outFile != null && m_outFile.exists() ) {
 			m_outFile.delete();
@@ -67,8 +67,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
-		Assert.assertEquals("hello", readOutput());
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals("hello", readOutput());
 	}
 
 	@Test
@@ -79,9 +79,9 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.FAILED, result.getState());
-		Assert.assertTrue(result.getFailureCause() instanceof ExecutionException);
-		Assert.assertTrue(result.getFailureCause().getMessage().contains("retCode="));
+		Assertions.assertEquals(AsyncState.FAILED, result.getState());
+		Assertions.assertTrue(result.getFailureCause() instanceof ExecutionException);
+		Assertions.assertTrue(result.getFailureCause().getMessage().contains("retCode="));
 	}
 
 	@Test
@@ -92,7 +92,7 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
 	}
 
 	@Test
@@ -103,8 +103,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.FAILED, result.getState());
-		Assert.assertTrue(result.getFailureCause().getMessage().contains("retCode=42"));
+		Assertions.assertEquals(AsyncState.FAILED, result.getState());
+		Assertions.assertTrue(result.getFailureCause().getMessage().contains("retCode=42"));
 	}
 
 	// ----- 변수 치환 -----
@@ -120,7 +120,7 @@ public class CommandExecutionTest {
 		exec.start();
 		exec.waitForFinished();
 
-		Assert.assertEquals("name=greeting", readOutput());
+		Assertions.assertEquals("name=greeting", readOutput());
 	}
 
 	@Test
@@ -134,7 +134,7 @@ public class CommandExecutionTest {
 		exec.start();
 		exec.waitForFinished();
 
-		Assert.assertEquals("value=hi", readOutput());
+		Assertions.assertEquals("value=hi", readOutput());
 	}
 
 	@Test
@@ -147,7 +147,7 @@ public class CommandExecutionTest {
 		exec.start();
 		exec.waitForFinished();
 
-		Assert.assertEquals("wd=" + m_workDir.getAbsolutePath(), readOutput());
+		Assertions.assertEquals("wd=" + m_workDir.getAbsolutePath(), readOutput());
 	}
 
 	@Test
@@ -160,7 +160,7 @@ public class CommandExecutionTest {
 		exec.start();
 		exec.waitForFinished();
 
-		Assert.assertEquals("raw=${undefined_var}", readOutput());
+		Assertions.assertEquals("raw=${undefined_var}", readOutput());
 	}
 
 	@Test
@@ -173,7 +173,7 @@ public class CommandExecutionTest {
 		exec.start();
 		exec.waitForFinished();
 
-		Assert.assertEquals("hi", readOutput());
+		Assertions.assertEquals("hi", readOutput());
 	}
 
 	// ----- 환경 변수 -----
@@ -188,8 +188,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
-		Assert.assertEquals("abc123", readOutput());
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals("abc123", readOutput());
 	}
 
 	@Test
@@ -205,15 +205,15 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
-		Assert.assertEquals("fromfile", readOutput());
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals("fromfile", readOutput());
 	}
 
 	@Test
 	public void testEnvironmentFileMissingIsIgnored() throws Exception {
 		// 존재하지 않는 envFile은 무시된다 (warn 로그만).
 		File envFile = new File(m_workDir, "missing.env");
-		Assert.assertFalse(envFile.exists());
+		Assertions.assertFalse(envFile.exists());
 
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "ok")
@@ -223,8 +223,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
-		Assert.assertEquals("ok", readOutput());
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals("ok", readOutput());
 	}
 
 	// ----- working directory -----
@@ -240,7 +240,7 @@ public class CommandExecutionTest {
 		exec.waitForFinished();
 
 		// /tmp 등의 경로는 macOS/Linux에서 symlink 차이가 있으므로 endsWith로 비교.
-		Assert.assertTrue(readOutput().endsWith(m_workDir.getName()));
+		Assertions.assertTrue(readOutput().endsWith(m_workDir.getName()));
 	}
 
 	// ----- timeout -----
@@ -257,10 +257,10 @@ public class CommandExecutionTest {
 		AsyncResult<Void> result = exec.waitForFinished(3, TimeUnit.SECONDS);
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertEquals(AsyncState.FAILED, result.getState());
-		Assert.assertTrue(result.getFailureCause() instanceof TimeoutException);
+		Assertions.assertEquals(AsyncState.FAILED, result.getState());
+		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
 		// timeout(200ms) + grace(최대 1s) 안에 종료되어야 한다.
-		Assert.assertTrue("elapsed=" + elapsed, elapsed < 2000);
+		Assertions.assertTrue(elapsed < 2000, "elapsed=" + elapsed);
 	}
 
 	@Test
@@ -275,8 +275,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished(3, TimeUnit.SECONDS);
 
-		Assert.assertEquals(AsyncState.FAILED, result.getState());
-		Assert.assertTrue(result.getFailureCause() instanceof TimeoutException);
+		Assertions.assertEquals(AsyncState.FAILED, result.getState());
+		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
 
 		long childPid = Long.parseLong(Files.readString(childPidFile.toPath(), StandardCharsets.UTF_8).trim());
 		boolean childAlive = ProcessHandle.of(childPid)
@@ -285,7 +285,7 @@ public class CommandExecutionTest {
 		if ( childAlive ) {
 			ProcessHandle.of(childPid).ifPresent(ProcessHandle::destroyForcibly);
 		}
-		Assert.assertFalse("descendant process should be terminated: pid=" + childPid, childAlive);
+		Assertions.assertFalse(childAlive, "descendant process should be terminated: pid=" + childPid);
 	}
 
 	@Test
@@ -298,8 +298,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished(3, TimeUnit.SECONDS);
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
-		Assert.assertEquals("fast", readOutput());
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals("fast", readOutput());
 	}
 
 	@Test
@@ -313,7 +313,7 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished(3, TimeUnit.SECONDS);
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
 
 		long childPid = Long.parseLong(Files.readString(childPidFile.toPath(), StandardCharsets.UTF_8).trim());
 		boolean childAlive = ProcessHandle.of(childPid)
@@ -322,7 +322,7 @@ public class CommandExecutionTest {
 		if ( childAlive ) {
 			ProcessHandle.of(childPid).ifPresent(ProcessHandle::destroyForcibly);
 		}
-		Assert.assertFalse("descendant process should be terminated: pid=" + childPid, childAlive);
+		Assertions.assertFalse(childAlive, "descendant process should be terminated: pid=" + childPid);
 	}
 
 	// ----- cancel -----
@@ -345,9 +345,9 @@ public class CommandExecutionTest {
 		AsyncResult<Void> result = exec.waitForFinished(3, TimeUnit.SECONDS);
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertTrue(result.isCancelled());
+		Assertions.assertTrue(result.isCancelled());
 		// 10초 sleep 중 ~150ms 후 cancel되어 빠르게 종료.
-		Assert.assertTrue("elapsed=" + elapsed, elapsed < 2000);
+		Assertions.assertTrue(elapsed < 2000, "elapsed=" + elapsed);
 	}
 
 	// ----- close() 시맨틱 -----
@@ -376,54 +376,68 @@ public class CommandExecutionTest {
 		exec.close();   // close가 cancel + waitForFinished를 수행
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertTrue(exec.isDone());
-		Assert.assertTrue("close should not block long; elapsed=" + elapsed, elapsed < 2000);
+		Assertions.assertTrue(exec.isDone());
+		Assertions.assertTrue(elapsed < 2000, "close should not block long; elapsed=" + elapsed);
 	}
 
 	// ----- Builder 검증 -----
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testEmptyCommandRejected() {
-		CommandExecution.builder().build();
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder().build();
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testInvalidWorkingDirectoryRejected() {
-		CommandExecution.builder()
-						.addCommand("/bin/echo")
-						.workingDirectory(new File("/non/existent/path/xyz"))
-						.build();
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder()
+							.addCommand("/bin/echo")
+							.workingDirectory(new File("/non/existent/path/xyz"))
+							.build();
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testNullCommandRejected() {
-		CommandExecution.builder().addCommand((String[]) null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder().addCommand((String[]) null);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testNullCommandElementRejected() {
-		CommandExecution.builder().addCommand("foo", null, "bar");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder().addCommand("foo", null, "bar");
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testZeroTimeoutRejected() {
-		CommandExecution.builder()
-						.addCommand("/bin/echo")
-						.timeout(Duration.ZERO);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder()
+							.addCommand("/bin/echo")
+							.timeout(Duration.ZERO);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testNegativeTimeoutRejected() {
-		CommandExecution.builder()
-						.addCommand("/bin/echo")
-						.timeout(Duration.ofMillis(-1));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder()
+							.addCommand("/bin/echo")
+							.timeout(Duration.ofMillis(-1));
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testSubMillisTimeoutRejected() {
-		CommandExecution.builder()
-						.addCommand("/bin/echo")
-						.timeout(Duration.ofNanos(500_000));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder()
+							.addCommand("/bin/echo")
+							.timeout(Duration.ofNanos(500_000));
+			});
 	}
 
 	@Test
@@ -433,25 +447,31 @@ public class CommandExecutionTest {
 						.timeout(null);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testNullEnvironmentVariablesRejected() {
-		CommandExecution.builder()
-						.addCommand("/bin/echo")
-						.environmentVariables(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder()
+							.addCommand("/bin/echo")
+							.environmentVariables(null);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testNullVariableRejected() {
-		CommandExecution.builder()
-						.addCommand("/bin/echo")
-						.addVariable(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder()
+							.addCommand("/bin/echo")
+							.addVariable(null);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testNullStdinFileRejected() {
-		CommandExecution.builder()
-						.addCommand("/bin/echo")
-						.redirectStdinFromFile(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			CommandExecution.builder()
+							.addCommand("/bin/echo")
+							.redirectStdinFromFile(null);
+			});
 	}
 
 	@Test
@@ -464,8 +484,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.FAILED, result.getState());
-		Assert.assertTrue(result.getFailureCause() instanceof IllegalArgumentException);
+		Assertions.assertEquals(AsyncState.FAILED, result.getState());
+		Assertions.assertTrue(result.getFailureCause() instanceof IllegalArgumentException);
 	}
 
 	@Test
@@ -483,8 +503,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
-		Assert.assertEquals("from-working-dir", readOutput());
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals("from-working-dir", readOutput());
 	}
 
 	@Test
@@ -499,8 +519,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
-		Assert.assertEquals("to-relative-stdout",
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals("to-relative-stdout",
 							Files.readString(relativeOutFile.toPath(), StandardCharsets.UTF_8).trim());
 	}
 
@@ -516,8 +536,8 @@ public class CommandExecutionTest {
 		exec.start();
 		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assert.assertEquals(AsyncState.COMPLETED, result.getState());
-		Assert.assertEquals("to-relative-stderr",
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals("to-relative-stderr",
 							Files.readString(relativeErrFile.toPath(), StandardCharsets.UTF_8).trim());
 	}
 
@@ -540,6 +560,6 @@ public class CommandExecutionTest {
 		exec.start();
 		exec.waitForFinished();
 
-		Assert.assertEquals("original", readOutput());
+		Assertions.assertEquals("original", readOutput());
 	}
 }

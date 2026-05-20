@@ -38,12 +38,18 @@ public class JdbcParameters {
 	}
 	
 	public JdbcProcessor createJdbcProcessor() {
-		JdbcProcessor jdbc = JdbcProcessor.create(m_system, m_host, m_port, m_user, m_passwd, m_dbName);
+		JdbcProcessor.Builder builder = JdbcProcessor.builder()
+													.system(m_system)
+													.host(m_host)
+													.port(m_port)
+													.user(m_user)
+													.password(m_passwd)
+													.dbName(m_dbName);
 		if ( m_jdbcJarPath != null ) {
-			jdbc.setJdbcJarFile(new File(m_jdbcJarPath));
+			builder.jarFile(new File(m_jdbcJarPath));
 		}
 		
-		return jdbc;
+		return builder.build();
 	}
 	
 	public String system() {

@@ -1,9 +1,9 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import utils.func.FOption;
 
@@ -12,7 +12,7 @@ import utils.func.FOption;
  * @author Kang-Woo Lee (ETRI)
  */
 public class SelectiveMapTest {
-	@Before
+	@BeforeEach
 	public void setUp() {
 	}
 	
@@ -24,30 +24,30 @@ public class SelectiveMapTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(0), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(0), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(-1), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(-1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(-3), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(-3), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(4), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(4), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -58,9 +58,9 @@ public class SelectiveMapTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 }

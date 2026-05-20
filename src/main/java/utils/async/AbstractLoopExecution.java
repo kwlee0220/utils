@@ -1,9 +1,12 @@
 package utils.async;
 
-import java.util.Optional;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import org.jetbrains.annotations.NotNull;
+
+import utils.func.FOption;
 
 
 /**
@@ -63,8 +66,8 @@ public abstract class AbstractLoopExecution<T> extends AbstractThreadedExecution
 	 * <p>
 	 * 반환값에 따라 loop 진행이 결정된다:
 	 * <ul>
-	 *   <li>{@link Optional#empty()} — 다음 iteration 진행.</li>
-	 *   <li>값이 채워진 {@link Optional} — 그 값이 최종 결과가 되어 loop 종료.</li>
+	 *   <li>{@link FOption#empty()} — 다음 iteration 진행.</li>
+	 *   <li>값이 채워진 {@link FOption} — 그 값이 최종 결과가 되어 loop 종료.</li>
 	 * </ul>
 	 * 작업이 중단되어야 할 때는 {@link InterruptedException} 또는 {@link CancellationException}을
 	 * 직접 throw 한다. 본 메소드는 {@code null}을 반환해서는 안 된다.
@@ -81,12 +84,14 @@ public abstract class AbstractLoopExecution<T> extends AbstractThreadedExecution
 	 * 위 계약을 준수하지 않으면 {@code cancelWork()}가 사실상 hang될 수 있으므로 주의해야 한다.
 	 *
 	 * @param loopIndex		loop 인덱스. 0부터 시작함.
-	 * @return		최종 결과를 담은 {@link Optional} (loop 종료) 또는 {@link Optional#empty()} (다음 iteration).
+	 * @return		최종 결과를 담은 {@link FOption} (loop 종료) 또는 {@link FOption#empty()} (다음 iteration).
 	 * @throws InterruptedException		loop 작업이 인터럽트된 경우.
 	 * @throws CancellationException	loop 작업이 취소된 경우.
-	 * @throws Exception		iteration 작업 중 예외가 발생한 경우.
+	 * @throws TimeoutException			작업이 시간 제한을 넘긴 경우.
+	 * @throws ExecutionException		비동기 작업의 결과가 실패한 경우.
 	 */
-	protected abstract @NotNull Optional<T> iterate(long loopIndex) throws Exception;
+	protected abstract @NotNull FOption<T> iterate(long loopIndex)
+		throws InterruptedException, CancellationException, TimeoutException, ExecutionException;
 	
 	/**
 	 * Loop 작업이 종료된 후 cleanup 작업을 수행한다.
@@ -117,9 +122,9 @@ public abstract class AbstractLoopExecution<T> extends AbstractThreadedExecution
 					throw new CancellationException("loop execution is cancelled");
 				}
 
-				// iterate가 결과를 반환한 경우(Optional.isPresent) loop를 종료.
-				// Optional.empty()인 경우는 다음 iteration 진행.
-				Optional<T> result = iterate(++iterCount);
+				// iterate가 결과를 반환한 경우(FOption.isPresent) loop를 종료.
+				// FOption.empty()인 경우는 다음 iteration 진행.
+				FOption<T> result = iterate(++iterCount);
 				if ( result.isPresent() ) {
 					return result.get();
 				}

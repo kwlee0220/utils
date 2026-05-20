@@ -15,10 +15,9 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import utils.Throwables;
-import utils.Utilities;
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
-import utils.async.Guard;
+import utils.thread.Guard;
 import utils.func.Unchecked;
 
 
@@ -55,14 +54,14 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 	}
 	
 	public utils.statechart.State<C> getState(String path) {
-		Utilities.checkNotNull(path, "path is null");
+		utils.Preconditions.checkNotNull(path, "path is null");
 
 		return m_states.get(path);
 	}
 	
 	public void addState(utils.statechart.State<C> state) {
-		Utilities.checkNotNull(state, "state is null");
-		Utilities.checkState(isNotStarted(), "StateChart is already started");
+		utils.Preconditions.checkNotNull(state, "state is null");
+		utils.Preconditions.checkState(isNotStarted(), "StateChart is already started");
 
 		m_states.put(state.getPath(), state);
 	}
@@ -72,8 +71,8 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 	}
 	
 	public void setInitialState(@NotNull String initialStatePath) {
-		Utilities.checkNotNull(initialStatePath, "initialState is null");
-		Utilities.checkState(isNotStarted(), "StateChart is already started");
+		utils.Preconditions.checkNotNull(initialStatePath, "initialState is null");
+		utils.Preconditions.checkState(isNotStarted(), "StateChart is already started");
 		
 		utils.statechart.State<C> initialState = m_states.get(initialStatePath);
 		if ( initialState == null ) {
@@ -84,8 +83,8 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 	}
 	
 	public void addFinalState(String path) {
-		Utilities.checkNotNull(path, "state path is null");
-		Utilities.checkState(isNotStarted(), "StateChart is already started");
+		utils.Preconditions.checkNotNull(path, "state path is null");
+		utils.Preconditions.checkState(isNotStarted(), "StateChart is already started");
 		
 		utils.statechart.State<C> finalState = m_states.get(path);
 		if ( finalState == null ) {
@@ -101,10 +100,10 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 
 	@Override
 	public void start() {
-		Utilities.checkNotNull(m_initialState, "initialState is not set");
-		Utilities.checkState(m_finalStates != null && m_finalStates.size() > 0,
+		utils.Preconditions.checkNotNull(m_initialState, "initialState is not set");
+		utils.Preconditions.checkState(m_finalStates != null && m_finalStates.size() > 0,
 							"finalState should not be empty");
-		Utilities.checkState(!m_finalStates.contains(m_initialState),
+		utils.Preconditions.checkState(!m_finalStates.contains(m_initialState),
 							"initialState should not be a finalState");
 		
 		m_guard.lock();
@@ -149,7 +148,7 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 	 * @return 신호 처리 과정에서 사용된 최종 {@link Transition} 객체.
 	 */
 	public Optional<Transition<C>> handleSignal(Signal signal) {
-		Utilities.checkNotNull(signal, "signal is null");
+		utils.Preconditions.checkNotNull(signal, "signal is null");
 
 		m_guard.lock();
 		try {

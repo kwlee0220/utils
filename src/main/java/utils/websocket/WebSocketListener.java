@@ -12,8 +12,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import utils.Preconditions;
 import utils.RuntimeTimeoutException;
-import utils.Utilities;
 import utils.websocket.Signals.BinaryMessage;
 import utils.websocket.Signals.ConnectionClosed;
 import utils.websocket.Signals.ErrorMessage;
@@ -62,7 +62,7 @@ class WebSocketListener<C extends WebSocketContext<C>> implements WebSocket.List
 	private StringBuilder m_textMessageBuilder = new StringBuilder();
 
 	WebSocketListener(WebSocketStateChart<C> machine) {
-		Utilities.checkNotNullArgument(machine, "machine is null");
+		Preconditions.checkNotNullArgument(machine, "machine is null");
 
 		m_stateMachine = machine;
 

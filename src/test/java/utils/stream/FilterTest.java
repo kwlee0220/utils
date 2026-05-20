@@ -3,8 +3,8 @@ package utils.stream;
 
 import java.util.function.Predicate;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -23,22 +23,22 @@ public class FilterTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(2), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(2), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(Integer.valueOf(1), r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -49,7 +49,7 @@ public class FilterTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -60,37 +60,43 @@ public class FilterTest {
 		FOption<Integer> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
-	@Test(expected=RuntimeException.class)
+	@Test
 	public void test4() throws Exception {
-		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream = stream.dropWhile(i -> { throw new RuntimeException(); });
-		stream = stream.filter(i -> { throw new RuntimeException(); });
+		Assertions.assertThrows(RuntimeException.class, () -> {
+			FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
+			stream = stream.dropWhile(i -> { throw new RuntimeException(); });
+			stream = stream.filter(i -> { throw new RuntimeException(); });
 		
-		stream.next();
+			stream.next();
+			});
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test5() throws Exception {
-		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream = stream.filter(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
+			stream = stream.filter(null);
+			});
 	}
 
-	@Test(expected=IllegalStateException.class)
+	@Test
 	public void test6() throws Exception {
-		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5));
-		stream = stream.filter(i -> i < 3);
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5));
+			stream = stream.filter(i -> i < 3);
 		
-		FOption<Integer> r;
+			FOption<Integer> r;
 		
-		r = stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(Integer.valueOf(1), r.get());
+			r = stream.next();
+			Assertions.assertEquals(true, r.isPresent());
+			Assertions.assertEquals(Integer.valueOf(1), r.get());
 		
-		stream.close();
-		r = stream.next();
+			stream.close();
+			r = stream.next();
+			});
 	}
 	
 	static class Parent {
@@ -108,7 +114,7 @@ public class FilterTest {
 		Predicate<Parent> pred = (Parent o) -> o.m_a.length() >= 2;
 		FStream<Child> childStream = FStream.of(new Child("a", 1), new Child("aa", 2), new Child("aaa", 3));
 		int[] array = childStream.filter(pred).map(c -> c.m_b).toIntFStream().toArray();
-		Assert.assertEquals(2, array.length);
-		Assert.assertArrayEquals(new int[]{2, 3}, array);
+		Assertions.assertEquals(2, array.length);
+		Assertions.assertArrayEquals(new int[]{2, 3}, array);
 	}
 }

@@ -9,14 +9,13 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import utils.Preconditions;
 import utils.RuntimeExecutionException;
 import utils.RuntimeInterruptedException;
-import utils.Utilities;
 import utils.async.AsyncResult.Cancelled;
 import utils.async.AsyncResult.Completed;
 import utils.async.AsyncResult.Failed;
 import utils.async.AsyncResult.Running;
-import utils.async.Executions.FlatMapChainExecution;
 import utils.async.Executions.MapChainExecution;
 import utils.func.Result;
 
@@ -68,7 +67,8 @@ import utils.func.Result;
  *       {@link #whenFinished(Consumer)}, {@link #whenFinishedAsync(Consumer)}, 그리고 종료 케이스별
  *       편의 메소드 {@link #whenCompleted(Consumer)}, {@link #whenFailed(Consumer)}, {@link #whenCancelled(Runnable)}.
  *   <li><b>합성/chain</b>: {@link #map(Function)}(성공 시 값 변환),
- *       {@link #flatMapOnFinished(Function)}(모든 종료 케이스에서 다음 비동기 작업 결정).
+ *       {@link EventDrivenExecution#flatMap(Function)}(모든 종료 케이스에서 다음 비동기 작업 결정,
+ *       {@link EventDrivenExecution} 기반에서만 제공).
  *   <li><b>중단/타임아웃</b>: {@link #cancel(boolean)}, {@link #setTimeout(long, TimeUnit)}.
  * </ul>
  *
@@ -87,7 +87,7 @@ import utils.func.Result;
  * <ul>
  *   <li>{@link AsyncResult} — polling/대기 API가 반환. 종료뿐 아니라
  *       {@code Running}(아직 수행 중) 상태도 표현 가능.
- *   <li>{@link Result} — finish 콜백 및 {@link #flatMapOnFinished(Function)}의 인자.
+ *   <li>{@link Result} — finish 콜백 및 {@link EventDrivenExecution#flatMap(Function)}의 인자.
  *       종료된 결과(성공/실패/취소)만 표현.
  * </ul>
  *
@@ -522,7 +522,7 @@ public interface Execution<T> extends Future<T> {
 	 * 즉 표준 monadic map 시맨틱(성공 시에만 변환)을 따른다.
 	 * <p>
 	 * 새 {@link Execution}을 chain하여 다른 비동기 작업을 이어가려면
-	 * {@link #flatMapOnFinished(Function)}을 사용한다.
+	 * {@link EventDrivenExecution#flatMap(Function)}을 사용한다.
 	 *
 	 * @param mapper	성공 결과 값을 변환하는 함수.
 	 * @param <S>	변환 후 결과 타입.
@@ -532,26 +532,6 @@ public interface Execution<T> extends Future<T> {
 		return new MapChainExecution<>(this, mapper);
 	}
 	
-	/**
-	 * 본 작업이 종료된 후, 그 결과를 받아 다음 비동기 작업을 결정해 이어 실행한다.
-	 * <p>
-	 * 본 작업의 종료 상태(성공/실패/취소)와 무관하게 항상 {@code chain} 함수가 호출되며,
-	 * 함수는 {@link Result}를 인자로 받아 다음 {@link Execution}을 반환한다.
-	 * 이는 {@link java.util.concurrent.CompletableFuture#handle(java.util.function.BiFunction)}과
-	 * {@link java.util.concurrent.CompletableFuture#thenCompose(java.util.function.Function)}을
-	 * 결합한 시맨틱에 해당하며, 일반적인 monadic flatMap(성공 시에만 chain)과는 다르다.
-	 * <p>
-	 * 표준 monadic flatMap(성공 시에만 다음 작업을 chain)이 필요하면
-	 * {@link EventDrivenExecution#flatMapOnCompleted(Function)}를 사용한다.
-	 *
-	 * @param chain	{@link Result}를 받아 다음 {@link Execution}을 생성하는 함수.
-	 * @param <S>	다음 작업의 결과 타입.
-	 * @return 본 작업 종료 후 chain의 결과를 따라가는 {@link Execution}.
-	 */
-	public default <S> Execution<S> flatMapOnFinished(Function<? super Result<T>,
-														? extends Execution<S>> chain) {
-		return new FlatMapChainExecution<>(this, chain);
-	}
 
 	/**
 	 * 작업의 상태가 {@link AsyncState#STARTING}에서 {@link AsyncState#RUNNING}으로
@@ -651,7 +631,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return 본 {@link Execution} 객체 (체이닝용).
 	 */
 	public default Execution<T> whenCompleted(Consumer<T> handler) {
-		Utilities.checkNotNullArgument(handler, "handler is null");
+		Preconditions.checkNotNullArgument(handler, "handler is null");
 
 		return whenFinishedAsync(result -> result.ifSuccessful(handler));
 	}
@@ -675,7 +655,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return 본 {@link Execution} 객체 (체이닝용).
 	 */
 	public default Execution<T> whenFailed(Consumer<Throwable> handler) {
-		Utilities.checkNotNullArgument(handler, "handler is null");
+		Preconditions.checkNotNullArgument(handler, "handler is null");
 
 		return whenFinishedAsync(result -> result.ifFailed(handler));
 	}
@@ -697,7 +677,7 @@ public interface Execution<T> extends Future<T> {
 	 * @return 본 {@link Execution} 객체 (체이닝용).
 	 */
 	public default Execution<T> whenCancelled(Runnable handler) {
-		Utilities.checkNotNullArgument(handler, "handler is null");
+		Preconditions.checkNotNullArgument(handler, "handler is null");
 
 		return whenFinishedAsync(result -> result.ifNone(handler));
 	}

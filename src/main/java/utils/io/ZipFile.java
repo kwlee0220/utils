@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import utils.Utilities;
+import utils.Preconditions;
 
 /**
  * 
@@ -34,7 +34,7 @@ public class ZipFile {
 	private final URI m_uri;
 	
 	public ZipFile(Path path) {
-		Utilities.checkNotNullArgument(path, "path is null");
+		Preconditions.checkNotNullArgument(path, "path is null");
 
 		m_uri = URI.create("jar:" + path.toUri());
 	}
@@ -47,7 +47,7 @@ public class ZipFile {
 	}
 
 	public void traverse(Consumer<Path> visitor) throws IOException {
-		Utilities.checkNotNullArgument(visitor, "visitor is null");
+		Preconditions.checkNotNullArgument(visitor, "visitor is null");
 
 		final Map<String,String> env = Maps.newHashMap();
 
@@ -71,8 +71,8 @@ public class ZipFile {
 	}
 
 	public static ZipFile zipDirectory(Path zipFile, Path dir) throws IOException {
-		Utilities.checkNotNullArgument(zipFile, "zipFile is null");
-		Utilities.checkNotNullArgument(dir, "dir is null");
+		Preconditions.checkNotNullArgument(zipFile, "zipFile is null");
+		Preconditions.checkNotNullArgument(dir, "dir is null");
 
 		// dir.toFile().listFiles()는 null을 반환할 수 있고 default FileSystem만 지원하므로
 		// Files.list()로 대체. Path가 디렉토리가 아니면 NotDirectoryException이 의미 있게 전파된다.
@@ -83,9 +83,9 @@ public class ZipFile {
 	}
 
 	public static ZipFile zip(Path zipFile, String baseName, List<Path> files) throws IOException {
-		Utilities.checkNotNullArgument(zipFile, "zipFile is null");
-		Utilities.checkNotNullArgument(baseName, "baseName is null");
-		Utilities.checkNotNullArgument(files, "files is null");
+		Preconditions.checkNotNullArgument(zipFile, "zipFile is null");
+		Preconditions.checkNotNullArgument(baseName, "baseName is null");
+		Preconditions.checkNotNullArgument(files, "files is null");
 
 		final Map<String,String> env = Maps.newHashMap();
 		env.put("create", "true");

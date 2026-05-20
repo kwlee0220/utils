@@ -8,7 +8,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import utils.Utilities;
+import utils.Preconditions;
 
 /**
  * 
@@ -60,20 +60,20 @@ public abstract class Result<T> {
 							Function<? super Throwable, X> exceptionProvider) throws X;
 	
 	public T getOrElse(Supplier<? extends T> supplier) {
-        Utilities.checkNotNullArgument(supplier, "supplier is null");
+        Preconditions.checkNotNullArgument(supplier, "supplier is null");
         
 		return supplier.get();
     }
 
 	public <X extends Throwable> T getOrElseThrow(Supplier<X> supplier) throws X {
-        Utilities.checkNotNullArgument(supplier, "supplier is null");
+        Preconditions.checkNotNullArgument(supplier, "supplier is null");
 
         throw supplier.get();
     }
 
     @SuppressWarnings("unchecked")
     public Result<T> orElse(Result<? extends T> other) {
-        Utilities.checkNotNullArgument(other, "other is null");
+        Preconditions.checkNotNullArgument(other, "other is null");
 		return isSuccessful() ? this : (Result<T>)other;
     }
 
@@ -82,17 +82,17 @@ public abstract class Result<T> {
     }
 	
     public Result<T> ifSuccessful(Consumer<? super T> action) {
-        Utilities.checkNotNullArgument(action, "action is null");
+        Preconditions.checkNotNullArgument(action, "action is null");
         return this;
     }
 
     public Result<T> ifNone(Runnable action) {
-        Utilities.checkNotNullArgument(action, "action is null");
+        Preconditions.checkNotNullArgument(action, "action is null");
         return this;
     }
     
     public Result<T> ifFailed(Consumer<? super Throwable> action) {
-        Utilities.checkNotNullArgument(action, "action is null");
+        Preconditions.checkNotNullArgument(action, "action is null");
         return this;
     }
     
@@ -149,14 +149,14 @@ public abstract class Result<T> {
 
 		@Override
 		public T getOrElse(Supplier<? extends T> supplier) {
-	        Utilities.checkNotNullArgument(supplier, "supplier is null");
+	        Preconditions.checkNotNullArgument(supplier, "supplier is null");
 
 			return m_value;
 	    }
 
 		@Override
 		public <X extends Throwable> T getOrElseThrow(Supplier<X> supplier) throws X {
-	        Utilities.checkNotNullArgument(supplier, "supplier is null");
+	        Preconditions.checkNotNullArgument(supplier, "supplier is null");
 			return m_value;
 	    }
 
@@ -167,7 +167,7 @@ public abstract class Result<T> {
 
 		@Override
 	    public Result<T> ifSuccessful(Consumer<? super T> action) {
-	        Utilities.checkNotNullArgument(action, "action is null");
+	        Preconditions.checkNotNullArgument(action, "action is null");
 
             action.accept(m_value);
 	        return this;
@@ -175,7 +175,7 @@ public abstract class Result<T> {
 
 		@Override
 		public <U> Result<U> map(Function<? super T, ? extends U> mapper) {
-	        Utilities.checkNotNullArgument(mapper, "mapper is null");
+	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
 	        
 			try {
 				return success(mapper.apply(m_value));
@@ -187,7 +187,7 @@ public abstract class Result<T> {
 
 		@Override
 		public Result<T> filter(Predicate<T> predicate) {
-	        Utilities.checkNotNullArgument(predicate, "predicate is null");
+	        Preconditions.checkNotNullArgument(predicate, "predicate is null");
 
 			try {
 				return predicate.test(m_value) ? this : none();
@@ -199,7 +199,7 @@ public abstract class Result<T> {
 
 		@Override @SuppressWarnings("unchecked")
 		public <U> Result<U> flatMap(Function<? super T, ? extends Result<? extends U>> mapper) {
-	        Utilities.checkNotNullArgument(mapper, "mapper is null");
+	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
 	        
 			try {
 				return (Result<U>)mapper.apply(m_value);
@@ -250,14 +250,14 @@ public abstract class Result<T> {
 
 		@Override
 		public <X extends Throwable> T getOrElseThrow(Function<? super Throwable, X> exceptionProvider) throws X {
-	        Utilities.checkNotNullArgument(exceptionProvider, "exceptionProvider is null");
+	        Preconditions.checkNotNullArgument(exceptionProvider, "exceptionProvider is null");
 
             throw exceptionProvider.apply(new IllegalStateException("get() on None"));
 	    }
 
 		@Override
 	    public Result<T> ifNone(Runnable action) {
-	        Utilities.checkNotNullArgument(action, "action is null");
+	        Preconditions.checkNotNullArgument(action, "action is null");
 
             action.run();
 	        return this;
@@ -265,19 +265,19 @@ public abstract class Result<T> {
 
 		@Override
 		public <U> Result<U> map(Function<? super T, ? extends U> mapper) {
-	        Utilities.checkNotNullArgument(mapper, "mapper is null");
+	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
 	        
 			return none();
 		}
 
 		@Override
 		public Result<T> filter(Predicate<T> predicate) {
-	        Utilities.checkNotNullArgument(predicate, "predicate is null");
+	        Preconditions.checkNotNullArgument(predicate, "predicate is null");
 			return none();
 		}
 		
 		public <U> Result<U> flatMap(Function<? super T, ? extends Result<? extends U>> mapper) {
-	        Utilities.checkNotNullArgument(mapper, "mapper is null");
+	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
 			return none();
 		}
 
@@ -323,7 +323,7 @@ public abstract class Result<T> {
 
 		@Override
 		public <X extends Throwable> T getOrElseThrow(Function<? super Throwable, X> exceptionProvider) throws X {
-	        Utilities.checkNotNullArgument(exceptionProvider, "exceptionProvider is null");
+	        Preconditions.checkNotNullArgument(exceptionProvider, "exceptionProvider is null");
 
             throw exceptionProvider.apply(m_cause);
 	    }
@@ -335,7 +335,7 @@ public abstract class Result<T> {
 
         @Override
         public Result<T> ifFailed(Consumer<? super Throwable> action) {
-            Utilities.checkNotNullArgument(action, "action is null");
+            Preconditions.checkNotNullArgument(action, "action is null");
 
             action.accept(m_cause);
             return this;
@@ -343,19 +343,19 @@ public abstract class Result<T> {
 
 		@Override
 		public <U> Result<U> map(Function<? super T, ? extends U> mapper) {
-	        Utilities.checkNotNullArgument(mapper, "mapper is null");
+	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
 	        
 			return failure(m_cause);
 		}
 
 		@Override
 		public Result<T> filter(Predicate<T> predicate) {
-	        Utilities.checkNotNullArgument(predicate, "predicate is null");
+	        Preconditions.checkNotNullArgument(predicate, "predicate is null");
 			return failure(m_cause);
 		}
 		
 		public <U> Result<U> flatMap(Function<? super T, ? extends Result<? extends U>> mapper) {
-	        Utilities.checkNotNullArgument(mapper, "mapper is null");
+	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
 			return failure(m_cause);
 		}
 

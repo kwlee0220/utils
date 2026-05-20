@@ -1,7 +1,9 @@
 package utils.async;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import utils.func.Lazy;
 import utils.thread.ExecutorAware;
 
 
@@ -19,6 +21,30 @@ import utils.thread.ExecutorAware;
 public abstract class AbstractAsyncExecution<T> extends EventDrivenExecution<T>
 													implements StartableExecution<T>, ExecutorAware {
 	private Executor m_executor;
+	
+	private static Lazy<ScheduledThreadPoolExecutor> s_defaultExecutor = Lazy.of(() -> createExecutor());
+	private static int s_execThreadCount = Math.max(2, Runtime.getRuntime().availableProcessors());
+	private static ScheduledThreadPoolExecutor createExecutor() {
+		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(
+				s_execThreadCount, r -> {
+					Thread t = new Thread(r, "Execution-Worker");
+					t.setDaemon(true);
+					return t;
+				});
+		executor.setRemoveOnCancelPolicy(true);
+		return executor;
+	}
+	
+	public ScheduledThreadPoolExecutor getThreadPoolExecutor() {
+		return s_defaultExecutor.get();
+	}
+	
+	public static void setExecutorThreadCount(int count) {
+		if ( s_defaultExecutor.isLoaded() ) {
+			throw new IllegalStateException("executor already created");
+		}
+		s_execThreadCount = count;
+	}
 
 	@Override
 	public Executor getExecutor() {

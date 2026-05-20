@@ -4,8 +4,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * {@link Transitions} 정적 팩토리와 그 결과 {@link Transition} 인스턴스의 동작을 검증한다.
@@ -35,22 +35,26 @@ public class TransitionsTest {
 		};
 		Transition<TestCtx> t = Transitions.create("targetPath", action);
 
-		Assert.assertEquals(Optional.of("targetPath"), t.getTargetStatePath());
-		Assert.assertFalse(t.isSelfTransition());
+		Assertions.assertEquals(Optional.of("targetPath"), t.getTargetStatePath());
+		Assertions.assertFalse(t.isSelfTransition());
 
 		t.execute(m_ctx, m_signal);
-		Assert.assertTrue(invoked.get());
-		Assert.assertSame(m_signal, seenSignal.get());
+		Assertions.assertTrue(invoked.get());
+		Assertions.assertSame(m_signal, seenSignal.get());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void create_null_path_rejected() {
-		Transitions.create(null, (c, s) -> {});
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Transitions.create(null, (c, s) -> {});
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void create_null_action_rejected() {
-		Transitions.create("path", null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Transitions.create("path", null);
+			});
 	}
 
 	// ---- noop ----
@@ -59,15 +63,17 @@ public class TransitionsTest {
 	public void noop_returns_transition_with_target_and_no_op_execute() {
 		Transition<TestCtx> t = Transitions.noop("targetPath");
 
-		Assert.assertEquals(Optional.of("targetPath"), t.getTargetStatePath());
-		Assert.assertFalse(t.isSelfTransition());
+		Assertions.assertEquals(Optional.of("targetPath"), t.getTargetStatePath());
+		Assertions.assertFalse(t.isSelfTransition());
 
 		t.execute(m_ctx, m_signal);   // 예외 발생 없이 통과해야 함
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void noop_null_path_rejected() {
-		Transitions.noop(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Transitions.noop(null);
+			});
 	}
 
 	// ---- stay ----
@@ -76,15 +82,15 @@ public class TransitionsTest {
 	public void stay_returns_singleton() {
 		Transition<TestCtx> t1 = Transitions.stay();
 		Transition<TestCtx> t2 = Transitions.stay();
-		Assert.assertSame(t1, t2);
+		Assertions.assertSame(t1, t2);
 	}
 
 	@Test
 	public void stay_is_self_transition() {
 		Transition<TestCtx> t = Transitions.stay();
 
-		Assert.assertTrue(t.getTargetStatePath().isEmpty());
-		Assert.assertTrue(t.isSelfTransition());
+		Assertions.assertTrue(t.getTargetStatePath().isEmpty());
+		Assertions.assertTrue(t.isSelfTransition());
 
 		t.execute(m_ctx, m_signal);   // self-transition execute는 no-op
 	}
@@ -93,7 +99,7 @@ public class TransitionsTest {
 
 	@Test
 	public void toString_includes_target_path() {
-		Assert.assertTrue(Transitions.<TestCtx>noop("X").toString().contains("X"));
-		Assert.assertEquals("stay", Transitions.<TestCtx>stay().toString());
+		Assertions.assertTrue(Transitions.<TestCtx>noop("X").toString().contains("X"));
+		Assertions.assertEquals("stay", Transitions.<TestCtx>stay().toString());
 	}
 }

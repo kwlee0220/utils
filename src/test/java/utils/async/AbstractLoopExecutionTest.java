@@ -3,45 +3,48 @@ package utils.async;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import java.util.Optional;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import utils.func.FOption;
+import org.junit.jupiter.api.Timeout;
 
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class AbstractLoopExecutionTest {
-	@Before
+	@BeforeEach
 	public void setup() {
 	}
 	
 	@Test
 	public void test1() throws Exception {
 		StartableExecution<Integer> exec = new TestExecution1(5);
-		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
+		Assertions.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		exec.waitForStarted();
-		Assert.assertEquals(true, exec.isStarted());
-		Assert.assertEquals(false, exec.isDone());
+		Assertions.assertEquals(true, exec.isStarted());
+		Assertions.assertEquals(false, exec.isDone());
 		
 		AsyncResult<Integer> result;
 		result = exec.waitForFinished(100, TimeUnit.MILLISECONDS);
-		Assert.assertEquals(true, result.isRunning());
+		Assertions.assertEquals(true, result.isRunning());
 		
 		result = exec.waitForFinished(1, TimeUnit.SECONDS);
-		Assert.assertEquals(true, result.isCompleted());
-		Assert.assertEquals(5, (int)result.get());
+		Assertions.assertEquals(true, result.isCompleted());
+		Assertions.assertEquals(5, (int)result.get());
 	}
 	
 	@Test
@@ -49,16 +52,16 @@ public class AbstractLoopExecutionTest {
 		StartableExecution<Integer> exec = new TestExecution1(5000);
 		
 		exec.start();
-		Assert.assertEquals(true, exec.waitForFinished(100, TimeUnit.MILLISECONDS).isRunning());
+		Assertions.assertEquals(true, exec.waitForFinished(100, TimeUnit.MILLISECONDS).isRunning());
 		
 		boolean done;
 		done = exec.cancel(true);
-		Assert.assertEquals(true, done);
+		Assertions.assertEquals(true, done);
 		
 		AsyncResult<Integer> result;
 		result = exec.waitForFinished();
-		Assert.assertEquals(true, result.isCancelled());
-		Assert.assertEquals(true, exec.isDone());
+		Assertions.assertEquals(true, result.isCancelled());
+		Assertions.assertEquals(true, exec.isDone());
 	}
 	
 	@Test
@@ -66,15 +69,15 @@ public class AbstractLoopExecutionTest {
 		AsyncResult<Integer> result;
 		
 		StartableExecution<Integer> exec = new TestExecution2(5);
-		Assert.assertEquals(AsyncState.NOT_STARTED, exec.getState());
+		Assertions.assertEquals(AsyncState.NOT_STARTED, exec.getState());
 		
 		exec.start();
 		exec.waitForStarted();
-		Assert.assertEquals(true, exec.isStarted());
-		Assert.assertEquals(false, exec.isDone());
+		Assertions.assertEquals(true, exec.isStarted());
+		Assertions.assertEquals(false, exec.isDone());
 		
 		result = exec.waitForFinished(1, TimeUnit.SECONDS);
-		Assert.assertEquals(true, result.isCancelled());
+		Assertions.assertEquals(true, result.isCancelled());
 	}
 	
 	@Test
@@ -86,8 +89,8 @@ public class AbstractLoopExecutionTest {
 		exec.start();
 		
 		result = exec.waitForFinished(1, TimeUnit.SECONDS);
-		Assert.assertEquals(true, result.isFailed());
-		Assert.assertEquals("test", result.getFailureCause().getMessage());
+		Assertions.assertEquals(true, result.isFailed());
+		Assertions.assertEquals("test", result.getFailureCause().getMessage());
 	}
 	
 	@Test
@@ -99,25 +102,29 @@ public class AbstractLoopExecutionTest {
 		exec.start();
 		
 		result = exec.waitForFinished(1, TimeUnit.SECONDS);
-		Assert.assertEquals(true, result.isFailed());
-		Assert.assertEquals("test", result.getFailureCause().getMessage());
+		Assertions.assertEquals(true, result.isFailed());
+		Assertions.assertEquals("test", result.getFailureCause().getMessage());
 	}
 	
 	// ---------- finalize 라이프사이클 ----------
 
-	@Test(timeout = 5_000)
+	@Test
+
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
 	public void finalizeLoop_called_on_normal_completion() throws Exception {
 		LifecycleLoop loop = new LifecycleLoop(3);
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished();
 
-		Assert.assertTrue(result.isCompleted());
-		Assert.assertEquals(1, loop.initCalls.get());
-		Assert.assertEquals(3, loop.iterateCalls.get());
-		Assert.assertEquals(1, loop.finalizeCalls.get());
+		Assertions.assertTrue(result.isCompleted());
+		Assertions.assertEquals(1, loop.initCalls.get());
+		Assertions.assertEquals(3, loop.iterateCalls.get());
+		Assertions.assertEquals(1, loop.finalizeCalls.get());
 	}
 
-	@Test(timeout = 5_000)
+	@Test
+
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
 	public void finalizeLoop_called_on_external_cancel() throws Exception {
 		LifecycleLoop loop = new LifecycleLoop(1000);
 		loop.iterationDelayMs = 50;
@@ -125,15 +132,17 @@ public class AbstractLoopExecutionTest {
 		loop.waitForStarted();
 		MILLISECONDS.sleep(120);   // 적어도 한 번의 iterate 진입 보장
 
-		Assert.assertTrue(loop.cancel(true));
+		Assertions.assertTrue(loop.cancel(true));
 		AsyncResult<Integer> result = loop.waitForFinished();
 
-		Assert.assertTrue(result.isCancelled());
-		Assert.assertEquals(1, loop.initCalls.get());
-		Assert.assertEquals(1, loop.finalizeCalls.get());
+		Assertions.assertTrue(result.isCancelled());
+		Assertions.assertEquals(1, loop.initCalls.get());
+		Assertions.assertEquals(1, loop.finalizeCalls.get());
 	}
 
-	@Test(timeout = 5_000)
+	@Test
+
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
 	public void finalizeLoop_called_on_iterate_failure() throws Exception {
 		LifecycleLoop loop = new LifecycleLoop(10);
 		loop.iterateThrowAt = 2L;
@@ -141,39 +150,45 @@ public class AbstractLoopExecutionTest {
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished();
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertEquals(1, loop.initCalls.get());
-		Assert.assertEquals(1, loop.finalizeCalls.get());
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertEquals(1, loop.initCalls.get());
+		Assertions.assertEquals(1, loop.finalizeCalls.get());
 	}
 
-	@Test(timeout = 5_000)
+	@Test
+
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
 	public void finalizeLoop_NOT_called_when_initializeLoop_fails() throws Exception {
 		LifecycleLoop loop = new LifecycleLoop(3);
 		loop.initThrow = new IllegalStateException("init");
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished();
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertEquals(1, loop.initCalls.get());
-		Assert.assertEquals(0, loop.iterateCalls.get());
-		Assert.assertEquals(0, loop.finalizeCalls.get());
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertEquals(1, loop.initCalls.get());
+		Assertions.assertEquals(0, loop.iterateCalls.get());
+		Assertions.assertEquals(0, loop.finalizeCalls.get());
 	}
 
-	@Test(timeout = 5_000)
+	@Test
+
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
 	public void finalizeLoop_exception_swallowed_completion_unaffected() throws Exception {
 		LifecycleLoop loop = new LifecycleLoop(2);
 		loop.finalizeThrow = new IllegalStateException("finalize-boom");
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished();
 
-		Assert.assertTrue("finalizeLoop의 예외는 무시되어야 함", result.isCompleted());
-		Assert.assertEquals(2, (int)result.get());
-		Assert.assertEquals(1, loop.finalizeCalls.get());
+		Assertions.assertTrue(result.isCompleted(), "finalizeLoop의 예외는 무시되어야 함");
+		Assertions.assertEquals(2, (int)result.get());
+		Assertions.assertEquals(1, loop.finalizeCalls.get());
 	}
 
 	// ---------- iterate 동작 ----------
 
-	@Test(timeout = 5_000)
+	@Test
+
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
 	public void iterate_throws_InterruptedException_transitions_to_CANCELLED() throws Exception {
 		LifecycleLoop loop = new LifecycleLoop(10);
 		loop.iterateThrowAt = 1L;
@@ -181,21 +196,23 @@ public class AbstractLoopExecutionTest {
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished();
 
-		Assert.assertTrue(result.isCancelled());
-		Assert.assertEquals(1, loop.finalizeCalls.get());
+		Assertions.assertTrue(result.isCancelled());
+		Assertions.assertEquals(1, loop.finalizeCalls.get());
 	}
 
 	// ---------- cancel 동작 ----------
 
-	@Test(timeout = 5_000)
+	@Test
+
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
 	public void cancel_before_start_skips_initialize_and_iterate() throws Exception {
 		LifecycleLoop loop = new LifecycleLoop(3);
 
-		Assert.assertTrue(loop.cancel(true));
-		Assert.assertEquals(AsyncState.CANCELLED, loop.getState());
-		Assert.assertEquals(0, loop.initCalls.get());
-		Assert.assertEquals(0, loop.iterateCalls.get());
-		Assert.assertEquals(0, loop.finalizeCalls.get());
+		Assertions.assertTrue(loop.cancel(true));
+		Assertions.assertEquals(AsyncState.CANCELLED, loop.getState());
+		Assertions.assertEquals(0, loop.initCalls.get());
+		Assertions.assertEquals(0, loop.iterateCalls.get());
+		Assertions.assertEquals(0, loop.finalizeCalls.get());
 	}
 
 	// ---------- helper task classes ----------
@@ -229,7 +246,7 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected Optional<Integer> iterate(long loopIndex) throws Exception {
+		protected FOption<Integer> iterate(long loopIndex) throws InterruptedException, ExecutionException {
 			int n = iterateCalls.incrementAndGet();
 			if ( iterationDelayMs > 0 ) {
 				MILLISECONDS.sleep(iterationDelayMs);
@@ -238,7 +255,7 @@ public class AbstractLoopExecutionTest {
 					&& (iterateThrowAt == null || iterateThrowAt == loopIndex) ) {
 				throwAs(iterateThrow);
 			}
-			return n >= m_targetIterations ? Optional.of(n) : Optional.empty();
+			return n >= m_targetIterations ? FOption.of(n) : FOption.empty();
 		}
 
 		@Override
@@ -255,15 +272,21 @@ public class AbstractLoopExecutionTest {
 			}
 		}
 
-		private static void throwAs(Throwable t) throws Exception {
+		private static void throwAs(Throwable t) throws InterruptedException, ExecutionException {
 			if ( t instanceof RuntimeException ) {
 				throw (RuntimeException)t;
 			}
 			if ( t instanceof Error ) {
 				throw (Error)t;
 			}
+			if ( t instanceof InterruptedException ie ) {
+				throw ie;
+			}
+			if ( t instanceof ExecutionException ee ) {
+				throw ee;
+			}
 			if ( t instanceof Exception ) {
-				throw (Exception)t;
+				throw new ExecutionException(t);
 			}
 			throw new RuntimeException(t);
 		}
@@ -283,12 +306,12 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected Optional<Integer> iterate(long loopIndex) throws Exception {
-			Assert.assertEquals(loopIndex, m_index);
+		protected FOption<Integer> iterate(long loopIndex) throws InterruptedException {
+			Assertions.assertEquals(loopIndex, m_index);
 			MILLISECONDS.sleep(100);
 			++m_index;
 			
-			return (m_index >= m_limit) ? Optional.of(m_index) : Optional.empty();
+			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
 		}
 
 		@Override
@@ -309,14 +332,14 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected Optional<Integer> iterate(long loopIndex) throws Exception {
-			Assert.assertEquals(loopIndex, m_index);
+		protected FOption<Integer> iterate(long loopIndex) throws InterruptedException {
+			Assertions.assertEquals(loopIndex, m_index);
 			MILLISECONDS.sleep(100);
 			if ( ++m_index == 3 ) {
 				throw new CancellationException();
 			}
 
-			return (m_index >= m_limit) ? Optional.of(m_index) : Optional.empty();
+			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
 		}
 
 		@Override
@@ -337,15 +360,15 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected Optional<Integer> iterate(long loopIndex) throws Exception {
-			Assert.assertEquals(loopIndex, m_index);
+		protected FOption<Integer> iterate(long loopIndex) throws InterruptedException, ExecutionException {
+			Assertions.assertEquals(loopIndex, m_index);
 			
 			MILLISECONDS.sleep(100);
 			if ( ++m_index == 3 ) {
-				throw new Exception("test");
+				throw new ExecutionException(new Exception("test"));
 			}
 
-			return (m_index >= m_limit) ? Optional.of(m_index) : Optional.empty();
+			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
 		}
 
 		@Override
@@ -366,15 +389,15 @@ public class AbstractLoopExecutionTest {
 		}
 
 		@Override
-		protected Optional<Integer> iterate(long loopIndex) throws Exception {
-			Assert.assertEquals(loopIndex, m_index);
+		protected FOption<Integer> iterate(long loopIndex) throws InterruptedException, ExecutionException {
+			Assertions.assertEquals(loopIndex, m_index);
 			
 			MILLISECONDS.sleep(100);
 			if ( ++m_index == 3 ) {
-				throw new Exception("test");
+				throw new ExecutionException(new Exception("test"));
 			}
 
-			return (m_index >= m_limit) ? Optional.of(m_index) : Optional.empty();
+			return (m_index >= m_limit) ? FOption.of(m_index) : FOption.empty();
 		}
 
 		@Override

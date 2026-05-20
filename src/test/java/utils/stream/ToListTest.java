@@ -4,8 +4,8 @@ package utils.stream;
 import java.util.Collections;
 import java.util.List;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -20,8 +20,8 @@ public class ToListTest {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 5, 3));
 		
 		List<Integer> list2 = stream.toList();
-		Assert.assertEquals(list, list2);
+		Assertions.assertEquals(list, list2);
 		
-		Assert.assertEquals(Collections.emptyList(), FStream.empty().toList());
+		Assertions.assertEquals(Collections.emptyList(), FStream.empty().toList());
 	}
 }

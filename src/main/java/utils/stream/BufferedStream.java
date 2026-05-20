@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 
-import utils.Utilities;
+import utils.Preconditions;
 import utils.func.FOption;
 import utils.stream.FStreams.SingleSourceStream;
 
@@ -22,7 +22,7 @@ class BufferedStream<T> extends SingleSourceStream<T,List<T>> {
 	
 	BufferedStream(FStream<T> src, int count, int skip) {
 		super(src);
-		Utilities.checkArgument(count > 0, "count > 0, but: " + count);
+		Preconditions.checkArgument(count > 0, "count > 0, but: " + count);
 		
 		m_count = count;
 		m_skip = skip;

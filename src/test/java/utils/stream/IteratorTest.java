@@ -4,8 +4,8 @@ package utils.stream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * 
@@ -18,22 +18,24 @@ public class IteratorTest {
 		
 		Iterator<Integer> iter = stream.iterator();
 
-		Assert.assertTrue(iter.hasNext());
-		Assert.assertEquals(1, (int)iter.next());
-		Assert.assertTrue(iter.hasNext());
-		Assert.assertEquals(2, (int)iter.next());
-		Assert.assertTrue(iter.hasNext());
-		Assert.assertEquals(4, (int)iter.next());
-		Assert.assertFalse(iter.hasNext());
+		Assertions.assertTrue(iter.hasNext());
+		Assertions.assertEquals(1, (int)iter.next());
+		Assertions.assertTrue(iter.hasNext());
+		Assertions.assertEquals(2, (int)iter.next());
+		Assertions.assertTrue(iter.hasNext());
+		Assertions.assertEquals(4, (int)iter.next());
+		Assertions.assertFalse(iter.hasNext());
 	}
 	
-	@Test(expected=NoSuchElementException.class)
+	@Test
 	public void test1() throws Exception {
-		FStream<Integer> stream = FStream.empty();
+		Assertions.assertThrows(NoSuchElementException.class, () -> {
+			FStream<Integer> stream = FStream.empty();
 		
-		Iterator<Integer> iter = stream.iterator();
+			Iterator<Integer> iter = stream.iterator();
 
-		Assert.assertFalse(iter.hasNext());
-		iter.next();
+			Assertions.assertFalse(iter.hasNext());
+			iter.next();
+			});
 	}
 }

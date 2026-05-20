@@ -2,6 +2,7 @@ package utils.async.command;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -14,12 +15,27 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.util.concurrent.AbstractService;
 
 import utils.LoggerSettable;
-import utils.async.Guard;
+import utils.thread.Guard;
+import utils.async.StartableExecution;
+import utils.async.op.AsyncExecutions;
 import utils.func.Optionals;
 import utils.io.IOUtils;
 
 
 /**
+ * 외부 프로그램(자식 프로세스)을 Guava {@link AbstractService} 라이프사이클에 맞춰
+ * 실행·감독하는 서비스.
+ * <p>
+ * 주어진 {@link ProgramServiceConfig}의 명령행을 {@link CommandExecution}으로 구성하여
+ * 비동기 실행하고, 실행이 종료되면 설정된 {@link ProgramServiceConfig.RestartPolicy}에 따라
+ * 재시작 여부를 결정한다. 재시작 시 {@code restartDelay}가 양수이면 그만큼 지연 후 재시작한다.
+ * <ul>
+ *   <li>첫 실행이 RUNNING으로 전이되면 본 서비스도 RUNNING으로 전이한다 (그 이후 재시작은
+ *       서비스 상태에 영향을 주지 않는다).</li>
+ *   <li>사용자가 {@link #stopAsync()}로 명시적 중지 요청을 하면 재시작 정책과 무관하게 종료된다.</li>
+ *   <li>정책상 비-재시작 종료가 실패라면 서비스를 FAILED, 그 외엔 TERMINATED로 전이한다.</li>
+ * </ul>
+ * 자식 프로세스의 표준 출력/오류는 작업 디렉터리의 {@code application.log}에 병합 기록된다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -29,19 +45,36 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	
 	private final ProgramServiceConfig m_config;
 	private final Guard m_guard = Guard.create();
-	private Logger m_logger = null;
-	@GuardedBy("m_guard") private CommandExecution m_exec;
-	@GuardedBy("m_guard") private boolean m_firstExec = true;	// 첫번째로 program을 실행하는 경우.
+	private volatile Logger m_logger = null;
+	@GuardedBy("m_guard") private StartableExecution<Void> m_exec;
 	@GuardedBy("m_guard") private boolean m_stopRequested = false;	// 사용자가 명시적으로 중지 요청한 경우.
 	
+	/**
+	 * 주어진 설정으로 {@link ProgramService} 인스턴스를 생성한다.
+	 *
+	 * @param config 프로그램 실행 설정 (명령행, 작업 디렉터리, 환경 변수, 재시작 정책 등).
+	 * @return 생성된 서비스 인스턴스.
+	 */
 	public static ProgramService create(ProgramServiceConfig config) {
 		return new ProgramService(config);
 	}
+
+	/**
+	 * 설정 파일(JSON)을 읽어 {@link ProgramService} 인스턴스를 생성한다.
+	 * <p>
+	 * 파일 내용은 Apache Commons Text의 {@link StringSubstitutor#createInterpolator()}로
+	 * 환경 변수 및 시스템 프로퍼티가 치환된 뒤 JSON으로 파싱된다. Jackson {@link JsonMapper}는
+	 * {@link JavaTimeModule}을 포함해 활성 모듈을 자동 로드한다.
+	 *
+	 * @param configFile JSON 설정 파일.
+	 * @return 생성된 서비스 인스턴스.
+	 * @throws IOException 파일 읽기 또는 JSON 파싱이 실패한 경우.
+	 */
 	public static ProgramService create(File configFile) throws IOException {
 		String configJsonStr = IOUtils.toString(configFile);
 		StringSubstitutor interpolator = StringSubstitutor.createInterpolator();
 		configJsonStr = interpolator.replace(configJsonStr);
-		
+
 		ProgramServiceConfig program = JsonMapper.builder()
 												.addModule(new JavaTimeModule())
 												.findAndAddModules()
@@ -70,68 +103,99 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 		return String.format("ProgramService[%s]", m_config);
 	}
 
+	/**
+	 * 서비스 시작 콜백. Guava {@link AbstractService}가 호출한다.
+	 * <p>
+	 * 첫 번째 {@link CommandExecution}을 구성하여 비동기로 시작한다. 자식 프로세스가 RUNNING
+	 * 상태에 도달하면 {@link #notifyStarted()}를 통해 본 서비스도 RUNNING으로 전이한다.
+	 */
 	@Override
 	protected void doStart() {
+		StartableExecution<Void> exec = buildExecution(true);
 		m_guard.run(() -> {
-			m_firstExec = true;
+			m_stopRequested = false;
+			m_exec = exec;
 		});
-		runCommand();
+		exec.start();
 	}
 
+	/**
+	 * 서비스 중지 콜백. Guava {@link AbstractService}가 호출한다.
+	 * <p>
+	 * 사용자 명시적 중지를 표시하는 플래그를 세팅하고 현재 수행 중인 명령 실행을 강제 취소한다.
+	 * 취소된 실행의 종료 콜백은 {@code Result.none}을 받게 되어 재시작 정책을 평가하지 않고
+	 * {@link #notifyStopped()}를 호출한다.
+	 */
 	@Override
 	protected void doStop() {
-		m_guard.run(() -> {
-			// 사용자가 명시적으로 중지 요청한 경우에는 재시작 시키지 않도록 하기 위해 플래그 설정.
+		StartableExecution<Void> toCancel = m_guard.get(() -> {
 			m_stopRequested = true;
-			
-			if ( m_exec != null ) {
-				m_exec.cancel(true);
-			}
+			StartableExecution<Void> e = m_exec;
 			m_exec = null;
+			return e;
 		});
+		if ( toCancel != null ) {
+			toCancel.cancel(true);
+		}
 	}
-	
-	private void runCommand() {
-		m_stopRequested = false;
-		File logFile = new File(m_config.getWorkingDirectory(), APPLICATION_LOG.getName());
-		m_exec = CommandExecution.builder()
-								.addCommand(m_config.getCommandLine())
-								.workingDirectory(m_config.getWorkingDirectory())
-								.environmentVariables(m_config.getEnvironmentVariables())
-								.environmentFile(m_config.getEnvironmentFile())
-								.timeout(null)	// 무한대기
-								.redirectErrorStream()
-								.redirectStdoutToFile(logFile)
-								.build();
-		m_exec.whenStartedAsync(() -> {
-			m_guard.run(() -> {
-				if ( m_firstExec ) {
-					notifyStarted();
-					m_firstExec = false;
-				}
+
+	/**
+	 * 명령 실행 객체를 구성하고 시작·종료 콜백을 등록하여 반환한다. 실제 {@code start()}
+	 * 호출은 호출자가 수행한다.
+	 * <p>
+	 * 부착되는 콜백은 다음과 같다:
+	 * <ul>
+	 *   <li>{@code firstExec == true}: STARTED 콜백이 본 서비스의 {@link #notifyStarted()}를 호출
+	 *       (서비스를 RUNNING으로 전이).</li>
+	 *   <li>{@code firstExec == false}: 재시작 로그 콜백을 부착하고, {@code restartDelay}가 양수이면
+	 *       {@link AsyncExecutions#delay(StartableExecution, Duration)}로 지연 시작 래퍼를 씌운다.</li>
+	 * </ul>
+	 * 양 경우 모두 종료 콜백(whenFinished)이 부착되어, 종료 시 재시작 정책을 평가하고 다음 실행을
+	 * 빌드·시작하거나 {@link #notifyStopped()}/{@link #notifyFailed(Throwable)}로 서비스를 종료시킨다.
+	 *
+	 * @param firstExec 첫 실행 여부.
+	 * @return 시작 가능한 실행 객체. 지연 래퍼가 적용된 경우 {@code StartableExecution<Void>} 형태.
+	 */
+	private StartableExecution<Void> buildExecution(boolean firstExec) {
+		CommandExecution cmdExec = buildCommandExecution();
+		
+		StartableExecution<Void> exec = cmdExec;
+		if ( firstExec ) {
+			cmdExec.whenStarted(this::notifyStarted);
+		}
+		else {
+			cmdExec.whenStarted(() -> {
+				getLogger().info("re-start the command");
 			});
-		});
-		m_exec.whenFinished(result -> {
-			// 명시적으로 중지 요청된 경우에는 재시작하지 않음.
-			if ( result.isNone() ) {
+			
+			Duration delay = m_config.getRestartDelay();
+			if ( delay.isPositive() ) {
+				exec = AsyncExecutions.delay(cmdExec, delay);
+				exec.whenStarted(() -> {
+					getLogger().info("restarting the command after " + m_config.getRestartDelay());
+				});
+			}
+		}
+		
+		exec.whenFinished(result -> {
+			// 명시적으로 중지 요청된 경우에는 재시작 정책과 무관하게 종료한다.
+			// 자력 종료와 doStop()이 거의 동시에 일어나는 race를 막기 위해 result.isNone()
+			// 외에도 m_stopRequested 플래그를 함께 검사한다.
+			if ( m_guard.get(() -> m_stopRequested) || result.isNone() ) {
 				getLogger().info("the command execution is stopped by user request");
-				
+
 				notifyStopped();
 				return;
 			}
 			
+			StartableExecution<Void> nextExec = null;
 			switch ( m_config.getRestartPolicy() ) {
-				case ALWAYS:	// 항상 재시작
-					if ( !result.isNone() ) {
-						rerunCommand();
-					}
-					else {
-						notifyStopped();
-					}
-					break;
+				case ALWAYS:
+				    nextExec = buildExecution(false);
+				    break;
 				case ON_COMPLETED:	// 정상 종료된 경우에만 재시작
 					if ( result.isSuccessful() ) {
-						rerunCommand();
+						nextExec = buildExecution(false);
 					}
 					else if ( result.isFailed() ) {
 						notifyFailed(result.getCause());
@@ -142,7 +206,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 					break;
 				case ON_FAILED:	// 오류로 실패한 경우에만 재시작
 					if ( result.isFailed() ) {
-						rerunCommand();
+						nextExec = buildExecution(false);
 					}
 					else {
 						notifyStopped();
@@ -159,27 +223,55 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 				default:
 					throw new IllegalStateException("Unknown restart policy: " + m_config.getRestartPolicy());
 			}
+
+			if ( nextExec != null ) {
+				StartableExecution<Void> finalNextExec = nextExec;
+				boolean canStart = m_guard.get(() -> {
+					if ( m_stopRequested ) return false;
+					m_exec = finalNextExec;
+					return true;
+				});
+				if ( canStart ) {
+					nextExec.start();
+				}
+			}
 		});
-		m_exec.start();
+		return exec;
 	}
 	
-	private void rerunCommand() {
-		getLogger().info("restarting the command after " + m_config.getRestartDelay());
-		
-		new Thread(() -> {
-			try {
-				Thread.sleep(m_config.getRestartDelay().toMillis());
-			}
-			catch ( InterruptedException e ) { }
-			
-			runCommand();
-		}).start();
+	/**
+	 * 설정으로부터 {@link CommandExecution}을 구성한다.
+	 * <p>
+	 * 타임아웃은 무한대(null), 표준 오류는 표준 출력으로 합류, 표준 출력은 작업 디렉터리의
+	 * {@code application.log}로 기록된다.
+	 *
+	 * @return 빌드된 {@link CommandExecution}.
+	 */
+	private CommandExecution buildCommandExecution() {
+		File logFile = new File(m_config.getWorkingDirectory(), APPLICATION_LOG.getName());
+		return CommandExecution.builder()
+								.addCommand(m_config.getCommandLine())
+								.workingDirectory(m_config.getWorkingDirectory())
+								.environmentVariables(m_config.getEnvironments())
+								.environmentFile(m_config.getEnvironmentFile())
+								.timeout(null)	// 무한대기
+								.redirectErrorStream()
+								.redirectStdoutToFile(logFile)
+								.build();
 	}
 
+	/**
+	 * 데모/수동 테스트용 진입점. {@code companions/program.json}을 설정 파일로 사용하여
+	 * 서비스를 기동하고, 종료 시까지 대기한다. {@link ServiceShutdownHook}을 통해
+	 * JVM 종료 시 자식 프로세스도 정리된다.
+	 *
+	 * @param args 무시.
+	 * @throws Exception 설정 로드 또는 실행 중 예외.
+	 */
 	public static final void main(String... args) throws Exception {
 		ProgramService companion = ProgramService.create(new File("companions/program.json"));
 		ServiceShutdownHook.register("test", companion);
-		
+
 		companion.startAsync();
 		companion.awaitTerminated();
 	}

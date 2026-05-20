@@ -7,8 +7,8 @@ import static org.mockito.Mockito.verify;
 
 import java.util.List;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -27,31 +27,31 @@ public class TakeLastTest {
 		
 		stream = FStream.range(0, 64).onClose(task);
 		tail = stream.takeLast(4);
-		Assert.assertEquals(Lists.newArrayList(60, 61, 62, 63), tail);
+		Assertions.assertEquals(Lists.newArrayList(60, 61, 62, 63), tail);
 		verify(task, times(1)).run();
 
 		reset(task);
 		stream = FStream.range(0, 64).onClose(task);
 		tail = stream.takeLast(1);
-		Assert.assertEquals(Lists.newArrayList(63), tail);
+		Assertions.assertEquals(Lists.newArrayList(63), tail);
 		verify(task, times(1)).run();
 		
 		reset(task);
 		stream = FStream.range(0, 64).onClose(task);
 		tail = stream.takeLast(0);
-		Assert.assertEquals(Lists.newArrayList(), tail);
+		Assertions.assertEquals(Lists.newArrayList(), tail);
 		verify(task, times(1)).run();
 
 		reset(task);
 		stream = FStream.range(0, 2).onClose(task);
 		tail = stream.takeLast(4);
-		Assert.assertEquals(Lists.newArrayList(0, 1), tail);
+		Assertions.assertEquals(Lists.newArrayList(0, 1), tail);
 		verify(task, times(1)).run();
 		
 		reset(task);
 		stream = FStream.range(0, 2).onClose(task);
 		tail = stream.takeLast(0);
-		Assert.assertEquals(Lists.newArrayList(), tail);
+		Assertions.assertEquals(Lists.newArrayList(), tail);
 		verify(task, times(1)).run();
 	}
 }

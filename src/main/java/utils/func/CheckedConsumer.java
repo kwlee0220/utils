@@ -8,7 +8,7 @@ import java.util.function.Consumer;
  */
 @FunctionalInterface
 public interface CheckedConsumer<T> {
-	public void accept(T data) throws Throwable;
+	public void accept(T data) throws Exception;
 	
 	public default Try<Void> tryAccept(T data) {
 		try {

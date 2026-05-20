@@ -1,8 +1,8 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -17,8 +17,8 @@ public class ToArrayTest {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 5, 3));
 		
 		Integer[] list2 = stream.toArray(Integer.class);
-		Assert.assertArrayEquals(list, list2);
+		Assertions.assertArrayEquals(list, list2);
 		
-		Assert.assertArrayEquals(new Integer[0], FStream.empty().toArray(Integer.class));
+		Assertions.assertArrayEquals(new Integer[0], FStream.empty().toArray(Integer.class));
 	}
 }

@@ -3,31 +3,32 @@ package utils.async;
 
 import java.util.concurrent.TimeUnit;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import utils.RuntimeInterruptedException;
 import utils.func.Unchecked;
+import utils.thread.Timer;
 
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class TimerTest {
 	Timer m_timer;
 	
-	@Before
+	@BeforeEach
 	public void setUp() {
 		m_timer = new Timer();
 	}
 	
-	@After
+	@AfterEach
 	public void tearDown() {
 		m_timer.shutdown();
 	}
@@ -54,7 +55,7 @@ public class TimerTest {
 		
 		m_timer.setTimer(taskA, 300, TimeUnit.MILLISECONDS);
 		taskA.waitForFinished();
-		Assert.assertEquals(true, taskA.isCancelled());
+		Assertions.assertEquals(true, taskA.isCancelled());
 	}
 	
 	@Test
@@ -65,11 +66,11 @@ public class TimerTest {
 		m_timer.setTimer(taskA, 500, TimeUnit.MILLISECONDS);
 		m_timer.setTimer(taskB, 100, TimeUnit.MILLISECONDS);
 		taskB.waitForFinished();
-		Assert.assertEquals(true, taskA.isRunning());
-		Assert.assertEquals(true, taskB.isCancelled());
+		Assertions.assertEquals(true, taskA.isRunning());
+		Assertions.assertEquals(true, taskB.isCancelled());
 		
 		Unchecked.runOrRTE(() -> Thread.sleep(500));
-		Assert.assertEquals(true, taskA.isCancelled());
+		Assertions.assertEquals(true, taskA.isCancelled());
 	}
 	
 	@Test
@@ -83,9 +84,9 @@ public class TimerTest {
 		m_timer.setTimer(taskC, 700, TimeUnit.MILLISECONDS);
 		taskA.waitForFinished();
 		
-		Assert.assertEquals(true, taskA.isCancelled());
-		Assert.assertEquals(true, taskB.isCancelled());
-		Assert.assertEquals(true, taskC.isCompleted());
+		Assertions.assertEquals(true, taskA.isCancelled());
+		Assertions.assertEquals(true, taskB.isCancelled());
+		Assertions.assertEquals(true, taskC.isCompleted());
 	}
 	
 	@Test
@@ -99,15 +100,15 @@ public class TimerTest {
 		taskC.setTimeout(100, TimeUnit.MILLISECONDS);
 		
 		taskC.waitForFinished();
-		Assert.assertEquals(true, taskA.isRunning());
-		Assert.assertEquals(true, taskB.isRunning());
-		Assert.assertEquals(true, taskC.isCancelled());
+		Assertions.assertEquals(true, taskA.isRunning());
+		Assertions.assertEquals(true, taskB.isRunning());
+		Assertions.assertEquals(true, taskC.isCancelled());
 		
 		taskB.waitForFinished();
-		Assert.assertEquals(true, taskA.isRunning());
-		Assert.assertEquals(true, taskB.isCancelled());
+		Assertions.assertEquals(true, taskA.isRunning());
+		Assertions.assertEquals(true, taskB.isCancelled());
 		
 		taskA.waitForFinished();
-		Assert.assertEquals(true, taskA.isCancelled());
+		Assertions.assertEquals(true, taskA.isCancelled());
 	}
 }

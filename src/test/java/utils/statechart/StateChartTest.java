@@ -5,9 +5,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import utils.async.AsyncState;
 
@@ -46,7 +46,7 @@ public class StateChartTest {
 	private TestCtx m_ctx;
 	private StateChart<TestCtx> m_chart;
 
-	@Before
+	@BeforeEach
 	public void setup() {
 		m_ctx = new TestCtx();
 		m_chart = new StateChart<>(m_ctx);
@@ -54,19 +54,21 @@ public class StateChartTest {
 
 	// ---- 생성자 / 컨텍스트 결합 ----
 
-	@Test(expected = NullPointerException.class)
+	@Test
 	public void constructor_null_context_rejected() {
-		new StateChart<TestCtx>(null);
+		Assertions.assertThrows(NullPointerException.class, () -> {
+			new StateChart<TestCtx>(null);
+			});
 	}
 
 	@Test
 	public void constructor_attaches_chart_to_context() {
-		Assert.assertSame(m_chart, m_ctx.getStateChart());
+		Assertions.assertSame(m_chart, m_ctx.getStateChart());
 	}
 
 	@Test
 	public void getContext_returns_provided_context() {
-		Assert.assertSame(m_ctx, m_chart.getContext());
+		Assertions.assertSame(m_ctx, m_chart.getContext());
 	}
 
 	// ---- 상태 등록 ----
@@ -76,49 +78,59 @@ public class StateChartTest {
 		CountedState a = new CountedState("a", m_ctx);
 		m_chart.addState(a);
 
-		Assert.assertSame(a, m_chart.getState("a"));
+		Assertions.assertSame(a, m_chart.getState("a"));
 	}
 
 	@Test
 	public void getState_unknown_path_returns_null() {
-		Assert.assertNull(m_chart.getState("unknown"));
+		Assertions.assertNull(m_chart.getState("unknown"));
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void setInitialState_unknown_path_rejected() {
-		m_chart.setInitialState("unknown");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			m_chart.setInitialState("unknown");
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void addFinalState_unknown_path_rejected() {
-		m_chart.addFinalState("unknown");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			m_chart.addFinalState("unknown");
+			});
 	}
 
 	// ---- start 사전조건 ----
 
-	@Test(expected = NullPointerException.class)
+	@Test
 	public void start_without_initialState_rejected() {
-		CountedState a = new CountedState("a", m_ctx);
-		m_chart.addState(a);
-		m_chart.addFinalState("a");
-		m_chart.start();
+		Assertions.assertThrows(NullPointerException.class, () -> {
+			CountedState a = new CountedState("a", m_ctx);
+			m_chart.addState(a);
+			m_chart.addFinalState("a");
+			m_chart.start();
+			});
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void start_without_finalState_rejected() {
-		CountedState a = new CountedState("a", m_ctx);
-		m_chart.addState(a);
-		m_chart.setInitialState("a");
-		m_chart.start();
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			CountedState a = new CountedState("a", m_ctx);
+			m_chart.addState(a);
+			m_chart.setInitialState("a");
+			m_chart.start();
+			});
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void start_initialState_equal_to_finalState_rejected() {
-		CountedState a = new CountedState("a", m_ctx);
-		m_chart.addState(a);
-		m_chart.setInitialState("a");
-		m_chart.addFinalState("a");
-		m_chart.start();
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			CountedState a = new CountedState("a", m_ctx);
+			m_chart.addState(a);
+			m_chart.setInitialState("a");
+			m_chart.addFinalState("a");
+			m_chart.start();
+			});
 	}
 
 	@Test
@@ -132,30 +144,36 @@ public class StateChartTest {
 
 		m_chart.start();
 
-		Assert.assertEquals(AsyncState.RUNNING, m_chart.getState());
-		Assert.assertSame(a, m_chart.getCurrentState());
-		Assert.assertEquals(1, a.enterCount.get());
-		Assert.assertEquals(0, b.enterCount.get());
+		Assertions.assertEquals(AsyncState.RUNNING, m_chart.getState());
+		Assertions.assertSame(a, m_chart.getCurrentState());
+		Assertions.assertEquals(1, a.enterCount.get());
+		Assertions.assertEquals(0, b.enterCount.get());
 	}
 
 	// ---- 시작 후 등록 거부 ----
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void addState_after_start_rejected() {
-		startSimpleChart();
-		m_chart.addState(new CountedState("c", m_ctx));
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			startSimpleChart();
+			m_chart.addState(new CountedState("c", m_ctx));
+			});
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void setInitialState_after_start_rejected() {
-		startSimpleChart();
-		m_chart.setInitialState("a");
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			startSimpleChart();
+			m_chart.setInitialState("a");
+			});
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void addFinalState_after_start_rejected() {
-		startSimpleChart();
-		m_chart.addFinalState("b");
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			startSimpleChart();
+			m_chart.addFinalState("b");
+			});
 	}
 
 	// ---- handleSignal ----
@@ -167,13 +185,15 @@ public class StateChartTest {
 
 		Optional<Transition<TestCtx>> result = m_chart.handleSignal(new Signal() {});
 
-		Assert.assertTrue(result.isEmpty());
-		Assert.assertEquals(0, a.enterCount.get());
+		Assertions.assertTrue(result.isEmpty());
+		Assertions.assertEquals(0, a.enterCount.get());
 	}
 
-	@Test(expected = NullPointerException.class)
+	@Test
 	public void handleSignal_null_rejected() {
-		m_chart.handleSignal(null);
+		Assertions.assertThrows(NullPointerException.class, () -> {
+			m_chart.handleSignal(null);
+			});
 	}
 
 	@Test
@@ -188,9 +208,9 @@ public class StateChartTest {
 
 		Optional<Transition<TestCtx>> result = m_chart.handleSignal(new Signal() {});
 
-		Assert.assertTrue(result.isEmpty());
-		Assert.assertSame(a, m_chart.getCurrentState());
-		Assert.assertEquals(0, a.exitCount.get());
+		Assertions.assertTrue(result.isEmpty());
+		Assertions.assertSame(a, m_chart.getCurrentState());
+		Assertions.assertEquals(0, a.exitCount.get());
 	}
 
 	@Test
@@ -209,9 +229,9 @@ public class StateChartTest {
 
 		m_chart.handleSignal(s);
 
-		Assert.assertEquals(1, a.exitCount.get());
-		Assert.assertEquals(1, b.enterCount.get());
-		Assert.assertSame(b, m_chart.getCurrentState());
+		Assertions.assertEquals(1, a.exitCount.get());
+		Assertions.assertEquals(1, b.enterCount.get());
+		Assertions.assertSame(b, m_chart.getCurrentState());
 	}
 
 	@Test
@@ -229,8 +249,8 @@ public class StateChartTest {
 
 		m_chart.handleSignal(s);
 
-		Assert.assertEquals(1, actionInvoked.get());
-		Assert.assertSame(b, m_chart.getCurrentState());
+		Assertions.assertEquals(1, actionInvoked.get());
+		Assertions.assertSame(b, m_chart.getCurrentState());
 	}
 
 	@Test
@@ -249,9 +269,9 @@ public class StateChartTest {
 
 		m_chart.handleSignal(s);
 
-		Assert.assertEquals(beforeEnter, a.enterCount.get());
-		Assert.assertEquals(beforeExit, a.exitCount.get());
-		Assert.assertSame(a, m_chart.getCurrentState());
+		Assertions.assertEquals(beforeEnter, a.enterCount.get());
+		Assertions.assertEquals(beforeExit, a.exitCount.get());
+		Assertions.assertSame(a, m_chart.getCurrentState());
 	}
 
 	@Test
@@ -268,7 +288,7 @@ public class StateChartTest {
 
 		m_chart.handleSignal(s);
 
-		Assert.assertEquals(AsyncState.COMPLETED, m_chart.getState());
+		Assertions.assertEquals(AsyncState.COMPLETED, m_chart.getState());
 	}
 
 	@Test
@@ -288,7 +308,7 @@ public class StateChartTest {
 
 		m_chart.handleSignal(s);
 
-		Assert.assertEquals(AsyncState.FAILED, m_chart.getState());
+		Assertions.assertEquals(AsyncState.FAILED, m_chart.getState());
 	}
 
 	// ---- complete / fail ----
@@ -297,20 +317,22 @@ public class StateChartTest {
 	public void complete_transitions_chart_to_COMPLETED() {
 		startSimpleChart();
 		m_chart.complete();
-		Assert.assertEquals(AsyncState.COMPLETED, m_chart.getState());
+		Assertions.assertEquals(AsyncState.COMPLETED, m_chart.getState());
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void complete_in_NOT_STARTED_rejected() {
-		// notifyCompleted는 RUNNING/CANCELLING 상태에서만 동작; NOT_STARTED에서는 false 반환 → ISE.
-		m_chart.complete();
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			// notifyCompleted는 RUNNING/CANCELLING 상태에서만 동작; NOT_STARTED에서는 false 반환 → ISE.
+			m_chart.complete();
+			});
 	}
 
 	@Test
 	public void fail_transitions_chart_to_FAILED() {
 		startSimpleChart();
 		m_chart.fail(new RuntimeException("boom"));
-		Assert.assertEquals(AsyncState.FAILED, m_chart.getState());
+		Assertions.assertEquals(AsyncState.FAILED, m_chart.getState());
 	}
 
 	// ---- cancel ----
@@ -327,9 +349,9 @@ public class StateChartTest {
 
 		boolean result = m_chart.cancelWork();
 
-		Assert.assertTrue(result);
-		Assert.assertEquals(1, a.exitCount.get());
-		Assert.assertNull(m_chart.getCurrentState());
+		Assertions.assertTrue(result);
+		Assertions.assertEquals(1, a.exitCount.get());
+		Assertions.assertNull(m_chart.getCurrentState());
 	}
 
 	@Test
@@ -337,7 +359,7 @@ public class StateChartTest {
 		// 시작하지 않은 차트는 currentState == null 상태이므로 즉시 true를 반환한다.
 		boolean result = m_chart.cancelWork();
 
-		Assert.assertTrue(result);
+		Assertions.assertTrue(result);
 	}
 
 	// ---- helpers ----

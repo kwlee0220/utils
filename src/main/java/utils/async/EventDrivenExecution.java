@@ -8,7 +8,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -19,11 +18,12 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 
 import utils.LoggerSettable;
+import utils.Preconditions;
 import utils.RuntimeInterruptedException;
 import utils.Tuple;
-import utils.Utilities;
 import utils.func.Funcs;
 import utils.func.Result;
+import utils.thread.Guard;
 
 
 /**
@@ -600,7 +600,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	private Execution<T> _whenStarted(Runnable listener, boolean runAsync) {
-		Utilities.checkNotNullArgument(listener, "listener is null");
+		Preconditions.checkNotNullArgument(listener, "listener is null");
 
 		List<Runnable> asyncStartListeners = List.of();
 		Tuple<Runnable, Boolean> tup = Tuple.of(listener, runAsync);
@@ -648,7 +648,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	private Execution<T> _whenFinished(Consumer<Result<T>> handler, boolean runAsync) {
-		Utilities.checkNotNullArgument(handler, "handler is null");
+		Preconditions.checkNotNullArgument(handler, "handler is null");
 
 		m_aopGuard.lock();
     	try {
@@ -686,8 +686,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	 * @param result	source가 정상 완료될 때 본 객체의 결과로 사용할 값
 	 */
 	public void dependsOn(Execution<?> exec, T result) {
-		exec.whenStartedAsync(this::notifyStarted);
-		exec.whenFinishedAsync(ret -> {
+		exec.whenStarted(this::notifyStarted);
+		exec.whenFinished(ret -> {
 			ret.ifSuccessful(r -> this.notifyCompleted(result))
 				.ifFailed(this::notifyFailed)
 				.ifNone(this::notifyCancelled);
@@ -747,22 +747,6 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	 */
 	public <R> R getInAsyncExecutionGuard(Supplier<R> supplier) {
 		return m_aopGuard.get(supplier);
-	}
-
-	/**
-	 * 본 작업이 정상 완료되면 그 결과로 새로운 {@link Execution}을 생성하여 chain 을 구성한다.
-	 * <p>
-	 * 본 객체가 {@code COMPLETED}로 전이되면 {@code mapper}가 결과 값을 받아 다음 {@link Execution}을
-	 * 만들고, 새로 생성된 chain execution 의 결과가 반환된 객체의 결과가 된다. 본 객체가 실패/취소
-	 * 되는 경우는 동일 사유로 chain 도 실패/취소된다.
-	 *
-	 * @param <S>		chain 결과 타입
-	 * @param mapper	본 객체의 결과를 받아 다음 {@link Execution}을 생성하는 함수
-	 * @return			chain 을 표현하는 새 {@link EventDrivenExecution}
-	 */
-	public <S> EventDrivenExecution<S> flatMapOnCompleted(
-									Function<? super T,Execution<? extends S>> mapper) {
-		return new Executions.FlatMapCompleteChainExecution<>(this, mapper);
 	}
 	
 	private List<Runnable> notifyStartListenersInGuard(List<Tuple<Runnable, Boolean>> listeners) {

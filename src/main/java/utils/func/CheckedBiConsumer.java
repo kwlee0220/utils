@@ -7,7 +7,7 @@ package utils.func;
  */
 @FunctionalInterface
 public interface CheckedBiConsumer<S,T> {
-	public void accept(S input1, T input2) throws Throwable;
+	public void accept(S input1, T input2) throws Exception;
 	
 	public default Try<Void> tryAccept(S input1, T input2) {
 		try {

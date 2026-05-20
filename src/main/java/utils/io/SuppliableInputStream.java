@@ -17,7 +17,7 @@ import com.google.common.collect.Lists;
 
 import utils.Throwables;
 import utils.UnitUtils;
-import utils.async.Guard;
+import utils.thread.Guard;
 
 
 /**

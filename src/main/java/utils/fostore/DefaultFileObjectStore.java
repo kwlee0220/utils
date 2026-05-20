@@ -1,6 +1,5 @@
 package utils.fostore;
 
-import static utils.Utilities.checkNotNullArgument;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,6 +16,7 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import utils.Preconditions;
 import utils.stream.FStream;
 
 
@@ -39,8 +39,8 @@ public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
 	 * 					특히 저장소 디렉토리 생성에 실패한 경우.
 	 */
     public DefaultFileObjectStore(File rootDir, FileObjectHandler<K,T> handler) throws IOException {
-    	checkNotNullArgument(rootDir, "Root directory of this FileObjectStore");
-    	checkNotNullArgument(handler, "FileObjectHandler");
+    	Preconditions.checkNotNullArgument(rootDir, "Root directory of this FileObjectStore");
+    	Preconditions.checkNotNullArgument(handler, "FileObjectHandler");
     	
     	m_rootDir = rootDir;
     	if ( !m_rootDir.exists() ) {
@@ -68,7 +68,7 @@ public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
      */
     @Override
     public boolean exists(K key) {
-    	checkNotNullArgument(key, "FileObject key");
+    	Preconditions.checkNotNullArgument(key, "FileObject key");
 
 		return m_handler.toFile(key).exists();
     }
@@ -83,7 +83,7 @@ public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
      */
     @Override
     public Optional<T> get(K key) throws IOException, ExecutionException  {
-    	checkNotNullArgument(key, "FileObject key");
+    	Preconditions.checkNotNullArgument(key, "FileObject key");
     	
     	Optional<File> file = getFile(key);
     	if ( file.isPresent() ) {
@@ -102,7 +102,7 @@ public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
      */
     @Override
     public Optional<File> getFile(K key) {
-    	checkNotNullArgument(key, "FileObject key");
+    	Preconditions.checkNotNullArgument(key, "FileObject key");
 
 		File file = m_handler.toFile(key);
 		return file.exists() ? Optional.of(file) : Optional.empty();
@@ -110,8 +110,8 @@ public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
 
     @Override
     public Optional<File> insert(K key, T fObj) throws IOException, ExecutionException  {
-    	checkNotNullArgument(key, "FileObject key");
-    	checkNotNullArgument(fObj, "FileObject");
+    	Preconditions.checkNotNullArgument(key, "FileObject key");
+    	Preconditions.checkNotNullArgument(fObj, "FileObject");
 
     	File file = m_handler.toFile(key);
     	if ( file.exists() ) {
@@ -130,8 +130,8 @@ public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
 
 	@Override
 	public File insertOrUpdate(K key, T fObj) throws IOException, ExecutionException {
-    	checkNotNullArgument(key, "FileObject key");
-    	checkNotNullArgument(fObj, "FileObject");
+    	Preconditions.checkNotNullArgument(key, "FileObject key");
+    	Preconditions.checkNotNullArgument(fObj, "FileObject");
 
     	File file = m_handler.toFile(key);
     	if ( file.exists() ) {
@@ -154,7 +154,7 @@ public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
      */
     @Override
     public boolean remove(K key) throws IOException {
-    	checkNotNullArgument(key, "FileObject key");
+    	Preconditions.checkNotNullArgument(key, "FileObject key");
 
 		File file = m_handler.toFile(key);
 		if ( !file.exists() ) {

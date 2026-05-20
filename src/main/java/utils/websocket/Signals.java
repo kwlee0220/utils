@@ -2,8 +2,6 @@ package utils.websocket;
 
 import java.net.http.WebSocket;
 
-import lombok.experimental.UtilityClass;
-
 import utils.statechart.Signal;
 
 
@@ -11,8 +9,11 @@ import utils.statechart.Signal;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-@UtilityClass
 public class Signals {
+	private Signals() {
+		throw new AssertionError("Should not be called: class=" + getClass().getName());
+	}
+	
 	public static class Connected extends WebSocketSignal {
 		public Connected(WebSocket webSocket) {
 			super(webSocket);

@@ -68,6 +68,11 @@ public class KeyValueTest {
 		KeyValue.from((Tuple<String,Integer>)null);
 	}
 
+	@Test(expected = IllegalArgumentException.class)
+	public void testFromTupleWithNullKeyRejected() throws Exception {
+		KeyValue.from(Tuple.of(null, 1));
+	}
+
 	@Test
 	public void testToTuple() throws Exception {
 		KeyValue<String,Integer> kv = KeyValue.of("a", 1);
@@ -142,13 +147,33 @@ public class KeyValueTest {
 	}
 
 	@Test
-	public void testMapKey() throws Exception {
+	public void testMapKeyWithFunction() throws Exception {
+		KeyValue<String,Integer> kv = KeyValue.of("a", 3);
+
+		KeyValue<String,Integer> mapped = kv.mapKey(k -> k.toUpperCase());
+
+		Assert.assertEquals("A", mapped.key());
+		Assert.assertEquals(Integer.valueOf(3), mapped.value());
+	}
+
+	@Test
+	public void testMapKeyWithBiFunction() throws Exception {
 		KeyValue<String,Integer> kv = KeyValue.of("a", 3);
 
 		KeyValue<Integer,Integer> mapped = kv.mapKey((k, v) -> k.length() + v);
 
 		Assert.assertEquals(Integer.valueOf(4), mapped.key());
 		Assert.assertEquals(Integer.valueOf(3), mapped.value());
+	}
+
+	@Test(expected = NullPointerException.class)
+	public void testMapKeyFunctionRejectsNullResult() throws Exception {
+		KeyValue.of("a", 1).mapKey(k -> null);
+	}
+
+	@Test(expected = NullPointerException.class)
+	public void testMapKeyBiFunctionRejectsNullResult() throws Exception {
+		KeyValue.of("a", 1).mapKey((k, v) -> null);
 	}
 
 	@Test
@@ -188,13 +213,39 @@ public class KeyValueTest {
 	}
 
 	@Test
-	public void testParseWithEscape() throws Exception {
-		// 두 번째 인자는 escape 문자: 'a\=b=c' 에서 첫 번째 '='가 이스케이프되어
-		// 키는 "a=b", 값은 "c"로 파싱된다.
-		KeyValue<String,String> kv = KeyValue.parse("a\\=b=c", '\\');
+	public void testParseStripsUnicodeWhitespace() throws Exception {
+		// IDS (U+3000, ideographic space) 는 String#trim 으로는 제거되지 않지만
+		// String#strip 으로는 제거된다 (Character.isWhitespace 기준).
+		KeyValue<String,String> kv = KeyValue.parse("　foo　=　bar　");
 
-		Assert.assertEquals("a=b", kv.key());
-		Assert.assertEquals("c", kv.value());
+		Assert.assertEquals("foo", kv.key());
+		Assert.assertEquals("bar", kv.value());
+	}
+
+	@Test
+	public void testParsePreservesEqualsInValue() throws Exception {
+		// 첫번째 '='로 분리하므로 값에 포함된 '='는 보존된다.
+		KeyValue<String,String> kv = KeyValue.parse("a=b=c");
+
+		Assert.assertEquals("a", kv.key());
+		Assert.assertEquals("b=c", kv.value());
+	}
+
+	@Test
+	public void testParseAllowsEmptyValue() throws Exception {
+		KeyValue<String,String> kv = KeyValue.parse("k=");
+
+		Assert.assertEquals("k", kv.key());
+		Assert.assertEquals("", kv.value());
+	}
+
+	@Test
+	public void testParseAllowsBlankValue() throws Exception {
+		// 값이 공백뿐이면 strip 후 빈 문자열로 정규화된다.
+		KeyValue<String,String> kv = KeyValue.parse("k=   ");
+
+		Assert.assertEquals("k", kv.key());
+		Assert.assertEquals("", kv.value());
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -203,18 +254,18 @@ public class KeyValueTest {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testParseRejectsMultipleDelimiters() throws Exception {
-		KeyValue.parse("a=b=c");
+	public void testParseRejectsEmptyKey() throws Exception {
+		KeyValue.parse("=v");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testParseRejectsBlankKey() throws Exception {
+		KeyValue.parse("   =v");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testParseRejectsNullExpr() throws Exception {
 		KeyValue.parse(null);
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testParseWithEscapeRejectsNullExpr() throws Exception {
-		KeyValue.parse(null, '\\');
 	}
 
 	@Test

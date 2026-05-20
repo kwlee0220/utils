@@ -2,7 +2,7 @@ package utils.statechart;
 
 import java.util.Optional;
 
-import utils.Utilities;
+import utils.Preconditions;
 
 /**
  * {@link Transition} 인스턴스를 생성하는 정적 팩토리 모음.
@@ -80,8 +80,8 @@ public final class Transitions {
 		private final TransitionAction<C> m_action;
 
 		private DefaultTransition(String targetStatePath, TransitionAction<C> action) {
-			Utilities.checkNotNullArgument(targetStatePath, "targetStatePath is null");
-			Utilities.checkNotNullArgument(action, "TransitionAction is null");
+			Preconditions.checkNotNullArgument(targetStatePath, "targetStatePath is null");
+			Preconditions.checkNotNullArgument(action, "TransitionAction is null");
 
 			m_targetStatePath = Optional.of(targetStatePath);
 			m_action = action;
@@ -116,7 +116,7 @@ public final class Transitions {
 		private final Optional<String> m_targetStatePath;
 
 		private NoOpTransition(String targetStatePath) {
-			Utilities.checkNotNullArgument(targetStatePath, "targetStatePath is null");
+			Preconditions.checkNotNullArgument(targetStatePath, "targetStatePath is null");
 
 			m_targetStatePath = Optional.of(targetStatePath);
 		}

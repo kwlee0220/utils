@@ -3,7 +3,7 @@ package utils.websocket;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import utils.Utilities;
+import utils.Preconditions;
 import utils.statechart.StateChart;
 import utils.statechart.StateContext;
 
@@ -38,7 +38,7 @@ public class WebSocketContext<C extends WebSocketContext<C>> implements StateCon
 	 * @throws IllegalArgumentException {@code serverUrl}이 {@code null}인 경우
 	 */
 	public WebSocketContext(String serverUrl) {
-		Utilities.checkNotNullArgument(serverUrl, "serverUrl is null");
+		Preconditions.checkNotNullArgument(serverUrl, "serverUrl is null");
 
 		m_serverUrl = serverUrl;
 	}
@@ -85,9 +85,9 @@ public class WebSocketContext<C extends WebSocketContext<C>> implements StateCon
 	@Override
 	@SuppressWarnings("unchecked")
 	public void setStateChart(StateChart<C> machine) {
-		Utilities.checkNotNullArgument(machine, "machine is null");
-		Utilities.checkState(m_machine == null, "StateChart is already set on this context");
-		Utilities.checkArgument(machine instanceof WebSocketStateChart<?>,
+		Preconditions.checkNotNullArgument(machine, "machine is null");
+		Preconditions.checkState(m_machine == null, "StateChart is already set on this context");
+		Preconditions.checkArgument(machine instanceof WebSocketStateChart<?>,
 								"machine is not a WebSocketStateChart: %s", machine);
 
 		WebSocketStateChart<C> wsMachine = (WebSocketStateChart<C>)machine;

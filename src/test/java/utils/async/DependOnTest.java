@@ -7,19 +7,19 @@ import static org.mockito.Mockito.verify;
 
 import java.util.function.Consumer;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class DependOnTest {
 	private EventDrivenExecution<String> m_exec;
 	private EventDrivenExecution<String> m_dep = new EventDrivenExecution<>();
@@ -27,7 +27,7 @@ public class DependOnTest {
 	@Mock Runnable m_onCancelled;
 	@Mock Consumer<String> m_onCompleted;
 	
-	@Before
+	@BeforeEach
 	public void setup() {
 		m_exec = new EventDrivenExecution<>();
 		
@@ -45,12 +45,12 @@ public class DependOnTest {
 		m_exec.notifyStarted();
 		MILLISECONDS.sleep(50);
 		verify(m_onStarted, times(1)).run();
-		Assert.assertTrue(m_dep.isStarted());
+		Assertions.assertTrue(m_dep.isStarted());
 		
 		m_exec.notifyCompleted("xxx");
 		MILLISECONDS.sleep(50);
 		verify(m_onCompleted, times(1)).accept("done");
-		Assert.assertTrue(m_dep.isCompleted());
+		Assertions.assertTrue(m_dep.isCompleted());
 	}
 	
 	@Test
@@ -61,11 +61,11 @@ public class DependOnTest {
 		m_exec.notifyStarted();
 		MILLISECONDS.sleep(50);
 		verify(m_onStarted, times(1)).run();
-		Assert.assertTrue(m_dep.isStarted());
+		Assertions.assertTrue(m_dep.isStarted());
 		
 		m_exec.notifyCancelled();
 		MILLISECONDS.sleep(50);
 		verify(m_onCancelled, times(1)).run();
-		Assert.assertTrue(m_dep.isCancelled());
+		Assertions.assertTrue(m_dep.isCancelled());
 	}
 }

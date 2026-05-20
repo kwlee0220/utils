@@ -3,8 +3,8 @@ package utils.stream;
 
 import java.util.Arrays;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import utils.Tuple;
 import utils.func.FOption;
@@ -23,27 +23,27 @@ public class ZipWithTest {
 		FOption<Tuple<Integer,String>> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(0), r.get()._1);
-		Assert.assertEquals("a", r.get()._2);
+		Assertions.assertEquals(true, r != null);
+		Assertions.assertEquals(Integer.valueOf(0), r.get()._1);
+		Assertions.assertEquals("a", r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(1), r.get()._1);
-		Assert.assertEquals("b", r.get()._2);
+		Assertions.assertEquals(true, r != null);
+		Assertions.assertEquals(Integer.valueOf(1), r.get()._1);
+		Assertions.assertEquals("b", r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r.get()._1);
-		Assert.assertEquals("c", r.get()._2);
+		Assertions.assertEquals(true, r != null);
+		Assertions.assertEquals(Integer.valueOf(2), r.get()._1);
+		Assertions.assertEquals("c", r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(3), r.get()._1);
-		Assert.assertEquals("d", r.get()._2);
+		Assertions.assertEquals(true, r != null);
+		Assertions.assertEquals(Integer.valueOf(3), r.get()._1);
+		Assertions.assertEquals("d", r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -55,27 +55,27 @@ public class ZipWithTest {
 		FOption<Tuple<Integer,String>> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(0), r.get()._1);
-		Assert.assertEquals("a", r.get()._2);
+		Assertions.assertEquals(true, r != null);
+		Assertions.assertEquals(Integer.valueOf(0), r.get()._1);
+		Assertions.assertEquals("a", r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(1), r.get()._1);
-		Assert.assertEquals("b", r.get()._2);
+		Assertions.assertEquals(true, r != null);
+		Assertions.assertEquals(Integer.valueOf(1), r.get()._1);
+		Assertions.assertEquals("b", r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(2), r.get()._1);
-		Assert.assertEquals("c", r.get()._2);
+		Assertions.assertEquals(true, r != null);
+		Assertions.assertEquals(Integer.valueOf(2), r.get()._1);
+		Assertions.assertEquals("c", r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r != null);
-		Assert.assertEquals(Integer.valueOf(3), r.get()._1);
-		Assert.assertEquals(null, r.get()._2);
+		Assertions.assertEquals(true, r != null);
+		Assertions.assertEquals(Integer.valueOf(3), r.get()._1);
+		Assertions.assertEquals(null, r.get()._2);
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -87,7 +87,7 @@ public class ZipWithTest {
 		FOption<Tuple<Integer,String>> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -99,6 +99,6 @@ public class ZipWithTest {
 		FOption<Tuple<String,Integer>> r;
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 }

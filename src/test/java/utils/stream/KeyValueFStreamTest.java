@@ -3,8 +3,8 @@ package utils.stream;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Maps;
 
@@ -25,12 +25,12 @@ public class KeyValueFStreamTest {
 		Map<Integer,String> map = Maps.newLinkedHashMap();
 		stream.toMap(map);
 		
-		Assert.assertEquals(5, map.size());
-		Assert.assertEquals("1", map.get(1));
-		Assert.assertEquals("2", map.get(2));
-		Assert.assertEquals("3", map.get(3));
-		Assert.assertEquals("4", map.get(4));
-		Assert.assertEquals("5", map.get(5));
+		Assertions.assertEquals(5, map.size());
+		Assertions.assertEquals("1", map.get(1));
+		Assertions.assertEquals("2", map.get(2));
+		Assertions.assertEquals("3", map.get(3));
+		Assertions.assertEquals("4", map.get(4));
+		Assertions.assertEquals("5", map.get(5));
 	}
 	
 	@Test
@@ -41,12 +41,12 @@ public class KeyValueFStreamTest {
 		
 		var result = stream.toMap();
 		
-		Assert.assertEquals(5, result.size());
-		Assert.assertEquals("1", result.get(1));
-		Assert.assertEquals("2", result.get(2));
-		Assert.assertEquals("3", result.get(3));
-		Assert.assertEquals("4", result.get(4));
-		Assert.assertEquals("5", result.get(5));
+		Assertions.assertEquals(5, result.size());
+		Assertions.assertEquals("1", result.get(1));
+		Assertions.assertEquals("2", result.get(2));
+		Assertions.assertEquals("3", result.get(3));
+		Assertions.assertEquals("4", result.get(4));
+		Assertions.assertEquals("5", result.get(5));
 	}
 	
 	static KeyValue<Integer, String> of(int key) {

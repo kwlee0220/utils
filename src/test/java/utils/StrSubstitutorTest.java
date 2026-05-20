@@ -1,5 +1,7 @@
 package utils;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -7,7 +9,9 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 
 /**
@@ -16,13 +20,16 @@ import org.junit.Test;
  */
 public class StrSubstitutorTest {
 
+	@Rule
+	public TemporaryFolder tmpFolder = new TemporaryFolder();
+
 	// ----- 기본 치환 (기존 testBasic) -----
 
 	@Test
 	public void testBasic() throws Exception {
 		Map<String,String> facts = Map.of("A", "1", "B", "2", "C", "3");
 
-		StrSubstitutor subst = new StrSubstitutor(facts).failOnUndefinedVariable(false);
+		StrSubstitutor subst = StrSubstitutor.with(facts).failOnUndefinedVariable(false);
 
 		Assert.assertEquals("ABC", subst.replace("ABC"));
 		Assert.assertEquals("1", subst.replace("${A}"));
@@ -34,18 +41,18 @@ public class StrSubstitutorTest {
 
 	@Test
 	public void testNoSubstitutionWhenNoTokens() {
-		StrSubstitutor subst = new StrSubstitutor(Map.of("a", "1"));
+		StrSubstitutor subst = StrSubstitutor.with(Map.of("a", "1"));
 		Assert.assertEquals("plain text", subst.replace("plain text"));
 	}
 
 	@Test
 	public void testNullTemplateReturnsNull() {
-		Assert.assertNull(new StrSubstitutor().replace(null));
+		Assert.assertNull(StrSubstitutor.with(Map.of()).replace(null));
 	}
 
 	@Test
 	public void testEmptyTemplateReturnsEmpty() {
-		Assert.assertEquals("", new StrSubstitutor().replace(""));
+		Assert.assertEquals("", StrSubstitutor.with(Map.of()).replace(""));
 	}
 
 	// ----- 미정의 변수 (기존 testSymbolNotFound 확장) -----
@@ -54,25 +61,25 @@ public class StrSubstitutorTest {
 	public void testSymbolNotFound() throws Exception {
 		Map<String,String> facts = Map.of("A", "1", "B", "2", "C", "3");
 
-		StrSubstitutor subst = new StrSubstitutor(facts);
+		StrSubstitutor subst = StrSubstitutor.with(facts);
 		subst.failOnUndefinedVariable(true);
 		subst.replace("${D}");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testUndefinedVariableThrowsByDefault() {
-		new StrSubstitutor(Map.of()).replace("${missing}");
+		StrSubstitutor.with(Map.of()).replace("${missing}");
 	}
 
 	@Test
 	public void testUndefinedVariableLeftWhenDisabled() {
-		StrSubstitutor subst = new StrSubstitutor(Map.of()).failOnUndefinedVariable(false);
+		StrSubstitutor subst = StrSubstitutor.with(Map.of()).failOnUndefinedVariable(false);
 		Assert.assertEquals("hello ${missing}", subst.replace("hello ${missing}"));
 	}
 
 	@Test
 	public void testFailOnUndefinedVariableReenable() {
-		StrSubstitutor subst = new StrSubstitutor(Map.of())
+		StrSubstitutor subst = StrSubstitutor.with(Map.of())
 									.failOnUndefinedVariable(false)
 									.failOnUndefinedVariable(true);
 		try {
@@ -88,7 +95,7 @@ public class StrSubstitutorTest {
 	public void testNested() throws Exception {
 		Map<String,String> facts = Map.of("A", "1", "B", "${A}a", "C", "B");
 
-		StrSubstitutor subst = new StrSubstitutor(facts);
+		StrSubstitutor subst = StrSubstitutor.with(facts);
 		subst.enableNestedSubstitution(false);
 		Assert.assertEquals("${A}a", subst.replace("${B}"));
 
@@ -99,7 +106,7 @@ public class StrSubstitutorTest {
 	@Test
 	public void testNestedSubstitutionInVariableNames() {
 		// 변수 이름 자체에 참조 — ${${key}} 형태.
-		StrSubstitutor subst = new StrSubstitutor(Map.of("key", "name", "name", "Bob"));
+		StrSubstitutor subst = StrSubstitutor.with(Map.of("key", "name", "name", "Bob"));
 		Assert.assertEquals("Bob", subst.replace("${${key}}"));
 	}
 
@@ -109,11 +116,11 @@ public class StrSubstitutorTest {
 	public void testFallback() throws Exception {
 		Map<String,String> facts = Map.of("A", "1", "B", "2", "C", "${A:-K}");
 
-		StrSubstitutor subst = new StrSubstitutor(facts);
+		StrSubstitutor subst = StrSubstitutor.with(facts);
 		Assert.assertEquals("1", subst.replace("${C}"));
 
 		facts = Map.of("B", "2", "C", "${A:-K}");
-		subst = new StrSubstitutor(facts);
+		subst = StrSubstitutor.with(facts);
 		Assert.assertEquals("K", subst.replace("${C}"));
 	}
 
@@ -123,7 +130,7 @@ public class StrSubstitutorTest {
 	public void testSysLookup() {
 		System.setProperty("strsubst.test.prop", "myvalue");
 		try {
-			Assert.assertEquals("myvalue", new StrSubstitutor().replace("${sys:strsubst.test.prop}"));
+			Assert.assertEquals("myvalue", StrSubstitutor.with(Map.of()).replace("${sys:strsubst.test.prop}"));
 		}
 		finally {
 			System.clearProperty("strsubst.test.prop");
@@ -134,18 +141,18 @@ public class StrSubstitutorTest {
 	public void testNoArgConstructorUsesBuiltinLookup() {
 		// 내장 lookup만 사용 (사용자 키 없음).
 		String userHome = System.getProperty("user.home");
-		Assert.assertEquals(userHome, new StrSubstitutor().replace("${sys:user.home}"));
+		Assert.assertEquals(userHome, StrSubstitutor.with(Map.of()).replace("${sys:user.home}"));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testUndefinedSysLookupThrows() {
-		new StrSubstitutor().replace("${sys:strsubst.test.nonexistent}");
+		StrSubstitutor.with(Map.of()).replace("${sys:strsubst.test.nonexistent}");
 	}
 
 	@Test
 	public void testUserKeyAndSysLookupCoexist() {
 		// 사용자 키 ${X}와 내장 ${sys:user.home}이 함께 사용 가능.
-		StrSubstitutor subst = new StrSubstitutor(Map.of("greeting", "hi"));
+		StrSubstitutor subst = StrSubstitutor.with(Map.of("greeting", "hi"));
 		String userHome = System.getProperty("user.home");
 		Assert.assertEquals("hi at " + userHome, subst.replace("${greeting} at ${sys:user.home}"));
 	}
@@ -154,7 +161,7 @@ public class StrSubstitutorTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testNullKeyValuesRejected() {
-		new StrSubstitutor(null);
+		StrSubstitutor.with(null);
 	}
 
 	// ----- 맵 mutation 반영 (참조 보관 시맨틱) -----
@@ -165,7 +172,7 @@ public class StrSubstitutorTest {
 		HashMap<String,String> map = new HashMap<>();
 		map.put("k", "v1");
 
-		StrSubstitutor subst = new StrSubstitutor(map);
+		StrSubstitutor subst = StrSubstitutor.with(map);
 		Assert.assertEquals("v1", subst.replace("${k}"));
 
 		map.put("k", "v2");
@@ -181,7 +188,7 @@ public class StrSubstitutorTest {
 				KeyValue.of("B", "${A}-2"),
 				KeyValue.of("C", "${B}-3")
 		);
-		LinkedHashMap<String,String> result = new StrSubstitutor().replaceIncrementally(kvs, Map.of());
+		LinkedHashMap<String,String> result = StrSubstitutor.with(Map.of()).replaceIncrementally(kvs, Map.of());
 
 		Assert.assertEquals("1", result.get("A"));
 		Assert.assertEquals("1-2", result.get("B"));
@@ -194,7 +201,7 @@ public class StrSubstitutorTest {
 				KeyValue.of("greeting", "hello, ${name}"),
 				KeyValue.of("loud", "${greeting}!")
 		);
-		LinkedHashMap<String,String> result = new StrSubstitutor()
+		LinkedHashMap<String,String> result = StrSubstitutor.with(Map.of())
 				.replaceIncrementally(kvs, Map.of("name", "Alice"));
 
 		Assert.assertEquals("hello, Alice", result.get("greeting"));
@@ -208,7 +215,7 @@ public class StrSubstitutorTest {
 				KeyValue.of("a", "2"),
 				KeyValue.of("m", "3")
 		);
-		LinkedHashMap<String,String> result = new StrSubstitutor().replaceIncrementally(kvs, Map.of());
+		LinkedHashMap<String,String> result = StrSubstitutor.with(Map.of()).replaceIncrementally(kvs, Map.of());
 
 		Assert.assertEquals(Arrays.asList("z", "a", "m"), List.copyOf(result.keySet()));
 	}
@@ -219,7 +226,7 @@ public class StrSubstitutorTest {
 				KeyValue.of("x", "first"),
 				KeyValue.of("x", "second")
 		);
-		LinkedHashMap<String,String> result = new StrSubstitutor().replaceIncrementally(kvs, Map.of());
+		LinkedHashMap<String,String> result = StrSubstitutor.with(Map.of()).replaceIncrementally(kvs, Map.of());
 
 		Assert.assertEquals("second", result.get("x"));
 		Assert.assertEquals(1, result.size());
@@ -235,7 +242,7 @@ public class StrSubstitutorTest {
 				KeyValue.of("a", "${base}-a"),
 				KeyValue.of("b", "${a}-b")
 		);
-		new StrSubstitutor().replaceIncrementally(kvs, facts);
+		StrSubstitutor.with(Map.of()).replaceIncrementally(kvs, facts);
 
 		// 원본 facts 맵은 변경되지 않아야 한다.
 		Assert.assertEquals(sizeBefore, facts.size());
@@ -249,7 +256,7 @@ public class StrSubstitutorTest {
 		List<KeyValue<String,String>> kvs = Arrays.asList(
 				KeyValue.of("a", "${missing}")
 		);
-		new StrSubstitutor().replaceIncrementally(kvs, Map.of());
+		StrSubstitutor.with(Map.of()).replaceIncrementally(kvs, Map.of());
 	}
 
 	@Test
@@ -259,7 +266,7 @@ public class StrSubstitutorTest {
 				KeyValue.of("a", "${missing}"),
 				KeyValue.of("b", "${a}-b")
 		);
-		LinkedHashMap<String,String> result = new StrSubstitutor()
+		LinkedHashMap<String,String> result = StrSubstitutor.with(Map.of())
 				.failOnUndefinedVariable(false)
 				.replaceIncrementally(kvs, Map.of());
 
@@ -270,17 +277,17 @@ public class StrSubstitutorTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testReplaceIncrementallyNullKeyValuesRejected() {
-		new StrSubstitutor().replaceIncrementally(null, Map.of());
+		StrSubstitutor.with(Map.of()).replaceIncrementally(null, Map.of());
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testReplaceIncrementallyNullFactsRejected() {
-		new StrSubstitutor().replaceIncrementally(List.of(), null);
+		StrSubstitutor.with(Map.of()).replaceIncrementally(List.of(), null);
 	}
 
 	@Test
 	public void testReplaceIncrementallyEmptyInputReturnsEmptyResult() {
-		LinkedHashMap<String,String> result = new StrSubstitutor()
+		LinkedHashMap<String,String> result = StrSubstitutor.with(Map.of())
 				.replaceIncrementally(List.of(), Map.of("a", "1"));
 
 		Assert.assertTrue(result.isEmpty());
@@ -290,8 +297,98 @@ public class StrSubstitutorTest {
 
 	@Test
 	public void testFluentChainReturnsSameInstance() {
-		StrSubstitutor subst = new StrSubstitutor(Map.of("a", "1"));
+		StrSubstitutor subst = StrSubstitutor.with(Map.of("a", "1"));
 		Assert.assertSame(subst, subst.failOnUndefinedVariable(false));
 		Assert.assertSame(subst, subst.enableNestedSubstitution(false));
+	}
+
+	// ----- with(String, String) 단일 키-값 팩토리 -----
+
+	@Test
+	public void testWithSingleKeyValue() {
+		StrSubstitutor subst = StrSubstitutor.with("greeting", "hello");
+		Assert.assertEquals("hello, world", subst.replace("${greeting}, world"));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testWithSingleKeyValueNullKeyRejected() {
+		StrSubstitutor.with(null, "v");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testWithSingleKeyValueNullValueRejected() {
+		StrSubstitutor.with("k", null);
+	}
+
+	// ----- replace(File, File) -----
+
+	@Test
+	public void testReplaceFileBasic() throws Exception {
+		File template = tmpFolder.newFile("in.txt");
+		File output = tmpFolder.newFile("out.txt");
+		Files.writeString(template.toPath(), "hello, ${name}!");
+
+		StrSubstitutor.with("name", "Alice").replace(template, output);
+
+		Assert.assertEquals("hello, Alice!", Files.readString(output.toPath()));
+	}
+
+	@Test
+	public void testReplaceFileInPlace() throws Exception {
+		File file = tmpFolder.newFile("inplace.txt");
+		Files.writeString(file.toPath(), "value=${v}");
+
+		StrSubstitutor.with("v", "42").replace(file, file);
+
+		Assert.assertEquals("value=42", Files.readString(file.toPath()));
+	}
+
+	@Test
+	public void testReplaceFileRespectsInstanceFailOnUndefined() throws Exception {
+		File template = tmpFolder.newFile("undef.txt");
+		Files.writeString(template.toPath(), "${missing}");
+
+		// lenient 모드 — 미정의 토큰이 그대로 남아야 함.
+		File outLenient = tmpFolder.newFile("lenient.txt");
+		StrSubstitutor.with(Map.of()).failOnUndefinedVariable(false).replace(template, outLenient);
+		Assert.assertEquals("${missing}", Files.readString(outLenient.toPath()));
+
+		// 엄격 모드 — IAE 발생.
+		File outStrict = tmpFolder.newFile("strict.txt");
+		try {
+			StrSubstitutor.with(Map.of()).failOnUndefinedVariable(true).replace(template, outStrict);
+			Assert.fail("엄격 모드에서 IAE를 던져야 한다");
+		}
+		catch ( IllegalArgumentException expected ) { }
+	}
+
+	@Test
+	public void testReplaceFileFailureLeavesOutputUnchanged() throws Exception {
+		File template = tmpFolder.newFile("bad.txt");
+		Files.writeString(template.toPath(), "${missing}");
+
+		File output = tmpFolder.newFile("preexisting.txt");
+		Files.writeString(output.toPath(), "ORIGINAL");
+
+		try {
+			StrSubstitutor.with(Map.of()).failOnUndefinedVariable(true).replace(template, output);
+			Assert.fail("IAE를 던져야 한다");
+		}
+		catch ( IllegalArgumentException expected ) { }
+
+		// atomic-move 보장 — 실패 시 출력 파일은 원본 그대로.
+		Assert.assertEquals("ORIGINAL", Files.readString(output.toPath()));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testReplaceFileNullTemplateRejected() throws Exception {
+		File output = tmpFolder.newFile("out.txt");
+		StrSubstitutor.with(Map.of()).replace(null, output);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testReplaceFileNullOutputRejected() throws Exception {
+		File template = tmpFolder.newFile("in.txt");
+		StrSubstitutor.with(Map.of()).replace(template, null);
 	}
 }

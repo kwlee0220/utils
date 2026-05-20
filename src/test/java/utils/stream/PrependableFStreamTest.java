@@ -1,9 +1,9 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -16,7 +16,7 @@ import utils.func.FOption;
 public class PrependableFStreamTest {
 	private PrependableFStream<Integer> m_stream;
 
-	@Before
+	@BeforeEach
 	public void setup() {
 		m_stream = FStream.from(Lists.newArrayList(1, 2)).toPrependable();
 	}
@@ -26,15 +26,15 @@ public class PrependableFStreamTest {
 		FOption<Integer> r;
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(1, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(1, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(2, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(2, (int)r.get());
 		
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -42,21 +42,21 @@ public class PrependableFStreamTest {
 		FOption<Integer> r;
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(1, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(1, (int)r.get());
 		
 		m_stream.prepend(1);
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(1, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(1, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(2, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(2, (int)r.get());
 		
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -64,8 +64,8 @@ public class PrependableFStreamTest {
 		FOption<Integer> r;
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(1, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(1, (int)r.get());
 		
 		// 2
 		m_stream.prepend(1);
@@ -74,19 +74,19 @@ public class PrependableFStreamTest {
 		// 3, 1, 2
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(3, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(3, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(1, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(1, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(2, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(2, (int)r.get());
 		
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -101,15 +101,15 @@ public class PrependableFStreamTest {
 		m_stream.prepend(3);
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(3, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(3, (int)r.get());
 
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(4, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(4, (int)r.get());
 		
 		r = m_stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -123,21 +123,23 @@ public class PrependableFStreamTest {
 		empty.prepend(3);
 
 		r = empty.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(3, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(3, (int)r.get());
 
 		r = empty.next();
-		Assert.assertEquals(true, r.isPresent());
-		Assert.assertEquals(4, (int)r.get());
+		Assertions.assertEquals(true, r.isPresent());
+		Assertions.assertEquals(4, (int)r.get());
 		
 		r = empty.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
-	@Test(expected=IllegalStateException.class)
+	@Test
 	public void test5() throws Exception {
+		Assertions.assertThrows(IllegalStateException.class, () -> {
 
-		m_stream.close();
-		m_stream.prepend(4);
+			m_stream.close();
+			m_stream.prepend(4);
+			});
 	}
 }

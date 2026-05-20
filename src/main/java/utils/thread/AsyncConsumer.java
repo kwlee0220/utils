@@ -1,4 +1,4 @@
-package utils.async;
+package utils.thread;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;

@@ -1,7 +1,7 @@
 package utils.stream;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -20,28 +20,28 @@ public class BufferStreamTest {
 		FOption<String> r;
 		
 		r = stream.next();
-		Assert.assertEquals("12", r.get());
+		Assertions.assertEquals("12", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals("24", r.get());
+		Assertions.assertEquals("24", r.get());
 
 		r = stream.next();	// 4, 1
-		Assert.assertEquals("41", r.get());
+		Assertions.assertEquals("41", r.get());
 
 		r = stream.next();	// 1, 3
-		Assert.assertEquals("13", r.get());
+		Assertions.assertEquals("13", r.get());
 		
 		r = stream.next();	// 3, 5
 		r = stream.next();	// 5, 2
 		r = stream.next();	// 2, 7
 		r = stream.next();	// 7, 6
-		Assert.assertEquals("76", r.get());
+		Assertions.assertEquals("76", r.get());
 		
 		r = stream.next();	// 6
-		Assert.assertEquals("6", r.get());
+		Assertions.assertEquals("6", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -52,22 +52,22 @@ public class BufferStreamTest {
 		FOption<String> r;
 		
 		r = stream.next();	// 1, 2, 4
-		Assert.assertEquals("124", r.get());
+		Assertions.assertEquals("124", r.get());
 		
 		r = stream.next();	// 4, 1, 3
-		Assert.assertEquals("413", r.get());
+		Assertions.assertEquals("413", r.get());
 
 		r = stream.next();	// 3, 5, 2
-		Assert.assertEquals("352", r.get());
+		Assertions.assertEquals("352", r.get());
 		
 		r = stream.next();	// 2, 7, 6
-		Assert.assertEquals("276", r.get());
+		Assertions.assertEquals("276", r.get());
 		
 		r = stream.next();	// 6
-		Assert.assertEquals("6", r.get());
+		Assertions.assertEquals("6", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 	
 	@Test
@@ -78,30 +78,36 @@ public class BufferStreamTest {
 		FOption<String> r;
 		
 		r = stream.next();	// 1
-		Assert.assertEquals("1", r.get());
+		Assertions.assertEquals("1", r.get());
 		
 		r = stream.next();	// 5
-		Assert.assertEquals("5", r.get());
+		Assertions.assertEquals("5", r.get());
 		
 		r = stream.next();
-		Assert.assertEquals(true, r.isAbsent());
+		Assertions.assertEquals(true, r.isAbsent());
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test3() throws Exception {
-		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
-		base.buffer(0, 3);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
+			base.buffer(0, 3);
+			});
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test4() throws Exception {
-		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
-		base.buffer(-1, 3);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
+			base.buffer(-1, 3);
+			});
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test5() throws Exception {
-		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
-		base.buffer(3, -1);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
+			base.buffer(3, -1);
+			});
 	}
 }

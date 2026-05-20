@@ -1,4 +1,4 @@
-package utils.async;
+package utils.thread;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -6,7 +6,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import utils.LoggerSettable;
-import utils.Utilities;
+import utils.Preconditions;
+import utils.thread.Guard;
+import utils.async.StartableExecution;
 
 
 
@@ -58,10 +60,10 @@ public class SingleWaiterExecutor implements LoggerSettable {
 	 * @throws IllegalStateException	{@link #stop()}이 이미 호출된 경우
 	 */
 	public void submit(StartableExecution<?> exec) {
-		Utilities.checkNotNullArgument(exec, "StartableExecution is null");
+		Preconditions.checkNotNullArgument(exec, "StartableExecution is null");
 
 		m_guard.run(() -> {
-			Utilities.checkState(!m_stopped, "stopped");
+			Preconditions.checkState(!m_stopped, "stopped");
 
 			if ( m_running == null ) {
 				// 실행 중인 작업이 없으면, 현재 작업을 실행한다.

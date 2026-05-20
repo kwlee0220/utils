@@ -1,7 +1,7 @@
 package utils.async;
 
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -10,18 +10,18 @@ import static org.mockito.Mockito.verify;
 
 import java.util.function.Consumer;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class EventDrivenExecution2Test {
 	private EventDrivenExecution<String> m_exec;
 	private final Exception m_cause = new Exception();
@@ -31,7 +31,7 @@ public class EventDrivenExecution2Test {
 	@Mock Runnable m_cancelListener;
 	@Mock Consumer<Throwable> m_failureListener;
 	
-	@Before
+	@BeforeEach
 	public void setup() {
 		m_exec = new EventDrivenExecution<>();
 		
@@ -45,15 +45,15 @@ public class EventDrivenExecution2Test {
 	public void test_RUNNING_01() throws Exception {
 		m_exec.notifyStarted();
 		boolean ret = m_exec.notifyStarting();
-		Assert.assertEquals(false, ret);
-		Assert.assertEquals(AsyncState.RUNNING, m_exec.getState());
+		Assertions.assertEquals(false, ret);
+		Assertions.assertEquals(AsyncState.RUNNING, m_exec.getState());
 	}
 
 	@Test
 	public void test_RUNNING_02() throws Exception {
 		boolean ret = m_exec.notifyStarted();
-		Assert.assertEquals(true, ret);
-		Assert.assertEquals(AsyncState.RUNNING, m_exec.getState());
+		Assertions.assertEquals(true, ret);
+		Assertions.assertEquals(AsyncState.RUNNING, m_exec.getState());
 
 		Thread.sleep(100);
 		verify(m_startListener, times(1)).run();

@@ -3,8 +3,8 @@ package utils.stream;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 
 /**
@@ -18,21 +18,21 @@ public class UniqueTest {
 										.unique()
 										.toList();
 		List<Integer> answer = Arrays.asList(1, 2, 1, 3);
-		Assert.assertEquals(answer, ret);
+		Assertions.assertEquals(answer, ret);
 	}
 	
 	@Test
 	public void test1() throws Exception {
 		List<Integer> ret = FStream.of(5, 5, 5).distinct().toList();
 		List<Integer> answer = Arrays.asList(5);
-		Assert.assertEquals(answer, ret);
+		Assertions.assertEquals(answer, ret);
 	}
 	
 	@Test
 	public void test2() throws Exception {
 		List<Object> ret = FStream.from(Arrays.asList()).distinct().toList();
 		List<Object> answer = Arrays.asList();
-		Assert.assertEquals(answer, ret);
+		Assertions.assertEquals(answer, ret);
 	}
 	
 	@Test
@@ -41,6 +41,6 @@ public class UniqueTest {
 										.unique(String::length)
 										.toList();
 		List<String> answer = Arrays.asList("a", "be", "the", "an");
-		Assert.assertEquals(answer, ret);
+		Assertions.assertEquals(answer, ret);
 	}
 }

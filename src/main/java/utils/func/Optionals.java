@@ -1,6 +1,5 @@
 package utils.func;
 
-import static utils.Utilities.checkNotNullArgument;
 
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -10,14 +9,16 @@ import java.util.function.Supplier;
 
 import org.jetbrains.annotations.NotNull;
 
-import lombok.experimental.UtilityClass;
+import utils.Preconditions;
 
 /**
  *
  * @author Kang-Woo Lee (ETRI)
  */
-@UtilityClass
-public class Optionals {
+public final class Optionals {
+	private Optionals() {
+		throw new AssertionError("Should not be called: class=" + getClass().getName());
+	}
 
 	/**
 	 * 주어진 {@code value} 값이 {@code null}이 아닌 경우 해당 객체를 반환하고, 그렇지 않은 경우 주어진
@@ -46,7 +47,7 @@ public class Optionals {
 			return value;
 		}
 		else {
-			checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			Preconditions.checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -68,7 +69,7 @@ public class Optionals {
 			return value;
 		}
 		else {
-			checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			Preconditions.checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -247,7 +248,7 @@ public class Optionals {
 	}
 
 	public static <T, S> S transform(Optional<T> opt, S src, BiFunction<S, T, ? extends S> mapper) {
-		checkNotNullArgument(mapper, "mapper BiFunction");
+		Preconditions.checkNotNullArgument(mapper, "mapper BiFunction");
 
 		return (opt.isPresent()) ? mapper.apply(src, opt.get()) : src;
 	}

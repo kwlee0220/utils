@@ -1,6 +1,5 @@
 package utils.func;
 
-import static utils.Utilities.checkNotNullArgument;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -15,9 +14,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import org.jetbrains.annotations.Nullable;
-
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import com.google.common.base.Preconditions;
 
@@ -78,7 +76,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @return 변환된 {@link FOption} 객체
 	 */
 	public static <T> FOption<T> from(Optional<T> opt) {
-		checkNotNullArgument(opt, "Optional is null");
+		utils.Preconditions.checkNotNullArgument(opt, "Optional is null");
 
 		return opt.isPresent() ? of(opt.get()) : empty();
 	}
@@ -181,7 +179,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return m_value;
 		}
 		else {
-			checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			utils.Preconditions.checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -200,7 +198,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return value;
 		}
 		else {
-			checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			utils.Preconditions.checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -219,7 +217,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return m_value;
 		}
 		else {
-			checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			utils.Preconditions.checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -240,7 +238,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return value;
 		}
 		else {
-			checkNotNullArgument(elseSupplier, "elseSupplier is null");
+			utils.Preconditions.checkNotNullArgument(elseSupplier, "elseSupplier is null");
 			return elseSupplier.get();
 		}
 	}
@@ -259,7 +257,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return m_value;
 		}
 		else {
-			checkNotNullArgument(thrower, "throwerSupplier is null");
+			utils.Preconditions.checkNotNullArgument(thrower, "throwerSupplier is null");
 			throw thrower.get();
 		}
 	}
@@ -271,7 +269,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @return	{@link FOption} 객체 자신.
 	 */
 	public FOption<T> ifPresent(@NotNull Consumer<? super T> effect) {
-		checkNotNullArgument(effect, "present consumer is null");
+		utils.Preconditions.checkNotNullArgument(effect, "present consumer is null");
 
 		if ( m_present ) {
 			effect.accept(m_value);
@@ -302,7 +300,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @throws X	{@code effect} 함수 호출 중 예외가 발생된 경우.
 	 */
 	public <X extends Throwable> FOption<T> ifPresentOrThrow(CheckedConsumerX<? super T,X> effect) throws X {
-		checkNotNullArgument(effect, "present consumer is null");
+		utils.Preconditions.checkNotNullArgument(effect, "present consumer is null");
 
 		if ( m_present ) {
 			effect.accept(m_value);
@@ -319,7 +317,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 */
 	public FOption<T> ifAbsent(Runnable orElse) {
 		if ( !m_present ) {
-			checkNotNullArgument(orElse, "orElse is null");
+			utils.Preconditions.checkNotNullArgument(orElse, "orElse is null");
 
 			orElse.run();
 		}
@@ -348,7 +346,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 */
 	public <X extends Throwable> FOption<T> ifAbsentOrThrow(CheckedRunnableX<X> orElse) throws X {
 		if ( !m_present ) {
-			checkNotNullArgument(orElse, "orElse is null");
+			utils.Preconditions.checkNotNullArgument(orElse, "orElse is null");
 
 			orElse.run();
 		}
@@ -365,7 +363,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @return 값이 존재하는 경우 객체 자신, 그렇지 않은 경우는 빈 {@link FOption#empty()} 객체.
 	 */
 	public FOption<T> filter(Predicate<? super T> pred) {
-		checkNotNullArgument(pred, "Predicate is null");
+		utils.Preconditions.checkNotNullArgument(pred, "Predicate is null");
 
 		if ( m_present ) {
 			return (pred.test(m_value)) ? this : empty();
@@ -384,7 +382,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @return 값이 존재하는 경우 객체 자신, 그렇지 않은 경우는 빈 {@link FOption#empty()} 객체.
 	 */
 	public FOption<T> filterNot(Predicate<? super T> pred) {
-		checkNotNullArgument(pred, "Predicate is null");
+		utils.Preconditions.checkNotNullArgument(pred, "Predicate is null");
 
 		if ( m_present ) {
 			return (!pred.test(m_value)) ? this : empty();
@@ -402,7 +400,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @return 값이 존재하는 경우 @code pred} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code false}.
 	 */
 	public boolean test(Predicate<? super T> pred) {
-		checkNotNullArgument(pred, "Predicate is null");
+		utils.Preconditions.checkNotNullArgument(pred, "Predicate is null");
 
 		return m_present && pred.test(m_value);
 	}
@@ -416,7 +414,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 			그렇지 않은 경우는 객체 자신을 반환한다.
 	 */
 	public <S> FOption<S> map(Function<? super T,? extends S> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
@@ -488,7 +486,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param	mapper	변형 함수
 	 */
 	public <S> FOption<S> mapSneakily(CheckedFunction<? super T,? extends S> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		try {
 			return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
@@ -514,45 +512,45 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 */
 	public <S,X extends Throwable>
 	FOption<S> mapOrThrow(CheckedFunctionX<? super T,? extends S,X> mapper) throws X {
-		checkNotNullArgument(mapper, "mapper is null");
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
 
 	public <S> S transform(S src, BiFunction<S,T,? extends S> mapper) {
-		checkNotNullArgument(mapper, "mapper BiFunction");
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper BiFunction");
 
 		return (m_present) ? mapper.apply(src, m_value) : src;
 	}
 
 	public <S> FOption<S> flatMap(Function<? super T,FOption<S>> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return (m_present) ? mapper.apply(m_value) : empty();
 	}
 
 	public <S> FOption<S> flatMapOrElse(Function<? super T,FOption<S>> mapper,
 			Supplier<FOption<S>> emptyMapper) {
-		checkNotNullArgument(mapper, "mapper is null");
-		checkNotNullArgument(emptyMapper, "emptyMapper is null");
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
+		utils.Preconditions.checkNotNullArgument(emptyMapper, "emptyMapper is null");
 
 		return (m_present) ? mapper.apply(m_value) : emptyMapper.get();
 	}
 
 	public <S> FOption<S> flatMapNullable(Function<? super T,? extends S> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return (m_present) ? FOption.ofNullable(mapper.apply(m_value)) : empty();
 	}
 
 	public <S> FStream<S> flatMapFStream(Function<? super T,FStream<S>> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return (m_present) ? mapper.apply(m_value) : FStream.empty();
 	}
 
 	public <S> FOption<S> flatMapSneakily(CheckedFunction<? super T,FOption<S>> mapper) {
-		checkNotNullArgument(mapper, "mapper is null");
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		try {
 			return (m_present) ? mapper.apply(m_value) : empty();
@@ -564,7 +562,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	}
 
 	public FOption<T> peek(Consumer<? super T> effect) {
-		checkNotNullArgument(effect, "effect is null");
+		utils.Preconditions.checkNotNullArgument(effect, "effect is null");
 
 		if ( m_present ) {
 			effect.accept(m_value);
@@ -585,7 +583,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return this;
 		}
 		else {
-			checkNotNullArgument(orElse, "orElse is null");
+			utils.Preconditions.checkNotNullArgument(orElse, "orElse is null");
 			return orElse;
 		}
 	}
@@ -642,7 +640,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return this;
 		}
 		else {
-			checkNotNullArgument(errorSupplier, "errorSupplier is null");
+			utils.Preconditions.checkNotNullArgument(errorSupplier, "errorSupplier is null");
 			throw errorSupplier.get();
 		}
 	}

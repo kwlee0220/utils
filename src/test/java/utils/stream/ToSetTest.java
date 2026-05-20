@@ -4,8 +4,8 @@ package utils.stream;
 import java.util.Collections;
 import java.util.Set;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -21,8 +21,8 @@ public class ToSetTest {
 		FStream<Integer> stream = FStream.from(Lists.newArrayList(1, 2, 4, 5, 3));
 		
 		Set<Integer> list2 = stream.toSet();
-		Assert.assertEquals(list, list2);
+		Assertions.assertEquals(list, list2);
 		
-		Assert.assertEquals(Collections.emptySet(), FStream.empty().toSet());
+		Assertions.assertEquals(Collections.emptySet(), FStream.empty().toSet());
 	}
 }

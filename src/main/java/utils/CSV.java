@@ -184,7 +184,7 @@ public class CSV {
 	 * @throws IllegalArgumentException	{@code line}이 {@code null}인 경우
 	 */
 	public FStream<String> parse(String line) {
-		Utilities.checkNotNullArgument(line, "line is null");
+		Preconditions.checkNotNullArgument(line, "line is null");
 		return new Parser(line);
 	}
 

@@ -5,7 +5,7 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
 import utils.CSV;
-import utils.Utilities;
+import utils.Preconditions;
 
 /**
  *
@@ -17,8 +17,8 @@ public abstract class AbstractState<C extends StateContext<C>> implements State<
 	private @NotNull final C m_context;
 
 	protected AbstractState(String path, C context) {
-		Utilities.checkNotNullArgument(path, "path");
-		Utilities.checkNotNullArgument(context, "context");
+		Preconditions.checkNotNullArgument(path, "path");
+		Preconditions.checkNotNullArgument(context, "context");
 
 		m_path = path;
 		m_pathSegments = CSV.parseCsv(path, '.').toList();

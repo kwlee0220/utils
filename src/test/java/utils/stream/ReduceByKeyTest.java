@@ -3,8 +3,8 @@ package utils.stream;
 
 import java.util.Map;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * 
@@ -16,10 +16,10 @@ public class ReduceByKeyTest {
 		FStream<Integer> stream = FStream.of(1, 2, 4, 1, 5);
 		
 		Map<Integer,Integer> accums = stream.reduceByKey(i -> i%2, (a,v) -> a+v);
-		Assert.assertEquals(2, accums.size());
-		Assert.assertEquals(6, (int)accums.get(0));
-		Assert.assertEquals(7, (int)accums.get(1));
-		Assert.assertEquals(false, accums.containsKey(2));
+		Assertions.assertEquals(2, accums.size());
+		Assertions.assertEquals(6, (int)accums.get(0));
+		Assertions.assertEquals(7, (int)accums.get(1));
+		Assertions.assertEquals(false, accums.containsKey(2));
 	}
 	
 	@Test
@@ -27,20 +27,24 @@ public class ReduceByKeyTest {
 		FStream<Integer> stream = FStream.of();
 		
 		Map<Integer,Integer> accums = stream.reduceByKey(i -> i%2, (a,v) -> a+v);
-		Assert.assertEquals(0, accums.size());
+		Assertions.assertEquals(0, accums.size());
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test2() throws Exception {
-		FStream<Integer> stream = FStream.of();
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> stream = FStream.of();
 		
-		stream.reduceByKey(null, (a,v) -> a+v);
+			stream.reduceByKey(null, (a,v) -> a+v);
+			});
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test3() throws Exception {
-		FStream<Integer> stream = FStream.of();
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> stream = FStream.of();
 		
-		stream.reduceByKey(i -> i%2, null);
+			stream.reduceByKey(i -> i%2, null);
+			});
 	}
 }

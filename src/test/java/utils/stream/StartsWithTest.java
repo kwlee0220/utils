@@ -1,8 +1,8 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -16,7 +16,7 @@ public class StartsWithTest {
 		FStream<String> stream1 = FStream.from(Lists.newArrayList("a","b", "c", "d"));
 		FStream<String> stream2 = FStream.from(Lists.newArrayList("a","b", "c"));
 		
-		Assert.assertEquals(true, stream1.startsWith(stream2));
+		Assertions.assertEquals(true, stream1.startsWith(stream2));
 	}
 	
 	@Test
@@ -24,7 +24,7 @@ public class StartsWithTest {
 		FStream<String> stream1 = FStream.from(Lists.newArrayList("a","b", "c", "d"));
 		FStream<String> stream3 = FStream.from(Lists.newArrayList("a","b", "d"));
 		
-		Assert.assertEquals(false, stream1.startsWith(stream3));
+		Assertions.assertEquals(false, stream1.startsWith(stream3));
 	}
 	
 	@Test
@@ -32,7 +32,7 @@ public class StartsWithTest {
 		FStream<String> stream1 = FStream.from(Lists.newArrayList("a","b", "c", "d"));
 		FStream<String> stream4 = FStream.empty();
 
-		Assert.assertEquals(true, stream1.startsWith(stream4));
+		Assertions.assertEquals(true, stream1.startsWith(stream4));
 	}
 	
 	@Test
@@ -40,13 +40,15 @@ public class StartsWithTest {
 		FStream<String> stream1 = FStream.from(Lists.newArrayList("a","b", "c"));
 		FStream<String> stream2 = FStream.from(Lists.newArrayList("a","b", "c", "d"));
 
-		Assert.assertEquals(false, stream1.startsWith(stream2));
+		Assertions.assertEquals(false, stream1.startsWith(stream2));
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test4() throws Exception {
-		FStream<Integer> stream1 = FStream.from(Lists.newArrayList(1, 2, 4));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> stream1 = FStream.from(Lists.newArrayList(1, 2, 4));
 		
-		Assert.assertEquals(true, stream1.startsWith(null));
+			Assertions.assertEquals(true, stream1.startsWith(null));
+			});
 	}
 }

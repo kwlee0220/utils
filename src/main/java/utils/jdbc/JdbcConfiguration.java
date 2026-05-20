@@ -31,7 +31,7 @@ public class JdbcConfiguration {
 	 * @param name  JDBC 드라이버 클래스 이름
 	 */
 	public void setDriverClassName(String name) {
-		Preconditions.checkArgument(name != null, "null driver class name");
+		utils.Preconditions.checkNotNullArgument(name, "null driver class name");
 		
 		m_driverClassName = name;
 	}
@@ -51,6 +51,7 @@ public class JdbcConfiguration {
 	 * @param jdbcUrl the JDBC URL.
 	 */
 	public void setJdbcUrl(String jdbcUrl) {
+		utils.Preconditions.checkNotNullArgument(jdbcUrl, "jdbcUrl is null");
 		m_jdbcUrl = jdbcUrl;
 	}
 	

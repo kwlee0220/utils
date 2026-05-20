@@ -1,20 +1,16 @@
-package utils.async.op;
+package utils.async;
 
-import static utils.Utilities.checkState;
+import static utils.Preconditions.checkState;
 
 import java.util.concurrent.CancellationException;
+
+import org.jetbrains.annotations.Nullable;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import org.jetbrains.annotations.Nullable;
-
 import utils.Throwables;
-import utils.async.CancellableWork;
-import utils.async.EventDrivenExecution;
-import utils.async.Executions;
-import utils.async.StartableExecution;
 
 /**
  * 

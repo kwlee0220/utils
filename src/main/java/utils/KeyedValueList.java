@@ -5,13 +5,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import lombok.experimental.Delegate;
-
-import org.jetbrains.annotations.Nullable;
 
 import utils.func.Funcs;
 import utils.stream.FStream;
@@ -196,8 +196,7 @@ public class KeyedValueList<K,V> implements List<V> {
 	public @Nullable V getOfKey(K key) {
 		Preconditions.checkArgument(key != null, "key is null");
 		
-		return Funcs.findFirst(m_values, v -> m_keyer.apply(v).equals(key))
-					.orElse(null);
+		return Funcs.findFirst(m_values, v -> m_keyer.apply(v).equals(key));
 	}
 	
 	/**
@@ -211,9 +210,8 @@ public class KeyedValueList<K,V> implements List<V> {
 	public int indexOfKey(K key) {
 		Preconditions.checkArgument(key != null, "key is null");
 		
-		return Funcs.findFirstIndexed(m_values, v -> m_keyer.apply(v).equals(key))
-					.map(Indexed::index)
-					.orElse(-1);
+		var indexed = Funcs.findFirstIndexed(m_values, v -> m_keyer.apply(v).equals(key));
+		return indexed != null ? indexed.index() : -1;
 	}
 	
 	/**

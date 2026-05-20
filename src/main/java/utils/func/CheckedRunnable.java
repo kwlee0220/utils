@@ -1,5 +1,6 @@
 package utils.func;
 
+import utils.Throwables;
 
 /**
  * 
@@ -7,7 +8,7 @@ package utils.func;
  */
 @FunctionalInterface
 public interface CheckedRunnable {
-	public void run() throws Throwable;
+	public void run() throws Exception;
 	
 	public default Try<Void> tryRun() {
 		try {
@@ -17,5 +18,16 @@ public interface CheckedRunnable {
 		catch ( Throwable e ) {
 			return Try.failure(e);
 		}
+	}
+	
+	public default Runnable toRunnable() {
+		return () -> {
+			try {
+				run();
+			}
+			catch ( Throwable e ) {
+				throw Throwables.toRuntimeException(e);
+			}
+		};
 	}
 }

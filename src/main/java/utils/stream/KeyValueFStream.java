@@ -1,6 +1,5 @@
 package utils.stream;
 
-import static utils.Utilities.checkNotNullArgument;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -149,7 +148,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	
 	public default <X extends Throwable>
 	void forEachOrThrow(CheckedBiConsumerX<? super K,? super V,X> effect) throws X {
-		checkNotNullArgument(effect, "effect is null");
+		utils.Preconditions.checkNotNullArgument(effect, "effect is null");
 		
 		try {
 			FOption<KeyValue<K,V>> next;
@@ -164,7 +163,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 	
 	public default KeyValueFStream<K,V> peek(Consumer<? super KeyValue<K,V>> effect) {
-		checkNotNullArgument(effect, "effect is null");
+		utils.Preconditions.checkNotNullArgument(effect, "effect is null");
 		
 		return from(new PeekedStream<>(this, effect));
 	}

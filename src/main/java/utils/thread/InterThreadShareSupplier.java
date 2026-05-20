@@ -15,8 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import utils.LoggerSettable;
+import utils.Preconditions;
 import utils.Throwables;
-import utils.Utilities;
 import utils.func.CheckedSupplier;
 
 
@@ -52,7 +52,7 @@ public class InterThreadShareSupplier<T> implements CheckedSupplier<T>, LoggerSe
 	private final ConditionVariable m_cvDone = new ConditionVariable(m_cond, ()->m_isProducing);
 	
 	public InterThreadShareSupplier(@NotNull CheckedSupplier<T> srcSupplier) {
-		Utilities.checkNotNullArgument(srcSupplier, "null CheckedSupplier");
+		Preconditions.checkNotNullArgument(srcSupplier, "null CheckedSupplier");
 		m_srcSupplier = srcSupplier;
 	}
 	

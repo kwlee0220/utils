@@ -4,7 +4,7 @@ import java.util.Comparator;
 
 import com.google.common.collect.MinMaxPriorityQueue;
 
-import utils.Utilities;
+import utils.Preconditions;
 import utils.func.FOption;
 
 /**
@@ -17,8 +17,8 @@ public class TopKPickedFStream<T> implements FStream<T> {
 	private final MinMaxPriorityQueue<Node> m_queue;
 	
 	TopKPickedFStream(FStream<T> src, int k, Comparator<? super T> cmp) {
-		Utilities.checkNotNullArgument(src, "src is null");
-		Utilities.checkArgument(k >= 0, "k >= 0, but k=" + k);
+		Preconditions.checkNotNullArgument(src, "src is null");
+		Preconditions.checkArgument(k >= 0, "k >= 0, but k=" + k);
 		
 		m_src = src;
 		m_cmptor = cmp;

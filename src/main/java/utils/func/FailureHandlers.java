@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import utils.Preconditions;
 import utils.Throwables;
-import utils.Utilities;
 
 
 /**
@@ -53,13 +53,13 @@ public class FailureHandlers {
 		}
 		
 		public CollectingErrorHandler(List<FailureCase<T>> store) {
-			Utilities.checkNotNullArgument(store, "store is null");
+			Preconditions.checkNotNullArgument(store, "store is null");
 			m_fcases = store;
 		}
 
 		@Override
 		public void handle(FailureCase<T> fcase) {
-			Utilities.checkNotNullArgument(fcase, "FailureCase is null");
+			Preconditions.checkNotNullArgument(fcase, "FailureCase is null");
 			
 			m_fcases.add(fcase);
 		}

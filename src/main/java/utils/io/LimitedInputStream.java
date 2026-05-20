@@ -5,8 +5,6 @@ import java.io.InputStream;
 
 import com.google.common.base.Preconditions;
 
-import utils.Utilities;
-
 
 /**
  * 
@@ -17,7 +15,7 @@ public class LimitedInputStream extends InputStream {
 	private int m_remains;
 	
 	public LimitedInputStream(InputStream src, int limit) {
-		Utilities.checkNotNullArgument(src, "Source InputStream");
+		utils.Preconditions.checkNotNullArgument(src, "Source InputStream");
 		Preconditions.checkArgument(limit >= 0, "limit >= 0");
 		
 		m_src = src;

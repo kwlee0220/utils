@@ -3,8 +3,8 @@ package utils.stream;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 
 /**
@@ -17,16 +17,16 @@ public class QuasiSortTest {
 		List<Integer> result;
 		
 		result = FStream.from(Arrays.<Integer>asList()).quasiSort(2).toList();
-		Assert.assertEquals(Arrays.asList(), result);
+		Assertions.assertEquals(Arrays.asList(), result);
 		
 		result = FStream.from(Arrays.<Integer>asList(7)).quasiSort(2).toList();
-		Assert.assertEquals(Arrays.asList(7), result);
+		Assertions.assertEquals(Arrays.asList(7), result);
 		
 		result = FStream.from(Arrays.<Integer>asList(7, 5)).quasiSort(2).toList();
-		Assert.assertEquals(Arrays.asList(5, 7), result);
+		Assertions.assertEquals(Arrays.asList(5, 7), result);
 		
 		result = FStream.from(Arrays.<Integer>asList(7, 5, 3, 1)).quasiSort(2).toList();
-		Assert.assertEquals(Arrays.asList(3, 1, 5, 7), result);
+		Assertions.assertEquals(Arrays.asList(3, 1, 5, 7), result);
 	}
 	
 	@Test
@@ -34,16 +34,16 @@ public class QuasiSortTest {
 		List<Integer> result;
 		
 		result = FStream.from(Arrays.<Integer>asList()).quasiSort(2, v -> v).toList();
-		Assert.assertEquals(Arrays.asList(), result);
+		Assertions.assertEquals(Arrays.asList(), result);
 		
 		result = FStream.from(Arrays.<Integer>asList(7)).quasiSort(2).toList();
-		Assert.assertEquals(Arrays.asList(7), result);
+		Assertions.assertEquals(Arrays.asList(7), result);
 		
 		result = FStream.from(Arrays.<Integer>asList(7, 5)).quasiSort(2).toList();
-		Assert.assertEquals(Arrays.asList(5, 7), result);
+		Assertions.assertEquals(Arrays.asList(5, 7), result);
 		
 		result = FStream.from(Arrays.<Integer>asList(7, 5, 3, 1)).quasiSort(2).toList();
-		Assert.assertEquals(Arrays.asList(3, 1, 5, 7), result);
+		Assertions.assertEquals(Arrays.asList(3, 1, 5, 7), result);
 	}
 	
 	@Test
@@ -54,12 +54,12 @@ public class QuasiSortTest {
 		result = FStream.from(input)
 						.quasiSort(2, (v1,v2)->Integer.compare(v1, v2))
 						.toList();
-		Assert.assertEquals(Arrays.asList(3, 1, 2, 5, 7, 9), result);
+		Assertions.assertEquals(Arrays.asList(3, 1, 2, 5, 7, 9), result);
 
 		result = FStream.from(input)
 						.quasiSort(2, (v1,v2)->Integer.compare(v2, v1))
 						.toList();
-		Assert.assertEquals(Arrays.asList(7, 5, 3, 9, 2, 1), result);
+		Assertions.assertEquals(Arrays.asList(7, 5, 3, 9, 2, 1), result);
 	}
 	
 	@Test
@@ -70,16 +70,16 @@ public class QuasiSortTest {
 		result = FStream.from(input)
 						.quasiSort(2, v -> v)
 						.toList();
-		Assert.assertEquals(Arrays.asList(3, 1, 2, 5, 7, 9), result);
+		Assertions.assertEquals(Arrays.asList(3, 1, 2, 5, 7, 9), result);
 
 		result = FStream.from(input)
 						.quasiSort(2, v -> -v)
 						.toList();
-		Assert.assertEquals(Arrays.asList(7, 5, 3, 9, 2, 1), result);
+		Assertions.assertEquals(Arrays.asList(7, 5, 3, 9, 2, 1), result);
 
 		result = FStream.from(input)
 						.quasiSort(2, v -> v, true)
 						.toList();
-		Assert.assertEquals(Arrays.asList(7, 5, 3, 9, 2, 1), result);
+		Assertions.assertEquals(Arrays.asList(7, 5, 3, 9, 2, 1), result);
 	}
 }

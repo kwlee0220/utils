@@ -1,13 +1,10 @@
 package utils;
 
-import static utils.Utilities.checkArgument;
-import static utils.Utilities.checkNotNullArgument;
-
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
 import net.sf.cglib.core.CodeGenerationException;
@@ -27,100 +24,52 @@ public final class ProxyUtils {
 		throw new AssertionError("Should not be invoked!!: class=" + ProxyUtils.class.getName());
 	}
 
-	@SafeVarargs
-	@SuppressWarnings("unchecked")
-	public static <T> T replaceAction(ClassLoader loader, T obj, CallHandler... handlers) {
-		Preconditions.checkNotNull(loader, "ClassLoader is null");
-		Preconditions.checkNotNull(obj, "target object is null");
-		Preconditions.checkNotNull(handlers, "CallHandler is null");
-		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
-		
-		Callback[] callbacks = new Callback[handlers.length+1];
-		for ( int i =0; i < handlers.length; ++i ) {
-			callbacks[i+1] = new Interceptor<>(obj, handlers[i]);
-		}
-		callbacks[0] = new NoOpHandler<>(obj);
-		
-		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(obj.getClass());
-		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
-		Preconditions.checkArgument(intfcs.length > 0, "object implements no interfaces: obj=%s", obj);
-		
+	public static <T> T replaceAction(T obj, CallHandler handler) {
+		Preconditions.checkNotNullArgument(obj, "target object is null");
+		Preconditions.checkNotNullArgument(handler, "CallHandler is null");
+
+		Callback[] callbacks = List.of(new NoOpHandler<>(obj), new Interceptor<>(obj, handler))
+									.toArray(new Callback[2]);
+
 		try {
 			Enhancer enhancer = new Enhancer();
-			enhancer.setClassLoader(loader);
-			enhancer.setInterfaces(intfcs);
-			enhancer.setCallbackFilter(new CallFilter(handlers));
+			enhancer.setClassLoader(obj.getClass().getClassLoader());
+			enhancer.setSuperclass(obj.getClass());
+			enhancer.setCallbackFilter(new CallFilter(handler));
 			enhancer.setCallbacks(callbacks);
 			return (T)enhancer.create();
 		}
 		catch ( CodeGenerationException e ) {
 			Throwable cause = Throwables.unwrapThrowable(e.getCause());
 			Throwables.sneakyThrow(cause);
-			
+
 			throw new AssertionError("should not be here");
 		}
 	}
 
-	@SafeVarargs
-	@SuppressWarnings("unchecked")
-	public static <T> T replaceAction(T obj, CallHandler... handlers) {
-		checkNotNullArgument(obj, "target object is null");
-		checkNotNullArgument(handlers, "CallHandler is null");
-		checkArgument(handlers.length > 0, "Zero CallHandler" );
-		
-		Callback[] callbacks = new Callback[handlers.length+1];
-		for ( int i =0; i < handlers.length; ++i ) {
-			callbacks[i+1] = new Interceptor<>(obj, handlers[i]);
-		}
-		callbacks[0] = new NoOpHandler<>(obj);
+	public static <T> T replaceAction(T obj, Class<?> intfc, CallHandler... handler) {
+		Preconditions.checkNotNullArgument(obj, "target object is null");
+		Preconditions.checkNotNullArgument(handler, "CallHandler is null");
 
-		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(obj.getClass());
-		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
-		checkArgument(intfcs.length > 0, () -> "object implements no interfaces: obj=" + obj);
-		
+		Callback[] callbacks = new Callback[handler.length+1];
+		callbacks[0] = new NoOpHandler<>(obj);
+        for ( int i =0; i < handler.length; ++i ) {
+        	callbacks[i+1] = new Interceptor<>(obj, handler[i]);
+        }
+		Class<?>[] intfcs = new Class<?>[] { intfc };
+
 		try {
 			Enhancer enhancer = new Enhancer();
+			enhancer.setClassLoader(obj.getClass().getClassLoader());
 			enhancer.setInterfaces(intfcs);
-			enhancer.setCallbackFilter(new CallFilter(handlers));
+			enhancer.setCallbackFilter(new CallFilter(handler));
 			enhancer.setCallbacks(callbacks);
 			return (T)enhancer.create();
 		}
 		catch ( CodeGenerationException e ) {
 			Throwable cause = Throwables.unwrapThrowable(e.getCause());
 			Throwables.sneakyThrow(cause);
-			
-			throw new AssertionError("should not be here");
-		}
-	}
 
-	@SafeVarargs
-	@SuppressWarnings("unchecked")
-	public static <T> T replaceAction(T obj, Class<?>[] extraIntfcs, CallHandler... handlers) {
-		checkNotNullArgument(obj, "target object is null");
-		checkNotNullArgument(handlers, "CallHandler is null");
-		checkArgument(handlers.length > 0, "Zero CallHandler" );
-		
-		Callback[] callbacks = new Callback[handlers.length+1];
-		for ( int i =0; i < handlers.length; ++i ) {
-			callbacks[i+1] = new Interceptor<>(obj, handlers[i]);
-		}
-		callbacks[0] = new NoOpHandler<>(obj);
-		
-		Set<Class<?>> intfcSet = Sets.newHashSet(Utilities.getInterfaceAllRecusively(obj.getClass()));
-		intfcSet.addAll(Arrays.asList(extraIntfcs));
-		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
-		
-		try {
-			Enhancer enhancer = new Enhancer();
-			enhancer.setInterfaces(intfcs);
-			enhancer.setCallbackFilter(new CallFilter(handlers));
-			enhancer.setCallbacks(callbacks);
-			return (T)enhancer.create();
-		}
-		catch ( CodeGenerationException e ) {
-			Throwable cause = Throwables.unwrapThrowable(e.getCause());
-			Throwables.sneakyThrow(cause);
-			
 			throw new AssertionError("should not be here");
 		}
 	}
@@ -128,20 +77,20 @@ public final class ProxyUtils {
 	@SuppressWarnings("unchecked")
 	public static <T> T buildObject(Object base, Class<?>[] extraIntfcs, CallHandler[] handlers,
 									Class<T> outIntfc) {
-		Preconditions.checkArgument(base != null, "target object is null");
-		Preconditions.checkArgument(handlers != null, "CallHandler is null");
+		Preconditions.checkNotNullArgument(base, "base object is null");
+		Preconditions.checkNotNullArgument(handlers, "CallHandler is null");
 		Preconditions.checkArgument(handlers.length > 0, "Zero CallHandler" );
-		
+
 		Callback[] callbacks = new Callback[handlers.length+1];
 		for ( int i =0; i < handlers.length; ++i ) {
 			callbacks[i+1] = handlers[i];
 		}
 		callbacks[0] = new NoOpHandler<>(base);
-		
-		Set<Class<?>> intfcSet = Sets.newHashSet(Utilities.getInterfaceAllRecusively(base.getClass()));
+
+		Set<Class<?>> intfcSet = Sets.newHashSet(ReflectionUtils.getAllInterfaces(base.getClass()));
 		intfcSet.addAll(Arrays.asList(extraIntfcs));
 		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
-		
+
 		try {
 			Enhancer enhancer = new Enhancer();
 			enhancer.setInterfaces(intfcs);
@@ -152,7 +101,7 @@ public final class ProxyUtils {
 		catch ( CodeGenerationException e ) {
 			Throwable cause = Throwables.unwrapThrowable(e.getCause());
 			Throwables.sneakyThrow(cause);
-			
+
 			throw new AssertionError("should not be here");
 		}
 	}
@@ -177,7 +126,7 @@ public final class ProxyUtils {
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> T extend(Class<?> baseCls, Class<T> intfc, T handler) {
-		Set<Class<?>> intfcSet = Utilities.getInterfaceAllRecusively(baseCls);
+		Set<Class<?>> intfcSet = Sets.newHashSet(ReflectionUtils.getAllInterfaces(baseCls));
 		intfcSet.add(intfc);
 		Class<?>[] intfcs = intfcSet.toArray(new Class<?>[intfcSet.size()]);
 		
@@ -199,7 +148,7 @@ public final class ProxyUtils {
 	private static class CallFilter implements CallbackFilter {
 		private final CallHandler[] m_handlers;
 		
-		CallFilter(CallHandler[] handlers) {
+		CallFilter(CallHandler... handlers) {
 			m_handlers = handlers;
 		}
 		

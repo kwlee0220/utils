@@ -6,10 +6,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import utils.async.command.CommandVariable.FileVariable;
 import utils.async.command.CommandVariable.StringVariable;
@@ -22,13 +22,13 @@ import utils.async.command.CommandVariable.StringVariable;
 public class CommandVariableTest {
 	private File m_tempFile;
 
-	@Before
+	@BeforeEach
 	public void setup() throws IOException {
 		m_tempFile = Files.createTempFile("cmdvar-test-", ".txt").toFile();
 		Files.writeString(m_tempFile.toPath(), "hello world", StandardCharsets.UTF_8);
 	}
 
-	@After
+	@AfterEach
 	public void cleanup() {
 		if ( m_tempFile != null && m_tempFile.exists() ) {
 			m_tempFile.delete();
@@ -40,53 +40,63 @@ public class CommandVariableTest {
 	@Test
 	public void testStringVariableBasic() {
 		StringVariable var = new StringVariable("foo", "bar");
-		Assert.assertEquals("foo", var.getName());
-		Assert.assertEquals("bar", var.getValue());
-		Assert.assertEquals("foo", var.key());
+		Assertions.assertEquals("foo", var.getName());
+		Assertions.assertEquals("bar", var.getValue());
+		Assertions.assertEquals("foo", var.key());
 	}
 
 	@Test
 	public void testStringVariableEmptyValueAllowed() {
 		StringVariable var = new StringVariable("foo", "");
-		Assert.assertEquals("", var.getValue());
+		Assertions.assertEquals("", var.getValue());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testStringVariableNullNameRejected() {
-		new StringVariable(null, "bar");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new StringVariable(null, "bar");
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testStringVariableNullValueRejected() {
-		new StringVariable("foo", null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new StringVariable("foo", null);
+			});
 	}
 
 	@Test
 	public void testStringVariableModifierName() {
 		StringVariable var = new StringVariable("foo", "bar");
-		Assert.assertEquals("foo", var.getValueByModifier("name"));
+		Assertions.assertEquals("foo", var.getValueByModifier("name"));
 	}
 
 	@Test
 	public void testStringVariableModifierValue() {
 		StringVariable var = new StringVariable("foo", "bar");
-		Assert.assertEquals("bar", var.getValueByModifier("value"));
+		Assertions.assertEquals("bar", var.getValueByModifier("value"));
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testStringVariableModifierPathUnsupported() {
-		// "path"는 StringVariable에서 지원하지 않는다 (FileVariable 한정).
-		new StringVariable("foo", "bar").getValueByModifier("path");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			// "path"는 StringVariable에서 지원하지 않는다 (FileVariable 한정).
+			new StringVariable("foo", "bar").getValueByModifier("path");
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testStringVariableModifierUnknownRejected() {
-		new StringVariable("foo", "bar").getValueByModifier("unknown");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new StringVariable("foo", "bar").getValueByModifier("unknown");
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testStringVariableModifierNullRejected() {
-		new StringVariable("foo", "bar").getValueByModifier(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new StringVariable("foo", "bar").getValueByModifier(null);
+			});
 	}
 
 	@Test
@@ -94,7 +104,7 @@ public class CommandVariableTest {
 		StringVariable var = new StringVariable("foo", "bar");
 		try {
 			var.getValueByModifier("Name");
-			Assert.fail("'Name'은 대소문자가 달라 미지원이어야 한다");
+			Assertions.fail("'Name'은 대소문자가 달라 미지원이어야 한다");
 		}
 		catch ( IllegalArgumentException expected ) { }
 	}
@@ -104,16 +114,16 @@ public class CommandVariableTest {
 		StringVariable var = new StringVariable("foo", "bar");
 		var.close();
 		// close 후에도 getName/getValue 정상 동작.
-		Assert.assertEquals("foo", var.getName());
-		Assert.assertEquals("bar", var.getValue());
+		Assertions.assertEquals("foo", var.getName());
+		Assertions.assertEquals("bar", var.getValue());
 	}
 
 	@Test
 	public void testStringVariableToString() {
 		StringVariable var = new StringVariable("foo", "bar");
 		String s = var.toString();
-		Assert.assertTrue("'" + s + "' should contain name", s.contains("foo"));
-		Assert.assertTrue("'" + s + "' should contain value", s.contains("bar"));
+		Assertions.assertTrue(s.contains("foo"), "'" + s + "' should contain name");
+		Assertions.assertTrue(s.contains("bar"), "'" + s + "' should contain value");
 	}
 
 	// ----- FileVariable -----
@@ -121,25 +131,29 @@ public class CommandVariableTest {
 	@Test
 	public void testFileVariableBasic() {
 		FileVariable var = new FileVariable("doc", m_tempFile);
-		Assert.assertEquals("doc", var.getName());
-		Assert.assertEquals("doc", var.key());
-		Assert.assertSame(m_tempFile, var.getFile());
+		Assertions.assertEquals("doc", var.getName());
+		Assertions.assertEquals("doc", var.key());
+		Assertions.assertSame(m_tempFile, var.getFile());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFileVariableNullNameRejected() {
-		new FileVariable(null, m_tempFile);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new FileVariable(null, m_tempFile);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFileVariableNullFileRejected() {
-		new FileVariable("doc", null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new FileVariable("doc", null);
+			});
 	}
 
 	@Test
 	public void testFileVariableGetValueReadsFile() {
 		FileVariable var = new FileVariable("doc", m_tempFile);
-		Assert.assertEquals("hello world", var.getValue());
+		Assertions.assertEquals("hello world", var.getValue());
 	}
 
 	@Test
@@ -148,51 +162,55 @@ public class CommandVariableTest {
 
 		// 첫 호출 — 파일 내용을 읽는다.
 		String first = var.getValue();
-		Assert.assertEquals("hello world", first);
+		Assertions.assertEquals("hello world", first);
 
 		// 외부에서 파일 내용을 변경.
 		Files.writeString(m_tempFile.toPath(), "different content", StandardCharsets.UTF_8);
 
 		// 두 번째 호출 — 캐시된 값이 반환되어야 한다.
-		Assert.assertEquals("hello world", var.getValue());
+		Assertions.assertEquals("hello world", var.getValue());
 	}
 
 	@Test
 	public void testFileVariableModifierName() {
 		FileVariable var = new FileVariable("doc", m_tempFile);
-		Assert.assertEquals("doc", var.getValueByModifier("name"));
+		Assertions.assertEquals("doc", var.getValueByModifier("name"));
 	}
 
 	@Test
 	public void testFileVariableModifierValue() {
 		FileVariable var = new FileVariable("doc", m_tempFile);
-		Assert.assertEquals("hello world", var.getValueByModifier("value"));
+		Assertions.assertEquals("hello world", var.getValueByModifier("value"));
 	}
 
 	@Test
 	public void testFileVariableModifierPath() {
 		FileVariable var = new FileVariable("doc", m_tempFile);
-		Assert.assertEquals(m_tempFile.getAbsolutePath(), var.getValueByModifier("path"));
+		Assertions.assertEquals(m_tempFile.getAbsolutePath(), var.getValueByModifier("path"));
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFileVariableModifierUnknownRejected() {
-		new FileVariable("doc", m_tempFile).getValueByModifier("unknown");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new FileVariable("doc", m_tempFile).getValueByModifier("unknown");
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFileVariableModifierNullRejected() {
-		// "path".equals(null)은 false이므로 super.getValueByModifier(null)에서 검증된다.
-		new FileVariable("doc", m_tempFile).getValueByModifier(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			// "path".equals(null)은 false이므로 super.getValueByModifier(null)에서 검증된다.
+			new FileVariable("doc", m_tempFile).getValueByModifier(null);
+			});
 	}
 
 	@Test
 	public void testFileVariableCloseDeletesFile() {
 		FileVariable var = new FileVariable("doc", m_tempFile);
-		Assert.assertTrue(m_tempFile.exists());
+		Assertions.assertTrue(m_tempFile.exists());
 
 		var.close();
-		Assert.assertFalse("close() 후 파일이 삭제되어야 한다", m_tempFile.exists());
+		Assertions.assertFalse(m_tempFile.exists(), "close() 후 파일이 삭제되어야 한다");
 	}
 
 	@Test
@@ -201,7 +219,7 @@ public class CommandVariableTest {
 		var.close();
 		// 두 번째 close는 파일이 이미 없어도 예외 없이 처리된다.
 		var.close();
-		Assert.assertFalse(m_tempFile.exists());
+		Assertions.assertFalse(m_tempFile.exists());
 	}
 
 	@Test
@@ -212,10 +230,10 @@ public class CommandVariableTest {
 
 		try {
 			var.getValue();
-			Assert.fail("close 후 getValue는 예외를 던져야 한다");
+			Assertions.fail("close 후 getValue는 예외를 던져야 한다");
 		}
 		catch ( RuntimeException expected ) {
-			Assert.assertTrue(expected.getCause() instanceof IOException);
+			Assertions.assertTrue(expected.getCause() instanceof IOException);
 		}
 	}
 
@@ -223,28 +241,28 @@ public class CommandVariableTest {
 	public void testFileVariableGetValueAfterCloseReturnsCachedIfReadFirst() {
 		// 캐시된 후 close하면 캐시가 그대로 유지된다.
 		FileVariable var = new FileVariable("doc", m_tempFile);
-		Assert.assertEquals("hello world", var.getValue());   // 캐시.
+		Assertions.assertEquals("hello world", var.getValue());   // 캐시.
 
 		var.close();
-		Assert.assertFalse(m_tempFile.exists());
+		Assertions.assertFalse(m_tempFile.exists());
 
 		// 캐시된 값은 여전히 반환 가능.
-		Assert.assertEquals("hello world", var.getValue());
+		Assertions.assertEquals("hello world", var.getValue());
 	}
 
 	@Test
 	public void testFileVariableGetValueOnMissingFile() throws IOException {
 		// 생성 시 파일이 없는 경우 첫 getValue에서 RuntimeException.
 		File missing = new File(m_tempFile.getParentFile(), "missing-cmdvar-test.txt");
-		Assert.assertFalse(missing.exists());
+		Assertions.assertFalse(missing.exists());
 
 		FileVariable var = new FileVariable("missing", missing);
 		try {
 			var.getValue();
-			Assert.fail("missing file에 대해 예외를 던져야 한다");
+			Assertions.fail("missing file에 대해 예외를 던져야 한다");
 		}
 		catch ( RuntimeException expected ) {
-			Assert.assertTrue(expected.getCause() instanceof IOException);
+			Assertions.assertTrue(expected.getCause() instanceof IOException);
 		}
 	}
 
@@ -252,8 +270,8 @@ public class CommandVariableTest {
 	public void testFileVariableToString() {
 		FileVariable var = new FileVariable("doc", m_tempFile);
 		String s = var.toString();
-		Assert.assertTrue(s.contains("doc"));
-		Assert.assertTrue(s.contains(m_tempFile.getAbsolutePath()));
+		Assertions.assertTrue(s.contains("doc"));
+		Assertions.assertTrue(s.contains(m_tempFile.getAbsolutePath()));
 	}
 
 	// ----- Interface default 동작 직접 검증 -----
@@ -267,12 +285,12 @@ public class CommandVariableTest {
 			@Override public void close() { }
 		};
 
-		Assert.assertEquals("x", var.getValueByModifier("name"));
-		Assert.assertEquals("y", var.getValueByModifier("value"));
+		Assertions.assertEquals("x", var.getValueByModifier("name"));
+		Assertions.assertEquals("y", var.getValueByModifier("value"));
 		// "path"는 default가 지원하지 않음.
 		try {
 			var.getValueByModifier("path");
-			Assert.fail("'path'는 default 구현이 지원하지 않아야 한다");
+			Assertions.fail("'path'는 default 구현이 지원하지 않아야 한다");
 		}
 		catch ( IllegalArgumentException expected ) { }
 	}
@@ -280,7 +298,7 @@ public class CommandVariableTest {
 	@Test
 	public void testKeyDefaultEqualsName() {
 		// Keyed 인터페이스 default 동작.
-		Assert.assertEquals("k", new StringVariable("k", "v").key());
+		Assertions.assertEquals(new StringVariable("k", "v").key(), "k");
 	}
 
 }

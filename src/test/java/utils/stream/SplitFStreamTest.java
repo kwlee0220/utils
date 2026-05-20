@@ -3,8 +3,8 @@ package utils.stream;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 
 /**
@@ -20,7 +20,7 @@ public class SplitFStreamTest {
 							.split(v -> v.equals("0"))
 							.map(b -> String.join("", b))
 							.join('|');
-		Assert.assertEquals("35|1||7", ret);
+		Assertions.assertEquals("35|1||7", ret);
 	}
 	
 	@Test
@@ -31,7 +31,7 @@ public class SplitFStreamTest {
 							.split(v -> v.equals("0"))
 							.map(b -> String.join("", b))
 							.join('|');
-		Assert.assertEquals("357", ret);
+		Assertions.assertEquals("357", ret);
 	}
 	
 	@Test
@@ -42,6 +42,6 @@ public class SplitFStreamTest {
 							.split(v -> v.equals("0"))
 							.map(b -> String.join("", b))
 							.join('|');
-		Assert.assertEquals("|357||", ret);
+		Assertions.assertEquals("|357||", ret);
 	}
 }

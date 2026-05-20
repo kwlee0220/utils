@@ -1,5 +1,8 @@
 package utils.func;
 
+import java.util.function.Supplier;
+
+import utils.Throwables;
 
 /**
  * 
@@ -7,7 +10,7 @@ package utils.func;
  */
 @FunctionalInterface
 public interface CheckedSupplier<T> {
-	public T get() throws Throwable;
+	public T get() throws Exception;
 	
 	public default Try<? extends T> tryGet() {
 		try {
@@ -16,6 +19,18 @@ public interface CheckedSupplier<T> {
 		catch ( Throwable e ) {
 			return Try.failure(e);
 		}
+	}
+	
+	public default Supplier<T> toSneakyThrowSupplier() {
+		return () -> {
+			try {
+				return get();
+			}
+			catch ( Throwable e ) {
+				Throwables.sneakyThrow(e);
+				throw new AssertionError("Should not be here (CheckedSupplier.sneakyThrow)");
+			}
+		};
 	}
 }
 

@@ -1,7 +1,6 @@
 package utils.async;
 
-import javax.annotation.Nullable;
-
+import org.jetbrains.annotations.Nullable;
 
 /**
  * 

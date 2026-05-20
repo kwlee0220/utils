@@ -3,7 +3,7 @@ package utils.statechart;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import utils.Utilities;
+import utils.Preconditions;
 
 
 /**
@@ -41,8 +41,8 @@ public final class SingleOutState<C extends StateContext<C>> extends AbstractSta
 						Supplier<Transition<C>> outTransitionSupplier) {
 		super(name, context);
 
-		Utilities.checkNotNullArgument(trigger, "trigger is null");
-		Utilities.checkNotNullArgument(outTransitionSupplier, "outTransitionSupplier is null");
+		Preconditions.checkNotNullArgument(trigger, "trigger is null");
+		Preconditions.checkNotNullArgument(outTransitionSupplier, "outTransitionSupplier is null");
 
 		m_trigger = trigger;
 		m_outTransitionSupplier = outTransitionSupplier;
@@ -74,7 +74,7 @@ public final class SingleOutState<C extends StateContext<C>> extends AbstractSta
 	 */
 	@Override
 	public Optional<Transition<C>> selectTransition(Signal signal) {
-		Utilities.checkNotNullArgument(signal, "signal is null");
+		Preconditions.checkNotNullArgument(signal, "signal is null");
 		
 		if ( m_trigger.equals(signal) ) {
 			return Optional.of(m_outTransitionSupplier.get());

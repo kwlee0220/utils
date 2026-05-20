@@ -1,5 +1,6 @@
 package utils.async;
 
+import utils.RuntimeInterruptedException;
 import utils.stream.FStream;
 import utils.stream.SuppliableFStream;
 
@@ -9,6 +10,7 @@ import utils.stream.SuppliableFStream;
  * @author Kang-Woo Lee (ETRI)
  */
 // FIXME: 삭제 대상
+@Deprecated(since="2024-06", forRemoval=true)
 public class FStreamExecutor<T> {
 	private final FStream<StartableExecution<T>> m_executions;
 	private final int m_concurrency;
@@ -19,7 +21,7 @@ public class FStreamExecutor<T> {
 	}
 	
 	public FStream<T> execute() {
-		SuppliableFStream<T> output = FStream.pipe(m_concurrency);
+		SuppliableFStream<T> output = new SuppliableFStream<>(m_concurrency);
 		m_executions.take(m_concurrency)
 					.forEach(exec -> run(exec, output));
 		return output;
@@ -32,7 +34,13 @@ public class FStreamExecutor<T> {
 		exec.whenFinishedAsync(ret -> {
 			if ( ret.isSuccessful() ) {
 				// 작업 결과로 생성된 후속 {@link StartableExecution} 결과 FStream에 추가한다.
-				output.supply(ret.getUnchecked());
+				try {
+					output.supply(ret.getUnchecked());
+				}
+				catch ( InterruptedException e ) {
+					Thread.currentThread().interrupt();
+					throw new RuntimeInterruptedException(e);
+				}
 			}
 			else if ( ret.isNone() ) {
 				// 작업 결과가 없으면 후속 작업을 결과 FStream에 추가하지 않는다.

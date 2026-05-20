@@ -1,4 +1,4 @@
-package utils.async;
+package utils.thread;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
@@ -7,7 +7,8 @@ import javax.annotation.concurrent.GuardedBy;
 
 import org.jetbrains.annotations.Nullable;
 
-import utils.Utilities;
+import utils.Preconditions;
+import utils.thread.Guard;
 
 
 /**
@@ -39,7 +40,7 @@ public class LengthOneOverridingQueue<T> {
 	 * @throws IllegalArgumentException	{@code item}이 {@code null}인 경우
 	 */
 	public void add(T item) {
-		Utilities.checkNotNullArgument(item, "item is null");
+		Preconditions.checkNotNullArgument(item, "item is null");
 
 		m_guard.run(() -> {
 			m_data = item;

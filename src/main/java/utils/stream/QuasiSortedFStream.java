@@ -1,13 +1,12 @@
 package utils.stream;
 
-import static utils.Utilities.checkState;
 
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
 import org.jetbrains.annotations.Nullable;
 
-import utils.Utilities;
+import utils.Preconditions;
 import utils.func.FOption;
 
 
@@ -21,9 +20,9 @@ class QuasiSortedFStream<T> implements FStream<T> {
 	private final int m_queueLength;
 	private boolean m_endOfUpstream;
 	
-	QuasiSortedFStream(FStream<T> src, int queueLength, Comparator<T> cmp) {
-		Utilities.checkNotNullArgument(src, "src is null");
-		Utilities.checkArgument(queueLength > 0, "queueLength > 0, but k=" + queueLength);
+	QuasiSortedFStream(FStream<T> src, int queueLength, Comparator<? super T> cmp) {
+		Preconditions.checkNotNullArgument(src, "src is null");
+		Preconditions.checkArgument(queueLength > 0, "queueLength > 0, but k=" + queueLength);
 		
 		m_src = src;
 		m_queueLength = queueLength;
@@ -42,7 +41,7 @@ class QuasiSortedFStream<T> implements FStream<T> {
 
 	@Override
 	public FOption<T> next() {
-		checkState(m_queue != null, "closed already");
+		Preconditions.checkState(m_queue != null, "closed already");
 		
 		while ( !m_endOfUpstream && m_queue.size() <= m_queueLength ) {
 			m_endOfUpstream = m_src.next()

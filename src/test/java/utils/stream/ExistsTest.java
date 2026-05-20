@@ -1,8 +1,8 @@
 package utils.stream;
 
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Lists;
 
@@ -16,16 +16,16 @@ public class ExistsTest {
 		FStream<Integer> stream;
 		
 		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		Assert.assertEquals(true, stream.exists(i -> i > 3));
+		Assertions.assertEquals(true, stream.exists(i -> i > 3));
 		
 		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		Assert.assertEquals(false, stream.exists(i -> i > 4));
+		Assertions.assertEquals(false, stream.exists(i -> i > 4));
 		
 		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		Assert.assertEquals(true, stream.allMatch(i -> i >= 1));
+		Assertions.assertEquals(true, stream.allMatch(i -> i >= 1));
 		
 		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		Assert.assertEquals(false, stream.allMatch(i -> i >= 2));
+		Assertions.assertEquals(false, stream.allMatch(i -> i >= 2));
 	}
 
 	@Test
@@ -33,38 +33,44 @@ public class ExistsTest {
 		FStream<Integer> stream;
 		
 		stream = FStream.empty();
-		Assert.assertEquals(false, stream.exists(i -> i > 3));
+		Assertions.assertEquals(false, stream.exists(i -> i > 3));
 		
 		stream = FStream.empty();
-		Assert.assertEquals(true, stream.allMatch(i -> i > 3));
+		Assertions.assertEquals(true, stream.allMatch(i -> i > 3));
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test3() throws Exception {
-		FStream<Integer> stream;
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> stream;
 		
-		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream.exists(null);
+			stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
+			stream.exists(null);
+			});
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void test4() throws Exception {
-		FStream<Integer> stream;
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			FStream<Integer> stream;
 		
-		stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
-		stream.allMatch(null);
+			stream = FStream.from(Lists.newArrayList(1, 2, 4, 1));
+			stream.allMatch(null);
+			});
 	}
 
-	@Test(expected=RuntimeException.class)
+	@Test
 	public void test5() throws Exception {
-		FStream<String> stream;
+		Assertions.assertThrows(RuntimeException.class, () -> {
+			FStream<String> stream;
 		
-		RuntimeException error = new RuntimeException();
+			RuntimeException error = new RuntimeException();
 		
-		stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
-		Assert.assertEquals(false, stream.exists(s -> {throw error;}));
+			stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
+			Assertions.assertEquals(false, stream.exists(s -> {throw error;}));
 		
-		stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
-		Assert.assertEquals(false, stream.allMatch(s -> {throw error;}));
+			stream = FStream.from(Lists.newArrayList("t", "h", "i", "s"));
+			Assertions.assertEquals(false, stream.allMatch(s -> {throw error;}));
+			});
 	}
 }

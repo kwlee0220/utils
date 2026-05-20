@@ -2,7 +2,7 @@ package utils.stream;
 
 import java.util.function.BiFunction;
 
-import utils.Utilities;
+import utils.Preconditions;
 import utils.func.FOption;
 import utils.func.Try;
 import utils.stream.FStreams.AbstractFStream;
@@ -15,13 +15,13 @@ import utils.stream.FStreams.AbstractFStream;
 class ZippedFStream<T,S,Z> extends AbstractFStream<Z> {
 	private final FStream<? extends T> m_src1;
 	private final FStream<? extends S> m_src2;
-	private final BiFunction<T, S, Z> m_zipper;
+	private final BiFunction<? super T, ? super S, ? extends Z> m_zipper;
 	private final boolean m_longest;
-	
+
 	ZippedFStream(FStream<? extends T> src, FStream<? extends S> src2,
-					BiFunction<T, S, Z> zipper, boolean longest) {
-		Utilities.checkNotNullArgument(src, "src is null");
-		Utilities.checkNotNullArgument(src2, "src2 is null");
+					BiFunction<? super T, ? super S, ? extends Z> zipper, boolean longest) {
+		Preconditions.checkNotNullArgument(src, "src is null");
+		Preconditions.checkNotNullArgument(src2, "src2 is null");
 		
 		m_src1 = src;
 		m_src2 = src2;

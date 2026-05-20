@@ -4,6 +4,8 @@ import javax.annotation.concurrent.GuardedBy;
 
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
+import utils.thread.Guard;
+
 /**
  *
  * @author Kang-Woo Lee (ETRI)

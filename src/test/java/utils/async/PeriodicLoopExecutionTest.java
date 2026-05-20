@@ -3,15 +3,16 @@ package utils.async;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import utils.func.FOption;
 
 
 /**
@@ -39,12 +40,12 @@ public class PeriodicLoopExecutionTest {
 		}
 
 		@Override
-		protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
+		protected FOption<Integer> performPeriodicAction(long loopIndex) {
 			if ( loopIndex >= m_lastIteration ) {
-				return Optional.of(m_count);
+				return FOption.of(m_count);
 			}
 			++m_count;
-			return Optional.empty();
+			return FOption.empty();
 		}
 	};
 
@@ -58,9 +59,9 @@ public class PeriodicLoopExecutionTest {
 		int count = loop.waitForFinished().get();
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertEquals(3, count);
+		Assertions.assertEquals(3, count);
 		// 대충 300ms 정도 소요된다.
-		Assert.assertTrue(elapsed > 250 && elapsed <= 400);
+		Assertions.assertTrue(elapsed > 250 && elapsed <= 400);
 	}
 
 	@Test
@@ -76,8 +77,8 @@ public class PeriodicLoopExecutionTest {
 			catch ( InterruptedException e ) { }
 		});
 		AsyncResult<Integer> aresult = loop.waitForFinished();
-		Assert.assertTrue(aresult.isCancelled());
-		Assert.assertEquals(3, loop.m_count);
+		Assertions.assertTrue(aresult.isCancelled());
+		Assertions.assertEquals(3, loop.m_count);
 	}
 
 	@Test
@@ -95,7 +96,7 @@ public class PeriodicLoopExecutionTest {
 				Thread.sleep(230);
 				// cancel을 성공해야 함.
 				boolean ret = loop.cancel(true);
-				Assert.assertTrue(ret);
+				Assertions.assertTrue(ret);
 			}
 			catch ( InterruptedException e ) { }
 		});
@@ -103,10 +104,10 @@ public class PeriodicLoopExecutionTest {
 		long elapsed = System.currentTimeMillis() - started;
 
 		// 200ms 후에 cancel 시키므로 중단되어야 함.
-		Assert.assertTrue(aresult.isCancelled());
+		Assertions.assertTrue(aresult.isCancelled());
 		// 2번 iteration 수행되어야 함.
-		Assert.assertEquals(3, loop.m_count);
-		Assert.assertTrue(elapsed < 300);
+		Assertions.assertEquals(3, loop.m_count);
+		Assertions.assertTrue(elapsed < 300);
 	}
 
 	// ----- 종료 / 결과 -----
@@ -116,8 +117,8 @@ public class PeriodicLoopExecutionTest {
 		// 첫 iteration에서 즉시 결과를 반환하는 경우
 		PeriodicLoopExecution<String> loop = new PeriodicLoopExecution<String>(INTERVAL_100MS) {
 			@Override
-			protected Optional<String> performPeriodicAction(long loopIndex) throws Exception {
-				return Optional.of("done@" + loopIndex);
+			protected FOption<String> performPeriodicAction(long loopIndex) {
+				return FOption.of("done@" + loopIndex);
 			}
 		};
 
@@ -126,9 +127,9 @@ public class PeriodicLoopExecutionTest {
 		String result = loop.waitForFinished().get();
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertEquals("done@0", result);
+		Assertions.assertEquals("done@0", result);
 		// interval 만큼 대기하지 않고 곧바로 종료되어야 한다.
-		Assert.assertTrue("elapsed=" + elapsed, elapsed < 100);
+		Assertions.assertTrue(elapsed < 100, "elapsed=" + elapsed);
 	}
 
 	@Test
@@ -136,15 +137,15 @@ public class PeriodicLoopExecutionTest {
 		// performPeriodicAction이 null을 반환하면 NullPointerException으로 FAILED 상태가 되어야 한다.
 		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
+			protected FOption<Integer> performPeriodicAction(long loopIndex) {
 				return null;
 			}
 		};
 
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished(2, TimeUnit.SECONDS);
-		Assert.assertTrue(result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof NullPointerException);
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.getFailureCause() instanceof NullPointerException);
 	}
 
 	// ----- timeout / due -----
@@ -160,10 +161,10 @@ public class PeriodicLoopExecutionTest {
 		AsyncResult<Integer> result = loop.waitForFinished(2, TimeUnit.SECONDS);
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertTrue("state=" + result.getState(), result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof TimeoutException);
+		Assertions.assertTrue(result.isFailed(), "state=" + result.getState());
+		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
 		// 대충 200ms 근처에서 종료되어야 한다.
-		Assert.assertTrue("elapsed=" + elapsed, elapsed >= 180 && elapsed < 350);
+		Assertions.assertTrue(elapsed >= 180 && elapsed < 350, "elapsed=" + elapsed);
 	}
 
 	@Test
@@ -177,9 +178,9 @@ public class PeriodicLoopExecutionTest {
 		AsyncResult<Integer> result = loop.waitForFinished(2, TimeUnit.SECONDS);
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof TimeoutException);
-		Assert.assertTrue("elapsed=" + elapsed, elapsed >= 180 && elapsed < 350);
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
+		Assertions.assertTrue(elapsed >= 180 && elapsed < 350, "elapsed=" + elapsed);
 	}
 
 	@Test
@@ -188,9 +189,9 @@ public class PeriodicLoopExecutionTest {
 		AtomicInteger callCount = new AtomicInteger(0);
 		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
+			protected FOption<Integer> performPeriodicAction(long loopIndex) {
 				callCount.incrementAndGet();
-				return Optional.empty();
+				return FOption.empty();
 			}
 		};
 		loop.setDue(Instant.now().minusSeconds(1));
@@ -198,10 +199,10 @@ public class PeriodicLoopExecutionTest {
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished(1, TimeUnit.SECONDS);
 
-		Assert.assertTrue(result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof TimeoutException);
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
 		// performPeriodicAction이 한 번도 호출되지 않아야 한다.
-		Assert.assertEquals(0, callCount.get());
+		Assertions.assertEquals(0, callCount.get());
 	}
 
 	@Test
@@ -216,9 +217,9 @@ public class PeriodicLoopExecutionTest {
 		AsyncResult<Integer> result = loop.waitForFinished(2, TimeUnit.SECONDS);
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.isFailed());
 		// timeout(10초)가 아니라 due(200ms)에 의해 종료되어야 한다.
-		Assert.assertTrue("elapsed=" + elapsed, elapsed < 500);
+		Assertions.assertTrue(elapsed < 500, "elapsed=" + elapsed);
 	}
 
 	@Test
@@ -227,7 +228,7 @@ public class PeriodicLoopExecutionTest {
 		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 100);
 		loop.setTimeout(Duration.ofMillis(150));
 
-		Assert.assertNull(loop.getDue());   // 시작 전에는 null
+		Assertions.assertNull(loop.getDue());   // 시작 전에는 null
 
 		Instant before = Instant.now();
 		loop.start();
@@ -235,10 +236,10 @@ public class PeriodicLoopExecutionTest {
 		Instant after = Instant.now();
 
 		Instant due = loop.getDue();
-		Assert.assertNotNull(due);
+		Assertions.assertNotNull(due);
 		// 파생된 due는 시작 시각 + timeout 근처여야 한다.
-		Assert.assertTrue(due.isAfter(before));
-		Assert.assertTrue(due.isBefore(after.plusSeconds(1)));
+		Assertions.assertTrue(due.isAfter(before));
+		Assertions.assertTrue(due.isBefore(after.plusSeconds(1)));
 	}
 
 	// ----- cumulative interval -----
@@ -251,10 +252,10 @@ public class PeriodicLoopExecutionTest {
 		AtomicInteger count = new AtomicInteger(0);
 		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_50MS, true) {
 			@Override
-			protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
+			protected FOption<Integer> performPeriodicAction(long loopIndex) throws InterruptedException {
 				int c = count.incrementAndGet();
 				Thread.sleep(120);
-				return c >= 4 ? Optional.of(c) : Optional.empty();
+				return c >= 4 ? FOption.of(c) : FOption.empty();
 			}
 		};
 
@@ -263,9 +264,9 @@ public class PeriodicLoopExecutionTest {
 		int result = loop.waitForFinished().get();
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertEquals(4, result);
+		Assertions.assertEquals(4, result);
 		// 누적 catch-up이라 약 4 * 120ms = 480ms 정도. 너그럽게 검사.
-		Assert.assertTrue("elapsed=" + elapsed, elapsed >= 400 && elapsed < 700);
+		Assertions.assertTrue(elapsed >= 400 && elapsed < 700, "elapsed=" + elapsed);
 	}
 
 	@Test
@@ -278,10 +279,10 @@ public class PeriodicLoopExecutionTest {
 		AtomicInteger count = new AtomicInteger(0);
 		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_100MS) {
 			@Override
-			protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
+			protected FOption<Integer> performPeriodicAction(long loopIndex) throws InterruptedException {
 				int c = count.incrementAndGet();
 				Thread.sleep(20);
-				return c >= 5 ? Optional.of(c) : Optional.empty();
+				return c >= 5 ? FOption.of(c) : FOption.empty();
 			}
 		};
 
@@ -290,8 +291,8 @@ public class PeriodicLoopExecutionTest {
 		int result = loop.waitForFinished().get();
 		long elapsed = System.currentTimeMillis() - started;
 
-		Assert.assertEquals(5, result);
-		Assert.assertTrue("elapsed=" + elapsed, elapsed >= 380 && elapsed < 700);
+		Assertions.assertEquals(5, result);
+		Assertions.assertTrue(elapsed >= 380 && elapsed < 700, "elapsed=" + elapsed);
 	}
 
 	// ----- 예외 전파 -----
@@ -300,118 +301,119 @@ public class PeriodicLoopExecutionTest {
 	public void testActionThrowsExceptionFails() throws Exception {
 		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
+			protected FOption<Integer> performPeriodicAction(long loopIndex) {
 				if ( loopIndex == 1 ) {
 					throw new IllegalStateException("boom");
 				}
-				return Optional.empty();
+				return FOption.empty();
 			}
 		};
 
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished(2, TimeUnit.SECONDS);
-		Assert.assertTrue(result.isFailed());
-		Assert.assertTrue(result.getFailureCause() instanceof IllegalStateException);
-		Assert.assertEquals("boom", result.getFailureCause().getMessage());
+		Assertions.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.getFailureCause() instanceof IllegalStateException);
+		Assertions.assertEquals("boom", result.getFailureCause().getMessage());
 	}
 
 	@Test
 	public void testActionThrowsCancellationCancelsLoop() throws Exception {
 		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
+			protected FOption<Integer> performPeriodicAction(long loopIndex) throws CancellationException {
 				if ( loopIndex == 1 ) {
 					throw new CancellationException("cancelled by action");
 				}
-				return Optional.empty();
+				return FOption.empty();
 			}
 		};
 
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished(2, TimeUnit.SECONDS);
-		Assert.assertTrue(result.isCancelled());
+		Assertions.assertTrue(result.isCancelled());
 	}
 
 	// ----- 생성자 / setter 검증 -----
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testInvalidIntervalNull() {
-		new TestPeriodicLoop(null, 1);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new TestPeriodicLoop(null, 1);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testInvalidIntervalZero() {
-		new TestPeriodicLoop(Duration.ZERO, 1);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new TestPeriodicLoop(Duration.ZERO, 1);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testInvalidIntervalNegative() {
-		new TestPeriodicLoop(Duration.ofMillis(-10), 1);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new TestPeriodicLoop(Duration.ofMillis(-10), 1);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testInvalidTimeoutZero() {
-		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 1);
-		loop.setTimeout(Duration.ZERO);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 1);
+			loop.setTimeout(Duration.ZERO);
+			});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testInvalidTimeoutNegative() {
-		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 1);
-		loop.setTimeout(Duration.ofMillis(-10));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 1);
+			loop.setTimeout(Duration.ofMillis(-10));
+			});
 	}
 
 	@Test
 	public void testNullTimeoutAllowed() {
 		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 1);
 		loop.setTimeout(null);   // null은 허용 (제한 없음을 의미)
-		Assert.assertNull(loop.getTimeout());
+		Assertions.assertNull(loop.getTimeout());
 	}
 
 	@Test
 	public void testNullDueAllowed() {
 		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 1);
 		loop.setDue(null);
-		Assert.assertNull(loop.getDue());
+		Assertions.assertNull(loop.getDue());
 	}
 
-	@Test(expected = IllegalStateException.class)
-	public void testSetLoopIntervalAfterStart() throws Exception {
-		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 100);
-		loop.start();
-		try {
-			loop.setLoopInterval(INTERVAL_100MS);
-		}
-		finally {
-			loop.cancel(true);
-			loop.waitForFinished();
-		}
-	}
-
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void testSetTimeoutAfterStart() throws Exception {
-		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 100);
-		loop.start();
-		try {
-			loop.setTimeout(Duration.ofSeconds(1));
-		}
-		finally {
-			loop.cancel(true);
-			loop.waitForFinished();
-		}
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 100);
+			loop.start();
+			try {
+				loop.setTimeout(Duration.ofSeconds(1));
+			}
+			finally {
+				loop.cancel(true);
+				loop.waitForFinished();
+			}
+			});
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void testSetDueAfterStart() throws Exception {
-		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 100);
-		loop.start();
-		try {
-			loop.setDue(Instant.now().plusSeconds(1));
-		}
-		finally {
-			loop.cancel(true);
-			loop.waitForFinished();
-		}
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 100);
+			loop.start();
+			try {
+				loop.setDue(Instant.now().plusSeconds(1));
+			}
+			finally {
+				loop.cancel(true);
+				loop.waitForFinished();
+			}
+			});
 	}
 
 	// ----- initialize / finalize 훅 -----
@@ -433,15 +435,15 @@ public class PeriodicLoopExecutionTest {
 				finalizeCount.incrementAndGet();
 			}
 			@Override
-			protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
-				return Optional.of(42);
+			protected FOption<Integer> performPeriodicAction(long loopIndex) {
+				return FOption.of(42);
 			}
 		};
 
 		loop.start();
-		Assert.assertEquals(42, (int)loop.waitForFinished().get());
-		Assert.assertEquals(1, initCount.get());
-		Assert.assertEquals(1, finalizeCount.get());
+		Assertions.assertEquals(42, (int)loop.waitForFinished().get());
+		Assertions.assertEquals(1, initCount.get());
+		Assertions.assertEquals(1, finalizeCount.get());
 	}
 
 	@Test
@@ -455,16 +457,16 @@ public class PeriodicLoopExecutionTest {
 				finalizeCount.incrementAndGet();
 			}
 			@Override
-			protected Optional<Integer> performPeriodicAction(long loopIndex) throws Exception {
+			protected FOption<Integer> performPeriodicAction(long loopIndex) {
 				throw new RuntimeException("fail");
 			}
 		};
 
 		loop.start();
 		AsyncResult<Integer> result = loop.waitForFinished(2, TimeUnit.SECONDS);
-		Assert.assertTrue(result.isFailed());
+		Assertions.assertTrue(result.isFailed());
 		// initializeLoop 성공 후의 종료 사유와 무관하게 finalizeLoop은 호출되어야 한다.
-		Assert.assertEquals(1, finalizeCount.get());
+		Assertions.assertEquals(1, finalizeCount.get());
 	}
 
 	@Test
@@ -472,17 +474,17 @@ public class PeriodicLoopExecutionTest {
 		AtomicInteger expected = new AtomicInteger(0);
 		PeriodicLoopExecution<Long> loop = new PeriodicLoopExecution<Long>(INTERVAL_50MS) {
 			@Override
-			protected Optional<Long> performPeriodicAction(long loopIndex) throws Exception {
-				Assert.assertEquals(expected.getAndIncrement(), loopIndex);
+			protected FOption<Long> performPeriodicAction(long loopIndex) {
+				Assertions.assertEquals(expected.getAndIncrement(), loopIndex);
 				if ( loopIndex == 3 ) {
-					return Optional.of(loopIndex);
+					return FOption.of(loopIndex);
 				}
-				return Optional.empty();
+				return FOption.empty();
 			}
 		};
 
 		loop.start();
-		Assert.assertEquals(3L, (long)loop.waitForFinished().get());
-		Assert.assertEquals(4, expected.get());
+		Assertions.assertEquals(3L, (long)loop.waitForFinished().get());
+		Assertions.assertEquals(4, expected.get());
 	}
 }

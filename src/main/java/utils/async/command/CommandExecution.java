@@ -25,10 +25,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import utils.KeyedValueList;
+import utils.Preconditions;
 import utils.ProcessTree;
+import utils.Split;
 import utils.StrSubstitutor;
-import utils.Tuple;
-import utils.Utilities;
 import utils.async.AbstractThreadedExecution;
 import utils.async.AsyncState;
 import utils.async.CancellableWork;
@@ -108,7 +108,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	@GuardedBy("m_aopGuard") private ProcessTree m_processTree;
 	
 	private CommandExecution(Builder builder) {
-		Utilities.checkArgument(!builder.m_command.isEmpty(), "command must not be empty");
+		Preconditions.checkArgument(!builder.m_command.isEmpty(), "command must not be empty");
 
 		// 방어적 복사: 빌드 후 호출자가 Builder 참조나 원본 컬렉션을 mutate해도 영향 없도록 한다.
 		m_command = List.copyOf(builder.m_command);
@@ -281,7 +281,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		
 		// Command line에 포함된 일반 변수들을 실제 값으로 치환한다.
 		Map<String,String> initMapping = Map.of("WORKING_DIR", m_workingDirectory.getAbsolutePath());
-		StrSubstitutor subst = new StrSubstitutor(initMapping)
+		StrSubstitutor subst = StrSubstitutor.with(initMapping)
 									.failOnUndefinedVariable(false)
 									.enableNestedSubstitution(true);
 		List<String> command = FStream.from(m_command)
@@ -319,7 +319,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		// Standard input 처리
 		if ( m_stdinFile != null ) {
 			File stdinFile = resolveAgainstWorkingDirectory(m_stdinFile);
-			Utilities.checkArgument(stdinFile.isFile(), "stdin file does not exist: %s", stdinFile);
+			Preconditions.checkArgument(stdinFile.isFile(), "stdin file does not exist: %s", stdinFile);
 			builder.redirectInput(Redirect.from(stdinFile));
 		}
 		else if ( m_stdin != null ) {
@@ -371,7 +371,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		private List<String> m_command = Lists.newArrayList();
 		private File m_workingDirectory;
 		private Map<String,String> m_environmentVariables = Map.of();
-		private File m_envFile;
+		@Nullable private File m_envFile;
 		private KeyedValueList<String,CommandVariable> m_variables = KeyedValueList.with(CommandVariable::getName);
 		private Duration m_timeout;
 		private Redirect m_stdin;
@@ -405,8 +405,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * @throws IllegalArgumentException	{@code command}가 {@code null}이거나 원소 중 {@code null}이 있는 경우
 		 */
 		public Builder addCommand(List<String> command) {
-			Utilities.checkNotNullArgument(command, "command must not be null");
-			Utilities.checkNotNullArguments(command, "command element must not be null");
+			Preconditions.checkNotNullArgument(command, "command must not be null");
+			for ( int i = 0; i < command.size(); i++ ) {
+				Preconditions.checkNotNullArgument(command.get(i), "command element must not be null: index=%d", i);
+			}
 
 			m_command.addAll(command);
 			return this;
@@ -422,7 +424,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * @throws IllegalArgumentException	{@code command}가 {@code null}인 경우
 		 */
 		public Builder addCommand(String... command) {
-			Utilities.checkNotNullArgument(command, "command must not be null");
+			Preconditions.checkNotNullArgument(command, "command must not be null");
 
 			return addCommand(Arrays.asList(command));
 		}
@@ -439,8 +441,8 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * @throws IllegalArgumentException	{@code dir}이 {@code null}이거나 디렉토리가 아닌 경우
 		 */
 		public Builder workingDirectory(File dir) {
-			Utilities.checkNotNullArgument(dir, "workingDirectory must not be null");
-			Utilities.checkArgument(dir.isDirectory(),
+			Preconditions.checkNotNullArgument(dir, "workingDirectory must not be null");
+			Preconditions.checkArgument(dir.isDirectory(),
 									"workingDirectory does not exist or is not a directory: %s", dir);
 
 			m_workingDirectory = dir;
@@ -460,7 +462,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * @throws IllegalArgumentException	{@code envs}가 {@code null}인 경우
 		 */
 		public Builder environmentVariables(Map<String,String> envs) {
-			Utilities.checkNotNullArgument(envs, "environmentVariables must not be null");
+			Preconditions.checkNotNullArgument(envs, "environmentVariables must not be null");
 
 			m_environmentVariables = envs;
 			return this;
@@ -474,13 +476,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * ({@link ExecutionException}). {@link #environmentVariables(Map)}로 명시된 변수가 우선하며,
 		 * 파일은 누락된 키만 채운다.
 		 *
-		 * @param envFile	환경 변수 파일 (non-null)
+		 * @param envFile	환경 변수 파일 (nullable)
 		 * @return	본 빌더 객체
-		 * @throws IllegalArgumentException	{@code envFile}이 {@code null}인 경우
 		 */
-		public Builder environmentFile(File envFile) {
-			Utilities.checkNotNullArgument(envFile, "environmentFile must not be null");
-
+		public Builder environmentFile(@Nullable File envFile) {
 			m_envFile = envFile;
 			return this;
 		}
@@ -496,7 +495,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * @throws IllegalArgumentException	{@code var}가 {@code null}인 경우
 		 */
 		public Builder addVariable(CommandVariable var) {
-			Utilities.checkNotNullArgument(var, "variable must not be null");
+			Preconditions.checkNotNullArgument(var, "variable must not be null");
 
 			m_variables.add(var);
 			return this;
@@ -513,7 +512,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * @throws IllegalArgumentException	{@code var}가 {@code null}인 경우
 		 */
 		public Builder addVariableIfAbsent(CommandVariable var) {
-			Utilities.checkNotNullArgument(var, "variable must not be null");
+			Preconditions.checkNotNullArgument(var, "variable must not be null");
 
 			m_variables.addIfAbsent(var);
 			return this;
@@ -527,9 +526,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * 				해석된다.
 		 * @return 본 빌더 객체. 본 메소드와 {@link #inheritStdin()} / {@link #discardStdin()}는
 		 *         동일한 stdin 설정을 갱신하므로, 마지막 호출이 우선한다.
+		 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우
 		 */
 		public Builder redirectStdinFromFile(File file) {
-			Utilities.checkNotNullArgument(file, "stdin file must not be null");
+			Preconditions.checkNotNullArgument(file, "stdin file must not be null");
 
 			m_stdinFile = file;
 			m_stdin = null;
@@ -574,9 +574,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * @return	본 빌더 객체.
 		 * 			본 메소드와 {@link #inheritStdout()} / {@link #discardStdout()}는
 		 *         	동일한 stdout 설정을 갱신하므로, 마지막 호출이 우선한다.
+		 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우
 		 */
 		public Builder redirectStdoutToFile(File file) {
-			Utilities.checkNotNullArgument(file, "stdout file must not be null");
+			Preconditions.checkNotNullArgument(file, "stdout file must not be null");
 
 			m_stdoutFile = file;
 			m_stdout = null;
@@ -634,7 +635,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * 			{@link #discardStderr()}는 동일한 stderr 설정을 갱신하므로, 마지막 호출이 우선한다.
 		 */
 		public Builder redirectStderrToFile(File file) {
-			Utilities.checkNotNullArgument(file, "stderr file must not be null");
+			Preconditions.checkNotNullArgument(file, "stderr file must not be null");
 
 			m_stderrFile = file;
 			m_stderr = null;
@@ -683,7 +684,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		public Builder timeout(Duration timeout) {
 			// toMillis() > 0 검증: sub-ms positive duration은 process.waitFor(0, MS)에서
 			// 즉시 timeout으로 처리되어 의도와 다른 동작을 하므로 거부한다.
-			Utilities.checkArgument(timeout == null
+			Preconditions.checkArgument(timeout == null
 									|| (DurationUtils.isPositive(timeout) && timeout.toMillis() > 0),
 									"invalid timeout: %s", timeout);
 
@@ -699,23 +700,26 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 			m_varMap = vars;
 		}
 
+		// commons-text 1.14.0에서 StringLookup#lookup()이 @Deprecated 되었으나 여전히 SAM이라 구현 필수.
+		// override 자체를 @Deprecated로 표시하면 javac/IDE 둘 다 추가 경고 없이 받아들인다.
 		@Override
+		@Deprecated
 		public String lookup(String key) {
 			// 변수 치환 과정에서 사용자가 사용하는 key는 '<변수 이름>:<modifier>' 형태를 갖는다.
 			// 이때 '<modifier>'는 생략될 수 있으며 이때는 modifier.name으로 간주한다.
 			// 만일 modifier.path를 사용하는 경우에는 변수 값이 저장된 파일의 경로를 의미하며
 			// 해당 경로 값을 알기 위해 변수 값을 갖는 파일을 생성한다.
 			
-			Tuple<String,String> parts = Utilities.split(key, ':', Tuple.of(key, "name"));
-			
+			Split split = Split.split(key, ":");
+
 			// 변수 이름에 해당하는 CommandVariable 객체를 획득한다.
-			CommandVariable commandVar = m_varMap.get(parts._1);
+			CommandVariable commandVar = m_varMap.get(split.head());
 			if ( commandVar == null ) {
 				return null;
 			}
 			else {
 				// Modifier 객체를 얻고, 이를 통한 variable replacement를 시도한다.
-				return commandVar.getValueByModifier(parts._2);
+				return commandVar.getValueByModifier(split.tail().orElse("name"));
 			}
 		}
 	}
