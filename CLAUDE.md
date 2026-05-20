@@ -18,7 +18,7 @@ gradle eclipse                                     # regenerate .project / .clas
 gradle clean
 ```
 
-Tests use JUnit 4 (`junit:junit:4.13.2`) with Mockito. The `test` task is configured with `useJUnit()` and passes `--add-opens=java.base/java.lang=ALL-UNNAMED` for reflection-heavy tests (Mockito, cglib). Do not switch the runner to `useJUnitPlatform()` — there is no vintage-engine dependency.
+Tests use JUnit 5 / Jupiter (`org.junit.jupiter:junit-jupiter:5.10.2`) with Mockito (`mockito-junit-jupiter`). The `test` task is configured with `useJUnitPlatform()` and passes `--add-opens=java.base/java.lang=ALL-UNNAMED` for reflection-heavy tests (Mockito, cglib). Use `@ExtendWith(MockitoExtension.class)` for Mockito-managed tests and `org.junit.jupiter.api.Assertions` / `Assumptions` / `@BeforeEach` / `@AfterEach` / `@Timeout` / `@TempDir` for the Jupiter API.
 
 Lombok is wired as both `compileOnly` and `annotationProcessor`. IDE setup requires the Lombok plugin, otherwise `@Getter`/`@Setter`/etc. generated members will appear missing.
 

@@ -2,8 +2,8 @@ package utils;
 
 import java.lang.reflect.Method;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import net.sf.cglib.proxy.MethodProxy;
 
@@ -55,10 +55,10 @@ public class ProxyUtilsTest {
 		DefaultGreeter base = new DefaultGreeter();
 		DefaultGreeter proxy = ProxyUtils.replaceAction(base, handlerForMethod("hello", "INTERCEPTED"));
 
-		Assert.assertTrue(proxy instanceof DefaultGreeter);
-		Assert.assertTrue(proxy instanceof Greeter);
-		Assert.assertEquals("INTERCEPTED", proxy.hello("x"));
-		Assert.assertEquals("bye y", proxy.bye("y"));
+		Assertions.assertTrue(proxy instanceof DefaultGreeter);
+		Assertions.assertTrue(proxy instanceof Greeter);
+		Assertions.assertEquals("INTERCEPTED", proxy.hello("x"));
+		Assertions.assertEquals("bye y", proxy.bye("y"));
 	}
 
 	@Test
@@ -66,9 +66,9 @@ public class ProxyUtilsTest {
 		Greeter base = new DefaultGreeter();
 		Greeter proxy = ProxyUtils.replaceAction(base, Greeter.class, handlerForMethod("hello", "X"));
 
-		Assert.assertTrue(proxy instanceof Greeter);
-		Assert.assertEquals("X", proxy.hello("a"));
-		Assert.assertEquals("bye b", proxy.bye("b"));
+		Assertions.assertTrue(proxy instanceof Greeter);
+		Assertions.assertEquals("X", proxy.hello("a"));
+		Assertions.assertEquals("bye b", proxy.bye("b"));
 	}
 
 	@Test
@@ -76,7 +76,7 @@ public class ProxyUtilsTest {
 		DefaultGreeter base = new DefaultGreeter();
 		Greeter proxy = ProxyUtils.replaceAction(base, handlerForMethod("hello", "X"));
 
-		Assert.assertEquals("bye y", proxy.bye("y"));
+		Assertions.assertEquals("bye y", proxy.bye("y"));
 	}
 
 	@Test
@@ -100,10 +100,10 @@ public class ProxyUtilsTest {
 												new CallHandler[] { counterHandler },
 												Counter.class);
 
-		Assert.assertTrue(proxy instanceof Greeter);
-		Assert.assertTrue(proxy instanceof Counter);
-		Assert.assertEquals(7, ((Counter)proxy).count());
-		Assert.assertEquals("hello a", ((Greeter)proxy).hello("a"));
+		Assertions.assertTrue(proxy instanceof Greeter);
+		Assertions.assertTrue(proxy instanceof Counter);
+		Assertions.assertEquals(7, ((Counter)proxy).count());
+		Assertions.assertEquals("hello a", ((Greeter)proxy).hello("a"));
 	}
 
 	@Test
@@ -111,15 +111,17 @@ public class ProxyUtilsTest {
 		Counter handler = () -> 99;
 		Counter proxy = ProxyUtils.extend(DefaultGreeter.class, Counter.class, handler);
 
-		Assert.assertTrue(proxy instanceof DefaultGreeter);
-		Assert.assertTrue(proxy instanceof Counter);
-		Assert.assertEquals(99, proxy.count());
-		Assert.assertEquals("hello z", ((DefaultGreeter)proxy).hello("z"));
+		Assertions.assertTrue(proxy instanceof DefaultGreeter);
+		Assertions.assertTrue(proxy instanceof Counter);
+		Assertions.assertEquals(99, proxy.count());
+		Assertions.assertEquals("hello z", ((DefaultGreeter)proxy).hello("z"));
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void replaceAction_nullObj_throws() {
-		Object nullObj = null;
-		ProxyUtils.replaceAction(nullObj, handlerForMethod("hello", "x"));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Object nullObj = null;
+			ProxyUtils.replaceAction(nullObj, handlerForMethod("hello", "x"));
+		});
 	}
 }

@@ -11,7 +11,7 @@ import com.google.common.util.concurrent.Service;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
-import org.junit.Assume;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,8 +29,8 @@ public class ProgramServiceTest {
 
 	@BeforeEach
 	public void setup() throws Exception {
-		Assume.assumeTrue("Linux 환경에서만 동작",
-							System.getProperty("os.name").toLowerCase().contains("linux"));
+		Assumptions.assumeTrue(System.getProperty("os.name").toLowerCase().contains("linux"),
+							"Linux 환경에서만 동작");
 		m_workDir = Files.createTempDirectory("programservice-test-").toFile();
 	}
 

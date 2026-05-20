@@ -4,8 +4,8 @@ import static org.mockito.Mockito.mock;
 
 import java.net.http.WebSocket;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * {@link WebSocketSignal} 및 {@link Signals}의 데이터 캐리어 동작을 검증한다.
@@ -17,15 +17,17 @@ public class SignalsTest {
 
 	// ---- WebSocketSignal ----
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void webSocketSignal_null_rejected() {
-		new WebSocketSignal(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new WebSocketSignal(null);
+		});
 	}
 
 	@Test
 	public void webSocketSignal_returns_provided_socket() {
 		WebSocketSignal sig = new WebSocketSignal(m_ws);
-		Assert.assertSame(m_ws, sig.getWebSocket());
+		Assertions.assertSame(m_ws, sig.getWebSocket());
 	}
 
 	// ---- Signals.Connected ----
@@ -33,13 +35,15 @@ public class SignalsTest {
 	@Test
 	public void connected_carries_websocket_and_toString() {
 		Signals.Connected sig = new Signals.Connected(m_ws);
-		Assert.assertSame(m_ws, sig.getWebSocket());
-		Assert.assertEquals("Connected", sig.toString());
+		Assertions.assertSame(m_ws, sig.getWebSocket());
+		Assertions.assertEquals("Connected", sig.toString());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void connected_null_websocket_rejected_via_super() {
-		new Signals.Connected(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new Signals.Connected(null);
+		});
 	}
 
 	// ---- Signals.ConnectionFailed ----
@@ -49,15 +53,15 @@ public class SignalsTest {
 		Throwable cause = new RuntimeException("boom");
 		Signals.ConnectionFailed sig = new Signals.ConnectionFailed(cause);
 
-		Assert.assertSame(cause, sig.getCause());
-		Assert.assertTrue(sig.toString().contains("ConnectionFailed"));
+		Assertions.assertSame(cause, sig.getCause());
+		Assertions.assertTrue(sig.toString().contains("ConnectionFailed"));
 	}
 
 	@Test
 	public void connectionFailed_accepts_null_cause() {
 		// ConnectionFailed는 WebSocketSignal이 아니므로 cause null을 막지 않음.
 		Signals.ConnectionFailed sig = new Signals.ConnectionFailed(null);
-		Assert.assertNull(sig.getCause());
+		Assertions.assertNull(sig.getCause());
 	}
 
 	// ---- Signals.TextMessage ----
@@ -66,9 +70,9 @@ public class SignalsTest {
 	public void textMessage_carries_data() {
 		Signals.TextMessage sig = new Signals.TextMessage(m_ws, "hello");
 
-		Assert.assertSame(m_ws, sig.getWebSocket());
-		Assert.assertEquals("hello", sig.getMessage());
-		Assert.assertTrue(sig.toString().contains("hello"));
+		Assertions.assertSame(m_ws, sig.getWebSocket());
+		Assertions.assertEquals("hello", sig.getMessage());
+		Assertions.assertTrue(sig.toString().contains("hello"));
 	}
 
 	// ---- Signals.BinaryMessage ----
@@ -78,17 +82,17 @@ public class SignalsTest {
 		byte[] data = { 1, 2, 3 };
 		Signals.BinaryMessage sig = new Signals.BinaryMessage(m_ws, data, true);
 
-		Assert.assertSame(m_ws, sig.getWebSocket());
-		Assert.assertSame(data, sig.getBytes());
-		Assert.assertTrue(sig.isLast());
-		Assert.assertTrue(sig.toString().contains("size=3"));
-		Assert.assertTrue(sig.toString().contains("last=true"));
+		Assertions.assertSame(m_ws, sig.getWebSocket());
+		Assertions.assertSame(data, sig.getBytes());
+		Assertions.assertTrue(sig.isLast());
+		Assertions.assertTrue(sig.toString().contains("size=3"));
+		Assertions.assertTrue(sig.toString().contains("last=true"));
 	}
 
 	@Test
 	public void binaryMessage_last_false_preserved() {
 		Signals.BinaryMessage sig = new Signals.BinaryMessage(m_ws, new byte[0], false);
-		Assert.assertFalse(sig.isLast());
+		Assertions.assertFalse(sig.isLast());
 	}
 
 	// ---- Signals.ErrorMessage ----
@@ -98,9 +102,9 @@ public class SignalsTest {
 		Throwable error = new RuntimeException("x");
 		Signals.ErrorMessage sig = new Signals.ErrorMessage(m_ws, error);
 
-		Assert.assertSame(m_ws, sig.getWebSocket());
-		Assert.assertSame(error, sig.getError());
-		Assert.assertTrue(sig.toString().contains("ErrorMessage"));
+		Assertions.assertSame(m_ws, sig.getWebSocket());
+		Assertions.assertSame(error, sig.getError());
+		Assertions.assertTrue(sig.toString().contains("ErrorMessage"));
 	}
 
 	// ---- Signals.ConnectionClosed ----
@@ -109,10 +113,10 @@ public class SignalsTest {
 	public void connectionClosed_carries_status_and_reason() {
 		Signals.ConnectionClosed sig = new Signals.ConnectionClosed(m_ws, 1000, "normal");
 
-		Assert.assertSame(m_ws, sig.getWebSocket());
-		Assert.assertEquals(1000, sig.getStatusCode());
-		Assert.assertEquals("normal", sig.getReason());
-		Assert.assertTrue(sig.toString().contains("1000"));
-		Assert.assertTrue(sig.toString().contains("normal"));
+		Assertions.assertSame(m_ws, sig.getWebSocket());
+		Assertions.assertEquals(1000, sig.getStatusCode());
+		Assertions.assertEquals("normal", sig.getReason());
+		Assertions.assertTrue(sig.toString().contains("1000"));
+		Assertions.assertTrue(sig.toString().contains("normal"));
 	}
 }

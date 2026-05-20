@@ -3,8 +3,8 @@ package utils;
 import java.util.AbstractMap;
 import java.util.Map;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 
 /**
@@ -17,21 +17,23 @@ public class KeyValueTest {
 	public void testOfAndGetters() throws Exception {
 		KeyValue<String,Integer> kv = KeyValue.of("a", 1);
 
-		Assert.assertEquals("a", kv.key());
-		Assert.assertEquals(Integer.valueOf(1), kv.value());
+		Assertions.assertEquals("a", kv.key());
+		Assertions.assertEquals(Integer.valueOf(1), kv.value());
 	}
 
 	@Test
 	public void testOfAllowsNullValue() throws Exception {
 		KeyValue<String,Integer> kv = KeyValue.of("a", null);
 
-		Assert.assertEquals("a", kv.key());
-		Assert.assertNull(kv.value());
+		Assertions.assertEquals("a", kv.key());
+		Assertions.assertNull(kv.value());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testOfRejectsNullKey() throws Exception {
-		KeyValue.of(null, 1);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			KeyValue.of(null, 1);
+		});
 	}
 
 	@Test
@@ -39,19 +41,23 @@ public class KeyValueTest {
 		Map.Entry<String,Integer> entry = new AbstractMap.SimpleEntry<>("a", 1);
 		KeyValue<String,Integer> kv = KeyValue.from(entry);
 
-		Assert.assertEquals("a", kv.key());
-		Assert.assertEquals(Integer.valueOf(1), kv.value());
+		Assertions.assertEquals("a", kv.key());
+		Assertions.assertEquals(Integer.valueOf(1), kv.value());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFromNullMapEntryRejected() throws Exception {
-		KeyValue.from((Map.Entry<String,Integer>)null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			KeyValue.from((Map.Entry<String,Integer>)null);
+		});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFromMapEntryWithNullKeyRejected() throws Exception {
-		Map.Entry<String,Integer> entry = new AbstractMap.SimpleEntry<>(null, 1);
-		KeyValue.from(entry);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			Map.Entry<String,Integer> entry = new AbstractMap.SimpleEntry<>(null, 1);
+			KeyValue.from(entry);
+		});
 	}
 
 	@Test
@@ -59,18 +65,22 @@ public class KeyValueTest {
 		Tuple<String,Integer> tupl = Tuple.of("a", 1);
 		KeyValue<String,Integer> kv = KeyValue.from(tupl);
 
-		Assert.assertEquals("a", kv.key());
-		Assert.assertEquals(Integer.valueOf(1), kv.value());
+		Assertions.assertEquals("a", kv.key());
+		Assertions.assertEquals(Integer.valueOf(1), kv.value());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFromNullTupleRejected() throws Exception {
-		KeyValue.from((Tuple<String,Integer>)null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			KeyValue.from((Tuple<String,Integer>)null);
+		});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testFromTupleWithNullKeyRejected() throws Exception {
-		KeyValue.from(Tuple.of(null, 1));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			KeyValue.from(Tuple.of(null, 1));
+		});
 	}
 
 	@Test
@@ -78,8 +88,8 @@ public class KeyValueTest {
 		KeyValue<String,Integer> kv = KeyValue.of("a", 1);
 		Tuple<String,Integer> tupl = kv.toTuple();
 
-		Assert.assertEquals("a", tupl._1);
-		Assert.assertEquals(Integer.valueOf(1), tupl._2);
+		Assertions.assertEquals("a", tupl._1);
+		Assertions.assertEquals(Integer.valueOf(1), tupl._2);
 	}
 
 	@Test
@@ -87,18 +97,18 @@ public class KeyValueTest {
 		KeyValue<String,Integer> a = KeyValue.of("a", 1);
 		KeyValue<String,Integer> b = KeyValue.of("a", 1);
 
-		Assert.assertEquals(a, b);
-		Assert.assertEquals(a.hashCode(), b.hashCode());
+		Assertions.assertEquals(a, b);
+		Assertions.assertEquals(a.hashCode(), b.hashCode());
 	}
 
 	@Test
 	public void testNotEqualWhenKeyDiffers() throws Exception {
-		Assert.assertNotEquals(KeyValue.of("a", 1), KeyValue.of("b", 1));
+		Assertions.assertNotEquals(KeyValue.of("a", 1), KeyValue.of("b", 1));
 	}
 
 	@Test
 	public void testNotEqualWhenValueDiffers() throws Exception {
-		Assert.assertNotEquals(KeyValue.of("a", 1), KeyValue.of("a", 2));
+		Assertions.assertNotEquals(KeyValue.of("a", 1), KeyValue.of("a", 2));
 	}
 
 	@Test
@@ -107,18 +117,18 @@ public class KeyValueTest {
 		KeyValue<String,Integer> b = KeyValue.of("a", null);
 		KeyValue<String,Integer> c = KeyValue.of("a", 1);
 
-		Assert.assertEquals(a, b);
-		Assert.assertEquals(a.hashCode(), b.hashCode());
-		Assert.assertNotEquals(a, c);
-		Assert.assertNotEquals(c, a);
+		Assertions.assertEquals(a, b);
+		Assertions.assertEquals(a.hashCode(), b.hashCode());
+		Assertions.assertNotEquals(a, c);
+		Assertions.assertNotEquals(c, a);
 	}
 
 	@Test
 	public void testEqualsRejectsNullAndOtherTypes() throws Exception {
 		KeyValue<String,Integer> a = KeyValue.of("a", 1);
 
-		Assert.assertNotEquals(a, null);
-		Assert.assertNotEquals(a, "a=1");
+		Assertions.assertNotEquals(a, null);
+		Assertions.assertNotEquals(a, "a=1");
 	}
 
 	@Test
@@ -127,14 +137,14 @@ public class KeyValueTest {
 		ComparableKeyValue<String,Integer> ckv = ComparableKeyValue.of("a", 1);
 
 		// 같은 (key, value)라도 런타임 클래스가 다르므로 equals는 양쪽 다 false
-		Assert.assertNotEquals(kv, ckv);
-		Assert.assertNotEquals(ckv, kv);
+		Assertions.assertNotEquals(kv, ckv);
+		Assertions.assertNotEquals(ckv, kv);
 	}
 
 	@Test
 	public void testToString() throws Exception {
-		Assert.assertEquals("a=1", KeyValue.of("a", 1).toString());
-		Assert.assertEquals("a=null", KeyValue.of("a", null).toString());
+		Assertions.assertEquals("a=1", KeyValue.of("a", 1).toString());
+		Assertions.assertEquals("a=null", KeyValue.of("a", null).toString());
 	}
 
 	@Test
@@ -143,7 +153,7 @@ public class KeyValueTest {
 
 		String result = kv.map((k, v) -> k + ":" + v);
 
-		Assert.assertEquals("a:3", result);
+		Assertions.assertEquals("a:3", result);
 	}
 
 	@Test
@@ -152,8 +162,8 @@ public class KeyValueTest {
 
 		KeyValue<String,Integer> mapped = kv.mapKey(k -> k.toUpperCase());
 
-		Assert.assertEquals("A", mapped.key());
-		Assert.assertEquals(Integer.valueOf(3), mapped.value());
+		Assertions.assertEquals("A", mapped.key());
+		Assertions.assertEquals(Integer.valueOf(3), mapped.value());
 	}
 
 	@Test
@@ -162,18 +172,22 @@ public class KeyValueTest {
 
 		KeyValue<Integer,Integer> mapped = kv.mapKey((k, v) -> k.length() + v);
 
-		Assert.assertEquals(Integer.valueOf(4), mapped.key());
-		Assert.assertEquals(Integer.valueOf(3), mapped.value());
+		Assertions.assertEquals(Integer.valueOf(4), mapped.key());
+		Assertions.assertEquals(Integer.valueOf(3), mapped.value());
 	}
 
-	@Test(expected = NullPointerException.class)
+	@Test
 	public void testMapKeyFunctionRejectsNullResult() throws Exception {
-		KeyValue.of("a", 1).mapKey(k -> null);
+		Assertions.assertThrows(NullPointerException.class, () -> {
+			KeyValue.of("a", 1).mapKey(k -> null);
+		});
 	}
 
-	@Test(expected = NullPointerException.class)
+	@Test
 	public void testMapKeyBiFunctionRejectsNullResult() throws Exception {
-		KeyValue.of("a", 1).mapKey((k, v) -> null);
+		Assertions.assertThrows(NullPointerException.class, () -> {
+			KeyValue.of("a", 1).mapKey((k, v) -> null);
+		});
 	}
 
 	@Test
@@ -182,8 +196,8 @@ public class KeyValueTest {
 
 		KeyValue<String,String> mapped = kv.mapValue(v -> "v" + v);
 
-		Assert.assertEquals("a", mapped.key());
-		Assert.assertEquals("v3", mapped.value());
+		Assertions.assertEquals("a", mapped.key());
+		Assertions.assertEquals("v3", mapped.value());
 	}
 
 	@Test
@@ -192,24 +206,24 @@ public class KeyValueTest {
 
 		KeyValue<String,Integer> mapped = kv.mapValue((k, v) -> k.length() * v);
 
-		Assert.assertEquals("ab", mapped.key());
-		Assert.assertEquals(Integer.valueOf(6), mapped.value());
+		Assertions.assertEquals("ab", mapped.key());
+		Assertions.assertEquals(Integer.valueOf(6), mapped.value());
 	}
 
 	@Test
 	public void testParseSimple() throws Exception {
 		KeyValue<String,String> kv = KeyValue.parse("foo=bar");
 
-		Assert.assertEquals("foo", kv.key());
-		Assert.assertEquals("bar", kv.value());
+		Assertions.assertEquals("foo", kv.key());
+		Assertions.assertEquals("bar", kv.value());
 	}
 
 	@Test
 	public void testParseTrimsWhitespace() throws Exception {
 		KeyValue<String,String> kv = KeyValue.parse("  foo  =  bar  ");
 
-		Assert.assertEquals("foo", kv.key());
-		Assert.assertEquals("bar", kv.value());
+		Assertions.assertEquals("foo", kv.key());
+		Assertions.assertEquals("bar", kv.value());
 	}
 
 	@Test
@@ -218,8 +232,8 @@ public class KeyValueTest {
 		// String#strip 으로는 제거된다 (Character.isWhitespace 기준).
 		KeyValue<String,String> kv = KeyValue.parse("　foo　=　bar　");
 
-		Assert.assertEquals("foo", kv.key());
-		Assert.assertEquals("bar", kv.value());
+		Assertions.assertEquals("foo", kv.key());
+		Assertions.assertEquals("bar", kv.value());
 	}
 
 	@Test
@@ -227,16 +241,16 @@ public class KeyValueTest {
 		// 첫번째 '='로 분리하므로 값에 포함된 '='는 보존된다.
 		KeyValue<String,String> kv = KeyValue.parse("a=b=c");
 
-		Assert.assertEquals("a", kv.key());
-		Assert.assertEquals("b=c", kv.value());
+		Assertions.assertEquals("a", kv.key());
+		Assertions.assertEquals("b=c", kv.value());
 	}
 
 	@Test
 	public void testParseAllowsEmptyValue() throws Exception {
 		KeyValue<String,String> kv = KeyValue.parse("k=");
 
-		Assert.assertEquals("k", kv.key());
-		Assert.assertEquals("", kv.value());
+		Assertions.assertEquals("k", kv.key());
+		Assertions.assertEquals("", kv.value());
 	}
 
 	@Test
@@ -244,28 +258,36 @@ public class KeyValueTest {
 		// 값이 공백뿐이면 strip 후 빈 문자열로 정규화된다.
 		KeyValue<String,String> kv = KeyValue.parse("k=   ");
 
-		Assert.assertEquals("k", kv.key());
-		Assert.assertEquals("", kv.value());
+		Assertions.assertEquals("k", kv.key());
+		Assertions.assertEquals("", kv.value());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testParseRejectsMissingDelimiter() throws Exception {
-		KeyValue.parse("nokey");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			KeyValue.parse("nokey");
+		});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testParseRejectsEmptyKey() throws Exception {
-		KeyValue.parse("=v");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			KeyValue.parse("=v");
+		});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testParseRejectsBlankKey() throws Exception {
-		KeyValue.parse("   =v");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			KeyValue.parse("   =v");
+		});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testParseRejectsNullExpr() throws Exception {
-		KeyValue.parse(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			KeyValue.parse(null);
+		});
 	}
 
 	@Test
@@ -275,8 +297,8 @@ public class KeyValueTest {
 		// mapValue는 새 객체를 반환해야 하며, 원본은 그대로 유지
 		KeyValue<String,Integer> mapped = kv.mapValue(v -> v + 100);
 
-		Assert.assertEquals(Integer.valueOf(1), kv.value());
-		Assert.assertEquals(Integer.valueOf(101), mapped.value());
-		Assert.assertNotSame(kv, mapped);
+		Assertions.assertEquals(Integer.valueOf(1), kv.value());
+		Assertions.assertEquals(Integer.valueOf(101), mapped.value());
+		Assertions.assertNotSame(kv, mapped);
 	}
 }

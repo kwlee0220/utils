@@ -1,7 +1,7 @@
 package utils;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 
 /**
@@ -14,8 +14,8 @@ public class TimestampedTest {
 	public void testFactoryWithExplicitTs() throws Exception {
 		Timestamped<String> ts = Timestamped.of("foo", 1234L);
 
-		Assert.assertEquals(1234L, ts.timestamp());
-		Assert.assertEquals("foo", ts.value());
+		Assertions.assertEquals(1234L, ts.timestamp());
+		Assertions.assertEquals("foo", ts.value());
 	}
 
 	@Test
@@ -24,17 +24,17 @@ public class TimestampedTest {
 		Timestamped<String> ts = Timestamped.of("foo");
 		long after = System.currentTimeMillis();
 
-		Assert.assertTrue(ts.timestamp() >= before);
-		Assert.assertTrue(ts.timestamp() <= after);
-		Assert.assertEquals("foo", ts.value());
+		Assertions.assertTrue(ts.timestamp() >= before);
+		Assertions.assertTrue(ts.timestamp() <= after);
+		Assertions.assertEquals("foo", ts.value());
 	}
 
 	@Test
 	public void testNullValueAllowed() throws Exception {
 		Timestamped<String> ts = Timestamped.of(null, 1234L);
 
-		Assert.assertEquals(1234L, ts.timestamp());
-		Assert.assertNull(ts.value());
+		Assertions.assertEquals(1234L, ts.timestamp());
+		Assertions.assertNull(ts.value());
 	}
 
 	@Test
@@ -42,8 +42,8 @@ public class TimestampedTest {
 		Timestamped<String> a = Timestamped.of("foo", 1234L);
 		Timestamped<String> b = Timestamped.of("foo", 1234L);
 
-		Assert.assertEquals(a, b);
-		Assert.assertEquals(a.hashCode(), b.hashCode());
+		Assertions.assertEquals(a, b);
+		Assertions.assertEquals(a.hashCode(), b.hashCode());
 	}
 
 	@Test
@@ -51,7 +51,7 @@ public class TimestampedTest {
 		Timestamped<String> a = Timestamped.of("foo", 1234L);
 		Timestamped<String> b = Timestamped.of("foo", 5678L);
 
-		Assert.assertNotEquals(a, b);
+		Assertions.assertNotEquals(a, b);
 	}
 
 	@Test
@@ -59,7 +59,7 @@ public class TimestampedTest {
 		Timestamped<String> a = Timestamped.of("foo", 1234L);
 		Timestamped<String> b = Timestamped.of("bar", 1234L);
 
-		Assert.assertNotEquals(a, b);
+		Assertions.assertNotEquals(a, b);
 	}
 
 	@Test
@@ -68,34 +68,34 @@ public class TimestampedTest {
 		Timestamped<String> b = Timestamped.of(null, 1234L);
 		Timestamped<String> c = Timestamped.of("foo", 1234L);
 
-		Assert.assertEquals(a, b);
-		Assert.assertEquals(a.hashCode(), b.hashCode());
-		Assert.assertNotEquals(a, c);
-		Assert.assertNotEquals(c, a);
+		Assertions.assertEquals(a, b);
+		Assertions.assertEquals(a.hashCode(), b.hashCode());
+		Assertions.assertNotEquals(a, c);
+		Assertions.assertNotEquals(c, a);
 
 		// null 값에 대해 toString이 NPE 없이 동작해야 함
-		Assert.assertEquals("null(1234)", a.toString());
+		Assertions.assertEquals("null(1234)", a.toString());
 	}
 
 	@Test
 	public void testEqualsRejectsNullAndOtherTypes() throws Exception {
 		Timestamped<String> a = Timestamped.of("foo", 1234L);
 
-		Assert.assertNotEquals(a, null);
-		Assert.assertNotEquals(a, "foo");
+		Assertions.assertNotEquals(a, null);
+		Assertions.assertNotEquals(a, "foo");
 	}
 
 	@Test
 	public void testEqualsReflexive() throws Exception {
 		Timestamped<String> a = Timestamped.of("foo", 1234L);
 
-		Assert.assertEquals(a, a);
+		Assertions.assertEquals(a, a);
 	}
 
 	@Test
 	public void testToString() throws Exception {
 		Timestamped<String> ts = Timestamped.of("foo", 1234L);
 
-		Assert.assertEquals("foo(1234)", ts.toString());
+		Assertions.assertEquals("foo(1234)", ts.toString());
 	}
 }

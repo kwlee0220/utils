@@ -5,8 +5,8 @@ import static org.mockito.Mockito.mock;
 import java.net.http.WebSocket;
 import java.time.Duration;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * {@link WebSocketStateChart}의 인자 검증 및 라이프사이클 계약을 검증한다.
@@ -30,14 +30,14 @@ public class WebSocketStateChartTest {
 
 	@Test
 	public void getWebSocketListener_returns_non_null() {
-		Assert.assertNotNull(newChart().getWebSocketListener());
+		Assertions.assertNotNull(newChart().getWebSocketListener());
 	}
 
 	// ---- setWebSocket / getWebSocket ----
 
 	@Test
 	public void getWebSocket_null_before_setWebSocket() {
-		Assert.assertNull(newChart().getWebSocket());
+		Assertions.assertNull(newChart().getWebSocket());
 	}
 
 	@Test
@@ -46,36 +46,46 @@ public class WebSocketStateChartTest {
 		WebSocket ws = mock(WebSocket.class);
 		chart.setWebSocket(ws);
 
-		Assert.assertSame(ws, chart.getWebSocket());
+		Assertions.assertSame(ws, chart.getWebSocket());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void setWebSocket_null_rejected() {
-		newChart().setWebSocket(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().setWebSocket(null);
+		});
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void setWebSocket_double_call_rejected() {
-		WebSocketStateChart<TestCtx> chart = newChart();
-		chart.setWebSocket(mock(WebSocket.class));
-		chart.setWebSocket(mock(WebSocket.class));
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			WebSocketStateChart<TestCtx> chart = newChart();
+			chart.setWebSocket(mock(WebSocket.class));
+			chart.setWebSocket(mock(WebSocket.class));
+		});
 	}
 
 	// ---- setPingInterval ----
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void setPingInterval_null_rejected() {
-		newChart().setPingInterval(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().setPingInterval(null);
+		});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void setPingInterval_zero_rejected() {
-		newChart().setPingInterval(Duration.ZERO);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().setPingInterval(Duration.ZERO);
+		});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void setPingInterval_negative_rejected() {
-		newChart().setPingInterval(Duration.ofMillis(-1));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().setPingInterval(Duration.ofMillis(-1));
+		});
 	}
 
 	@Test
@@ -85,19 +95,25 @@ public class WebSocketStateChartTest {
 
 	// ---- setPongTimeout ----
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void setPongTimeout_null_rejected() {
-		newChart().setPongTimeout(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().setPongTimeout(null);
+		});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void setPongTimeout_zero_rejected() {
-		newChart().setPongTimeout(Duration.ZERO);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().setPongTimeout(Duration.ZERO);
+		});
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void setPongTimeout_negative_rejected() {
-		newChart().setPongTimeout(Duration.ofMillis(-1));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().setPongTimeout(Duration.ofMillis(-1));
+		});
 	}
 
 	@Test
@@ -107,36 +123,46 @@ public class WebSocketStateChartTest {
 
 	// ---- sendText ----
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void sendText_null_text_rejected() {
-		newChart().sendText(null, true);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().sendText(null, true);
+		});
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void sendText_before_chart_running_rejected() {
-		WebSocketStateChart<TestCtx> chart = newChart();
-		chart.setWebSocket(mock(WebSocket.class));   // 연결은 등록했지만 차트는 NOT_STARTED
-		chart.sendText("hello", true);
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			WebSocketStateChart<TestCtx> chart = newChart();
+			chart.setWebSocket(mock(WebSocket.class));   // 연결은 등록했지만 차트는 NOT_STARTED
+			chart.sendText("hello", true);
+		});
 	}
 
 	// ---- sendBinary ----
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void sendBinary_null_rejected() {
-		newChart().sendBinary(null, true);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().sendBinary(null, true);
+		});
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void sendBinary_before_chart_running_rejected() {
-		WebSocketStateChart<TestCtx> chart = newChart();
-		chart.setWebSocket(mock(WebSocket.class));
-		chart.sendBinary(new byte[] { 1, 2, 3 }, true);
+		Assertions.assertThrows(IllegalStateException.class, () -> {
+			WebSocketStateChart<TestCtx> chart = newChart();
+			chart.setWebSocket(mock(WebSocket.class));
+			chart.sendBinary(new byte[] { 1, 2, 3 }, true);
+		});
 	}
 
 	// ---- handleSignal ----
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void handleSignal_null_rejected() {
-		newChart().handleSignal(null);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			newChart().handleSignal(null);
+		});
 	}
 }
