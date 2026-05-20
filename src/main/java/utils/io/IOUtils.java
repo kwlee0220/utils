@@ -20,17 +20,15 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
-import com.google.common.base.Preconditions;
 import com.google.common.io.CharStreams;
 
+import utils.Preconditions;
 import utils.Tuple;
-import utils.Utilities;
 import utils.async.AbstractThreadedExecution;
 import utils.async.CancellableWork;
 
@@ -284,8 +282,8 @@ public class IOUtils {
 		private int m_bufSize = 4 * 1024;
 		
 		private CopyStream(InputStream from, OutputStream to) {
-			Objects.requireNonNull(from, "from InputStream");
-			Objects.requireNonNull(to, "to OutputStream");
+			Preconditions.checkNotNullArgument(from, "from InputStream is null");
+			Preconditions.checkNotNullArgument(to, "to OutputStream is null");
 			
 			m_from = from;
 			m_to = to;

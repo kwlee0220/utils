@@ -61,7 +61,7 @@ public final class Point2l implements Comparable<Point2l>, Serializable {
 
 	@Override
 	public int compareTo(Point2l o) {
-		Objects.requireNonNull(o);
+		Preconditions.checkNotNullArgument(o, "other is null");
 		
 		int cmp = Long.compare(m_x, o.m_x);
 		if ( cmp != 0 ) {

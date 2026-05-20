@@ -4,7 +4,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import utils.stream.FStream;
@@ -26,7 +25,7 @@ public class CIStringMap<T> implements Map<String,T> {
 	}
 	
 	private CIStringMap(Map<CIString,T> base) {
-		Objects.requireNonNull(base);
+		Preconditions.checkNotNullArgument(base, "base map is null");
 		m_map = base;
 	}
 

@@ -2,7 +2,6 @@ package utils.stream;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Function;
 
 import com.google.common.primitives.Doubles;
@@ -68,7 +67,7 @@ public interface DoubleFStream extends FStream<Double> {
 	 * @return 매핑된 객체 스트림.
 	 */
 	public default <T> FStream<T> mapToObj(Function<Double,? extends T> mapper) {
-		Objects.requireNonNull(mapper);
+		Preconditions.checkNotNullArgument(mapper, "mapper must not be null");
 
 		return map(mapper);
 	}

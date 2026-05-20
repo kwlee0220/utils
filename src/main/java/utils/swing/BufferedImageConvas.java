@@ -14,11 +14,12 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
-import java.util.Objects;
 
 import javax.annotation.concurrent.GuardedBy;
 
 import org.jetbrains.annotations.NotNull;
+
+import utils.Preconditions;
 
 
 
@@ -38,7 +39,7 @@ public class BufferedImageConvas implements Convas {
 	}
 	
 	public BufferedImageConvas(BufferedImage bi) {
-		Objects.requireNonNull(bi);
+		Preconditions.checkNotNullArgument(bi, "bi must not be null");
 		
 		m_size = new Dimension(bi.getWidth(), bi.getHeight());
 		m_bi = bi;

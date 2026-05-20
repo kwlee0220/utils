@@ -1,6 +1,5 @@
 package utils.stream;
 
-import java.util.Objects;
 import java.util.function.Function;
 
 import com.google.common.primitives.Booleans;
@@ -35,7 +34,7 @@ public interface BooleanFStream extends FStream<Boolean> {
 	 * @return 매핑된 객체 스트림.
 	 */
 	public default <T> FStream<T> mapToObj(Function<Boolean,? extends T> mapper) {
-		Objects.requireNonNull(mapper);
+		Preconditions.checkNotNullArgument(mapper, "mapper must not be null");
 
 		return map(mapper);
 	}

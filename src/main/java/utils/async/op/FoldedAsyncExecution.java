@@ -1,15 +1,14 @@
 package utils.async.op;
 
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.LoggerFactory;
 
-import org.jetbrains.annotations.Nullable;
-
+import utils.Preconditions;
 import utils.async.AbstractAsyncExecution;
 import utils.async.CancellableWork;
 import utils.async.StartableExecution;
@@ -56,9 +55,9 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<T>
 	FoldedAsyncExecution(FStream<StartableExecution<S>> execSeq,
 							Supplier<? extends T> initSupplier,
 							BiFunction<? super T,? super S,? extends T> folder) {
-		Objects.requireNonNull(execSeq, "AsyncExecution sequnece");
-		Objects.requireNonNull(initSupplier, "Initial Supplier");
-		Objects.requireNonNull(folder, "folder");
+		Preconditions.checkNotNullArgument(execSeq, "AsyncExecution sequnece is null");
+		Preconditions.checkNotNullArgument(initSupplier, "Initial Supplier is null");
+		Preconditions.checkNotNullArgument(folder, "folder function is null");
 		
 		m_sequence = execSeq;
 		m_initSupplier = initSupplier;

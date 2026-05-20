@@ -2,10 +2,10 @@ package utils.jdbc;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Objects;
 import java.util.Spliterators;
 import java.util.function.Consumer;
 
+import utils.Preconditions;
 import utils.func.Try;
 import utils.io.IOUtils;
 
@@ -34,7 +34,7 @@ class ResultSetSpliterator extends Spliterators.AbstractSpliterator<ResultSet>
 
 	@Override
 	public boolean tryAdvance(Consumer<? super ResultSet> consumer) {
-		Objects.requireNonNull(consumer, "Consumer is null");
+		Preconditions.checkNotNullArgument(consumer, "Consumer is null");
 		
 		if ( m_rs == null ) {
 			return false;

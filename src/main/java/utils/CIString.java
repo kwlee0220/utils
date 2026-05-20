@@ -4,7 +4,6 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.List;
-import java.util.Objects;
 
 import utils.func.Lazy;
 import utils.stream.FStream;
@@ -25,7 +24,7 @@ public final class CIString implements Comparable<CIString>, Serializable {
 	}
 	
 	private CIString(String name) {
-		Objects.requireNonNull(name, "column name");
+		Preconditions.checkNotNullArgument(name, "column name cannot be null");
 		
 		m_name = name;
 		m_lowerName = Lazy.of(() -> m_name.toLowerCase());

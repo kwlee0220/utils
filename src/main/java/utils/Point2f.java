@@ -61,7 +61,7 @@ public final class Point2f implements Comparable<Point2f>, Serializable {
 
 	@Override
 	public int compareTo(Point2f o) {
-		Objects.requireNonNull(o);
+		Preconditions.checkNotNullArgument(o, "other point is null");
 		
 		int cmp = Float.compare(m_x, o.m_x);
 		if ( cmp != 0 ) {

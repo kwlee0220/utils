@@ -7,7 +7,6 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -21,10 +20,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import utils.Preconditions;
 import utils.func.FOption;
 
 
@@ -96,8 +95,8 @@ public class XmlUtils {
 	}
 	
 	public static FOption<Element> getFirstChildElement(Element parent, String childElmName) {
-		Objects.requireNonNull(parent, "parent should not be null");
-		Objects.requireNonNull(childElmName, "childElmName should not be null");
+		Preconditions.checkNotNullArgument(parent, "parent should not be null");
+		Preconditions.checkNotNullArgument(childElmName, "childElmName should not be null");
 
 		NodeList children = parent.getChildNodes();
 		for (int i = 0; i < children.getLength(); ++i) {

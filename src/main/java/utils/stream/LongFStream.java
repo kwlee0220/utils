@@ -1,7 +1,6 @@
 package utils.stream;
 
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.function.Function;
 
 import com.google.common.primitives.Longs;
@@ -38,7 +37,7 @@ public interface LongFStream extends FStream<Long> {
 	}
 	
 	public default <T> FStream<T> mapToObj(Function<Long,? extends T> mapper) {
-		Objects.requireNonNull(mapper);
+		Preconditions.checkNotNullArgument(mapper, "mapper must not be null");
 		
 		return map(mapper);
 	}

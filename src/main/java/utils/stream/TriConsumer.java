@@ -1,6 +1,6 @@
 package utils.stream;
 
-import java.util.Objects;
+import utils.Preconditions;
 
 /**
  * 
@@ -11,7 +11,7 @@ public interface TriConsumer<S,T,R> {
 	public void accept(S s, T t, R r);
 	
     public default TriConsumer<S,T,R> andThen(TriConsumer<? super S, ? super T, ? super R> after) {
-        Objects.requireNonNull(after);
+    	Preconditions.checkNotNullArgument(after, "after must not be null");
 
         return (s, t, r) -> {
             accept(s, t, r);

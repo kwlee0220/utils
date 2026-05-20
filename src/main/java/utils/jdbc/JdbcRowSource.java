@@ -6,7 +6,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import io.reactivex.rxjava3.annotations.NonNull;
+import org.jetbrains.annotations.NotNull;
+
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.ObservableEmitter;
 import io.reactivex.rxjava3.core.ObservableOnSubscribe;
@@ -74,7 +75,7 @@ public class JdbcRowSource<T> {
 	
 	class OnSubscribe implements ObservableOnSubscribe<T> {
 		@Override
-		public void subscribe(@NonNull ObservableEmitter<@NonNull T> emitter) throws Throwable {
+		public void subscribe(@NotNull ObservableEmitter<T> emitter) throws Throwable {
 			try {
 				if ( m_rs == null ) {
 					if ( m_conn == null ) {
