@@ -1,0 +1,31 @@
+# 빌드 산출물
+/build/
+/bin/
+/classes/
+*.class
+*.jar
+*.war
+*.ear
+
+# Gradle
+/.gradle/
+
+# 애노테이션 프로세서 생성물
+.apt_generated*/
+
+# IDE / 에디터 설정
+/.classpath
+/.project
+/.settings/
+/.vscode/
+*.swp
+
+# 로그
+/logs/
+
+# JVM 크래시 로그
+hs_err_pid*
+
+# 버전 관리 / 동기화 메타데이터
+.git/
+.dropboxignore
