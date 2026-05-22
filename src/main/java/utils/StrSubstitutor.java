@@ -179,6 +179,39 @@ public final class StrSubstitutor {
 		}
 		return m_substitutor.replace(template);
 	}
+	
+	/**
+	 * 주어진 키-값 맵으로 템플릿 문자열의 <code>${...}</code> 참조를 치환한다.
+	 * <p>
+	 * {@link #with(Map)}로 인스턴스를 생성한 뒤 곧바로 {@link #replace(String)}를 호출하는
+	 * 일회성 치환을 위한 정적 편의 메소드이다. 따라서 기본 설정(미정의 변수 예외 발생, 중첩 치환 활성화)이
+	 * 그대로 적용되며, Apache 내장 lookup({@code env}, {@code sys}, {@code date} 등)도 동작한다.
+	 *
+	 * @param template	치환 대상 템플릿 문자열. {@code null}이면 {@code null}을 반환한다.
+	 * @param keyValues	치환에 사용할 키-값 맵. {@code null}이면 안 된다.
+	 * @return	치환이 완료된 문자열.
+	 * @throws IllegalArgumentException	기본 설정상 미정의 변수가 참조된 경우.
+	 */
+	public static String replace(String template, Map<String,String> keyValues) {
+		return with(keyValues).replace(template);
+	}
+
+	/**
+	 * 단일 키-값으로 템플릿 문자열의 <code>${...}</code> 참조를 치환한다.
+	 * <p>
+	 * {@link #with(String, String)}로 인스턴스를 생성한 뒤 곧바로 {@link #replace(String)}를 호출하는
+	 * 일회성 치환을 위한 정적 편의 메소드이다. 따라서 기본 설정(미정의 변수 예외 발생, 중첩 치환 활성화)이
+	 * 그대로 적용되며, Apache 내장 lookup({@code env}, {@code sys}, {@code date} 등)도 동작한다.
+	 *
+	 * @param template	치환 대상 템플릿 문자열. {@code null}이면 {@code null}을 반환한다.
+	 * @param key		치환할 단일 변수 이름. {@code null}이면 안 된다.
+	 * @param value		해당 변수의 값. {@code null}이면 안 된다.
+	 * @return	치환이 완료된 문자열.
+	 * @throws IllegalArgumentException	기본 설정상 미정의 변수가 참조된 경우.
+	 */
+	public static String replace(String template, String key, String value) {
+		return with(key, value).replace(template);
+	}
 
 	/**
 	 * 순서가 있는 키-값 목록을 앞에서부터 차례로 치환하되,
