@@ -17,8 +17,7 @@ import java.util.function.Supplier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.google.common.base.Preconditions;
-
+import utils.Preconditions;
 import utils.Throwables;
 import utils.stream.FStream;
 import utils.stream.FStreamable;
@@ -601,7 +600,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return this;
 		}
 		else {
-			Preconditions.checkArgument(orElse != null, "orElse is null");
+			Preconditions.checkNotNullArgument(orElse, "orElse is null");
 			return FOption.of(orElse);
 		}
 	}
@@ -618,7 +617,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 			return this;
 		}
 		else {
-			Preconditions.checkArgument(orElseSupplier != null, "orElseSupplier is null");
+			Preconditions.checkNotNullArgument(orElseSupplier, "orElseSupplier is null");
 			return orElseSupplier.get();
 		}
 	}
@@ -678,7 +677,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	}
 
 	public <V> FOption<V> cast(Class<? extends V> cls) {
-		Preconditions.checkArgument(cls != null, "target class is null");
+		Preconditions.checkNotNullArgument(cls, "target class is null");
 
 		return filter(cls::isInstance).map(cls::cast);
 	}

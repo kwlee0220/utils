@@ -18,14 +18,14 @@ import java.time.Duration;
  */
 public interface LogTailerListener {
 	/**
-	 * 주어진 로그 파일을 처리한다.
+	 * 새로 추가된 로그 한 줄을 처리한다.
 	 * <p>
-	 * 이 메소드는 로그 파일의 각 line에 대해 호출된다.
-	 * 로그 파일의 마지막 line을 처리한 후 추가로 처리할 line이 없다면 false를 반환한다.
-	 * 즉, false를 반환하면 로그 파일의 처리를 중단한다.
-	 * 
-	 * @param line	처리할 로그 파일.
-	 * @return	로그 파일 지속 여부. {@code false}이면 로그 파일의 처리를 중단한다.
+	 * 이 메소드는 로그 파일에 추가된 각 line마다 호출된다.
+	 * 더 이상 tailing을 계속하지 않으려면 {@code false}를 반환한다.
+	 * 즉, {@code false}를 반환하면 로그 파일의 처리를 중단한다.
+	 *
+	 * @param line	처리할 로그 한 줄.
+	 * @return	로그 파일 처리 계속 여부. {@code false}이면 로그 파일의 처리를 중단한다.
 	 * @throws Exception	처리 중 오류가 발생한 경우.
 	 */
 	public boolean handleLogTail(String line) throws Exception;
@@ -49,6 +49,7 @@ public interface LogTailerListener {
 	 * 
 	 * @param interval	로그 파일 변화가 없었던 구간.
 	 * @return	로그 파일 처리 계속 여부. {@code false}이면 로그 파일의 처리를 중단한다.
+	 * @throws Exception	처리 중 오류가 발생한 경우.
 	 */
 	public boolean handleLogFileSilence(Duration interval) throws Exception;
 }

@@ -11,6 +11,10 @@ public class RuntimeInterruptedException extends RuntimeException {
 	public RuntimeInterruptedException(InterruptedException cause) {
 		super(cause);
 	}
+
+	public RuntimeInterruptedException(String msg, InterruptedException cause) {
+		super(msg, cause);
+	}
 	
 	public InterruptedException getCause() {
 		return (InterruptedException) super.getCause();

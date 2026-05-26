@@ -14,9 +14,11 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.io.RandomAccessFile;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Collection;
@@ -24,6 +26,8 @@ import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
+
+import org.jetbrains.annotations.Nullable;
 
 import com.google.common.io.CharStreams;
 
@@ -327,5 +331,88 @@ public class IOUtils {
 		public boolean cancelWork() {
 			return true;
 		}
+	}
+
+	/**
+	 * 현재 file position부터 한 줄을 바이트 단위로 읽어 UTF-8로 디코딩한다.
+	 * <p>
+	 * {@link RandomAccessFile#readLine()}은 각 바이트를 그대로 {@code char}로 확장하여(사실상
+	 * ISO-8859-1) UTF-8 멀티바이트 문자(한글 등)를 깨뜨리므로, 이를 대체한다.
+	 * 줄 종료는 {@code \n}, {@code \r}, {@code \r\n} 또는 EOF로 인식하며, 종료 문자는 결과에
+	 * 포함하지 않는다. 아무 바이트도 읽지 못한 채 EOF에 도달하면 {@code null}을 반환한다.
+	 * 개행 없이 EOF로 끝나는 마지막 조각도 그대로 반환하므로 {@code readLine()}의 의미를 따른다.
+	 *
+	 * @param raf	읽을 대상 파일. 현재 file position부터 읽는다.
+	 * @return	디코딩된 한 줄. EOF에서 읽은 바이트가 없으면 {@code null}.
+	 * @throws IOException	파일 입출력 중 오류가 발생한 경우.
+	 */
+	public static @Nullable String readLineUtf8(RandomAccessFile raf) throws IOException {
+		return readLineUtf8(raf, false);
+	}
+
+	/**
+	 * 현재 file position부터 한 줄을 바이트 단위로 읽어 UTF-8로 디코딩한다.
+	 * <p>
+	 * {@code requireNewline}이 {@code true}이면 개행({@code \n}, {@code \r}, {@code \r\n})으로
+	 * 종료된 완전한 줄만 반환한다. 개행 없이 EOF에 먼저 도달한 미완성 조각을 만나면 file pointer를
+	 * 그 줄의 시작 위치로 되돌리고 {@code null}을 반환한다. 따라서 아직 끝까지 기록되지 않은 줄을
+	 * 조기에 소비하지 않으며, 파일이 더 채워진 뒤 다시 호출하면 같은 줄을 처음부터 읽을 수 있다.
+	 * tail 류의 점진적 읽기에 유용하다.
+	 * <p>
+	 * {@code requireNewline}이 {@code false}이면 {@link #readLineUtf8(RandomAccessFile)}과 동일하게
+	 * 동작하여, 개행 없이 EOF로 끝나는 마지막 조각도 그대로 반환한다.
+	 *
+	 * @param raf				읽을 대상 파일. 현재 file position부터 읽는다.
+	 * @param requireNewline	개행으로 종료된 완전한 줄만 반환할지 여부.
+	 * @return	디코딩된 한 줄. EOF에서 읽은 바이트가 없거나, {@code requireNewline}이 {@code true}인데
+	 * 			완전한 줄이 없으면 {@code null}.
+	 * @throws IOException	파일 입출력 중 오류가 발생한 경우.
+	 */
+	public static @Nullable String readLineUtf8(RandomAccessFile raf, boolean requireNewline) throws IOException {
+		long start = raf.getFilePointer();
+		ByteArrayOutputStream buf = null;
+		boolean readAny = false;
+		boolean terminated = false;
+
+		int b;
+		while ( (b = raf.read()) != -1 ) {
+			readAny = true;
+			if ( b == '\n' ) {
+				terminated = true;
+				break;
+			}
+			if ( b == '\r' ) {
+				// '\r\n'이면 뒤따르는 '\n'까지 소비하고, 단독 '\r'이면 읽었던 위치로 되돌린다.
+				long mark = raf.getFilePointer();
+				int next = raf.read();
+				if ( next == -1 ) {
+					// '\r' 직후 EOF이면 뒤따르는 '\n'이 아직 기록되지 않았을 수 있으므로
+					// 완전한 줄을 요구하는 경우 미완성으로 간주한다.
+					if ( requireNewline ) {
+						raf.seek(start);
+						return null;
+					}
+				}
+				else if ( next != '\n' ) {
+					raf.seek(mark);
+				}
+				terminated = true;
+				break;
+			}
+			if ( buf == null ) {
+				buf = new ByteArrayOutputStream();
+			}
+			buf.write(b);
+		}
+
+		if ( !readAny ) {
+			return null;
+		}
+		if ( requireNewline && !terminated ) {
+			// 개행 없이 EOF에 도달한 미완성 조각 — 되돌리고 다음 호출을 기다린다.
+			raf.seek(start);
+			return null;
+		}
+		return (buf == null) ? "" : buf.toString(StandardCharsets.UTF_8);
 	}
 }

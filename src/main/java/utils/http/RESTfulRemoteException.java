@@ -20,7 +20,13 @@ public class RESTfulRemoteException extends RuntimeException {
 		
 		m_error = null;
 	}
-	
+
+	public RESTfulRemoteException(String details, Throwable cause) {
+		super(details, cause);
+		
+		m_error = null;
+	}
+		
 	public RESTfulErrorEntity getRemoteErrorEntity() {
 		return m_error;
 	}

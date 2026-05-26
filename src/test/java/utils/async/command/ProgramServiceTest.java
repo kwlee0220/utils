@@ -2,6 +2,7 @@ package utils.async.command;
 
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
@@ -14,9 +15,9 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import utils.async.command.ProgramServiceConfig.RestartPolicy;
 import org.junit.jupiter.api.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -275,5 +276,148 @@ public class ProgramServiceTest {
 		}
 		catch ( IllegalStateException expected ) { }
 		svc.awaitTerminated(5, TimeUnit.SECONDS);
+	}
+
+	// ---------- ALWAYS 정책 + 실패 명령 (커버리지 보완) ----------
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void always_policy_restarts_after_failure_then_stop_terminates() throws Exception {
+		ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "/usr/bin/false"));
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+
+		Thread.sleep(200);   // 여러 번 재시작 보장
+		Assertions.assertEquals(Service.State.RUNNING, svc.state());
+
+		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+		Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void always_policy_with_quick_success_then_stop_terminates() throws Exception {
+		ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "/bin/true"));
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+
+		Thread.sleep(200);
+		Assertions.assertEquals(Service.State.RUNNING, svc.state());
+
+		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+		Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+	}
+
+	// ---------- race 회귀 테스트 (whenFinished와 doStop 사이) ----------
+
+	/**
+	 * 재시작 결정 중에 stop이 들어오는 race로 인해 서비스가 STOPPING에서 stuck되지 않는지
+	 * 검증한다. 짧은 명령을 ALWAYS로 빠르게 재시작시키며 임의 시점에 stop을 호출하는 시도를
+	 * 여러 번 반복하여 timing race를 노출시킨다.
+	 */
+	@Test
+	@Timeout(value = 60_000, unit = TimeUnit.MILLISECONDS)
+	public void stop_during_restart_decision_does_not_get_stuck() throws Exception {
+		for ( int i = 0; i < 30; i++ ) {
+			ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "/bin/true"));
+			svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+			// whenFinished 콜백이 nextExec 빌드 중인 시점에 stop이 들어가도록 유도.
+			Thread.sleep(i % 5);
+			svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+			Assertions.assertEquals(Service.State.TERMINATED, svc.state(),
+									"iteration " + i + ": should reach TERMINATED");
+		}
+	}
+
+	// ---------- JSON 설정 파일에서 생성 ----------
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void create_from_json_file_loads_config() throws Exception {
+		File jsonFile = new File(m_workDir, "config.json");
+		String json = "{\n"
+					+ "  \"commandLine\": [\"/bin/echo\", \"json-config\"],\n"
+					+ "  \"workingDirectory\": \"" + m_workDir.getAbsolutePath() + "\",\n"
+					+ "  \"restartPolicy\": \"NO\",\n"
+					+ "  \"restartDelay\": \"PT0S\"\n"
+					+ "}\n";
+		Files.writeString(jsonFile.toPath(), json, StandardCharsets.UTF_8);
+
+		ProgramService svc = ProgramService.create(jsonFile);
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		svc.awaitTerminated(5, TimeUnit.SECONDS);
+
+		Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+		File log = new File(m_workDir, "application.log");
+		Assertions.assertTrue(log.exists());
+		Assertions.assertEquals("json-config",
+								Files.readString(log.toPath(), StandardCharsets.UTF_8).trim());
+	}
+
+	// ---------- LoggerSettable ----------
+
+	@Test
+	public void getLogger_returns_default_when_not_set() {
+		ProgramService svc = ProgramService.create(config(RestartPolicy.NO, "/bin/echo"));
+		Assertions.assertNotNull(svc.getLogger());
+		Assertions.assertEquals(ProgramService.class.getName(), svc.getLogger().getName());
+	}
+
+	@Test
+	public void setLogger_overrides_default() {
+		ProgramService svc = ProgramService.create(config(RestartPolicy.NO, "/bin/echo"));
+		Logger custom = LoggerFactory.getLogger("custom.logger.for.test");
+		svc.setLogger(custom);
+		Assertions.assertSame(custom, svc.getLogger());
+	}
+
+	@Test
+	public void setLogger_null_restores_default() {
+		ProgramService svc = ProgramService.create(config(RestartPolicy.NO, "/bin/echo"));
+		Logger custom = LoggerFactory.getLogger("custom.logger.for.test");
+		svc.setLogger(custom);
+		Assertions.assertSame(custom, svc.getLogger());
+
+		svc.setLogger(null);
+		Assertions.assertEquals(ProgramService.class.getName(), svc.getLogger().getName());
+	}
+
+	// ---------- 환경 변수 전달 ----------
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void environment_variables_are_passed_to_subprocess() throws Exception {
+		ProgramServiceConfig cfg = config(RestartPolicy.NO, "/usr/bin/printenv", "MY_PROG_VAR");
+		cfg.setEnvironments(java.util.Map.of("MY_PROG_VAR", "value-xyz"));
+
+		ProgramService svc = ProgramService.create(cfg);
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		svc.awaitTerminated(5, TimeUnit.SECONDS);
+
+		File log = new File(m_workDir, "application.log");
+		Assertions.assertTrue(log.exists());
+		Assertions.assertEquals("value-xyz",
+								Files.readString(log.toPath(), StandardCharsets.UTF_8).trim());
+	}
+
+	// ---------- stop이 cancel 경로로 진입하는지 ----------
+
+	/**
+	 * 장시간 실행 명령을 stop으로 종료하면 result는 isNone(취소)으로 들어오고,
+	 * 재시작 정책이 ALWAYS여도 재시작 없이 TERMINATED에 도달해야 한다.
+	 * (m_stopRequested 플래그가 정책 평가를 우회시키는 동작 검증)
+	 */
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void stop_short_circuits_restart_policy() throws Exception {
+		ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "/bin/sleep", "30"));
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		Thread.sleep(100);
+
+		long startedAt = System.currentTimeMillis();
+		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+		long elapsed = System.currentTimeMillis() - startedAt;
+
+		Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+		// 재시작 없이 즉시 종료되어야 함 (30초 sleep을 새로 시작하면 timeout에 걸림).
+		Assertions.assertTrue(elapsed < 3000, "stop 후 재시작 없이 종료되어야 함: elapsed=" + elapsed);
 	}
 }

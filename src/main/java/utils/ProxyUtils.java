@@ -24,6 +24,7 @@ public final class ProxyUtils {
 		throw new AssertionError("Should not be invoked!!: class=" + ProxyUtils.class.getName());
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(T obj, CallHandler handler) {
 		Preconditions.checkNotNullArgument(obj, "target object is null");
 		Preconditions.checkNotNullArgument(handler, "CallHandler is null");
@@ -47,6 +48,7 @@ public final class ProxyUtils {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(T obj, Class<?> intfc, CallHandler... handler) {
 		Preconditions.checkNotNullArgument(obj, "target object is null");
 		Preconditions.checkNotNullArgument(handler, "CallHandler is null");

@@ -169,6 +169,10 @@ public class HttpRESTfulClient implements LoggerSettable {
 		Request req = newRequestBuilder(url).post(reqBody).build();
 		return call(req, deser);
 	}
+	
+	public <T> T post(String url, String reqBodyStr, ResponseBodyDeserializer<T> deser) {
+		return post(url, RequestBody.create(reqBodyStr, MEDIA_TYPE_TEXT), deser);
+	}
 
 	/**
 	 * 주어진 URL에 POST 요청을 보내고 응답 본문은 무시한다.
@@ -195,6 +199,10 @@ public class HttpRESTfulClient implements LoggerSettable {
 		getLogger().debug("sending: (PUT) {}, body={}", url, reqBody);
 		Request req = newRequestBuilder(url).put(reqBody).build();
 		return call(req, deser);
+	}
+	
+	public <T> T put(String url, String reqBodyStr, ResponseBodyDeserializer<T> deser) {
+		return put(url, RequestBody.create(reqBodyStr, MEDIA_TYPE_TEXT), deser);
 	}
 
 	/**
@@ -465,7 +473,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 			getLogger().debug("received void response: code={}, headers={}", cresp.code(), headers);
 
 			if ( !cresp.isSuccessful() ) {
-				throw throwException(cresp.body().string());
+				throw toRESTfulClientException(cresp.body().string());
 			}
 			else {
 				return headers;
@@ -484,7 +492,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 								cresp.code(), headers, respBody);
 
 			if ( !cresp.isSuccessful() ) {
-				throw throwException(respBody);
+				throw toRESTfulClientException(respBody);
 			}
 			else if ( deser != null ) {
 				try {
@@ -502,18 +510,6 @@ public class HttpRESTfulClient implements LoggerSettable {
 			throw new RESTfulIOException("Failed to read RESTful response", e);
 		}
 	}
-	
-	private Throwable parseSpringException(String respBody)
-		throws JsonMappingException, JsonProcessingException {
-		SpringExceptionEntity errorMsg = m_mapper.readValue(respBody, SpringExceptionEntity.class);
-		return errorMsg.toException();
-	}
-
-	private Throwable parseRESTfulServerErrorMessage(String respBody)
-		throws JsonMappingException, JsonProcessingException {
-		RESTfulServerErrorMessage errorMsg = m_mapper.readValue(respBody, RESTfulServerErrorMessage.class);
-		return new RESTfulIOException(errorMsg.toString());
-	}
 
 	/**
 	 * 응답 본문을 적절한 예외로 변환하여 던진다.
@@ -521,7 +517,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 	 * 우선 등록된 {@link ErrorEntityDeserializer}로 파싱을 시도하고,
 	 * 실패 시 Spring 기본 에러 포맷, 마지막으로 일반 RESTful 서버 에러 메시지 포맷으로 fallback한다.
 	 */
-	protected RuntimeException throwException(String respBody) {
+	protected RuntimeException toRESTfulClientException(String respBody) {
 		Try<Throwable> cause
 			= Try.get(() -> {
 					try {
@@ -534,7 +530,23 @@ public class HttpRESTfulClient implements LoggerSettable {
 				.recover(() -> parseSpringException(respBody))
 				.recover(() -> parseRESTfulServerErrorMessage(respBody));
 
-		Throwables.sneakyThrow(cause.get());
-		throw new AssertionError("unreachable");
+		if ( cause.isFailed() ) {
+			throw new RESTfulIOException("Failed to parse RESTful error response: response=" + respBody,
+										cause.getCause());
+		}
+		throw Throwables.toRuntimeException(cause.get(),
+									c -> new RESTfulRemoteException("Remote RESTful exception: " + c, c));
+	}
+		
+	private Throwable parseSpringException(String respBody)
+		throws JsonMappingException, JsonProcessingException {
+		SpringExceptionEntity errorMsg = m_mapper.readValue(respBody, SpringExceptionEntity.class);
+		return errorMsg.toException();
+	}
+
+	private Throwable parseRESTfulServerErrorMessage(String respBody)
+		throws JsonMappingException, JsonProcessingException {
+		RESTfulServerErrorMessage errorMsg = m_mapper.readValue(respBody, RESTfulServerErrorMessage.class);
+		return new RESTfulIOException(errorMsg.toString());
 	}
 }

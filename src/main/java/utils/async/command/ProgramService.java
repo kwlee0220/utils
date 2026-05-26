@@ -15,11 +15,13 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.util.concurrent.AbstractService;
 
 import utils.LoggerSettable;
-import utils.thread.Guard;
+import utils.RuntimeInterruptedException;
 import utils.async.StartableExecution;
 import utils.async.op.AsyncExecutions;
 import utils.func.Optionals;
+import utils.func.Result;
 import utils.io.IOUtils;
+import utils.thread.Guard;
 
 
 /**
@@ -27,7 +29,7 @@ import utils.io.IOUtils;
  * 실행·감독하는 서비스.
  * <p>
  * 주어진 {@link ProgramServiceConfig}의 명령행을 {@link CommandExecution}으로 구성하여
- * 비동기 실행하고, 실행이 종료되면 설정된 {@link ProgramServiceConfig.RestartPolicy}에 따라
+ * 비동기 실행하고, 실행이 종료되면 설정된 {@link RestartPolicy}에 따라
  * 재시작 여부를 결정한다. 재시작 시 {@code restartDelay}가 양수이면 그만큼 지연 후 재시작한다.
  * <ul>
  *   <li>첫 실행이 RUNNING으로 전이되면 본 서비스도 RUNNING으로 전이한다 (그 이후 재시작은
@@ -45,9 +47,14 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	
 	private final ProgramServiceConfig m_config;
 	private final Guard m_guard = Guard.create();
-	private volatile Logger m_logger = null;
 	@GuardedBy("m_guard") private StartableExecution<Void> m_exec;
 	@GuardedBy("m_guard") private boolean m_stopRequested = false;	// 사용자가 명시적으로 중지 요청한 경우.
+	@GuardedBy("m_guard") private boolean m_restarting = false;	// 재시작 여부를 판단 중인 경우
+																// (true인 경우는 m_exec이 다음 실행으로 바뀌는
+																// 중이므로, doStop()이 들어와도 m_exec.cancel()을
+																// 시도하지 않도록 guard)
+
+	private volatile Logger m_logger = null;
 	
 	/**
 	 * 주어진 설정으로 {@link ProgramService} 인스턴스를 생성한다.
@@ -112,10 +119,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	@Override
 	protected void doStart() {
 		StartableExecution<Void> exec = buildExecution(true);
-		m_guard.run(() -> {
-			m_stopRequested = false;
-			m_exec = exec;
-		});
+		m_guard.run(() -> m_exec = exec);
 		exec.start();
 	}
 
@@ -128,14 +132,23 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	 */
 	@Override
 	protected void doStop() {
-		StartableExecution<Void> toCancel = m_guard.get(() -> {
-			m_stopRequested = true;
-			StartableExecution<Void> e = m_exec;
-			m_exec = null;
-			return e;
-		});
-		if ( toCancel != null ) {
-			toCancel.cancel(true);
+		// 재시작 여부를 판단 중인 경우에는 m_exec이 다음 실행으로 바뀌는 중이므로, doStop()이 들어와도
+		// m_exec.cancel()을 시도하지 않도록 guard한다.
+		try {
+			StartableExecution<Void> toCancel = m_guard.awaitCondition(() -> !m_restarting)
+														.andGet(() -> {
+															m_stopRequested = true;
+															StartableExecution<Void> e = m_exec;
+															m_exec = null;
+															return e;
+														});
+			if ( toCancel != null ) {
+				toCancel.cancel(true);
+			}
+		}
+		catch ( InterruptedException e ) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeInterruptedException("interrupted while waiting for restart decision", e);
 		}
 	}
 
@@ -161,13 +174,12 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 		
 		StartableExecution<Void> exec = cmdExec;
 		if ( firstExec ) {
-			cmdExec.whenStarted(this::notifyStarted);
+			cmdExec.whenStarted(() -> {
+				getLogger().info("the command is started");
+				notifyStarted();
+			});
 		}
 		else {
-			cmdExec.whenStarted(() -> {
-				getLogger().info("re-start the command");
-			});
-			
 			Duration delay = m_config.getRestartDelay();
 			if ( delay.isPositive() ) {
 				exec = AsyncExecutions.delay(cmdExec, delay);
@@ -175,67 +187,41 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 					getLogger().info("restarting the command after " + m_config.getRestartDelay());
 				});
 			}
+			else {
+				cmdExec.whenStarted(() -> {
+					getLogger().info("restarting the command");
+				});
+			}
 		}
 		
 		exec.whenFinished(result -> {
-			// 명시적으로 중지 요청된 경우에는 재시작 정책과 무관하게 종료한다.
-			// 자력 종료와 doStop()이 거의 동시에 일어나는 race를 막기 위해 result.isNone()
-			// 외에도 m_stopRequested 플래그를 함께 검사한다.
-			if ( m_guard.get(() -> m_stopRequested) || result.isNone() ) {
-				getLogger().info("the command execution is stopped by user request");
-
+			boolean stopRequested = m_guard.get(() -> {
+				if ( !m_stopRequested ) {
+					m_restarting = true;
+				}
+				return m_stopRequested;
+			});
+			if ( stopRequested ) {
+				getLogger().info("the command execution is stopped by user request during restart");
 				notifyStopped();
 				return;
 			}
 			
-			StartableExecution<Void> nextExec = null;
-			switch ( m_config.getRestartPolicy() ) {
-				case ALWAYS:
-				    nextExec = buildExecution(false);
-				    break;
-				case ON_COMPLETED:	// 정상 종료된 경우에만 재시작
-					if ( result.isSuccessful() ) {
-						nextExec = buildExecution(false);
-					}
-					else if ( result.isFailed() ) {
-						notifyFailed(result.getCause());
-					}
-					else {
-						notifyStopped();
-					}
-					break;
-				case ON_FAILED:	// 오류로 실패한 경우에만 재시작
-					if ( result.isFailed() ) {
-						nextExec = buildExecution(false);
-					}
-					else {
-						notifyStopped();
-					}
-					break;
-				case NO:	// 재시작하지 않음.
-					if ( result.isFailed() ) {
-						notifyFailed(result.getCause());
-					}
-					else {
-						notifyStopped();
-					}
-					break;
-				default:
-					throw new IllegalStateException("Unknown restart policy: " + m_config.getRestartPolicy());
-			}
-
-			if ( nextExec != null ) {
-				StartableExecution<Void> finalNextExec = nextExec;
-				boolean canStart = m_guard.get(() -> {
-					if ( m_stopRequested ) return false;
-					m_exec = finalNextExec;
-					return true;
-				});
-				if ( canStart ) {
+			// 재시작 여부를 판단함.
+			try {
+				StartableExecution<Void> nextExec = getNextExecution(result);
+				if ( nextExec != null ) {
+					m_guard.run(() -> m_exec = nextExec);
 					nextExec.start();
 				}
+				// nextExec가 null인 경우는 재시작하지 않고 종료하는 경우이므로, getNextExecution()에서
+				// notifyStopped()/notifyFailed()가 호출되어 이미 서비스가 종료된 상태다.
+			}
+			finally {
+				m_guard.run(() -> m_restarting = false);
 			}
 		});
+		
 		return exec;
 	}
 	
@@ -249,6 +235,8 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	 */
 	private CommandExecution buildCommandExecution() {
 		File logFile = new File(m_config.getWorkingDirectory(), APPLICATION_LOG.getName());
+		getLogger().info("command output will be redirected to " + logFile.getAbsolutePath());
+		
 		return CommandExecution.builder()
 								.addCommand(m_config.getCommandLine())
 								.workingDirectory(m_config.getWorkingDirectory())
@@ -258,6 +246,47 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 								.redirectErrorStream()
 								.redirectStdoutToFile(logFile)
 								.build();
+	}
+
+	private StartableExecution<Void> getNextExecution(Result<Void> result) {
+		// 재시작이 필요한 경우엔 nextExec는 non-null이 됨.
+		StartableExecution<Void> nextExec = null;
+		switch ( m_config.getRestartPolicy() ) {
+			case ALWAYS:
+			    nextExec = buildExecution(false);
+			    break;
+			case ON_COMPLETED:	// 정상 종료된 경우에만 재시작
+				if ( result.isSuccessful() ) {
+					nextExec = buildExecution(false);
+				}
+				else if ( result.isFailed() ) {
+					notifyFailed(result.getCause());
+				}
+				else {
+					notifyStopped();
+				}
+				break;
+			case ON_FAILED:	// 오류로 실패한 경우에만 재시작
+				if ( result.isFailed() ) {
+					nextExec = buildExecution(false);
+				}
+				else {
+					notifyStopped();
+				}
+				break;
+			case NO:	// 재시작하지 않음.
+				if ( result.isFailed() ) {
+					notifyFailed(result.getCause());
+				}
+				else {
+					notifyStopped();
+				}
+				break;
+			default:
+				throw new IllegalStateException("Unknown restart policy: " + m_config.getRestartPolicy());
+		}
+		
+		return nextExec;
 	}
 
 	/**

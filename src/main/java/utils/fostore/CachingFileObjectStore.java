@@ -10,11 +10,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import com.google.common.base.Preconditions;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+
+import utils.Preconditions;
 
 
 /**
@@ -37,7 +38,7 @@ public class CachingFileObjectStore<K, T> implements FileObjectStore<K, T> {
 
 	@Override
 	public boolean exists(K key) {
-		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNullArgument(key, "key is null");
 		
 		T cached = m_cache.getIfPresent(key);
 		if ( cached != null ) {
@@ -50,7 +51,7 @@ public class CachingFileObjectStore<K, T> implements FileObjectStore<K, T> {
 
 	@Override
 	public Optional<T> get(K key) throws IOException, ExecutionException {
-		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNullArgument(key, "key is null");
 		
 		try {
 			return Optional.of(m_cache.get(key));
@@ -67,14 +68,14 @@ public class CachingFileObjectStore<K, T> implements FileObjectStore<K, T> {
 
 	@Override
 	public Optional<File> getFile(K key) {
-		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNullArgument(key, "key is null");
 		
 		return m_store.getFile(key);
 	}
 
 	@Override
 	public Optional<File> insert(K key, T fObj) throws IOException, ExecutionException {
-		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNullArgument(key, "key is null");
 
 		Optional<File> inserted = m_store.insert(key, fObj);
 		if ( inserted.isPresent() ) {
@@ -86,7 +87,7 @@ public class CachingFileObjectStore<K, T> implements FileObjectStore<K, T> {
 
 	@Override
 	public File insertOrUpdate(K key, T fObj) throws IOException, ExecutionException {
-		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNullArgument(key, "key is null");
 
 		File inserted = m_store.insertOrUpdate(key, fObj);
 		m_cache.put(key, fObj);
@@ -96,7 +97,7 @@ public class CachingFileObjectStore<K, T> implements FileObjectStore<K, T> {
 
 	@Override
 	public boolean remove(K key) throws IOException {
-		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNullArgument(key, "key is null");
 		
 		m_cache.invalidate(key);
 		return m_store.remove(key);
@@ -115,7 +116,7 @@ public class CachingFileObjectStore<K, T> implements FileObjectStore<K, T> {
 
 	@Override
 	public Set<K> findFileObjectKeyAll(Predicate<K> pred) throws IOException {
-		Preconditions.checkNotNull(pred);
+		Preconditions.checkNotNullArgument(pred, "pred is null");
 		
 		return m_store.findFileObjectKeyAll(pred);
 	}

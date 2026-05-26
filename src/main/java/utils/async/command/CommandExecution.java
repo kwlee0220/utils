@@ -294,7 +294,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		ProcessBuilder builder = new ProcessBuilder(command)
 									.directory(m_workingDirectory);
 		if ( getLogger().isInfoEnabled() ) {
-			getLogger().info("WorkingDir: {}", m_workingDirectory);
+			getLogger().info("WorkingDir: {}", m_workingDirectory.getAbsolutePath());
 			getLogger().info("Command (variable-replaced): {}", FStream.from(command).join(' '));
 		}
 		

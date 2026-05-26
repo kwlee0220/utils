@@ -17,6 +17,25 @@ import utils.Split;
 import utils.StrSubstitutor;
 
 /**
+ * 환경 파일(<code>.env</code>류)을 읽어 변수 치환을 수행하는 로더이다.
+ * <p>
+ * 파일은 한 줄에 <code>KEY=VALUE</code> 형식으로 정의하며, 빈 줄과 <code>#</code>로 시작하는
+ * 주석 줄은 무시된다. 값이 큰따옴표(<code>"..."</code>)로 감싸진 경우 바깥쪽 따옴표는 제거된다.
+ * <p>
+ * 값에 포함된 <code>${...}</code> 참조는 {@link StrSubstitutor}로 치환되며,
+ * 파일에 먼저 등장한 항목의 값은 뒤에 등장하는 항목의 참조 대상이 된다(누적 확장).
+ * 추가로 {@link #withFacts(Map)}로 등록한 변수와 {@code ${env:...}}, {@code ${sys:...}} 등
+ * 내장 lookup도 참조할 수 있다.
+ *
+ * <h3>사용 패턴</h3>
+ * <pre>{@code
+ * Map<String,String> env = EnvironmentFileLoader.from(new File(".env"))
+ *                                               .withFacts(Map.of("HOME", "/home/user"))
+ *                                               .load();
+ * }</pre>
+ * 시스템 프로퍼티로 곧바로 반영하려면 {@link #updateSystemProperties()}를 사용한다.
+ * <p>
+ * 이 클래스는 스레드 안전하지 않다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
