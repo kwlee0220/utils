@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -32,6 +33,7 @@ public class SQLDataTypes {
 	public static final DateSQLConverter DATE = new DateSQLConverter();
 	public static final TimeSQLConverter TIME = new TimeSQLConverter();
 	public static final DurationSQLConverter DURATION = new DurationSQLConverter();
+	public static final BinarySQLConverter BINARY = new BinarySQLConverter();
 	
 	private static final Map<String,SQLDataType<?,?>> NAME_TO_SQLTYPE = Maps.newHashMap();
 	private static final Map<Class<?>,SQLDataType<?,?>> CLASS_TO_SQLTYPE = Maps.newHashMap();
@@ -47,6 +49,7 @@ public class SQLDataTypes {
 		NAME_TO_SQLTYPE.put("Date", DATE);
 		NAME_TO_SQLTYPE.put("Time", TIME);
 		NAME_TO_SQLTYPE.put("Duration", DURATION);
+		NAME_TO_SQLTYPE.put("Binary", BINARY);
 		
 		CLASS_TO_SQLTYPE.put(Boolean.class, BOOLEAN);
 		CLASS_TO_SQLTYPE.put(String.class, STRING);
@@ -59,6 +62,7 @@ public class SQLDataTypes {
 		CLASS_TO_SQLTYPE.put(Date.class, DATE);
 		CLASS_TO_SQLTYPE.put(Time.class, TIME);
 		CLASS_TO_SQLTYPE.put(Duration.class, DURATION);
+		CLASS_TO_SQLTYPE.put(byte[].class, BINARY);
 	}
 	
 	/**
@@ -79,6 +83,31 @@ public class SQLDataTypes {
 	 */
 	public static SQLDataType<?,?> fromClass(Class<?> clazz) {
 		return CLASS_TO_SQLTYPE.get(clazz);
+	}
+
+	/**
+	 * 주어진 {@link java.sql.Types} 타입 코드에 해당하는 SQL 데이터 타입 핸들러를 반환한다.
+	 *
+	 * @param sqlType	{@link java.sql.Types}에 정의된 SQL 타입 코드
+	 * @return	SQL 데이터 타입 핸들러
+	 * @throws IllegalArgumentException	지원하지 않는 SQL 타입 코드인 경우
+	 */
+	public static SQLDataType<?,?> fromSqlType(int sqlType) {
+		return switch ( sqlType ) {
+			case Types.BIT, Types.BOOLEAN -> SQLDataTypes.BOOLEAN;
+			case Types.TINYINT, Types.SMALLINT, Types.INTEGER -> SQLDataTypes.INTEGER;
+			case Types.BIGINT -> SQLDataTypes.LONG;
+			case Types.REAL -> SQLDataTypes.FLOAT;
+			case Types.FLOAT, Types.DOUBLE -> SQLDataTypes.DOUBLE;
+			case Types.NUMERIC, Types.DECIMAL -> SQLDataTypes.DOUBLE;
+			case Types.CHAR, Types.VARCHAR, Types.LONGVARCHAR,
+					Types.NCHAR, Types.NVARCHAR, Types.LONGNVARCHAR -> SQLDataTypes.STRING;
+			case Types.DATE -> SQLDataTypes.DATE;
+			case Types.TIME -> SQLDataTypes.TIME;
+			case Types.TIMESTAMP -> SQLDataTypes.DATE_TIME;
+			case Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY -> SQLDataTypes.BINARY;
+			default -> throw new IllegalArgumentException("Unsupported SQL type code: " + sqlType);
+		};
 	}
 	
 	public static class BooleanSQLConverter implements SQLDataType<Boolean,Boolean> {
@@ -460,6 +489,38 @@ public class SQLDataTypes {
 		}
 		public Duration readJavaValueFromResultSet(ResultSet rset, String columnName) throws SQLException {
 			return toJavaValue(rset.getString(columnName));
+		}
+	}
+	
+	public static class BinarySQLConverter implements SQLDataType<byte[],byte[]> {
+		@Override
+		public Class<byte[]> getJavaClass() {
+			return byte[].class;
+		}
+		
+		@Override
+		public byte[] toSQLValue(byte[] value) {
+			return value;
+		}
+	
+		@Override
+		public byte[] toJavaValue(byte[] sqlValue) {
+			return sqlValue;
+		}
+	
+		@Override
+		public void fillPreparedStatement(PreparedStatement pstmt, int index, byte[] sqlValue) throws SQLException {
+			pstmt.setBytes(index, toSQLValue(sqlValue));
+		}
+	
+		@Override
+		public byte[] readFromResultSet(ResultSet rset, int index) throws SQLException {
+			return rset.getBytes(index);
+		}
+	
+		@Override
+		public byte[] readFromResultSet(ResultSet rset, String columnName) throws SQLException {
+			return rset.getBytes(columnName);
 		}
 	}
 }
