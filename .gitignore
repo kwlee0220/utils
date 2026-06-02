@@ -12,11 +12,11 @@
 hs_err_pid*
 *.swp
 
-.classpath
-.project
 /classes/
 /build/
 /.gradle/
 /.settings/
+/.classpath
+/.project
 /bin/
 .apt_generated*/
