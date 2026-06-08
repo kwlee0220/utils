@@ -29,12 +29,12 @@ public class StatesTest {
 
 	@Test
 	public void abstractState_path_context_segments() {
-		SinkState<TestCtx> s = new SinkState<>("a.b.c", m_ctx);
+		SinkState<TestCtx> s = new SinkState<>("/a/b/c", m_ctx);
 
-		Assertions.assertEquals("a.b.c", s.getPath());
+		Assertions.assertEquals("/a/b/c", s.getPath());
 		Assertions.assertSame(m_ctx, s.getContext());
 		Assertions.assertEquals(List.of("a", "b", "c"), s.getPathSegments());
-		Assertions.assertTrue(s.toString().contains("a.b.c"));
+		Assertions.assertTrue(s.toString().contains("/a/b/c"));
 	}
 
 	@Test

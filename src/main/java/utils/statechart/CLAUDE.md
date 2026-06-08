@@ -13,7 +13,7 @@ Hierarchical state chart built on top of `utils.async.AbstractAsyncExecution`. S
 
 ## State implementations
 
-- **`AbstractState<C>`** — Base. Stores path, context, path-segments (split by `.`). `toString()` is `State[path]`.
+- **`AbstractState<C>`** — Base. Stores path, context, path-segments (split by `/`, empty segments dropped so a leading `/` yields no blank head). `toString()` is `State[path]`.
 - **`SingleOutState<C>`** — Reacts to exactly one trigger Signal (matched via `equals`); returns a static or supplier-provided transition. Other signals → `Optional.empty()`.
 - **`SinkState<C>`** — Final-state base. `exit()` and `selectTransition` throw `UnsupportedOperationException`.
 - **`ExceptionState<C>`** — `extends SinkState<C>`. Holds a `failureCause`. When chart's `traverse` reaches an `ExceptionState` that's a final state, `fail(cause)` is called instead of `complete()`. The cause must be set by the inbound transition's action before traverse calls `enter`.

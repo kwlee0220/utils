@@ -23,6 +23,30 @@ import utils.statechart.Transitions;
  * @author Kang-Woo Lee (ETRI)
  */
 public class States {
+	private static final Logger s_logger = LoggerFactory.getLogger(States.class);
+
+	/**
+	 * 종료 상태 진입 시 WebSocket 연결을 정상 종료(close)한다.
+	 * <p>
+	 * 연결이 수립되기 전(예: 연결 실패로 인한 종료)이라 {@code wsock}이 {@code null}이거나,
+	 * 이미 닫혔거나 원격이 연결을 끊어 close 전송이 실패하는 경우는 모두 무시한다.
+	 * 종료 상태 진입 도중 발생한 예외가 상태 전이를 실패로 뒤집지 않도록 하기 위함이다.
+	 *
+	 * @param wsock		종료할 WebSocket 연결. {@code null}이면 아무 일도 하지 않는다.
+	 * @param reason	close 사유 문자열
+	 */
+	private static void sendCloseQuietly(WebSocket wsock, String reason) {
+		if ( wsock == null ) {
+			return;
+		}
+		try {
+			wsock.sendClose(WebSocket.NORMAL_CLOSURE, reason).join();
+		}
+		catch ( Throwable e ) {
+			s_logger.debug("ignored error while closing WebSocket on terminal state: {}", ""+e);
+		}
+	}
+
 	public static class OpenWebSocket<C extends WebSocketContext<C>> extends AbstractState<C> implements LoggerSettable {
 		private final static Logger s_logger = LoggerFactory.getLogger(OpenWebSocket.class);
 
@@ -90,8 +114,7 @@ public class States {
 
 		@Override
 		public void enter() {
-			WebSocket wsock = getContext().getStateChart().getWebSocket();
-			wsock.sendClose(WebSocket.NORMAL_CLOSURE, "normal closure").join();
+			sendCloseQuietly(getContext().getStateChart().getWebSocket(), "normal closure");
 		}
 	}
 
@@ -102,8 +125,7 @@ public class States {
 
 		@Override
 		public void enter() {
-			WebSocket wsock = getContext().getStateChart().getWebSocket();
-			wsock.sendClose(WebSocket.NORMAL_CLOSURE, "normal closure").join();
+			sendCloseQuietly(getContext().getStateChart().getWebSocket(), "normal closure");
 		}
 	}
 
@@ -114,8 +136,7 @@ public class States {
 
 		@Override
 		public void enter() {
-			WebSocket wsock = getContext().getStateChart().getWebSocket();
-			wsock.sendClose(WebSocket.NORMAL_CLOSURE, "closure due to a error").join();
+			sendCloseQuietly(getContext().getStateChart().getWebSocket(), "closure due to a error");
 		}
 	}
 }
