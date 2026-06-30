@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 
 import utils.async.AsyncResult;
 import utils.async.AsyncState;
-import utils.async.command.CommandVariable.StringVariable;
 
 
 /**
@@ -114,7 +113,7 @@ public class CommandExecutionTest {
 		// ${var} (modifier 생략)은 변수 이름을 반환한다.
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "name=${greeting}")
-												.addVariable(new StringVariable("greeting", "hi"))
+												.addVariable(new CommandVariable("greeting", "hi"))
 												.redirectStdoutToFile(m_outFile)
 												.build();
 		exec.start();
@@ -128,7 +127,7 @@ public class CommandExecutionTest {
 		// ${var:value}로 값을 가져온다.
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "value=${greeting:value}")
-												.addVariable(new StringVariable("greeting", "hi"))
+												.addVariable(new CommandVariable("greeting", "hi"))
 												.redirectStdoutToFile(m_outFile)
 												.build();
 		exec.start();
@@ -167,7 +166,7 @@ public class CommandExecutionTest {
 	public void testStringVariableValueModifier() throws Exception {
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "${greeting:value}")
-												.addVariable(new StringVariable("greeting", "hi"))
+												.addVariable(new CommandVariable("greeting", "hi"))
 												.redirectStdoutToFile(m_outFile)
 												.build();
 		exec.start();
@@ -539,6 +538,49 @@ public class CommandExecutionTest {
 		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
 		Assertions.assertEquals("to-relative-stderr",
 							Files.readString(relativeErrFile.toPath(), StandardCharsets.UTF_8).trim());
+	}
+
+	// ----- stdout append -----
+
+	@Test
+	public void testStdoutOverwriteByDefault() throws Exception {
+		// 기본(redirectStdoutToFile(file))은 덮어쓰기이므로 마지막 실행 내용만 남는다.
+		CommandExecution first = CommandExecution.builder()
+												.addCommand("/bin/echo", "first")
+												.redirectStdoutToFile(m_outFile)
+												.build();
+		first.start();
+		first.waitForFinished();
+
+		CommandExecution second = CommandExecution.builder()
+												.addCommand("/bin/echo", "second")
+												.redirectStdoutToFile(m_outFile)
+												.build();
+		second.start();
+		second.waitForFinished();
+
+		Assertions.assertEquals("second", readOutput());
+	}
+
+	@Test
+	public void testStdoutAppendKeepsPreviousContent() throws Exception {
+		// append=true이면 기존 내용 뒤에 이어 쓴다.
+		CommandExecution first = CommandExecution.builder()
+												.addCommand("/bin/echo", "first")
+												.redirectStdoutToFile(m_outFile, true)
+												.build();
+		first.start();
+		first.waitForFinished();
+
+		CommandExecution second = CommandExecution.builder()
+												.addCommand("/bin/echo", "second")
+												.redirectStdoutToFile(m_outFile, true)
+												.build();
+		second.start();
+		AsyncResult<Void> result = second.waitForFinished();
+
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState());
+		Assertions.assertEquals("first\nsecond", readOutput());
 	}
 
 	// ----- 방어적 복사 -----

@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 
 /**
- * 다양한 단위(길이, 바이트 크기, duration, 날짜)의 문자열 파싱 및 포맷팅 유틸리티.
+ * 다양한 단위(화면 크기, 길이, 바이트 크기, duration, 날짜)의 문자열 파싱 및 포맷팅 유틸리티.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -183,71 +183,101 @@ public final class UnitUtils {
 	}
 
 	/**
-	 * 단위 접미사가 붙은 duration 문자열을 millisecond 단위 {@code long}으로 파싱한다.
-	 * <p>
-	 * 지원 접미사: {@code ms}, {@code s}, {@code m}, {@code h}, {@code d}.
-	 * 접미사가 없으면 입력 값을 millisecond 로 해석한다.
-	 *
-	 * @param durStr	duration 문자열 (예: "100ms", "30s", "5m", "2h", "1d", "1500").
-	 * @return	millisecond 단위 {@code long} 값.
-	 * @throws NumberFormatException	숫자 부분이 파싱되지 않는 경우.
-	 */
-	public static long parseDurationMillis(String durStr) {
-		Long m = parseSuffixedDurationMillis(durStr);
-		return m != null ? m : Long.parseLong(durStr);
-	}
-
-	/**
 	 * Duration 문자열을 {@link Duration} 객체로 파싱한다.
 	 * <p>
-	 * 다음 형식을 지원한다:
+	 * 다음 순서로 해석한다:
 	 * <ul>
-	 *   <li>ISO-8601 ({@code "PT"} 시작): {@link Duration#parse(CharSequence)}로 위임.</li>
-	 *   <li>접미사: {@code ms}, {@code s}, {@code m}, {@code h}, {@code d}.</li>
-	 *   <li>접미사 없음: millisecond 로 해석.</li>
+	 *   <li>{@code "PT"}로 시작하면 ISO-8601로 보고 {@link Duration#parse(CharSequence)}에 위임한다.</li>
+	 *   <li>접미사({@code ms}, {@code s}, {@code m}, {@code h}, {@code d})가 있으면 해당 단위로 해석한다.</li>
+	 *   <li>접미사가 없으면 {@code defaultUnit} 단위의 정수로 해석한다. {@code defaultUnit}이
+	 *       {@code null}이면 {@link IllegalArgumentException}을 던진다.</li>
 	 * </ul>
 	 *
-	 * @param durStr	duration 문자열. {@code null} 이면 {@code null} 반환.
+	 * @param durStr		duration 문자열. {@code null}이면 {@code null} 반환.
+	 * @param defaultUnit	접미사가 없을 때 적용할 기본 단위({@code ms}/{@code s}/{@code m}/{@code h}/{@code d}).
+	 * 						{@code null}이면 접미사 없는 입력을 허용하지 않는다.
 	 * @return	파싱된 {@link Duration} 또는 {@code null}.
+	 * @throws IllegalArgumentException	접미사가 없고 {@code defaultUnit}이 {@code null}이거나 유효하지 않은 경우.
 	 * @throws NumberFormatException	숫자 부분이 파싱되지 않는 경우.
 	 */
-	public static Duration parseDuration(String durStr) {
+	public static Duration parseDuration(String durStr, String defaultUnit) {
 		if ( durStr == null ) {
 			return null;
 		}
 		if ( durStr.startsWith("PT") ) {
 			return Duration.parse(durStr);
 		}
-		Long m = parseSuffixedDurationMillis(durStr);
-		return Duration.ofMillis(m != null ? m : Long.parseLong(durStr));
+		try {
+			return Duration.ofMillis(parseSuffixedDurationMillis(durStr));
+		}
+		catch ( IllegalArgumentException expected ) {
+			if ( defaultUnit == null ) {
+				throw expected;
+			}
+			try {
+				long amount = Long.parseLong(durStr);
+				return switch ( defaultUnit ) {
+					case "ms" -> Duration.ofMillis(amount);
+					case "s" -> Duration.ofSeconds(amount);
+					case "m" -> Duration.ofMinutes(amount);
+					case "h" -> Duration.ofHours(amount);
+					case "d" -> Duration.ofDays(amount);
+					default -> throw new IllegalArgumentException("invalid default duration unit: " + defaultUnit);
+				};
+			}
+			catch ( NumberFormatException e ) {
+				throw expected;
+			}
+		}
+	}
+	
+	/**
+	 * {@code parseDuration(durStr, null)}과 동일하다. 접미사 없는 입력은 허용하지 않는다
+	 * (ISO-8601 {@code "PT"} 형식 제외).
+	 *
+	 * @param durStr	duration 문자열. {@code null}이면 {@code null} 반환.
+	 * @return	파싱된 {@link Duration} 또는 {@code null}.
+	 * @throws IllegalArgumentException	접미사가 없는 경우.
+	 * @throws NumberFormatException	숫자 부분이 파싱되지 않는 경우.
+	 */
+	public static Duration parseDuration(String durStr) {
+		return parseDuration(durStr, null);
 	}
 
 	/**
 	 * Duration 문자열을 {@link Duration} 객체로 파싱한다.
 	 * <p>
-	 * 접미사가 없는 경우 입력 값을 <b>second</b> 단위로 해석하는 점만 {@link #parseDuration}과 다르다
-	 * (소수 허용 — 예: "1.5" → 1500ms).
+	 * {@link #parseDuration(String)}과 달리, 접미사가 없는 입력을 <b>second</b> 단위로 해석한다
+	 * (소수 허용 — 예: "1.5" → 1500ms). {@code "PT"} 시작 ISO-8601과
+	 * 접미사({@code ms}/{@code s}/{@code m}/{@code h}/{@code d})도 지원한다.
 	 *
-	 * @param durStr	duration 문자열. {@code null} 이면 {@code null} 반환.
+	 * @param durStr	duration 문자열. {@code null}이면 {@code null} 반환.
 	 * @return	파싱된 {@link Duration} 또는 {@code null}.
-	 * @throws NumberFormatException	숫자 부분이 파싱되지 않는 경우.
+	 * @throws IllegalArgumentException	문자열을 duration으로 해석할 수 없는 경우
+	 * 									({@link NumberFormatException} 포함).
 	 */
 	public static Duration parseSecondDuration(String durStr) {
 		if ( durStr == null ) {
 			return null;
 		}
-		if ( durStr.startsWith("PT") ) {
-			return Duration.parse(durStr);
+
+		try {
+			// PT/접미사(d=일 포함)를 먼저 처리한다. (Double.parseDouble은 끝의 'd'/'f'를 타입 접미사로
+			//  오인하므로 "5d"가 5초로 잘못 파싱되는 것을 막기 위해 순서가 중요하다.)
+			return parseDuration(durStr);
 		}
-		Long m = parseSuffixedDurationMillis(durStr);
-		return Duration.ofMillis(m != null ? m : Math.round(Double.parseDouble(durStr) * 1000));
+		catch ( IllegalArgumentException expected ) {
+			// 접미사 없는 소수 초 (예: "1.5" → 1500ms)
+			return Duration.ofMillis(Math.round(Double.parseDouble(durStr) * 1000));
+		}
 	}
 
 	/**
 	 * 접미사 단위가 붙은 duration 문자열을 millisecond 로 변환한다.
-	 * 접미사가 없으면 {@code null} 반환.
+	 * 인식 가능한 접미사({@code ms}/{@code s}/{@code m}/{@code h}/{@code d})가 없으면
+	 * {@link IllegalArgumentException}을 던진다(절대 {@code null}을 반환하지 않는다).
 	 */
-	private static Long parseSuffixedDurationMillis(String durStr) {
+	private static long parseSuffixedDurationMillis(String durStr) {
 		if ( durStr.endsWith("ms") ) {
 			return Long.parseLong(durStr.substring(0, durStr.length()-2));
 		}
@@ -263,7 +293,8 @@ public final class UnitUtils {
 		if ( durStr.endsWith("d") ) {
 			return TimeUnit.DAYS.toMillis(Long.parseLong(durStr.substring(0, durStr.length()-1)));
 		}
-		return null;
+		
+		throw new IllegalArgumentException("invalid duration expr: " + durStr);
 	}
 
 	/**
@@ -375,10 +406,12 @@ public final class UnitUtils {
 	}
 
 	/**
-	 * {@code yyyyMMdd[THHmmss]} 형식의 문자열을 {@link Calendar}로 파싱한다.
+	 * {@code yyyyMMdd[THHmmss[:fff]]} 형식의 문자열을 {@link Calendar}로 파싱한다.
 	 * <p>
-	 * 시각 부분이 생략된 경우 {@code 00:00:00}으로 설정. 시각이 포함된 경우 인덱스 8 의 구분 문자
-	 * (예: {@code 'T'})는 무시되고 9~14 의 6자리({@code HHmmss})가 사용된다.
+	 * 시각 부분이 생략된 경우 {@code 00:00:00}으로 설정한다. 시각이 포함된 경우 인덱스 8의 구분 문자
+	 * (예: {@code 'T'})는 무시되고 9~14의 6자리({@code HHmmss})가 사용된다. 길이가 19 이상이고
+	 * 인덱스 15가 {@code ':'}이면 16~18의 3자리를 밀리초({@code fff})로 해석한다
+	 * ({@link #toDateString(Calendar, boolean)}의 {@code toMilliSeconds=true} 출력과 round-trip된다).
 	 *
 	 * @param date	날짜 문자열. {@code null} 이면 {@code null} 반환.
 	 * @return	파싱된 {@link Calendar} 또는 {@code null}.
@@ -402,7 +435,12 @@ public final class UnitUtils {
 				int min = Integer.parseInt(date.substring(11, 13));
 				int sec = Integer.parseInt(date.substring(13, 15));
 
-				return new GregorianCalendar(year, month, day, hour, min, sec);
+				GregorianCalendar cal = new GregorianCalendar(year, month, day, hour, min, sec);
+				// ':fff' 밀리초 부분(toDateString의 toMilliSeconds=true 출력)이 있으면 반영한다.
+				if ( date.length() >= 19 && date.charAt(15) == ':' ) {
+					cal.set(Calendar.MILLISECOND, Integer.parseInt(date.substring(16, 19)));
+				}
+				return cal;
 			}
 			else {
 				return new GregorianCalendar(year, month, day, 0, 0, 0);

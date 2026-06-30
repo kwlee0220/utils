@@ -643,8 +643,8 @@ public class Guard {
 	 * {@link Guard#awaitCondition(Supplier, long, TimeUnit)} 또는 {@link PreAction}의 동등한 메소드로
 	 * 생성된다. 종결 메소드를 호출해야 실제 lock 획득과 대기가 시작된다.
 	 * <p>
-	 * {@link AwaitCondition}과의 차이점은 시각/기간 만료 시 {@link TimeoutException}이 발생한다는 점이다.
-	 * {@link #andReturn()}만 예외 대신 {@code false}를 반환한다.
+	 * {@link AwaitCondition}과의 차이점은 시각/기간 만료 시 모든 종결 메소드
+	 * ({@link #andReturn()} 포함)가 {@link TimeoutException}을 발생시킨다는 점이다.
 	 */
 	public static final class TimedAwaitCondition {
 		protected final Guard m_guard;
@@ -695,20 +695,14 @@ public class Guard {
 	
 		/**
 		 * 사전 조건이 만족될 때까지 시간 제한 안에서 대기한다.
-		 * <p>
-		 * 다른 종결 메소드와 달리 timeout 시 {@link TimeoutException}을 던지지 않고 {@code false}를 반환한다.
 		 *
-		 * @return	조건이 만족되어 정상 종료되면 {@code true}, timeout으로 종료되면 {@code false}
 		 * @throws InterruptedException	대기 중에 쓰레드가 인터럽트된 경우
+		 * @throws TimeoutException		대기 제한 시각이 경과한 경우
 		 */
-		public boolean andReturn() throws InterruptedException {
+		public void andReturn() throws InterruptedException, TimeoutException {
 			m_guard.lock();
 			try {
 				awaitPreconditionSatisfied();
-				return true;
-			}
-			catch ( TimeoutException e ) {
-				return false;
 			}
 			finally {
 				m_guard.unlock();

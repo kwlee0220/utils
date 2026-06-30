@@ -9,6 +9,7 @@ import static utils.async.op.AsyncExecutions.idle;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Assertions;
@@ -95,12 +96,12 @@ public class SequentialAsyncTest {
 		exec.whenFinishedAsync(m_doneListener);
 		
 		exec.start();
-		boolean wasRunning = exec.waitForFinished(250, TimeUnit.MILLISECONDS).isRunning();
+		Assertions.assertThrows(TimeoutException.class,
+								() -> exec.waitForFinished(250, TimeUnit.MILLISECONDS));
 		boolean cancelled = exec.cancel(true);
 		Assertions.assertEquals(true, cancelled);
 		MILLISECONDS.sleep(50);
-		
-		Assertions.assertEquals(true, wasRunning);
+
 		verify(m_doneListener, times(1)).accept(Result.none());
 		Assertions.assertEquals(2, exec.getCurrentExecutionIndex());
 		Assertions.assertTrue(m_execList.get(2).isCancelled());

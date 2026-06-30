@@ -1,5 +1,6 @@
 package utils;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +32,7 @@ public class KeyedValueList<K,V> implements List<V> {
 	}
 
 	public KeyValueFStream<K,V> fstream() {
-		return FStream.from(m_values)
-		        		.toKeyValueStream(v -> KeyValue.of(m_keyer.apply(v), v));
+		return FStream.from(m_values).tagKey(m_keyer);
 	}
 	
 	/**
@@ -233,8 +233,8 @@ public class KeyedValueList<K,V> implements List<V> {
 	 * 
 	 * @return {@link Map} 객체.
 	 */
-	public Map<K,V> toMap() {
-		return fstream().toMap();
+	public LinkedHashMap<K,V> toMap() {
+		return fstream().toMap(new LinkedHashMap<>());
 	}
 	
 	@Override

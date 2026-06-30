@@ -55,14 +55,17 @@ import utils.func.Result;
  *
  * <h2>주요 API 그룹</h2>
  * <ul>
- *   <li><b>상태 조회</b>: {@link #getState()}, {@link #isStarted()}, {@link #isRunning()},
- *       {@link #isCompleted()}, {@link #isFailed()}, {@link #isCancelled()}, {@link #isDone()}.
+ *   <li><b>상태 조회</b>: {@link #getState()}, {@link #isNotStarted()}, {@link #isStarted()},
+ *       {@link #isRunning()}, {@link #isCompleted()}, {@link #isFailed()}, {@link #isCancelled()},
+ *       {@link #isDone()}.
  *   <li><b>결과 대기</b>: {@link #get()}, {@link #get(long, TimeUnit)}, {@link #get(Date)},
  *       {@link #getUnchecked()} — 표준 {@link Future} 호환 API.
  *   <li><b>결과 polling/대기</b>: {@link #poll()},
  *       {@link #waitForFinished()}, {@link #waitForFinished(Date)}, {@link #waitForFinished(long, TimeUnit)},
  *       {@link #waitForStarted()}, {@link #waitForStarted(Date)}, {@link #waitForStarted(long, TimeUnit)} —
- *       체크드 예외 대신 {@link AsyncResult} 객체로 결과를 반환.
+ *       {@code poll}/{@code waitForFinished*}는 종료 결과를 {@link AsyncResult}로 반환(실패·취소를 예외로
+ *       던지지 않음)하고, {@code waitForStarted*}는 시작 도달까지 대기만 한다(반환값 없음; 시간 제한 변형은
+ *       미도달 시 {@link TimeoutException}을 던짐).
  *   <li><b>콜백 등록</b>: {@link #whenStarted(Runnable)}, {@link #whenStartedAsync(Runnable)},
  *       {@link #whenFinished(Consumer)}, {@link #whenFinishedAsync(Consumer)}, 그리고 종료 케이스별
  *       편의 메소드 {@link #whenCompleted(Consumer)}, {@link #whenFailed(Consumer)}, {@link #whenCancelled(Runnable)}.
@@ -148,6 +151,15 @@ public interface Execution<T> extends Future<T> {
 	 */
 	public AsyncState getState();
 
+	/**
+	 * 연산이 아직 시작되지 않은 상태인지를 반환한다.
+	 * <p>
+	 * 작업이 한 번이라도 시작 절차에 진입하면({@link AsyncState#STARTING} 이후)
+	 * {@code false}가 반환된다. "시작된 적이 있는가"를 확인하려면 {@link #isStarted()}를
+	 * 사용한다.
+	 *
+	 * @return	상태가 {@link AsyncState#NOT_STARTED}이면 {@code true}, 그렇지 않으면 {@code false}.
+	 */
 	public default boolean isNotStarted() {
 		return getState() == AsyncState.NOT_STARTED;
 	}
@@ -354,35 +366,36 @@ public interface Execution<T> extends Future<T> {
 	/**
 	 * 본 작업의 현재 수행 결과를 즉시 반환한다.
 	 * <p>
-	 * 대기 없이 현재 상태를 조회하며, 작업이 아직 수행 중인 경우에는 {@link Running}이 반환된다.
+	 * 대기 없이 현재 상태를 조회하며, 작업이 아직 종료되지 않은 경우
+	 * (NOT_STARTED/STARTING/RUNNING/CANCELLING)에는 {@link Running}이 반환된다.
 	 *
 	 * @return	종료 결과.
 	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
 	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
 	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
-	 * 			작업이 아직 수행 중인 경우에는 {@link Running}이 반환된다.
+	 * 			작업이 아직 종료되지 않은 경우에는 {@link Running}이 반환된다.
 	 */
 	public AsyncResult<T> poll();
 	
 	/**
-	 * 본 작업이 종료될 때까지 주어진 제한 시간 동안 기다려 그 결과를 반환한다.
+	 * 본 작업이 종료될 때까지 주어진 제한 시각까지 기다려 그 결과를 반환한다.
 	 * <p>
 	 * 시각 비교는 시스템 벽시계({@link System#currentTimeMillis()}) 기준이므로,
 	 * NTP 보정 등 시스템 시각 변경에 영향을 받을 수 있다.
 	 * <p>
-	 * 주어진 {@code due}가 이미 과거 시각인 경우 대기 없이 즉시 현재 상태를 확인하여
-	 * 반환한다 — 작업이 아직 종료되지 않았으면 {@link Running}을 반환한다.
+	 * 제한 시각이 경과할 때까지 작업이 종료되지 않으면 {@link TimeoutException}을 던진다.
+	 * 주어진 {@code due}가 이미 과거 시각인 경우 대기 없이 즉시 현재 상태를 확인하며,
+	 * 작업이 아직 종료되지 않았으면 곧바로 {@link TimeoutException}을 던진다.
 	 *
 	 * @param due	대기 제한 시각.
-	 * 				주어진 시각을 경과하면 {@link Running}을 반환한다.
-	 * @return	작업 수행 결과.
+	 * @return	종료 결과.
 	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
-	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
-	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
-	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
+	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되며,
+	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환된다.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
+	 * @throws TimeoutException	제한 시각까지 작업이 종료되지 않은 경우.
 	 */
-	public AsyncResult<T> waitForFinished(Date due) throws InterruptedException;
+	public AsyncResult<T> waitForFinished(Date due) throws InterruptedException, TimeoutException;
 
 	/**
 	 * 본 작업이 종료될 때까지 주어진 기간 동안 기다려 그 결과를 반환한다.
@@ -390,19 +403,21 @@ public interface Execution<T> extends Future<T> {
 	 * 대기 기간 계산은 시스템 벽시계({@link System#currentTimeMillis()}) 기준이므로,
 	 * NTP 보정 등 시스템 시각 변경에 영향을 받을 수 있다.
 	 * <p>
-	 * {@code timeout}이 0 또는 음수이면 대기 없이 즉시 현재 상태를 확인하여 반환한다
-	 * (작업이 종료되지 않았으면 {@link Running}을 반환).
+	 * 주어진 기간이 경과할 때까지 작업이 종료되지 않으면 {@link TimeoutException}을 던진다.
+	 * {@code timeout}이 0 또는 음수이면 대기 없이 즉시 현재 상태를 확인하며,
+	 * 작업이 종료되지 않았으면 곧바로 {@link TimeoutException}을 던진다.
 	 *
 	 * @param timeout	대기 기간
 	 * @param unit		대기 기간 단위
 	 * @return	종료 결과.
 	 * 			성공적으로 종료된 경우는 {@link Completed}가 반환되고,
-	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되고,
-	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환되며,
-	 *			시간제한으로 반환되는 경우에는 {@link Running}가 반환된다.
+	 * 			오류가 발생되어 종료된 경우는 {@link Failed}가 반환되며,
+	 * 			작업이 취소되어 종료된 경우는 {@link Cancelled}가 반환된다.
 	 * @throws InterruptedException	작업 종료 대기 중 대기 쓰레드가 interrupt된 경우.
+	 * @throws TimeoutException	제한 기간까지 작업이 종료되지 않은 경우.
 	 */
-	public default AsyncResult<T> waitForFinished(long timeout, TimeUnit unit) throws InterruptedException {
+	public default AsyncResult<T> waitForFinished(long timeout, TimeUnit unit) throws InterruptedException,
+																						TimeoutException {
 		Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
 		return waitForFinished(due);
 	}
@@ -439,7 +454,7 @@ public interface Execution<T> extends Future<T> {
 	 *
 	 * @throws InterruptedException	작업 시작 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
-	public void waitForStarted() throws InterruptedException;
+	public AsyncState waitForStarted() throws InterruptedException;
 
 	/**
 	 * 비동기 작업이 {@link AsyncState#RUNNING}에 도달할 때까지 제한된 시간 동안만 대기한다.
@@ -447,18 +462,21 @@ public interface Execution<T> extends Future<T> {
 	 * 대기 기간 계산은 시스템 벽시계({@link System#currentTimeMillis()}) 기준이므로,
 	 * NTP 보정 등 시스템 시각 변경에 영향을 받을 수 있다.
 	 * <p>
-	 * {@code timeout}이 0 또는 음수이면 대기 없이 즉시 현재 {@link #isStarted()} 값을
-	 * 반환한다.
+	 * 제한 시간이 경과할 때까지 작업이 RUNNING에 도달하지 못하면 {@link TimeoutException}을 던진다.
+	 * {@code timeout}이 0 또는 음수이면 대기 없이 즉시 현재 상태를 확인하며,
+	 * {@link #isStarted()}가 {@code false}이면 곧바로 {@link TimeoutException}을 던진다.
+	 * <p>
+	 * 작업이 RUNNING에 도달하지 못한 채로 종료된 경우(NOT_STARTED → CANCELLED, STARTING → FAILED 등)에도
+	 * {@link #isStarted()}는 끝내 {@code true}가 되지 않으므로 제한 시간 경과 후 {@link TimeoutException}이
+	 * 발생한다.
 	 *
 	 * @param timeout	대기시간
 	 * @param unit		대기시간 단위
-	 * @return	제한시간 내에 {@link #isStarted()}가 {@code true}가 된 경우는 {@code true},
-	 * 			그렇지 않은 경우는 {@code false}. 작업이 시작 없이 종료된 경우에는
-	 * 			제한시간이 경과할 때까지 대기한 후 {@code false}를 반환한다.
 	 * @throws InterruptedException	작업 시작 대기 중 대기 쓰레드가 interrupt된 경우.
+	 * @throws TimeoutException	제한 시간까지 작업이 RUNNING에 도달하지 못한 경우.
 	 */
-	public default boolean waitForStarted(long timeout, TimeUnit unit)
-		throws InterruptedException {
+	public default AsyncState waitForStarted(long timeout, TimeUnit unit)
+		throws InterruptedException, TimeoutException {
 		Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
 		return waitForStarted(due);
 	}
@@ -469,20 +487,79 @@ public interface Execution<T> extends Future<T> {
 	 * 시각 비교는 시스템 벽시계({@link System#currentTimeMillis()}) 기준이므로,
 	 * NTP 보정 등 시스템 시각 변경에 영향을 받을 수 있다.
 	 * <p>
-	 * 주어진 {@code due}가 이미 과거 시각인 경우 대기 없이 즉시 현재 {@link #isStarted()}
-	 * 값을 반환한다.
+	 * 본 메소드는 {@link #isStarted()}가 {@code true}가 되는 시점에 반환한다.
+	 * 제한 시각이 경과할 때까지 RUNNING에 도달하지 못하면 {@link TimeoutException}을 던진다.
+	 * 주어진 {@code due}가 이미 과거 시각인 경우 대기 없이 즉시 현재 상태를 확인하며,
+	 * {@link #isStarted()}가 {@code false}이면 곧바로 {@link TimeoutException}을 던진다.
 	 * <p>
-	 * 본 메소드는 {@link #isStarted()}가 {@code true}가 되는 시점에만 즉시 반환한다.
 	 * 작업이 시작 없이 종료된 경우(NOT_STARTED → CANCELLED, STARTING → FAILED 등)에는
-	 * 제한 시각이 경과할 때까지 대기한 후 {@code false}를 반환하므로, 시작 가능성이
-	 * 불확실한 작업에는 합리적인 짧은 {@code due}를 설정한다.
+	 * {@link #isStarted()}가 끝내 {@code true}가 되지 않아 제한 시각 경과 후 {@link TimeoutException}이
+	 * 발생하므로, 시작 가능성이 불확실한 작업에는 합리적인 짧은 {@code due}를 설정한다.
 	 *
 	 * @param due	대기 제한 시각
-	 * @return	제한 시각 전에 작업이 RUNNING에 도달한 경우는 {@code true},
-	 * 			그렇지 않으면 {@code false}.
 	 * @throws InterruptedException	작업 시작 대기 중 대기 쓰레드가 interrupt된 경우.
+	 * @throws TimeoutException	제한 시각까지 작업이 RUNNING에 도달하지 못한 경우.
 	 */
-	public boolean waitForStarted(Date due) throws InterruptedException;
+	public AsyncState waitForStarted(Date due) throws InterruptedException, TimeoutException;
+
+	/**
+	 * 작업이 시작 절차({@link AsyncState#STARTING})를 벗어날 때까지 무제한 대기한 후 그 시점의 상태를 반환한다.
+	 * <p>
+	 * {@link #waitForStarted()}가 오직 {@link AsyncState#RUNNING} 도달만을 기다리는 것과 달리,
+	 * 본 메소드는 시작 절차가 끝나기만 하면 반환하므로 시작 도중 실패하거나 취소된 경우에도
+	 * 영원히 대기하지 않고 그 결과 상태를 반환한다. 따라서 반환되는 상태는
+	 * {@link AsyncState#RUNNING}이거나, 시작 절차에서 곧바로 종료된 경우의 종료 상태
+	 * ({@link AsyncState#COMPLETED}/{@link AsyncState#FAILED}/{@link AsyncState#CANCELLED}/
+	 * {@link AsyncState#CANCELLING})일 수 있다.
+	 * <p>
+	 * 호출 시점에 아직 작업이 시작되지 않았다면({@link AsyncState#NOT_STARTED}) 대기 없이 즉시
+	 * {@link AsyncState#NOT_STARTED}를 반환한다.
+	 *
+	 * @return	{@link AsyncState#STARTING}을 벗어난 시점의 상태.
+	 * @throws InterruptedException	대기 중 대기 쓰레드가 interrupt된 경우.
+	 */
+	public AsyncState waitWhileStarting() throws InterruptedException;
+
+	/**
+	 * 작업이 시작 절차({@link AsyncState#STARTING})를 벗어날 때까지 주어진 제한 시각까지 대기한 후
+	 * 그 시점의 상태를 반환한다.
+	 * <p>
+	 * 시각 비교는 시스템 벽시계({@link System#currentTimeMillis()}) 기준이므로,
+	 * NTP 보정 등 시스템 시각 변경에 영향을 받을 수 있다.
+	 * <p>
+	 * 동작 의미는 {@link #waitWhileStarting()}과 같다. 다만 제한 시각이 경과할 때까지 작업이
+	 * {@link AsyncState#STARTING}에서 벗어나지 못하면 {@link TimeoutException}을 던진다.
+	 * 주어진 {@code due}가 이미 과거 시각인 경우 대기 없이 즉시 현재 상태를 확인하며,
+	 * 여전히 {@link AsyncState#STARTING}이면 곧바로 {@link TimeoutException}을 던진다.
+	 *
+	 * @param due	대기 제한 시각.
+	 * @return	{@link AsyncState#STARTING}을 벗어난 시점의 상태.
+	 * @throws InterruptedException	대기 중 대기 쓰레드가 interrupt된 경우.
+	 * @throws TimeoutException	제한 시각까지 작업이 {@link AsyncState#STARTING}에서 벗어나지 못한 경우.
+	 */
+	public AsyncState waitWhileStarting(Date due) throws InterruptedException, TimeoutException;
+
+	/**
+	 * 작업이 시작 절차({@link AsyncState#STARTING})를 벗어날 때까지 주어진 제한 기간 동안만 대기한 후
+	 * 그 시점의 상태를 반환한다.
+	 * <p>
+	 * 대기 기간 계산은 시스템 벽시계({@link System#currentTimeMillis()}) 기준이므로,
+	 * NTP 보정 등 시스템 시각 변경에 영향을 받을 수 있다.
+	 * <p>
+	 * 동작 의미는 {@link #waitWhileStarting(Date)}와 같다. 제한 기간이 경과할 때까지 작업이
+	 * {@link AsyncState#STARTING}에서 벗어나지 못하면 {@link TimeoutException}을 던진다.
+	 *
+	 * @param timeout	대기 기간.
+	 * @param unit		대기 기간 단위.
+	 * @return	{@link AsyncState#STARTING}을 벗어난 시점의 상태.
+	 * @throws InterruptedException	대기 중 대기 쓰레드가 interrupt된 경우.
+	 * @throws TimeoutException	제한 기간까지 작업이 {@link AsyncState#STARTING}에서 벗어나지 못한 경우.
+	 */
+	public default AsyncState waitWhileStarting(long timeout, TimeUnit unit)
+		throws InterruptedException, TimeoutException {
+		Date due = new Date(System.currentTimeMillis() + unit.toMillis(timeout));
+		return waitWhileStarting(due);
+	}
 	
 	/**
 	 * 본 작업에 제한시간을 설정한다.

@@ -140,6 +140,8 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	 * @param timeout 설정할 실행 제한 시간의 Duration 객체,
 	 * 					제한 시간이 없음을 나타내기 위해 null을 지정할 수 있음.
 	 * 					non-null인 경우 양수여야 한다.
+	 * @throws IllegalStateException	이미 loop 작업이 시작된 이후에 호출된 경우.
+	 * @throws IllegalArgumentException	{@code timeout}이 non-null이면서 양수가 아닌 경우.
 	 */
 	public void setTimeout(@Nullable Duration timeout) {
 		Preconditions.checkState(isNotStarted(), "cannot set timeout after execution is started: %s", this);
@@ -152,9 +154,10 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	/**
 	 * Loop 연산 종료 시각을 반환한다.
 	 *
-	 * @return 설정된 Loop 연산 종료 시각의 Instant 객체.
-	 * 			연산이 시작되기 전에는 {@link #setDue(Instant)}를 통해 설정되지 않은 경우 null.
-	 * 			연산이 시작된 이후에는 {@link #setDue(Instant)} 호출 여부와 무관하게 연산 종료 시각.
+	 * @return Loop 연산 종료 시각의 Instant 객체.
+	 * 			연산이 시작되기 전에는 {@link #setDue(Instant)}로 설정한 값이며, 설정하지 않았으면 {@code null}.
+	 * 			연산이 시작된 이후에는 {@link #setDue(Instant)} 또는 {@link #setTimeout(Duration)}으로부터
+	 * 			계산된 실제 마감 시각이며, 둘 다 설정되지 않았으면 {@code null}.
 	 */
 	public Instant getDue() {
 		return m_due;
@@ -169,6 +172,7 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	 *
 	 * @param due 설정할 루프 마감 시각의 Instant 객체,
 	 * 				제한 시간이 없음을 나타내기 위해 null을 지정할 수 있음
+	 * @throws IllegalStateException	이미 loop 작업이 시작된 이후에 호출된 경우.
 	 */
 	public void setDue(@Nullable Instant due) {
 		Preconditions.checkState(isNotStarted(), "cannot set due after execution is started: %s", this);
@@ -206,8 +210,8 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	protected void finalizeLoop() { }
 
 	@Override
-	protected final FOption<T> iterate(long loopIndex)
-		throws CancellationException, InterruptedException, TimeoutException, ExecutionException {
+	protected final FOption<T> iterate(long loopIndex) throws CancellationException, InterruptedException,
+																TimeoutException, ExecutionException {
 		// 시간제한이 설정된 경우에는 제한 시간을 넘었는지 검사한다.
 		if ( m_due != null && m_due.isBefore(Instant.now()) ) {
 			throw new TimeoutException(m_timeout != null ? "timeout=" + m_timeout : "due=" + m_due);
@@ -257,10 +261,12 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 		
 		// 다음번 iteration 시작 시각까지 대기한다.
 		Date due = Date.from(iterationDue);
-		if ( m_aopGuard.awaitCondition(this::isCancelRequested, due).andReturn() ) {
+		try {
+			m_aopGuard.awaitCondition(this::isCancelRequested, due).andReturn();
 			// 취소 요청이 들어온 경우는 loop 종료
 			throw new CancellationException("cancelled while waiting for next iteration: " + this);
 		}
+		catch ( TimeoutException expected ) { }
 		
 		// Iteration 실행 시간을 다 채운 경우, 다음 번 iteration을 수행하도록 한다.
 		return FOption.empty();

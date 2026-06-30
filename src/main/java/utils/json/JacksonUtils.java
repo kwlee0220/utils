@@ -1,7 +1,10 @@
 package utils.json;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+
+import org.jetbrains.annotations.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -14,6 +17,10 @@ import com.google.common.base.Preconditions;
  * @author Kang-Woo Lee (ETRI)
  */
 public class JacksonUtils {
+	public static final JsonMapper MAPPER = JsonMapper.builder()
+														.addModule(new JavaTimeModule())
+														.findAndAddModules()
+														.build();
 	private JacksonUtils() {
 		throw new AssertionError("Should not be invoked!!: class=" + JacksonUtils.class.getName());
 	}
@@ -26,6 +33,17 @@ public class JacksonUtils {
 			builder = builder.enable(SerializationFeature.INDENT_OUTPUT);
 		}
 		return builder.build();
+	}
+	
+	public static JsonNode getFieldOrThrow(JsonNode node, String fieldName, @Nullable String nodeName)
+		throws IOException {
+		JsonNode field = node.get(fieldName);
+		if ( field == null || field.isNull()  ) {
+			String msg = String.format("JsonNode%s has missing field: field=%s",
+										(nodeName != null) ? " '" + nodeName + "'" : "", fieldName);
+			throw new IOException(msg);
+		}
+		return field;
 	}
 
 	public static JsonNode getFieldOrNull(JsonNode node, String fieldName) {
@@ -51,7 +69,7 @@ public class JacksonUtils {
 		JsonNode field = getFieldOrNull(node, fieldName);
 		return (field != null) ? field.asText() : defaultValue;
 	}
-	public static String getStringFieldOrNull(JsonNode node, String fieldName) {
+	@Nullable public static String getStringFieldOrNull(JsonNode node, String fieldName) {
 		return getStringFieldOrDefault(node, fieldName, null);
 	}
 	public static String getStringField(JsonNode node, String fieldName) {

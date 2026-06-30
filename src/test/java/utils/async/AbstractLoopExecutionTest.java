@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Assertions;
@@ -39,9 +40,9 @@ public class AbstractLoopExecutionTest {
 		Assertions.assertEquals(false, exec.isDone());
 		
 		AsyncResult<Integer> result;
-		result = exec.waitForFinished(100, TimeUnit.MILLISECONDS);
-		Assertions.assertEquals(true, result.isRunning());
-		
+		Assertions.assertThrows(TimeoutException.class,
+								() -> exec.waitForFinished(100, TimeUnit.MILLISECONDS));
+
 		result = exec.waitForFinished(1, TimeUnit.SECONDS);
 		Assertions.assertEquals(true, result.isCompleted());
 		Assertions.assertEquals(5, (int)result.get());
@@ -52,8 +53,9 @@ public class AbstractLoopExecutionTest {
 		StartableExecution<Integer> exec = new TestExecution1(5000);
 		
 		exec.start();
-		Assertions.assertEquals(true, exec.waitForFinished(100, TimeUnit.MILLISECONDS).isRunning());
-		
+		Assertions.assertThrows(TimeoutException.class,
+								() -> exec.waitForFinished(100, TimeUnit.MILLISECONDS));
+
 		boolean done;
 		done = exec.cancel(true);
 		Assertions.assertEquals(true, done);

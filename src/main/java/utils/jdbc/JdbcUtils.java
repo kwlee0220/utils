@@ -118,7 +118,7 @@ public final class JdbcUtils {
 			}
 		};
 
-		return (ResultSet)ProxyUtils.replaceAction(rset, replacer);
+		return (ResultSet)ProxyUtils.replaceActionByteBuddy(rset, replacer);
 	}
 	
 	/**

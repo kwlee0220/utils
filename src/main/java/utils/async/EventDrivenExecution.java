@@ -207,13 +207,27 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 	
 	@Override
-	public void waitForStarted() throws InterruptedException {
-		m_aopGuard.awaitCondition(() -> m_didStart).andReturn();
+	public AsyncState waitForStarted() throws InterruptedException {
+		return m_aopGuard.awaitCondition(() -> m_didStart)
+						.andGet(() -> m_aopState);
 	}
 
 	@Override
-	public boolean waitForStarted(Date due) throws InterruptedException {
-		return m_aopGuard.awaitCondition(() -> m_didStart, due).andReturn();
+	public AsyncState waitForStarted(Date due) throws InterruptedException, TimeoutException {
+		return m_aopGuard.awaitCondition(() -> m_didStart, due)
+						.andGet(() -> m_aopState);
+	}
+
+	@Override
+	public AsyncState waitWhileStarting() throws InterruptedException {
+		return m_aopGuard.awaitCondition(() -> m_aopState != AsyncState.STARTING)
+						.andGet(() -> m_aopState);
+	}
+
+	@Override
+	public AsyncState waitWhileStarting(Date due) throws InterruptedException, TimeoutException {
+		return m_aopGuard.awaitCondition(() -> m_aopState != AsyncState.STARTING, due)
+						.andGet(() -> m_aopState);
 	}
 
 	@Override
@@ -222,14 +236,9 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	}
 
 	@Override
-	public AsyncResult<T> waitForFinished(Date due) throws InterruptedException {
-		try {
-			return m_aopGuard.awaitCondition(() -> isDoneInGuard(), due)
-								.andGet(() -> m_asyncResult);
-		}
-		catch ( TimeoutException e ) {
-			return AsyncResult.running();
-		}
+	public AsyncResult<T> waitForFinished(Date due) throws InterruptedException, TimeoutException {
+		return m_aopGuard.awaitCondition(() -> isDoneInGuard(), due)
+						.andGet(() -> m_asyncResult);
 	}
 
 	@Override
@@ -300,11 +309,11 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	 *      상태 전이 없이 false를 반환한다.</li>
 	 * </ul>
 	 *
-	 * @return	{@code RUNNING} 상태에 도달했거나 이미 도달해 있는 경우 true,
-	 * 			그 외의 상태인 경우 false.
-	 * 			현재 구현에서는 시작되지 않은 연산은 완료({@code COMPLETED})될 수 없다고 가정하기 때문에,
-	 * 			오직 연산이 실패({@code FAILED})하였거나 취소 중({@code CANCELLING})이거나
-	 * 			취소된 상태({@code CANCELLED})에서만 false를 반환.
+	 * @return	{@code RUNNING} 상태에 도달했거나 이미 도달해 있는 경우 {@code true},
+	 * 			그 외의 상태({@code COMPLETED}/{@code FAILED}/{@code CANCELLING}/{@code CANCELLED})인 경우 {@code false}.
+	 * 			다만 시작된 적 없는 연산은 {@code RUNNING}을 거치지 않고 {@code COMPLETED}에 도달할 수 없으므로,
+	 * 			실제로 {@code false}가 반환되는 경우는 실패({@code FAILED}) 또는
+	 * 			취소({@code CANCELLING}/{@code CANCELLED}) 상태에 한정된다.
 	 */
 	public boolean notifyStarted() {
 		List<Runnable> asyncStartListeners = List.of();

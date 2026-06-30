@@ -90,7 +90,8 @@ public abstract class AbstractPeriodicPoller<R> extends PeriodicLoopExecution<R>
 	 * @throws CancellationException	polling이 취소된 경우.
 	 * @throws Exception		polling 중 예외가 발생한 경우.
 	 */
-	protected abstract FOption<R> tryPoll() throws InterruptedException, CancellationException, ExecutionException;
+	protected abstract FOption<R> tryPoll() throws InterruptedException, CancellationException,
+													ExecutionException;
 
 	/**
 	 * Polling이 종료될 때 호출되는 정리 작업.

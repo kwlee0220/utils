@@ -1,12 +1,9 @@
 package utils.http;
 
-import java.lang.reflect.Constructor;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
 
 import utils.InternalException;
 import utils.func.Optionals;
@@ -15,21 +12,14 @@ import utils.func.Optionals;
  * RESTful 서버의 구조화된 에러 응답을 표현하는 DTO.
  * <p>
  * JSON 형태는 {@code code}와 {@code message} 필드로 구성된다. {@code code}는 일반적으로
- * 서버에서 발생한 {@link Throwable} 구현 클래스의 fully-qualified class name으로 사용되며,
- * 클라이언트는 이를 바탕으로 가능한 경우 같은 타입의 예외 인스턴스를 복원한다.
- * {@code code}가 없고 {@code message}만 있는 경우에는 원격 서버가 반환한 일반 오류 메시지로
- * 간주하여 {@link RESTfulRemoteException}으로 변환된다.
+ * 서버에서 발생한 {@link Throwable} 구현 클래스의 fully-qualified class name이 담기지만,
+ * 클라이언트는 보안상(임의 클래스 로딩 회피) 이를 이용해 예외를 복원하지 않고, {@code code}/{@code message}를
+ * 보유한 {@link RESTfulRemoteException}으로 변환한다({@link #toException()} 참조).
  *
  * @author Kang-Woo Lee (ETRI)
  */
 @JsonInclude(Include.NON_NULL)
-public class RESTfulErrorEntity {
-	/**
-	 * Jackson에서 {@code RESTfulErrorEntity} 타입 정보를 보존해 deserialize할 때 사용하는
-	 * {@link TypeReference}.
-	 */
-	public static final TypeReference<RESTfulErrorEntity> TYPE_REF = new TypeReference<RESTfulErrorEntity>(){};
-	
+public final class RESTfulErrorEntity {
 	private final String m_code;
 	private final String m_message;
 	
@@ -58,17 +48,19 @@ public class RESTfulErrorEntity {
 	}
 
 	/**
-	 * 주어진 메시지와 원인 예외 정보를 하나의 메시지 문자열로 합쳐 에러 엔티티를 생성한다.
+	 * 메시지와 원인 예외로부터 에러 엔티티를 생성한다.
 	 * <p>
-	 * 이 factory는 {@code code}를 설정하지 않으므로 {@link #toException()} 호출 시
-	 * {@link RESTfulRemoteException}으로 변환된다.
+	 * {@code code}에는 원인 예외의 클래스 이름이, {@code message}에는 주어진 메시지와 원인 예외의
+	 * 메시지를 합친 문자열이 저장된다.
 	 *
 	 * @param msg   에러 메시지.
 	 * @param cause 원인 예외.
 	 * @return 생성된 에러 엔티티.
 	 */
 	public static RESTfulErrorEntity of(String msg, Throwable cause) {
-		return ofMessage(String.format("%s, cause=%s", msg, cause));
+		String code = cause.getClass().getName();
+		String details = String.format("%s, cause=%s", msg, cause.getLocalizedMessage());
+		return new RESTfulErrorEntity(code, details);
 	}
 
 	/**
@@ -95,61 +87,15 @@ public class RESTfulErrorEntity {
 	}
 
 	/**
-	 * 이 에러 엔티티를 클라이언트 측 예외 객체로 변환한다.
+	 * 이 에러 엔티티를 클라이언트 측 예외 객체로 변환하여 반환한다.
+	 * <p>
+	 * 원격 응답의 {@code code}로 임의 클래스를 로딩·복원하지 않고, 이 엔티티를 보유한
+	 * {@link RESTfulRemoteException}을 반환한다. 예외를 던지지 않는다.
 	 *
 	 * @return 변환된 예외.
-	 * @throws RESTfulRemoteException {@code code}가 없고 {@code message}만 있는 경우.
-	 * @throws RESTfulIOException     예외 클래스 복원에 실패하거나 대체 예외가 필요한 경우.
 	 */
-	public Throwable toException() {
-		return toJavaException();
-	}
-
-	/**
-	 * {@code code}에 기록된 예외 클래스와 {@code message}를 이용해 Java 예외 객체를 복원한다.
-	 * <p>
-	 * {@code code} 클래스에 {@code String} 생성자 또는 기본 생성자가 있으면 이를 사용한다.
-	 * 해당 클래스를 찾을 수 없거나 적절한 생성자가 없으면 {@link RESTfulIOException} 또는
-	 * {@link RESTfulRemoteException}으로 대체한다.
-	 *
-	 * @return 복원되거나 대체된 예외.
-	 * @throws RESTfulRemoteException {@code code}가 없고 {@code message}만 있는 경우.
-	 * @throws RESTfulIOException     예외 인스턴스 생성 중 오류가 발생한 경우.
-	 */
-	public Throwable toJavaException() {
-		if ( m_code == null ) {
-			throw new RESTfulRemoteException(m_message);
-		}
-		
-		Class<? extends Throwable> cls = loadThrowableClass();
-		try {
-			if ( m_message != null ) {
-				Constructor<? extends Throwable> ctor = getSingleStringContructor(cls);
-				if ( ctor != null ) {
-					return ctor.newInstance(m_message);
-				}
-				else {
-					return new RESTfulIOException(m_message);
-				}
-			}
-			else {
-				Constructor<? extends Throwable> ctor = getNoArgContructor(cls);
-				if ( ctor != null ) {
-					return ctor.newInstance();
-				}
-				else {
-					return new RESTfulIOException("code=" + m_code);
-				}
-			}
-		}
-		catch ( Exception e ) {
-			if ( m_message != null ) {
-				throw new RESTfulIOException("code=" + m_code + ", details=" + m_message);
-			}
-			else {
-				throw new RESTfulIOException("code=" + m_code);
-			}
-		}
+	public RESTfulRemoteException toException() {
+		return new RESTfulRemoteException(this);
 	}
 
 	/**
@@ -171,36 +117,6 @@ public class RESTfulErrorEntity {
 		}
 		else {
 			throw new InternalException("Both code and message are null");
-		}
-	}
-	
-	private Constructor<? extends Throwable>
-	getNoArgContructor(Class<? extends Throwable> cls) {
-		try {
-			return cls.getDeclaredConstructor();
-		}
-		catch ( Throwable e ) {
-			return null;
-		}
-	}
-	
-	private Constructor<? extends Throwable>
-	getSingleStringContructor(Class<? extends Throwable> cls) {
-		try {
-			return cls.getDeclaredConstructor(String.class);
-		}
-		catch ( Throwable e ) {
-			return null;
-		}
-	}
-	
-	@SuppressWarnings("unchecked")
-	private Class<? extends Throwable> loadThrowableClass() {
-		try {
-			return (Class<? extends Throwable>)Class.forName(m_code);
-		}
-		catch ( ClassNotFoundException e ) {
-			return RESTfulIOException.class;
 		}
 	}
 }

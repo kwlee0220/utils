@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 
@@ -129,17 +130,17 @@ public class DataUtils {
 		if ( obj == null ) {
 			return defValue;
 		}
-		if ( obj instanceof Boolean ) {
-			return ((Boolean)obj).booleanValue();
+		if ( obj instanceof Boolean bool1 ) {
+			return bool1.booleanValue();
 		}
-		if ( obj instanceof Integer ) {
-			return ((Integer)obj).intValue() != 0;
+		if ( obj instanceof Integer int1 ) {
+			return int1.intValue() != 0;
 		}
-		if ( obj instanceof Long ) {
-			return ((Long)obj).longValue() != 0;
+		if ( obj instanceof Long long1 ) {
+			return long1.longValue() != 0;
 		}
-		if ( obj instanceof String ) {
-			String str = ((String)obj).trim();
+		if ( obj instanceof String str1 ) {
+			String str = str1.trim();
 			if ( str.equalsIgnoreCase("false") || str.equalsIgnoreCase("no") ) {
 				return false;
 			}
@@ -209,14 +210,20 @@ public class DataUtils {
 	}
 	
 	public static Instant asInstant(Object obj) {
-		if ( obj instanceof String ) {
-			return Instants.fromString((String)obj);
+		if ( obj instanceof String str ) {
+			return Instants.fromString(str);
 		}
-		else if ( obj instanceof Instant ) {
-			return (Instant)obj;
+		else if ( obj instanceof Instant inst ) {
+			return inst;
 		}
-		else if ( obj instanceof Timestamp ) {
-			return Instants.fromTimestamp((Timestamp)obj);
+		else if ( obj instanceof Timestamp ts ) {
+			return Instants.fromTimestamp(ts);
+		}
+		else if ( obj instanceof LocalDateTime ldt ) {
+			return ldt.atZone(ZoneId.systemDefault()).toInstant();
+		}
+		else if ( obj instanceof OffsetDateTime odt ) {
+			return odt.toInstant();
 		}
 		else {
 			throw new IllegalArgumentException("Not Instant object: obj=" + obj);
@@ -227,14 +234,14 @@ public class DataUtils {
 		if ( obj == null ) {
 			return null;
 		}
-		if ( obj instanceof Instant ) {
-			return LocalDateTimes.fromInstant((Instant)obj);
+		if ( obj instanceof Instant inst ) {
+			return LocalDateTimes.fromInstant(inst);
 		}
-		else if ( obj instanceof LocalDateTime ) {
-			return (LocalDateTime)obj;
+		else if ( obj instanceof LocalDateTime ldt ) {
+			return ldt;
 		}
-		else if ( obj instanceof Date ) {
-			return ((Date)obj).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+		else if ( obj instanceof Date dt ) {
+			return dt.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
 		}
 		else {
 			throw new IllegalArgumentException("Not DateTime object: obj=" + obj);
@@ -242,15 +249,15 @@ public class DataUtils {
 	}
 	
 	public static java.sql.Date asDate(Object obj) {
-		if ( obj instanceof java.sql.Date ) {
-			return (java.sql.Date)obj;
+		if ( obj instanceof java.sql.Date dt ) {
+			return dt;
 		}
-		else if ( obj instanceof LocalDate ) {
-			long epoch = ((LocalDate)obj).atStartOfDay(ZoneId.systemDefault()).toInstant().getEpochSecond();
+		else if ( obj instanceof LocalDate ldt ) {
+			long epoch = ldt.atStartOfDay(ZoneId.systemDefault()).toInstant().getEpochSecond();
 			return new java.sql.Date(epoch);
 		}
-		else if ( obj instanceof Date ) {
-			return new java.sql.Date(((Date)obj).getTime());
+		else if ( obj instanceof Date dt ) {
+			return new java.sql.Date(dt.getTime());
 		}
 		else {
 			throw new IllegalArgumentException("Not Date object: obj=" + obj);
@@ -258,8 +265,8 @@ public class DataUtils {
 	}
 	
 	public static LocalTime asTime(Object obj) {
-		if ( obj instanceof LocalTime ) {
-			return (LocalTime)obj;
+		if ( obj instanceof LocalTime lt ) {
+			return lt;
 		}
 		else {
 			throw new IllegalArgumentException("Not asTime: obj=" + obj);

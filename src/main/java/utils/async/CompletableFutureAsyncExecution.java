@@ -110,16 +110,15 @@ public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExec
 		var future = m_future;
 		if ( future == null ) {
 			try {
-				boolean ready = m_aopGuard.awaitCondition(() -> m_future != null,
-															CANCEL_WAIT_TIMEOUT)
-											.andReturn();
-				if ( !ready ) {
-					return false;
-				}
+				m_aopGuard.awaitCondition(() -> m_future != null, CANCEL_WAIT_TIMEOUT)
+							.andReturn();
 				future = m_future;
 			}
 			catch ( InterruptedException e ) {
 				Thread.currentThread().interrupt();
+				return false;
+			}
+			catch ( TimeoutException e ) {
 				return false;
 			}
 		}

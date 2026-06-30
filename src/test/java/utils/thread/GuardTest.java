@@ -20,9 +20,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import utils.Throwables;
+import utils.func.Unchecked;
 import utils.thread.Guard.AwaitCondition;
 import utils.thread.Guard.TimedAwaitCondition;
-import utils.func.Unchecked;
 
 
 /**
@@ -60,13 +60,9 @@ public class GuardTest {
 	@Test
 	public void testAwaitUntil() throws Exception {
 		CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-			try {
-				boolean done = m_guard.awaitCondition(() -> m_interrupted, TIMEOUT).andReturn();
-				assertFalse(done);
-			}
-			catch ( InterruptedException e ) {
-				fail("should not throw InterruptedException");
-			}
+			// 조건이 끝내 만족되지 않으므로 제한 시간 경과 후 TimeoutException이 발생해야 한다.
+			TimedAwaitCondition await = m_guard.awaitCondition(() -> m_interrupted, TIMEOUT);
+			assertThrows(TimeoutException.class, await::andReturn);
 		});
 
 		future.join();
@@ -75,13 +71,10 @@ public class GuardTest {
 	@Test
 	public void testAwaitUntilWithInterrupt() throws Exception {
 		CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-			try {
-				boolean done = m_guard.awaitCondition(() -> m_interrupted, TIMEOUT).andReturn();
-				assertFalse(done);
-			}
-			catch ( Throwable e ) {
-				fail("should not throw Throwable");
-			}
+			// 조건 변경 없는 spurious signal만으로는 조기 반환되지 않고 제한 시간까지 대기한 뒤
+			// TimeoutException이 발생해야 한다.
+			TimedAwaitCondition await = m_guard.awaitCondition(() -> m_interrupted, TIMEOUT);
+			assertThrows(TimeoutException.class, await::andReturn);
 		});
 		Thread.sleep(100);
 		m_guard.lock(); try { m_guard.signalAll(); } finally { m_guard.unlock(); }
@@ -94,8 +87,8 @@ public class GuardTest {
 	public void testAwaitUntilWithCancel() throws Exception {
 		CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
 			try {
-				boolean done = m_guard.awaitCondition(() -> m_interrupted, TIMEOUT).andReturn();
-				assertTrue(done);
+				// 제한 시간 안에 조건이 만족되므로 예외 없이 정상 반환되어야 한다.
+				m_guard.awaitCondition(() -> m_interrupted, TIMEOUT).andReturn();
 			}
 			catch ( Throwable e ) {
 				fail("should not throw Throwable");

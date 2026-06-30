@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.Maps;
 
@@ -27,7 +27,6 @@ import utils.Preconditions;
 import utils.Throwables;
 import utils.Tuple;
 import utils.func.Optionals;
-import utils.func.Try;
 
 
 /**
@@ -512,41 +511,60 @@ public class HttpRESTfulClient implements LoggerSettable {
 	}
 
 	/**
-	 * 응답 본문을 적절한 예외로 변환하여 던진다.
+	 * 에러 응답 본문을 적절한 예외로 변환하여 반환한다.
 	 * <p>
-	 * 우선 등록된 {@link ErrorEntityDeserializer}로 파싱을 시도하고,
-	 * 실패 시 Spring 기본 에러 포맷, 마지막으로 일반 RESTful 서버 에러 메시지 포맷으로 fallback한다.
+	 * 본문을 한 번만 {@link JsonNode}로 파싱한 뒤, 존재하는 필드로 에러 포맷을 명시적으로 판별한다
+	 * (파싱 실패에 의존하던 fallback 체인을 대체).
+	 * <ul>
+	 *   <li>{@code messageType} 보유 → {@link TypedServerErrorMessage} (커스텀 포맷)</li>
+	 *   <li>{@code status} + {@code path} 보유 → {@link SpringBootErrorResponse} (Spring Boot 기본 에러)</li>
+	 *   <li>{@code code} 또는 {@code message} 보유 → {@link RESTfulErrorEntity} (주입된 deserializer로 위임)</li>
+	 *   <li>그 외 → 본문을 담은 {@link RESTfulIOException}</li>
+	 * </ul>
+	 *
+	 * @param respBody	에러 응답 본문.
+	 * @return	변환된 unchecked 예외. 호출자는 이 반환값을 {@code throw}한다.
 	 */
 	protected RuntimeException toRESTfulClientException(String respBody) {
-		Try<Throwable> cause
-			= Try.get(() -> {
-					try {
-						return m_errorEntityDeser.deserialize(respBody).toException();
-					}
-					catch ( RESTfulRemoteException e ) {
-						return e;
-					}
-				})
-				.recover(() -> parseSpringException(respBody))
-				.recover(() -> parseRESTfulServerErrorMessage(respBody));
-
-		if ( cause.isFailed() ) {
-			throw new RESTfulIOException("Failed to parse RESTful error response: response=" + respBody,
-										cause.getCause());
+		JsonNode root;
+		try {
+			root = m_mapper.readTree(respBody);
 		}
-		throw Throwables.toRuntimeException(cause.get(),
-									c -> new RESTfulRemoteException("Remote RESTful exception: " + c, c));
-	}
-		
-	private Throwable parseSpringException(String respBody)
-		throws JsonMappingException, JsonProcessingException {
-		SpringExceptionEntity errorMsg = m_mapper.readValue(respBody, SpringExceptionEntity.class);
-		return errorMsg.toException();
+		catch ( JsonProcessingException e ) {
+			// JSON이 아니면 본문 자체를 메시지로 담아 반환한다.
+			return new RESTfulIOException("Failed to parse RESTful error response: response=" + respBody, e);
+		}
+
+		if ( root.has("messageType") ) {
+			// 커스텀 포맷: TypedServerErrorMessage {messageType, code, text, timestamp}
+			Throwable cause = m_mapper.convertValue(root, TypedServerErrorMessage.class).toException();
+			return toRemoteException(cause);
+		}
+		else if ( root.has("status") && root.has("path") ) {
+			// Spring Boot 기본 에러 포맷: {timestamp, status, error, message, path}
+			SpringBootErrorResponse errorMsg = m_mapper.convertValue(root, SpringBootErrorResponse.class);
+			return new RESTfulIOException(errorMsg.toString());
+		}
+		else if ( root.hasNonNull("code") || root.hasNonNull("message") ) {
+			// 우리 포맷: RESTfulErrorEntity {code, message} (주입된 deserializer로 위임)
+			try {
+				return toRemoteException(m_errorEntityDeser.deserialize(respBody).toException());
+			}
+			catch ( IOException e ) {
+				return new RESTfulIOException("Failed to parse RESTful error response: response=" + respBody, e);
+			}
+		}
+		else {
+			return new RESTfulIOException("Unrecognized RESTful error response: response=" + respBody);
+		}
 	}
 
-	private Throwable parseRESTfulServerErrorMessage(String respBody)
-		throws JsonMappingException, JsonProcessingException {
-		RESTfulServerErrorMessage errorMsg = m_mapper.readValue(respBody, RESTfulServerErrorMessage.class);
-		return new RESTfulIOException(errorMsg.toString());
+	/**
+	 * 복원된 원인 예외를 클라이언트 측 unchecked 예외로 감싼다.
+	 * 이미 unchecked이면 그대로, checked이면 {@link RESTfulRemoteException}으로 래핑한다.
+	 */
+	private RuntimeException toRemoteException(Throwable cause) {
+		return Throwables.toRuntimeException(cause,
+									c -> new RESTfulRemoteException("Remote RESTful exception: " + c, c));
 	}
 }

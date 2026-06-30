@@ -1669,6 +1669,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			closeQuietly();
 		}
 	}
+
+	public default <V> KeyValueFStream<T,V> lookup(Function<T,V> lookup, boolean keepUnmatched) {
+		return new MatchFStream<>(this, lookup, keepUnmatched);
+	}
+	public default <V> KeyValueFStream<T,V> lookup(Map<T,V> lut, boolean keepUnmatched) {
+		return new MatchFStream<>(this, lut, keepUnmatched);
+	}
+	public default <V> KeyValueFStream<T,V> lookup(Map<T,V> lut) {
+		return lookup(lut, false);
+	}
 	
 	/**
 	 * 스트림에 포함된 모든 데이터를 주어진 {@link Collection}에 추가한다.

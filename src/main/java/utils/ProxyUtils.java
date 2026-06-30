@@ -1,12 +1,24 @@
 package utils;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
 
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.implementation.bind.annotation.AllArguments;
+import net.bytebuddy.implementation.bind.annotation.Origin;
+import net.bytebuddy.implementation.bind.annotation.RuntimeType;
+import net.bytebuddy.implementation.bind.annotation.This;
+import net.bytebuddy.matcher.ElementMatchers;
 import net.sf.cglib.core.CodeGenerationException;
 import net.sf.cglib.proxy.Callback;
 import net.sf.cglib.proxy.CallbackFilter;
@@ -45,6 +57,83 @@ public final class ProxyUtils {
 			Throwables.sneakyThrow(cause);
 
 			throw new AssertionError("should not be here");
+		}
+	}
+
+	/**
+	 * {@link #replaceAction(Object, CallHandler)}의 ByteBuddy 기반 구현이다.
+	 * <p>
+	 * cglib 대신 ByteBuddy로 동적 서브클래스를 생성하므로, JDK 9+의 강한 캡슐화 환경에서
+	 * {@code --add-opens=java.base/java.lang=ALL-UNNAMED} 옵션 없이도 동작한다.
+	 * <p>
+	 * {@code handler.test(method)}가 {@code true}인 메소드는 {@code handler}가 처리하고, 그 외의
+	 * 메소드는 원본 객체 {@code obj}로 위임된다.
+	 * <p>
+	 * 단, cglib의 {@code MethodProxy}를 제공하지 않으므로 {@code handler}의
+	 * {@link CallHandler#intercept}에 전달되는 네 번째 인자({@code MethodProxy})는 항상 {@code null}이다.
+	 * (원본 메소드로의 위임은 프록시가 직접 수행하므로 핸들러에서 별도 위임이 필요 없다.)
+	 * <p>
+	 * 대상 클래스에 접근 가능한 public 기본 생성자가 있으면 해당 클래스를 상속한 프록시를 생성하고,
+	 * (JDBC {@code ResultSet} 구현체처럼) 기본 생성자가 없거나 {@code final}인 경우에는 대상 클래스가
+	 * 구현한 모든 인터페이스를 구현하는 프록시로 폴백한다. 후자의 경우 반환 객체는 구체 클래스 타입이
+	 * 아니라 인터페이스 타입으로만 사용할 수 있다.
+	 *
+	 * @param <T>		대상 객체 타입.
+	 * @param obj		동작을 교체할 원본 객체.
+	 * @param handler	교체할 동작을 정의하는 {@link CallHandler}.
+	 * @return 동작이 교체된 프록시 객체.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> T replaceActionByteBuddy(T obj, CallHandler handler) {
+		Preconditions.checkNotNullArgument(obj, "target object is null");
+		Preconditions.checkNotNullArgument(handler, "CallHandler is null");
+
+		Class<?> targetCls = obj.getClass();
+		try {
+			DynamicType.Builder<?> builder;
+			if ( hasPublicDefaultConstructor(targetCls) ) {
+				builder = new ByteBuddy().subclass(targetCls);
+			}
+			else {
+				// 기본 생성자가 없거나 final인 클래스(JDBC ResultSet 구현 등)는 인터페이스 기반으로 프록시한다.
+				Set<Class<?>> intfcSet = Sets.newHashSet(ReflectionUtils.getAllInterfaces(targetCls));
+				// 다른 클래스로더/패키지에서 구현할 수 없는 비공개 인터페이스는 제외한다.
+				intfcSet.removeIf(intfc -> !Modifier.isPublic(intfc.getModifiers()));
+				Preconditions.checkState(!intfcSet.isEmpty(),
+						"Cannot proxy a class without a public default constructor nor public interfaces: %s",
+						targetCls.getName());
+				builder = new ByteBuddy().subclass(Object.class)
+										.implement(intfcSet.toArray(new Class<?>[intfcSet.size()]));
+			}
+
+			Class<?> proxyCls = builder
+					.method(ElementMatchers.isPublic()
+											.and(ElementMatchers.not(ElementMatchers.isStatic()))
+											.and(ElementMatchers.not(ElementMatchers.isFinal())))
+					.intercept(MethodDelegation.to(new ByteBuddyDispatcher(obj, handler)))
+					.make()
+					.load(targetCls.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
+					.getLoaded();
+			return (T)proxyCls.getDeclaredConstructor().newInstance();
+		}
+		catch ( Throwable e ) {
+			Throwable cause = Throwables.unwrapThrowable(e);
+			Throwables.sneakyThrow(cause);
+
+			throw new AssertionError("should not be here");
+		}
+	}
+
+	private static boolean hasPublicDefaultConstructor(Class<?> cls) {
+		if ( Modifier.isFinal(cls.getModifiers()) ) {
+			return false;
+		}
+		try {
+			Constructor<?> ctor = cls.getDeclaredConstructor();
+			return Modifier.isPublic(ctor.getModifiers());
+		}
+		catch ( NoSuchMethodException e ) {
+			return false;
 		}
 	}
 
@@ -182,7 +271,7 @@ public final class ProxyUtils {
 	
 	private static class Interceptor<T> implements MethodInterceptor {
 		private CallHandler m_interceptor;
-		
+
 		Interceptor(T object, CallHandler interceptor) {
 			m_interceptor = interceptor;
 		}
@@ -191,6 +280,37 @@ public final class ProxyUtils {
 		public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
 			throws Throwable {
 			return m_interceptor.intercept(obj, method, args, proxy);
+		}
+	}
+
+	/**
+	 * {@link #replaceActionByteBuddy(Object, CallHandler)}가 생성하는 ByteBuddy 프록시의 메소드 호출을
+	 * 처리하는 디스패처이다. 매칭되는 메소드는 {@link CallHandler}로, 그 외는 원본 객체로 위임한다.
+	 */
+	public static class ByteBuddyDispatcher {
+		private final Object m_target;
+		private final CallHandler m_handler;
+
+		ByteBuddyDispatcher(Object target, CallHandler handler) {
+			m_target = target;
+			m_handler = handler;
+		}
+
+		@RuntimeType
+		public Object intercept(@This Object self, @Origin Method method, @AllArguments Object[] args)
+			throws Throwable {
+			if ( m_handler.test(method) ) {
+				// ByteBuddy 프록시에는 cglib MethodProxy가 없으므로 null을 전달한다.
+				return m_handler.intercept(self, method, args, null);
+			}
+			else {
+				try {
+					return method.invoke(m_target, args);
+				}
+				catch ( InvocationTargetException e ) {
+					throw e.getTargetException();
+				}
+			}
 		}
 	}
 	

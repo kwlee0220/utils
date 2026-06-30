@@ -38,6 +38,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 * 초기화가 필요한 경우 서브클래스에서 구현한다.
 	 * <p>
 	 * 본 메소드는 {@link #notifyStarting()}이 호출된 상태에서 호출되고,
+	 * 새로 생성된 스레드(또는 외부 주입된 {@link Executor})에서 실행된다.
 	 * 예외가 발생하지 않고 정상 반환되면 {@link #notifyStarted()} 메소드가 호출되어
 	 * {@code STARTING → RUNNING}으로 전이한다.
 	 * 예외가 발생하는 경우의 전이는 다음과 같다.
@@ -51,6 +52,8 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 * @throws Exception	초기화 중 오류가 발생한 경우.
 	 */
 	 protected void initializeThread() throws Exception { }
+	 
+	 protected void finalizeThread(){ }
 	
 	/**
 	 * 서브클래스가 구현해야 할 실제 작업 본문.
@@ -112,6 +115,12 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		try {
 			// STARTING 상태에서 호출
 			initializeThread();
+			
+			// 시작 준비(initializeThread) 도중 외부에서 취소/실패가 끼어들어 RUNNING으로 못 올라간 경우,
+			// 작업을 수행하지 않고 이미 확정된 종료 결과를 반환한다.
+			if ( !notifyStarted() ) {
+				return get();
+			}
 		}
 		catch ( CancellationException | InterruptedException e ) {
 			notifyCancelled();
@@ -126,10 +135,131 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 			throw new ExecutionException(cause);
 		}
 		
-		if ( !notifyStarted() ) {
-			return get();
+		try {
+			return runAction();
+		}
+		finally {
+			finalizeThread();
+		}
+	}
+	
+	public String getThreadNamePrefix() {
+		return m_threadNamePrefix;
+	}
+	
+	public void setThreadNamePrefix(String prefix) {
+		Preconditions.checkNotNullArgument(prefix, "threadNamePrefix must not be null");
+		
+		m_threadNamePrefix = prefix;
+	}
+	
+	/**
+	 * 별도 스레드(또는 외부 주입된 {@link Executor})에서 작업 수행을 시작한다.
+	 * <p>
+	 * {@link AbstractAsyncExecution#getExecutor()}가 설정되어 있으면 해당 {@code Executor}에 작업을 제출하고,
+	 * 그렇지 않으면 새 {@link Thread}를 생성해 수행한다 (daemon 여부는
+	 * {@link #setDaemonThread(boolean)}으로 제어).
+	 * {@code NOT_STARTED → STARTING}으로 전이한 후 작업 제출/스레드 시작이 완료되면 즉시 반환한다.
+	 * <p>
+	 * 작업 제출 자체가 실패하는 경우({@link RejectedExecutionException} 등) 본 객체는
+	 * {@code FAILED}로 전이된 후 원인 예외가 호출자에게 그대로 전달된다.
+	 *
+	 * @throws IllegalStateException	이미 시작된 상태에서 호출된 경우({@link #start()} 또는 {@link #run()}이
+	 *                                  이미 호출됨).
+	 * @throws RejectedExecutionException	{@link Executor}가 작업 제출을 거부한 경우.
+	 */
+	@Override
+	public final void start() {
+		// STARTING 상태로 전이
+		if ( !notifyStarting() ) {
+			throw new IllegalStateException("already started: " + this);
 		}
 
+		try {
+			// STARTED 상태로의 전이는 runInThread()에서 notifyStarted() 호출 시 수행됨.
+			Executor executor = getExecutor();
+			if ( executor != null ) {
+				executor.execute(this::runInThread);
+			}
+			else {
+				String threadName = m_threadNamePrefix +"@"+Integer.toHexString(System.identityHashCode(this));
+				Thread thread = new Thread(this::runInThread, threadName);
+				thread.setDaemon(m_isDaemonThread);
+				thread.start();
+			}
+		}
+		catch ( Throwable e ) {
+			Throwables.throwIfInstanceOf(e, Error.class);
+			// Executor 거부 또는 스레드 생성 실패 시 STARTING 상태에 머무르지 않도록 FAILED로 전이.
+			notifyFailed(Throwables.unwrapThrowable(e));
+			Throwables.sneakyThrow(e);   // 원인 예외를 호출자에게 그대로 전파
+		}
+	}
+	
+	public boolean isDaemonThread() {
+		return m_isDaemonThread;
+	}
+	public void setDaemonThread(boolean isDaemon) {
+		m_isDaemonThread = isDaemon;
+	}
+	
+	@Override
+	public String toString() {
+		return m_threadNamePrefix +"@"+Integer.toHexString(System.identityHashCode(this));
+	}
+
+	private void runInThread() {
+		try {
+			// STARTING 상태에서 호출
+			// 작업에 필요한 초기화 작업을 수행한다.
+			initializeThread();
+		}
+		catch ( CancellationException | InterruptedException e ) {
+			notifyCancelled();
+			return;
+		}
+		catch ( Throwable e ) {
+			Throwables.throwIfInstanceOf(e, Error.class);
+			Throwable cause = Throwables.unwrapThrowable(e);
+			notifyFailed(cause);
+			return;
+		}
+		
+		// STARTED 상태로 전이
+		if ( !notifyStarted() ) {
+			// 비동기 컨텍스트(Executor/Thread)이므로 throw 대신 로깅 후 종료한다.
+			// 시작 실패는 주로 외부에서 이미 cancel된 경우 발생.
+			getLogger().debug("failed to start work: {}", this);
+			return;
+		}
+
+		T result;
+		try {
+			// executeWork() 함수는 RUNNING 상태에서 호출됨 
+			result = executeWork();
+		}
+		catch ( InterruptedException | CancellationException e ) {
+			notifyCancelled();
+			return;
+		}
+		catch ( Throwable e ) {
+			Throwables.throwIfInstanceOf(e, Error.class);
+			Throwable cause = Throwables.unwrapThrowable(e);
+			notifyFailed(cause);
+			return;
+		}
+
+		if ( notifyCompleted(result) ) {
+			return;
+		}
+		if ( notifyCancelled() ) {
+			return;
+		}
+		// executeWork()가 정상 반환되었으나 두 전이 모두 실패 — 외부에서 이미 종료(주로 notifyFailed) 처리된 경우.
+		getLogger().debug("execution finished by external party: {}", this);
+	}
+
+	private T runAction() throws CancellationException, InterruptedException, ExecutionException {
 		T result;
 		try {
 			result = executeWork();
@@ -165,115 +295,5 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		catch ( TimeoutException e ) {
 			throw new IllegalStateException("unexpected timeout while waiting for completion: " + this, e);
 		}
-	}
-	
-	public String getThreadNamePrefix() {
-		return m_threadNamePrefix;
-	}
-	
-	public void setThreadNamePrefix(String prefix) {
-		Preconditions.checkNotNullArgument(prefix, "threadNamePrefix must not be null");
-		
-		m_threadNamePrefix = prefix;
-	}
-	
-	/**
-	 * 별도 스레드(또는 외부 주입된 {@link Executor})에서 작업 수행을 시작한다.
-	 * <p>
-	 * {@link AbstractAsyncExecution#getExecutor()}가 설정되어 있으면 해당 {@code Executor}에 작업을 제출하고,
-	 * 그렇지 않으면 새 {@link Thread}를 생성해 수행한다 (daemon 여부는
-	 * {@link #setDaemonThread(boolean)}으로 제어).
-	 * {@code NOT_STARTED → STARTING}으로 전이한 후 작업 제출/스레드 시작이 완료되면 즉시 반환한다.
-	 * <p>
-	 * 작업 제출 자체가 실패하는 경우({@link RejectedExecutionException} 등) 본 객체는
-	 * {@code FAILED}로 전이된 후 원인 예외가 호출자에게 그대로 전달된다.
-	 *
-	 * @throws IllegalStateException	이미 시작된 상태에서 호출된 경우({@link #start()} 또는 {@link #run()}이
-	 *                                  이미 호출됨).
-	 * @throws RejectedExecutionException	{@link Executor}가 작업 제출을 거부한 경우.
-	 */
-	@Override
-	public final void start() {
-		if ( !notifyStarting() ) {
-			throw new IllegalStateException("already started: " + this);
-		}
-
-		try {
-			Executor executor = getExecutor();
-			if ( executor != null ) {
-				executor.execute(this::runInThread);
-			}
-			else {
-				String threadName = m_threadNamePrefix +"@"+Integer.toHexString(System.identityHashCode(this));
-				Thread thread = new Thread(this::runInThread, threadName);
-				thread.setDaemon(m_isDaemonThread);
-				thread.start();
-			}
-		}
-		catch ( Throwable e ) {
-			Throwables.throwIfInstanceOf(e, Error.class);
-			// Executor 거부 또는 스레드 생성 실패 시 STARTING 상태에 머무르지 않도록 FAILED로 전이.
-			notifyFailed(Throwables.unwrapThrowable(e));
-			Throwables.sneakyThrow(e);   // 원인 예외를 호출자에게 그대로 전파
-		}
-	}
-	
-	public boolean isDaemonThread() {
-		return m_isDaemonThread;
-	}
-	public void setDaemonThread(boolean isDaemon) {
-		m_isDaemonThread = isDaemon;
-	}
-	
-	@Override
-	public String toString() {
-		return m_threadNamePrefix +"@"+Integer.toHexString(System.identityHashCode(this));
-	}
-
-	private void runInThread() {
-		try {
-			initializeThread();
-		}
-		catch ( CancellationException | InterruptedException e ) {
-			notifyCancelled();
-			return;
-		}
-		catch ( Throwable e ) {
-			Throwables.throwIfInstanceOf(e, Error.class);
-			Throwable cause = Throwables.unwrapThrowable(e);
-			notifyFailed(cause);
-			return;
-		}
-		
-		if ( !notifyStarted() ) {
-			// 비동기 컨텍스트(Executor/Thread)이므로 throw 대신 로깅 후 종료한다.
-			// 시작 실패는 주로 외부에서 이미 cancel된 경우 발생.
-			getLogger().debug("failed to start work: {}", this);
-			return;
-		}
-
-		T result;
-		try {
-			result = executeWork();
-		}
-		catch ( InterruptedException | CancellationException e ) {
-			notifyCancelled();
-			return;
-		}
-		catch ( Throwable e ) {
-			Throwables.throwIfInstanceOf(e, Error.class);
-			Throwable cause = Throwables.unwrapThrowable(e);
-			notifyFailed(cause);
-			return;
-		}
-
-		if ( notifyCompleted(result) ) {
-			return;
-		}
-		if ( notifyCancelled() ) {
-			return;
-		}
-		// executeWork()가 정상 반환되었으나 두 전이 모두 실패 — 외부에서 이미 종료(주로 notifyFailed) 처리된 경우.
-		getLogger().debug("execution finished by external party: {}", this);
 	}
 }

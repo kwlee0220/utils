@@ -1,6 +1,7 @@
 package utils.jdbc;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -405,6 +406,20 @@ public class JdbcProcessor {
 				.get();
 	}
 
+	public long queryResultCount(String query) throws IOException {
+		String countQuery = String.format("SELECT COUNT(*) FROM (%s) AS subquery", query);
+		try ( ResultSet rs = executeQuery(countQuery, true) ) {
+			if ( !rs.next() ) {
+				throw new IOException("Cannot count records: query=" + query);
+			}
+			return rs.getLong(1);
+		}
+		catch ( SQLException e ) {
+			String msg = String.format("Failed to count records: query=%s", countQuery);
+			throw new IOException(msg, e);
+		}
+	}
+
 	/**
 	 * 데이터베이스 컬럼의 메타데이터를 표현하는 값 객체.
 	 */
@@ -461,10 +476,10 @@ public class JdbcProcessor {
 	 * @return			컬럼명 → {@link ColumnInfo} 맵.
 	 * @throws SQLException	JDBC 연결 또는 메타데이터 조회 중 오류가 발생한 경우.
 	 */
-	public Map<String,ColumnInfo> getColumns(String tblName) throws SQLException {
+	public LinkedHashMap<String,ColumnInfo> getColumnInfos(String tblName) throws SQLException {
 		Preconditions.checkNotNullArgument(tblName, "table name is null");
 
-		Map<String,ColumnInfo> columns = new LinkedHashMap<>();
+		LinkedHashMap<String,ColumnInfo> columns = new LinkedHashMap<>();
 
 		try ( Connection conn = connect();
 				ResultSet rs = conn.getMetaData().getColumns(null, null, tblName, null) ) {
@@ -480,7 +495,7 @@ public class JdbcProcessor {
 			return columns;
 		}
 	}
-	
+
 	@Override
 	public String toString() {
 		return String.format("%s?user=%s,driver=%s", m_jdbcUrl, m_user, m_driverClsName);

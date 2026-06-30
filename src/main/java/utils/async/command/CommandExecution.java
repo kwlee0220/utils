@@ -100,6 +100,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	private final @Nullable File m_stdinFile;
 	private final @Nullable Redirect m_stdout;
 	private final @Nullable File m_stdoutFile;
+	private final boolean m_stdoutAppend;
 	private final @Nullable Redirect m_stderr;
 	private final @Nullable File m_stderrFile;
 	private final @Nullable Duration m_timeout;
@@ -119,6 +120,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		m_stdinFile = builder.m_stdinFile;
 		m_stdout = builder.m_stdout;
 		m_stdoutFile = builder.m_stdoutFile;
+		m_stdoutAppend = builder.m_stdoutAppend;
 		m_stderr = builder.m_stderr;
 		m_stderrFile = builder.m_stderrFile;
 		m_timeout = builder.m_timeout;
@@ -310,7 +312,8 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 		// Standard output 처리
 		if ( m_stdoutFile != null ) {
-			builder.redirectOutput(Redirect.to(resolveAgainstWorkingDirectory(m_stdoutFile)));
+			File stdoutFile = resolveAgainstWorkingDirectory(m_stdoutFile);
+			builder.redirectOutput(m_stdoutAppend ? Redirect.appendTo(stdoutFile) : Redirect.to(stdoutFile));
 		}
 		else if ( m_stdout != null ) {
 			builder.redirectOutput(m_stdout);
@@ -378,6 +381,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		private File m_stdinFile;
 		private Redirect m_stdout = Redirect.DISCARD;
 		private File m_stdoutFile;
+		private boolean m_stdoutAppend = false;
 		private Redirect m_stderr = Redirect.DISCARD;
 		private File m_stderrFile;
 		
@@ -518,6 +522,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 			return this;
 		}
 		
+		public boolean hasVariable(String varId) {
+			return m_variables.containsKey(varId);
+		}
+		
 		/**
 		 * stdin을 지정된 파일로 리다이렉트한다.
 		 *
@@ -566,7 +574,9 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 		
 		/**
-		 * stdout를 지정된 파일로 리다이렉트한다.
+		 * stdout를 지정된 파일로 리다이렉트한다. (기존 내용 덮어쓰기)
+		 * <p>
+		 * {@code redirectStdoutToFile(file, false)}와 동일하다.
 		 *
 		 * @param file stdout로 리다이렉트할 파일. 존재하지 않으면 생성된다. 파일이 이미 존재하면
 		 * 			기존 내용을 덮어쓴다. 파일이 디렉토리거나 생성할 수 없는 경우 예외가 발생한다.
@@ -577,9 +587,27 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우
 		 */
 		public Builder redirectStdoutToFile(File file) {
+			return redirectStdoutToFile(file, false);
+		}
+
+		/**
+		 * stdout를 지정된 파일로 리다이렉트한다.
+		 *
+		 * @param file stdout로 리다이렉트할 파일. 존재하지 않으면 생성된다. 파일이 디렉토리거나 생성할
+		 * 			수 없는 경우 예외가 발생한다. 파일이 상대 경로인 경우 working directory를 기준으로
+		 * 			실행 시점에 해석된다.
+		 * @param append {@code true}이면 기존 내용 뒤에 이어 쓰고({@link Redirect#appendTo}),
+		 * 			{@code false}이면 기존 내용을 덮어쓴다({@link Redirect#to}).
+		 * @return	본 빌더 객체.
+		 * 			본 메소드와 {@link #inheritStdout()} / {@link #discardStdout()}는
+		 *         	동일한 stdout 설정을 갱신하므로, 마지막 호출이 우선한다.
+		 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우
+		 */
+		public Builder redirectStdoutToFile(File file, boolean append) {
 			Preconditions.checkNotNullArgument(file, "stdout file must not be null");
 
 			m_stdoutFile = file;
+			m_stdoutAppend = append;
 			m_stdout = null;
 			return this;
 		}

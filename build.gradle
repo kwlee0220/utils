@@ -84,6 +84,9 @@ dependencies {
 
 	testImplementation "org.mockito:mockito-core:${mockito_version}"
 	testImplementation "org.mockito:mockito-junit-jupiter:${mockito_version}"
+
+	// HTTP client integration tests
+	testImplementation "com.squareup.okhttp3:mockwebserver:${okhttp_version}"
 }
 
 tasks.named('test') {

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Assertions;
@@ -75,8 +76,9 @@ public class FoldAsyncTest {
 		exec.whenFinishedAsync(m_doneListener);
 		
 		exec.start();
-		Assertions.assertEquals(true, exec.waitForFinished(230, TimeUnit.MILLISECONDS).isRunning());
-		
+		Assertions.assertThrows(TimeoutException.class,
+								() -> exec.waitForFinished(230, TimeUnit.MILLISECONDS));
+
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
 		verify(m_doneListener, times(1)).accept(Result.none());
