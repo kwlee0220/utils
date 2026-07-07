@@ -284,7 +284,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		// Command line에 포함된 일반 변수들을 실제 값으로 치환한다.
 		Map<String,String> initMapping = Map.of("WORKING_DIR", m_workingDirectory.getAbsolutePath());
 		StrSubstitutor subst = StrSubstitutor.with(initMapping)
-									.failOnUndefinedVariable(false)
+									.failOnUndefinedVariable(true)
 									.enableNestedSubstitution(true);
 		List<String> command = FStream.from(m_command)
 										.map(cmd -> {
