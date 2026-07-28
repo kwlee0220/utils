@@ -234,12 +234,16 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	 * @return 빌드된 {@link CommandExecution}.
 	 */
 	private CommandExecution buildCommandExecution() {
-		File logFile = new File(m_config.getWorkingDirectory(), APPLICATION_LOG.getName());
-		getLogger().info("command output will be redirected to " + logFile.getAbsolutePath());
+		File workingAbsDir = m_config.getWorkingDirectory().getAbsoluteFile();
+		
+		// m_config.getWorkingDirectory()가 relative path인 경우,
+		// 현재 작업 디렉터리 기준으로 절대 경로를 만든다.
+		File logFile = new File(workingAbsDir, APPLICATION_LOG.getName());
+		getLogger().info("command output will be redirected to " + logFile);
 		
 		return CommandExecution.builder()
 								.addCommand(m_config.getCommandLine())
-								.workingDirectory(m_config.getWorkingDirectory())
+								.workingDirectory(workingAbsDir)
 								.environmentVariables(m_config.getEnvironments())
 								.environmentFile(m_config.getEnvironmentFile())
 								.timeout(null)	// 무한대기
