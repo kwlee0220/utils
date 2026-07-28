@@ -46,6 +46,7 @@ import utils.stream.FStream;
  */
 public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 	private static final Logger s_logger = LoggerFactory.getLogger(RESTfulCommandExecutionServer.class);
+	private static final String SESSION_PREFIX = "/api/v1/sessions/";
 	private static final AtomicLong s_sessionIdGen = new AtomicLong(0);
 	
 	private final CommandExecutionDescriptor m_opDesc;
@@ -182,7 +183,7 @@ public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 									"execution is not CommandExecutionOperation: %s", execution);
 		CommandExecutionOperation cmdExecOp = (CommandExecutionOperation)execution;
 		
-		String sessionEndpoint = "/sessions/" + cmdExecOp.m_sessionId;
+		String sessionEndpoint = SESSION_PREFIX + cmdExecOp.m_sessionId;
 		AsyncRpcSession session = new AsyncRpcSession(sessionEndpoint, execution);
 		
 		return session;

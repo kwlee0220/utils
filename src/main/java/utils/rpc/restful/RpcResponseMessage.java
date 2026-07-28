@@ -129,7 +129,7 @@ public final class RpcResponseMessage {
 	/**
 	 * 실패 정보({@link #getError()})로부터 복원된 Java 예외 객체를 반환한다.
 	 *
-	 * @return 복원된 예외. ({@link RESTfulErrorEntity#toException()} 참조)
+	 * @return 복원된 예외. ({@link RESTfulErrorEntity#toRemoteException()} 참조)
 	 * @throws IllegalStateException 연산 상태가 {@code FAILED}가 아니거나 실패 정보가 없는 경우.
 	 */
 	@JsonIgnore
@@ -137,7 +137,7 @@ public final class RpcResponseMessage {
 		Preconditions.checkState(m_state == RpcState.FAILED, "status is not FAILED: %s", m_state);
 		Preconditions.checkState(m_error != null, "error is null");
 
-		return m_error.toException();
+		return m_error.toRemoteException();
 	}
 	
 	@Override

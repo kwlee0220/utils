@@ -107,7 +107,7 @@ public class TypedServerErrorMessage {
 	 * 이 에러 메시지를 클라이언트 측 예외 객체로 변환하여 반환한다.
 	 * <p>
 	 * 원격 응답의 {@code code}로 임의 클래스를 로딩·복원하지 않고, {@code code}/{@code text}를 메시지에
-	 * 담은 {@link RESTfulRemoteException}을 반환한다. ({@link RESTfulErrorEntity#toException()}과 동일한
+	 * 담은 {@link RESTfulRemoteException}을 반환한다. ({@link RESTfulErrorEntity#toRemoteException()}과 동일한
 	 * 정책 — 임의 클래스 로딩 회피, 항상 예외를 '반환') 어떤 경우에도 예외를 던지지 않는다.
 	 *
 	 * @return 변환된 예외.

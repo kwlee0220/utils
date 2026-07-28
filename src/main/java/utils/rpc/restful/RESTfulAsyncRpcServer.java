@@ -148,12 +148,11 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 			return RpcResponseMessage.failed(null, e);
 		}
 
+		AsyncRpcSession session = allocateSession(execution);
 		final Holder<AsyncRpcSession> sessionHolder = Holder.of(null);
-		StartableExecution<?> finalExecution = execution;
 		try {
 			// 연산이 시작되면 해당 비동기 연산 세션 객체를 생성하고 등록한다.
 			execution.whenStarted(() -> {
-				AsyncRpcSession session = allocateSession(finalExecution);
 				sessionHolder.set(session);
 				m_guard.runChecked(() -> {
 					if ( m_sessions.containsKey(session.getSessionEndpoint()) ) {
@@ -164,17 +163,14 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 			});
 			// 연산이 종료되면 자동으로 세션을 해제하도록 한다.
 			execution.whenFinished(result -> {
-				AsyncRpcSession session = sessionHolder.get();
-				if ( session != null ) {
-					releaseSession(session);
-	
-					Duration retainTimeout = FOption.getOrElse(getSessionRetainTimeout(),
-																DEFAULT_SESSION_RETAIN_TIMEOUT);
-	    			StartableExecution<Void> delayedSessionClose
-							    			= AsyncExecutions.delay(() -> removeSession(session.getSessionEndpoint()),
-							    									retainTimeout);
-	    			delayedSessionClose.start();
-				}
+				releaseSession(session);
+
+				Duration retainTimeout = FOption.getOrElse(getSessionRetainTimeout(),
+															DEFAULT_SESSION_RETAIN_TIMEOUT);
+    			StartableExecution<Void> delayedSessionClose
+						    			= AsyncExecutions.delay(() -> removeSession(session.getSessionEndpoint()),
+						    									retainTimeout);
+    			delayedSessionClose.start();
 			});
 			
 			// 연산시작을 요청하고 완전히 시작될 때까지 대기한다.
@@ -190,9 +186,9 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 			}
 
 			// 연산의 시작 여부에 따라 응답 메시지를 생성한다.
-			AsyncRpcSession session = sessionHolder.get();
-			if ( session != null ) {
-				return buildResponseMessage(session);
+			AsyncRpcSession hold = sessionHolder.get();
+			if ( hold != null ) {
+				return buildResponseMessage(hold);
 			}
 			else {
 				// 연산 시작을 요청했지만 실패한 경우.
@@ -203,7 +199,6 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 		}
 		catch ( Exception e ) {
 			Throwable cause = Throwables.unwrapThrowable(e);
-			AsyncRpcSession session = sessionHolder.get();
 			String sessionEndpoint = (session != null) ? session.getSessionEndpoint() : null;
 			return RpcResponseMessage.failed(sessionEndpoint, cause);
 		}
