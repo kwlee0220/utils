@@ -32,7 +32,8 @@ import utils.http.JacksonErrorEntityDeserializer;
  *   <li>{@code FAILED} - 복원된 원인 예외를 cause로 갖는 {@link ExecutionException}을 던진다.</li>
  *   <li>{@code CANCELLED} - {@link CancellationException}을 던진다.</li>
  * </ul>
- * 폴링 주기와 타임아웃은 {@link Builder#setPollInterval(Duration)} / {@link Builder#setTimeout(Duration)}로 설정한다.
+ * 폴링 주기와 타임아웃은 {@link Builder#setPollInterval(Duration)} / {@link Builder#setTimeout(Duration)}로
+ * 설정한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -58,7 +59,7 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 		Preconditions.checkNotNullArgument(builder.m_jsonMapper, "jsonMapper is not specified");
 		
 		m_baseUrl = builder.m_baseUrl;
-		m_opEndpoint = m_baseUrl + "/" + builder.m_opEndpoint;
+		m_opEndpoint = concatUrl(m_baseUrl, builder.m_opEndpoint);
 		m_requestMsg = builder.m_requestMsg;
 		m_jsonMapper = builder.m_jsonMapper;
 		setTimeout(builder.m_timeout);
@@ -94,7 +95,7 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 		// 비동기 연산인 경우에는 RUNNING, FAILED 상태만 가능함.											
 		switch ( resp.getState() ) {
 			case RUNNING:
-				m_sessionUrl = m_baseUrl + resp.getSessionEndpoint();
+				m_sessionUrl = concatUrl(m_baseUrl, resp.getSessionEndpoint());
 				break;
 			case FAILED:
 				Throwable cause = resp.getJavaException();
@@ -166,6 +167,22 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 		}
 	}
 	
+	/**
+	 * 기본 URL과 경로를 정확히 하나의 '/' 구분자로 결합한다.
+	 * <p>
+	 * {@code base}의 끝이나 {@code path}의 앞에 붙은 '/'의 유무와 무관하게 동일한 결과를 만든다.
+	 *
+	 * @param base	기본 URL.
+	 * @param path	결합할 경로.
+	 * @return	결합된 URL.
+	 */
+	private static String concatUrl(String base, String path) {
+		if ( base.endsWith("/") ) {
+			base = base.substring(0, base.length() - 1);
+		}
+		return path.startsWith("/") ? base + path : base + "/" + path;
+	}
+
 	/**
 	 * {@code RESTfulAsyncRpcClient}를 생성하기 위한 빌더를 반환한다.
 	 *

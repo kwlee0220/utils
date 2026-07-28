@@ -133,12 +133,15 @@ public class RESTfulAsyncRpcClientTest {
 		client.start();
 		client.waitForFinished(5, TimeUnit.SECONDS);
 
-		// 1) 최초 POST 요청
-		var post = m_server.takeRequest();
+		// 1) 최초 POST 요청. (요청이 아예 도착하지 않는 회귀에서 suite 전체가 hang되지 않도록
+		// timeout을 두고 대기한다.)
+		var post = m_server.takeRequest(5, TimeUnit.SECONDS);
+		Assertions.assertNotNull(post, "최초 POST 요청이 도착해야 함");
 		Assertions.assertEquals("POST", post.getMethod());
 
 		// 2) 세션 state 폴링 요청 (GET .../sessions/1/state)
-		var poll = m_server.takeRequest();
+		var poll = m_server.takeRequest(5, TimeUnit.SECONDS);
+		Assertions.assertNotNull(poll, "세션 state 폴링 요청이 도착해야 함");
 		Assertions.assertEquals("GET", poll.getMethod());
 		Assertions.assertTrue(poll.getPath().endsWith("/sessions/1/state"), poll.getPath());
 	}
