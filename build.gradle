@@ -17,7 +17,7 @@ ext {
 	logback_version = '1.5.18'
 	guava_version = '33.6.0-jre'
 	rxjava3_version = '3.1.8'
-	picocli_version = '4.6.2'
+	picocli_version = '4.7.6'
 	jackson_version = '2.18.2'
 	lombok_version = '1.18.46'
 	findbugs_version = '3.0.2'
