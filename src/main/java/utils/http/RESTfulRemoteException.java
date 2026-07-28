@@ -8,7 +8,7 @@ package utils.http;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class RESTfulRemoteException extends RuntimeException {
+public class RESTfulRemoteException extends RESTfulException {
 	private static final long serialVersionUID = 1L;
 
 	private final RESTfulErrorEntity m_error;
