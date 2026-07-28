@@ -51,6 +51,26 @@ public class ReflectionUtilsTest {
 		AbstractClass() {}
 	}
 
+	static class WithStringCtor implements Tagged {
+		private final String msg;
+		WithStringCtor(String msg) { this.msg = msg; }
+	}
+
+	static class WithPrivateStringCtor {
+		private final String msg;
+		private WithPrivateStringCtor(String msg) { this.msg = msg; }
+	}
+
+	static class WithThrowingStringCtor {
+		WithThrowingStringCtor(String msg) {
+			throw new IllegalStateException("boom: " + msg);
+		}
+	}
+
+	static abstract class AbstractWithStringCtor {
+		AbstractWithStringCtor(String msg) {}
+	}
+
 	// ----- traverseClassHierarchy -----
 
 	@Test
@@ -291,6 +311,119 @@ public class ReflectionUtilsTest {
 	public void testNewInstanceByName_nullTypeCls() throws Exception {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
 			ReflectionUtils.newInstance(Dog.class.getName(), null);
+		});
+	}
+
+	// ----- newInstance(String, Class, String) -----
+
+	@Test
+	public void testNewInstanceWithMessage_passesMessageToCtor() throws Exception {
+		WithStringCtor obj = ReflectionUtils.newInstance(WithStringCtor.class.getName(),
+														WithStringCtor.class, "hello");
+		Assertions.assertEquals("hello", obj.msg);
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_upcastToExpectedType() throws Exception {
+		Tagged tagged = ReflectionUtils.newInstance(WithStringCtor.class.getName(),
+													Tagged.class, "hello");
+		Assertions.assertTrue(tagged instanceof WithStringCtor);
+		Assertions.assertEquals("hello", ((WithStringCtor)tagged).msg);
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_exceptionClass() throws Exception {
+		// 상세 메시지 하나만 받는 예외 클래스를 이름으로 생성하는 대표 용례.
+		RuntimeException error = ReflectionUtils.newInstance(IllegalStateException.class.getName(),
+															RuntimeException.class, "bad state");
+		Assertions.assertTrue(error instanceof IllegalStateException);
+		Assertions.assertEquals("bad state", error.getMessage());
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_privateConstructor() throws Exception {
+		WithPrivateStringCtor obj = ReflectionUtils.newInstance(WithPrivateStringCtor.class.getName(),
+																WithPrivateStringCtor.class, "private");
+		Assertions.assertEquals("private", obj.msg);
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_classNotFound() throws Exception {
+		Assertions.assertThrows(ClassNotFoundException.class, () -> {
+			ReflectionUtils.newInstance("no.such.Class$Missing", Object.class, "hello");
+		});
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_incompatibleType() throws Exception {
+		try {
+			ReflectionUtils.newInstance(WithStringCtor.class.getName(), Runnable.class, "hello");
+			Assertions.fail("ClassCastException 기대");
+		}
+		catch ( ClassCastException e ) {
+			Assertions.assertTrue(e.getMessage().contains("actual="), "'actual' 라벨 포함");
+			Assertions.assertTrue(e.getMessage().contains("expected="), "'expected' 라벨 포함");
+		}
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_noStringCtor() throws Exception {
+		// Dog은 no-arg 생성자만 갖는다.
+		Assertions.assertThrows(NoSuchMethodException.class, () -> {
+			ReflectionUtils.newInstance(Dog.class.getName(), Object.class, "hello");
+		});
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_interfaceInput() throws Exception {
+		Assertions.assertThrows(NoSuchMethodException.class, () -> {
+			ReflectionUtils.newInstance(Pet.class.getName(), Animal.class, "hello");
+		});
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_abstractClassWrappedAsInternalException() throws Exception {
+		try {
+			ReflectionUtils.newInstance(AbstractWithStringCtor.class.getName(),
+										AbstractWithStringCtor.class, "hello");
+			Assertions.fail("InternalException 기대");
+		}
+		catch ( InternalException e ) {
+			Assertions.assertTrue(e.getCause() instanceof InstantiationException);
+		}
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_throwingCtor() throws Exception {
+		try {
+			ReflectionUtils.newInstance(WithThrowingStringCtor.class.getName(),
+										WithThrowingStringCtor.class, "hello");
+			Assertions.fail("InvocationTargetException 기대");
+		}
+		catch ( InvocationTargetException e ) {
+			Assertions.assertTrue(e.getTargetException() instanceof IllegalStateException);
+			Assertions.assertEquals("boom: hello", e.getTargetException().getMessage());
+		}
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_nullClsName() throws Exception {
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			ReflectionUtils.newInstance(null, Object.class, "hello");
+		});
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_nullTypeCls() throws Exception {
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			ReflectionUtils.newInstance(WithStringCtor.class.getName(), null, "hello");
+		});
+	}
+
+	@Test
+	public void testNewInstanceWithMessage_nullMsg() throws Exception {
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			ReflectionUtils.newInstance(WithStringCtor.class.getName(), WithStringCtor.class, null);
 		});
 	}
 }
