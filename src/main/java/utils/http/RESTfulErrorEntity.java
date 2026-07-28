@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import utils.InternalException;
+import utils.ReflectionUtils;
+import utils.Throwables;
 import utils.func.Optionals;
 
 /**
@@ -14,7 +16,7 @@ import utils.func.Optionals;
  * JSON 형태는 {@code code}와 {@code message} 필드로 구성된다. {@code code}는 일반적으로
  * 서버에서 발생한 {@link Throwable} 구현 클래스의 fully-qualified class name이 담기지만,
  * 클라이언트는 보안상(임의 클래스 로딩 회피) 이를 이용해 예외를 복원하지 않고, {@code code}/{@code message}를
- * 보유한 {@link RESTfulRemoteException}으로 변환한다({@link #toException()} 참조).
+ * 보유한 {@link RESTfulRemoteException}으로 변환한다({@link #toRemoteException()} 참조).
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -94,8 +96,52 @@ public final class RESTfulErrorEntity {
 	 *
 	 * @return 변환된 예외.
 	 */
-	public RESTfulRemoteException toException() {
+	public RESTfulRemoteException toRemoteException() {
 		return new RESTfulRemoteException(this);
+	}
+	
+	/**
+	 * {@code code}를 예외 클래스 이름으로 간주하여 원격 예외를 클라이언트 측에서 복원한다.
+	 * <p>
+	 * {@code code}가 가리키는 클래스를 로드하여 다음과 같이 인스턴스를 생성한다.
+	 * <ul>
+	 *   <li>{@code message}가 있으면 {@code String} 인자 하나를 받는 생성자에 {@code message}를 전달한다.</li>
+	 *   <li>{@code message}가 {@code null}이면 no-arg 생성자를 사용한다.</li>
+	 * </ul>
+	 * 따라서 {@code code}는 {@link RuntimeException}의 하위 타입이면서 해당 생성자를 갖는
+	 * 클래스 이름이어야 한다.
+	 * <p>
+	 * 복원된 예외는 <b>던져지지 않고 반환</b>되며, 던지는 것은 호출자의 몫이다. 반면 복원에
+	 * <b>실패한 경우에는 반환 대신 예외가 던져진다</b>. 실패 원인은
+	 * {@link Throwables#unwrapThrowable(Throwable)}로 감싸진 계층을 벗겨낸 뒤
+	 * {@link Throwables#toRuntimeException(Throwable)}로 변환되어 전파된다.
+	 * 대표적인 실패 사유는 다음과 같다.
+	 * <ul>
+	 *   <li>{@code code}가 {@code null}이거나 해당 클래스를 찾을 수 없는 경우.</li>
+	 *   <li>로드된 클래스가 {@link RuntimeException}의 하위 타입이 아닌 경우.</li>
+	 *   <li>필요한 생성자가 없거나 그 생성자 본문에서 예외가 발생한 경우
+	 *       (이 경우 생성자가 던진 예외 자체가 전파된다).</li>
+	 * </ul>
+	 * <p>
+	 * <b>주의:</b> 이 메소드는 원격 응답이 지정한 클래스 이름을 실제로 로딩하므로,
+	 * 신뢰할 수 있는 서버의 응답에 대해서만 사용해야 한다. 임의 클래스 로딩을 피하려면
+	 * {@link #toRemoteException()}을 사용한다.
+	 *
+	 * @return {@code code}로부터 복원된 예외 객체.
+	 * @throws RuntimeException 예외 복원에 실패한 경우.
+	 * @throws Error 복원 실패의 원인이 {@link Error}인 경우 그대로 전파된다.
+	 * @see #toRemoteException()
+	 */
+	public RuntimeException toClientException() {
+		try {
+			return m_message != null
+						? ReflectionUtils.newInstance(m_code, RuntimeException.class, m_message)
+						: ReflectionUtils.newInstance(m_code, RuntimeException.class);
+		}
+		catch ( Exception e ) {
+			Throwable cause = Throwables.unwrapThrowable(e);
+			throw Throwables.toRuntimeException(cause);
+		}
 	}
 
 	/**

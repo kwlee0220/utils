@@ -66,7 +66,7 @@ public class RESTfulErrorEntityTest {
 	public void toExceptionCarriesEntity() {
 		RESTfulErrorEntity entity = RESTfulErrorEntity.of(new IOException("disk full"));
 
-		Throwable ex = entity.toException();
+		Throwable ex = entity.toRemoteException();
 
 		RESTfulRemoteException remote = assertInstanceOf(RESTfulRemoteException.class, ex);
 		assertSame(entity, remote.getRemoteErrorEntity());
