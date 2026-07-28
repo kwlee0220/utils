@@ -139,9 +139,22 @@ try (CommandExecution cmd = CommandExecution.builder()
 ```java
 import utils.async.op.AsyncExecutions;
 
-Execution<C> seq = AsyncExecutions.sequential(execA, execB, execC);
-Execution<List<R>> par = AsyncExecutions.concurrent(execA, execB);
-Execution<T>  timed = AsyncExecutions.timed(exec, Duration.ofSeconds(5));
+// 순차 실행: 결과 타입은 Object이며 값은 마지막으로 성공한 element의 결과.
+// 중간 element가 실패/취소되면 즉시 FAILED/CANCELLED로 전이하고 뒤는 시작되지 않는다.
+SequentialAsyncExecution seq = AsyncExecutions.sequential(execA, execB, execC);
+
+// 동시 실행: 결과 값은 항상 null. 개별 결과가 필요하면 element를 직접 참조한다.
+// 기본은 전원 성공이 완료 조건이며, setElementCompletionCountToComplete(n)으로 부분 완료 지정.
+ConcurrentAsyncExecution par = AsyncExecutions.concurrent(execA, execB);
+
+TimedAsyncExecution<T> timed = AsyncExecutions.timed(exec, Duration.ofSeconds(5));
 ```
 
-각 클래스의 contract 와 상태 전이 규칙은 Javadoc 참고.
+`sequential`/`concurrent`는 element의 개별 결과를 노출하지 않는다. 각 클래스의 contract 와
+상태 전이 규칙은 Javadoc 참고.
+
+### 원격 호출로 노출 — `utils.rpc.restful`
+
+`Execution`을 HTTP 원격 연산으로 노출하려면 `RESTfulAsyncRpcServer`를, 원격 연산을 호출하려면
+`RESTfulRpcClient`(동기) 또는 `RESTfulAsyncRpcClient`(비동기 폴링)를 사용한다.
+외부 명령을 그대로 원격 연산으로 제공하는 구현체는 `utils.rpc.restful.process.RESTfulCommandExecutionServer`.
