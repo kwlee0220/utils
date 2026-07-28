@@ -4,6 +4,7 @@ package utils.stream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -270,27 +271,27 @@ public class MapOrderedAsyncStreamTest {
 
 	@Test
 	public void workersRunInParallel() throws Exception {
-		// 워커 4개로 4개 작업 (각 200ms sleep) → 직렬이면 800ms+, 병렬이면 ~200ms.
+		// 워커 n개가 모두 동시에 mapper 안에 들어와야만 barrier가 풀린다.
+		// 직렬 실행이면 barrier timeout으로 mapper가 실패하므로, 경과 시간 측정 없이
+		// 시스템 부하와 무관하게 병렬성을 검증할 수 있다.
 		final int n = 4;
-		final int sleepMs = 200;
+		CyclicBarrier barrier = new CyclicBarrier(n);
 
 		Function<Integer, Integer> mapper = i -> {
-			Unchecked.runOrRTE(() -> Thread.sleep(sleepMs));
+			Unchecked.runOrRTE(() -> barrier.await(5, TimeUnit.SECONDS));
 			return i;
 		};
 
-		StopWatch watch = StopWatch.start();
 		List<Try<Integer>> results = FStream.range(0, n)
 				.mapAsync(mapper, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(n))
 				.map(Tuple::_2)
 				.toList();
-		watch.stop();
 
 		Assertions.assertEquals(n, results.size());
-		// 병렬이면 ~sleepMs (+ 약간의 오버헤드). 직렬이면 n * sleepMs.
-		long elapsed = watch.getElapsedInMillis();
-		Assertions.assertTrue(elapsed < (long)n * sleepMs / 2,
-							() -> "워커가 병렬 실행되어야 함 (elapsed=" + elapsed + "ms, threshold=" + (n * sleepMs / 2) + ")");
+		for ( Try<Integer> r : results ) {
+			Assertions.assertTrue(r.isSuccessful(),
+								() -> "워커 " + n + "개가 동시에 실행되어 barrier에 도달해야 함: " + r);
+		}
 	}
 
 	// ---------- 워커 수 한도 ----------

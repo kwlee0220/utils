@@ -5,9 +5,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
@@ -52,30 +55,37 @@ public class MapUnorderedAsyncStreamTest {
 
 	@Test
 	public void resultsEmittedInCompletionOrder_notInputOrder() throws Exception {
-		// 입력은 [0,1,2,3,4] 이지만 mapper sleep은 (4-i)*50ms 로 역순.
-		// → 마지막 입력(4)이 가장 빨리 끝나므로 결과는 입력 역순에 가까워야 한다.
+		// 입력은 [0,1,2,3,4]. 마지막 입력(4)만 즉시 완료되고, 나머지는 latch로 막아둔다.
+		// → 첫 방출은 반드시 4가 되어야 하며, 이후 latch를 풀어 나머지를 완료시킨다.
+		// sleep 시간 차이에 의존하지 않으므로 시스템 부하와 무관하게 결정적으로 동작한다.
+		final int n = 5;
+		CountDownLatch release = new CountDownLatch(1);
+
 		Function<Integer, Integer> mapper = i -> {
-			Unchecked.runOrRTE(() -> Thread.sleep((4 - i) * 50L));
+			if ( i < n - 1 ) {
+				Unchecked.runOrRTE(() -> release.await(5, TimeUnit.SECONDS));
+			}
 			return i;
 		};
 
-		List<Tuple<Integer, Try<Integer>>> results = FStream.range(0, 5)
-				.mapAsync(mapper, unordered(5))
-				.toList();
+		try ( FStream<Tuple<Integer, Try<Integer>>> stream = FStream.range(0, n)
+																	.mapAsync(mapper, unordered(n)) ) {
+			// 유일하게 완료 가능한 4가 입력 순서(0)를 제치고 가장 먼저 방출되어야 한다.
+			Tuple<Integer, Try<Integer>> first = stream.next().get();
+			Assertions.assertEquals(Integer.valueOf(n - 1), first._1());
+			Assertions.assertTrue(first._2().isSuccessful());
 
-		Assertions.assertEquals(5, results.size());
+			// 나머지 작업들을 풀어주고 모두 방출되는지 확인한다 (순서 무관).
+			release.countDown();
 
-		// 입력 원소들은 모두 나타나야 한다 (순서 무관).
-		Set<Integer> inputs = new HashSet<>();
-		for ( Tuple<Integer, Try<Integer>> r : results ) {
-			Assertions.assertTrue(r._2().isSuccessful(), () -> "Try should succeed: " + r);
-			Assertions.assertEquals(r._1(), r._2().get());
-			inputs.add(r._1());
+			Set<Integer> remains = new HashSet<>();
+			for ( Tuple<Integer, Try<Integer>> r : stream ) {
+				Assertions.assertTrue(r._2().isSuccessful(), () -> "Try should succeed: " + r);
+				Assertions.assertEquals(r._1(), r._2().get());
+				remains.add(r._1());
+			}
+			Assertions.assertEquals(new HashSet<>(FStream.range(0, n - 1).toList()), remains);
 		}
-		Assertions.assertEquals(new HashSet<>(FStream.range(0, 5).toList()), inputs);
-
-		// 첫 결과는 가장 늦게 시작했지만 가장 빨리 끝나는 4. 입력 순서(0)와 다름을 확인.
-		Assertions.assertEquals(Integer.valueOf(4), results.get(0)._1());
 	}
 
 	// ---------- 종료 조건 ----------
@@ -231,25 +241,26 @@ public class MapUnorderedAsyncStreamTest {
 
 	@Test
 	public void workersRunInParallel() throws Exception {
-		// 워커 4개로 4개 작업 (각 200ms sleep) → 직렬이면 800ms+, 병렬이면 ~200ms.
+		// 워커 n개가 모두 동시에 mapper 안에 들어와야만 barrier가 풀린다.
+		// 직렬 실행이면 barrier timeout으로 mapper가 실패하므로, 경과 시간 측정 없이
+		// 시스템 부하와 무관하게 병렬성을 검증할 수 있다.
 		final int n = 4;
-		final int sleepMs = 200;
+		CyclicBarrier barrier = new CyclicBarrier(n);
 
 		Function<Integer, Integer> mapper = i -> {
-			Unchecked.runOrRTE(() -> Thread.sleep(sleepMs));
+			Unchecked.runOrRTE(() -> barrier.await(5, TimeUnit.SECONDS));
 			return i;
 		};
 
-		StopWatch watch = StopWatch.start();
 		List<Tuple<Integer, Try<Integer>>> results = FStream.range(0, n)
 				.mapAsync(mapper, unordered(n))
 				.toList();
-		watch.stop();
 
 		Assertions.assertEquals(n, results.size());
-		long elapsed = watch.getElapsedInMillis();
-		Assertions.assertTrue(elapsed < (long)n * sleepMs / 2,
-							() -> "워커가 병렬 실행되어야 함 (elapsed=" + elapsed + "ms, threshold=" + (n * sleepMs / 2) + ")");
+		for ( Tuple<Integer, Try<Integer>> r : results ) {
+			Assertions.assertTrue(r._2().isSuccessful(),
+								() -> "워커 " + n + "개가 동시에 실행되어 barrier에 도달해야 함: " + r);
+		}
 	}
 
 	// ---------- 워커 수 한도 ----------

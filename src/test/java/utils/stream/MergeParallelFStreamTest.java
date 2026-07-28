@@ -1,5 +1,6 @@
 package utils.stream;
 
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import org.junit.jupiter.api.Assertions;
@@ -46,13 +47,19 @@ public class MergeParallelFStreamTest {
 	
 	@Test
 	public void test3() throws Exception {
+		// 세 스트림이 동시에 병합될 때 스트림 간 인터리빙 순서는 스케줄링에 따라 달라질 수
+		// 있으므로, 전체 순서 대신 "원소 누락 없음 + 스트림별 상대 순서 보존"만 검증한다.
 		FStream<FStream<String>> fact = FStream.of(
 											FStream.generate(this::generateStreamA, 2),
 											FStream.generate(this::generateStreamB, 2),
 											FStream.generate(this::generateStreamC, 2)
 										);
-		String ret = FStream.mergeParallel(fact, 8, null).join("");
-		Assertions.assertEquals("a1b1c1a2c2a3b3c3c4", ret);
+		List<String> ret = FStream.mergeParallel(fact, 8, null).toList();
+
+		Assertions.assertEquals(9, ret.size());
+		assertPerStreamOrder(ret, "a", "a1", "a2", "a3");
+		assertPerStreamOrder(ret, "b", "b1", "b3");
+		assertPerStreamOrder(ret, "c", "c1", "c2", "c3", "c4");
 	}
 	
 	@Test
@@ -79,13 +86,31 @@ public class MergeParallelFStreamTest {
 	
 	@Test
 	public void test10() throws Exception {
+		// 스트림 A가 a2 공급 후 예외로 종료되어도 병합 스트림은 나머지 스트림들을 계속
+		// 처리해야 한다. test3()과 같은 이유로 스트림별 상대 순서만 검증한다.
 		FStream<FStream<String>> fact = FStream.of(
 											FStream.generate(this::generateStreamAX, 2),
 											FStream.generate(this::generateStreamB, 2),
 											FStream.generate(this::generateStreamC, 2)
 										);
-		String ret = FStream.mergeParallel(fact, 8, null).join("");
-		Assertions.assertEquals("a1b1c1a2c2b3c3c4", ret);
+		List<String> ret = FStream.mergeParallel(fact, 8, null).toList();
+
+		Assertions.assertEquals(8, ret.size());
+		assertPerStreamOrder(ret, "a", "a1", "a2");	// 예외 이전에 공급된 a1, a2만 방출.
+		assertPerStreamOrder(ret, "b", "b1", "b3");
+		assertPerStreamOrder(ret, "c", "c1", "c2", "c3", "c4");
+	}
+
+	/**
+	 * 병합 결과에서 주어진 prefix를 갖는 원소들만 추렸을 때, 해당 스트림이 공급한
+	 * 순서 그대로 나타나는지 검증한다.
+	 */
+	private static void assertPerStreamOrder(List<String> merged, String prefix, String... expecteds) {
+		List<String> actuals = FStream.from(merged)
+										.filter(s -> s.startsWith(prefix))
+										.toList();
+		Assertions.assertEquals(List.of(expecteds), actuals,
+								() -> "스트림 '" + prefix + "'의 원소 누락 또는 순서 위반: merged=" + merged);
 	}
 	
 	@Test
