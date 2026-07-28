@@ -548,7 +548,8 @@ public class HttpRESTfulClient implements LoggerSettable {
 		else if ( root.hasNonNull("code") || root.hasNonNull("message") ) {
 			// 우리 포맷: RESTfulErrorEntity {code, message} (주입된 deserializer로 위임)
 			try {
-				return toRemoteException(m_errorEntityDeser.deserialize(respBody).toException());
+				RESTfulErrorEntity error = m_errorEntityDeser.deserialize(respBody);
+				return error.toClientException();
 			}
 			catch ( IOException e ) {
 				return new RESTfulIOException("Failed to parse RESTful error response: response=" + respBody, e);
