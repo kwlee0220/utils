@@ -279,12 +279,13 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		// 미정의 명령 변수는 그대로 두어, 두 단계 모두에서 매칭되지 않은 ${X}는 sub-process에
 		// 그대로 전달된다.
 		CommandVariableLookup lut = new CommandVariableLookup(m_variables);
-		StringSubstitutor cmdVarSubst = new StringSubstitutor(lut);
+		StringSubstitutor cmdVarSubst = new StringSubstitutor(lut)
+												.setEnableUndefinedVariableException(true);
 		
 		// Command line에 포함된 일반 변수들을 실제 값으로 치환한다.
 		Map<String,String> initMapping = Map.of("WORKING_DIR", m_workingDirectory.getAbsolutePath());
 		StrSubstitutor subst = StrSubstitutor.with(initMapping)
-									.failOnUndefinedVariable(true)
+									.failOnUndefinedVariable(false)
 									.enableNestedSubstitution(true);
 		List<String> command = FStream.from(m_command)
 										.map(cmd -> {
