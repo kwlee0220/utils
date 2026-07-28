@@ -4,7 +4,7 @@ Async execution primitives. Built on `Execution<T> extends Future<T>` with expli
 
 ## Core types
 
-- **`Execution<T>`** — `Future<T>` extension. Adds `AsyncState`, `whenStarted`/`whenStartedAsync`/`whenFinished`/`whenFinishedAsync` listeners, `map`/`flatMap` chaining, `waitForStarted`/`waitForFinished`, `setTimeout`.
+- **`Execution<T>`** — `Future<T>` extension. Adds `AsyncState` (+ `isNotStarted`/`isRunning`/`isCompleted`/`isFailed`/`isCancelled` predicates), `whenStarted`/`whenStartedAsync`/`whenFinished`/`whenFinishedAsync` listeners, `map` chaining, `poll()`, `waitForStarted`/`waitWhileStarting`/`waitForFinished` (each with no-arg, `(timeout, TimeUnit)`, and `(Date due)` forms), `get(Date)`/`getUnchecked()`, and `setTimeout(long, TimeUnit)`. `flatMap` lives on `EventDrivenExecution`, not on the interface.
 - **`AsyncState`** — `NOT_STARTED` → `STARTING` → `RUNNING` → terminal (`COMPLETED` | `CANCELLED` | `FAILED`). `CANCELLING` is a transition state requested via `cancel(true)`.
 - **`AsyncResult<T>`** — Snapshot of a finished/running execution. Returned by `poll()` and `waitForFinished()`.
 - **`Result<T>`** (in `utils.func`) — Sum type for completion outcome; used by `getResult()` and `whenFinished` callback (`ifSuccessful`/`ifFailed`/`ifNone`).
@@ -23,6 +23,7 @@ Async execution primitives. Built on `Execution<T> extends Future<T>` with expli
 - **`PeriodicPoller<T>`** — Concrete builder-based variant of `AbstractPeriodicPoller`. Static factories: `poll(Supplier)` (non-null = done), `pollUntil(BooleanSupplier)`, `pollWhile(BooleanSupplier)`. Builder configures `interval` (cumulative) / `delay` (non-cumulative) — mutually exclusive, last call wins — plus `timeout`/`due` (due wins if both set), `initializer`, and `name`.
 - **`AbstractLoopThreadService`** — Long-running service variant (start/stop loop on demand).
 - **`CompletableFutureAsyncExecution<T>`** — Bridges `CompletableFuture<T>` into `Execution<T>`. Implements `CancellableWork`.
+- **`ListenableFutureAsyncExecution<T>`** — Bridges a Guava `ListenableFuture<T>` into `Execution<T>`. Subclass implements `startExecution()` to launch and return the future; a `FutureCallback` drives `notifyCompleted`/`notifyFailed`, mapping an unwrapped `CancellationException` to `notifyCancelled`. Implements `StartableExecution` + `CancellableWork` (`cancelWork()` → `future.cancel(true)`).
 
 ## Cancellation flow
 
@@ -52,7 +53,11 @@ Generic concurrency primitives previously living here have moved to `utils.threa
 ## Subpackages
 
 - **[utils.async.op](op/)** — Combinators (`SequentialAsyncExecution`, `ConcurrentAsyncExecution`, `FoldedAsyncExecution`, `TimedAsyncExecution`, `BackgroundedAsyncExecution`, `DelayedAsyncExecution`, `FlatMapAsyncExecution`) + `AsyncExecutions` static factory façade.
-- **[utils.async.command](command/)** — Sub-process orchestration: `CommandExecution` (builder-based, variable substitution, stdin/stdout/stderr redirection, timeout, SIGTERM-then-SIGKILL termination via `utils.ProcessTree`), `ProgramService`, `ServiceShutdownHook`.
+- **[utils.async.command](command/)** — Sub-process orchestration: `CommandExecution` (builder-based, variable substitution, stdin/stdout/stderr redirection, timeout, SIGTERM-then-SIGKILL termination via `utils.ProcessTree`), `CommandVariable` (named value held inline or in a file; referenced from the command line as `${<var>:<modifier>}` where the modifier is `name` (default), `value`, or `path` — `path` materializes the value into a file and substitutes its absolute path), `ProgramService` (supervises a child process on the Guava `AbstractService` lifecycle, restarting it per `RestartPolicy` — default `ALWAYS` — with `restartDelay`; child stdout/stderr are merged into `application.log` in the working directory), `ProgramServiceConfig` (JSON-loadable config: command line, working directory, environment, restart policy, start timeout), `ServiceShutdownHook` (JVM shutdown hook for Guava `Service`s; unregister via the returned `Registration` on the normal path).
+
+## Downstream
+
+- **`utils.rpc.restful`** — Exposes an `Execution` as a remote operation over HTTP. `RESTfulAsyncRpcServer` starts a `StartableExecution` per request and serves status/cancel against it; `RESTfulAsyncRpcClient` is an `AbstractPeriodicPoller` that polls the resulting session to completion. `utils.rpc.restful.process` wires `CommandExecution` into that server.
 
 ## Conventions
 

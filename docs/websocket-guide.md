@@ -163,10 +163,10 @@ chart.sendText(...) / sendBinary(...)            ← 차트 RUNNING 동안 송�
 
 | 상태 | 베이스 | `enter()` 동작 |
 |---|---|---|
-| [`OpenWebSocket`](../src/main/java/utils/websocket/States.java#L26) | `AbstractState` | 비동기로 `HttpClient.newWebSocketBuilder().buildAsync(uri, listener)` 호출. 성공 시 `setWebSocket(ws)` + `Connected` 신호 발송 → `targetStatePath`로 전이. 실패 시 `ConnectionFailed` 신호 → `failStatePath`로 전이. |
-| [`CompletedState`](../src/main/java/utils/websocket/States.java#L86) | `SinkState` | `WebSocket.sendClose(NORMAL_CLOSURE, ...)` 후 join. |
-| [`CancelledState`](../src/main/java/utils/websocket/States.java#L98) | `SinkState` | 위와 동일 (취소 경로용 명명). |
-| [`ErrorState`](../src/main/java/utils/websocket/States.java#L110) | `ExceptionState` | 비정상 종료 경로용 close. |
+| [`OpenWebSocket`](../src/main/java/utils/websocket/States.java#L50) | `AbstractState` | 비동기로 `HttpClient.newWebSocketBuilder().buildAsync(uri, listener)` 호출. 성공 시 `setWebSocket(ws)` + `Connected` 신호 발송 → `targetStatePath`로 전이. 실패 시 `ConnectionFailed` 신호 → `failStatePath`로 전이. |
+| [`CompletedState`](../src/main/java/utils/websocket/States.java#L110) | `SinkState` | `WebSocket.sendClose(NORMAL_CLOSURE, ...)` 후 join. |
+| [`CancelledState`](../src/main/java/utils/websocket/States.java#L121) | `SinkState` | 위와 동일 (취소 경로용 명명). |
+| [`ErrorState`](../src/main/java/utils/websocket/States.java#L132) | `ExceptionState` | 비정상 종료 경로용 close. |
 
 ### 3.5 차트 구성 예제 — 에코 클라이언트
 
@@ -291,7 +291,7 @@ chart.waitForFinished();
 | [`WebSocketContext<C>`](../src/main/java/utils/websocket/WebSocketContext.java) | 서버 URL 보유 도메인 컨텍스트 (CRTP) |
 | [`WebSocketListener<C>`](../src/main/java/utils/websocket/WebSocketListener.java) | (package-private) 콜백 → 신호 변환 + ping 타이머 |
 | [`Signals`](../src/main/java/utils/websocket/Signals.java) | 6종 도메인 신호 |
-| [`States.OpenWebSocket`](../src/main/java/utils/websocket/States.java#L26) | 비동기 연결 상태 |
-| [`States.CompletedState`](../src/main/java/utils/websocket/States.java#L86) | 정상 종료 SinkState |
-| [`States.CancelledState`](../src/main/java/utils/websocket/States.java#L98) | 취소 경로 SinkState |
-| [`States.ErrorState`](../src/main/java/utils/websocket/States.java#L110) | 실패 경로 ExceptionState |
+| [`States.OpenWebSocket`](../src/main/java/utils/websocket/States.java#L50) | 비동기 연결 상태 |
+| [`States.CompletedState`](../src/main/java/utils/websocket/States.java#L110) | 정상 종료 SinkState |
+| [`States.CancelledState`](../src/main/java/utils/websocket/States.java#L121) | 취소 경로 SinkState |
+| [`States.ErrorState`](../src/main/java/utils/websocket/States.java#L132) | 실패 경로 ExceptionState |

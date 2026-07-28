@@ -326,7 +326,7 @@ unlock
 
 ### 5.1 단일 lock으로 직렬화
 
-`StateChart`는 [`Guard`](../src/main/java/utils/async/Guard.java) 한 개를 보유하며, 다음 작업이 모두 같은 lock 안에서 실행된다:
+`StateChart`는 [`Guard`](../src/main/java/utils/thread/Guard.java) 한 개를 보유하며, 다음 작업이 모두 같은 lock 안에서 실행된다:
 
 - `start()`
 - `handleSignal()`
@@ -414,9 +414,9 @@ state.selectTransition(errorSignal) ==
 
 `SingleOutState`의 비교가 `equals()` 기반이므로 enum 싱글턴 또는 record (구조 동일성) 권장. 매번 `new MySignal()` 형태는 instance equality 미스로 trigger 매칭 실패.
 
-### 8.2 State path는 dot-notation
+### 8.2 State path는 slash-notation
 
-`AbstractState` 생성자에서 path를 `.`으로 분리하여 `pathSegments` 리스트 생성. 합성 상태 계층 표현에 자연스럽다 (`"root.child.grandchild"`).
+`AbstractState` 생성자에서 path를 `/`로 분리하여 `pathSegments` 리스트를 생성한다. 선두 `/`로 인해 생기는 빈 세그먼트는 제거되므로, `"/Running/ReceivingVideo"`는 `["Running", "ReceivingVideo"]`가 된다. 합성 상태 계층 표현에 자연스럽다.
 
 ### 8.3 enter는 가벼운 setup, 무거운 작업은 비동기
 

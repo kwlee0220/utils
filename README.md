@@ -1,8 +1,9 @@
 ## utils (`etri:utils`)
 
-Java 17 유틸리티 라이브러리. `utils.*` 패키지 하위에 함수형 빌딩 블록(`FOption`, `Result`, `Either`, `Try`, `Lazy`, `Checked*`/`Unchecked*` 함수 패밀리), 풀-기반 스트림 API(`FStream` 계열), 비동기 실행 프레임워크(`Execution<T>` / `EventDrivenExecution` / `PeriodicLoopExecution` / `PeriodicPoller`), 상태차트, 스레드 유틸리티(`Guard`, `Timer`, `SingleWaiterExecutor`), I/O, JDBC/JPA, HTTP REST 클라이언트, WebSocket, Picocli CLI 등 다양한 공용 모듈을 제공한다. `main` 메서드는 없고, 빌드 산출물(JAR)은 `$HOME/development/...` 하위의 다른 프로젝트들에서 의존성으로 소비된다.
+Java 17 유틸리티 라이브러리. `utils.*` 패키지 하위에 함수형 빌딩 블록(`FOption`, `Result`, `Either`, `Try`, `Lazy`, `Checked*`/`Unchecked*` 함수 패밀리), 풀-기반 스트림 API(`FStream` 계열), 비동기 실행 프레임워크(`Execution<T>` / `EventDrivenExecution` / `PeriodicLoopExecution` / `PeriodicPoller`), 외부 프로세스 실행(`CommandExecution`, `ProgramService`), 상태차트, 스레드 유틸리티(`Guard`, `Timer`, `SingleWaiterExecutor`), I/O, JDBC/JPA, HTTP REST 클라이언트, RESTful RPC(`RESTfulRpcClient` / `RESTfulAsyncRpcClient` / `RESTfulAsyncRpcServer`), WebSocket, Picocli CLI 등 다양한 공용 모듈을 제공한다. `main` 메서드는 없고, 빌드 산출물(JAR)은 `$HOME/development/...` 하위의 다른 프로젝트들에서 의존성으로 소비된다.
 
 자세한 패키지 구조와 컨벤션은 [CLAUDE.md](CLAUDE.md)와 다음 문서를 참고한다.
+* 스트림: [docs/stream-guide.md](docs/stream-guide.md), [src/main/java/utils/stream/CLAUDE.md](src/main/java/utils/stream/CLAUDE.md)
 * 상태차트: [docs/statechart-guide.md](docs/statechart-guide.md), [src/main/java/utils/statechart/CLAUDE.md](src/main/java/utils/statechart/CLAUDE.md)
 * WebSocket: [docs/websocket-guide.md](docs/websocket-guide.md), [src/main/java/utils/websocket/CLAUDE.md](src/main/java/utils/websocket/CLAUDE.md)
 * 비동기 실행: [src/main/java/utils/async/CLAUDE.md](src/main/java/utils/async/CLAUDE.md)
@@ -51,11 +52,15 @@ Eclipse IDE를 이용하려는 경우 `eclipse` Gradle 태스크를 수행시켜
 
 ### 4. 테스트 실행
 
-테스트는 JUnit 4 + Mockito 기반이며, 다음과 같이 실행한다.
+테스트는 JUnit 5(Jupiter) + Mockito 기반이며, 다음과 같이 실행한다.
 <pre><code>$ gradle test                                       # 전체 테스트
 $ gradle test --tests utils.stream.MapTest          # 특정 테스트 클래스
 $ gradle test --tests 'utils.stream.*'              # 패키지 단위
 </code></pre>
+
+> `test` 태스크는 `useJUnitPlatform()`으로 설정되어 있고, Mockito/cglib의 리플렉션 접근을 위해
+> `--add-opens=java.base/java.lang=ALL-UNNAMED`를 JVM 인자로 전달한다.
+> HTTP 계열 테스트(`utils.http`, `utils.rpc.restful`)는 OkHttp `mockwebserver`를 사용한다.
 
 ### 5. 산출물
 
