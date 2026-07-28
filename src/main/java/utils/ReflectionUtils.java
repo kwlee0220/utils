@@ -212,4 +212,64 @@ public final class ReflectionUtils {
 		Class<? extends T> typed = (Class<? extends T>)cls;
 		return newInstance(typed);
 	}
+
+	/**
+	 * 주어진 클래스 이름을 로드하여 {@code String} 인자 하나를 받는 생성자로 새 인스턴스를 생성하되,
+	 * 로드된 클래스가 {@code typeCls}의 하위 타입인지 검증한다.
+	 * <p>
+	 * 접근 제어자(private 포함)와 무관하게 호출 가능하다. 예외 클래스처럼 상세 메시지 하나만
+	 * 받는 타입을 클래스 이름으로부터 생성할 때 사용한다.
+	 * 검증 통과 시 {@code typeCls} 타입으로 캐스팅된 인스턴스를 반환한다.
+	 * 실패 사유에 따라 다음과 같이 예외가 분리되어 전파된다.
+	 * <ul>
+	 *   <li>{@link ClassNotFoundException} — 클래스 이름에 해당하는 클래스를 찾지 못한 경우.</li>
+	 *   <li>{@link ClassCastException} — 로드된 클래스가 {@code typeCls}의 하위 타입이 아닌 경우.</li>
+	 *   <li>{@link NoSuchMethodException} — {@code String} 인자 하나를 받는 생성자가 존재하지 않는 경우.
+	 *       인터페이스(인스턴스 생성자 자체가 없음) 입력 시에도 이 예외가 발생한다.</li>
+	 *   <li>{@link InvocationTargetException} — 생성자 본문에서 예외가 발생한 경우.
+	 *       실제 원인은 {@link InvocationTargetException#getTargetException()} 또는
+	 *       {@link Throwable#getCause()}로 확인할 수 있다.</li>
+	 *   <li>{@link InternalException} — 추상 클래스이거나 접근 권한 변경 실패 등 기타 사유로
+	 *       인스턴스화에 실패한 경우. 원본 예외는 cause로 보존된다.</li>
+	 *   <li>{@link SecurityException} — (unchecked) {@link Constructor#setAccessible(boolean)} 호출이
+	 *       SecurityManager에 의해 차단된 경우 그대로 전파된다.</li>
+	 * </ul>
+	 *
+	 * @param <T>		반환 인스턴스 타입.
+	 * @param clsName	로드할 클래스의 fully-qualified 이름. {@code null}이면 안 된다.
+	 * @param typeCls	기대 타입의 {@link Class}. {@code null}이면 안 된다.
+	 * @param msg		생성자에 전달할 문자열 인자. {@code null}이면 안 된다.
+	 * @return	{@code typeCls}로 캐스팅된 새 인스턴스.
+	 * @throws ClassNotFoundException		클래스 로딩 실패.
+	 * @throws ClassCastException			로드된 클래스가 {@code typeCls}의 하위 타입이 아닌 경우.
+	 * @throws NoSuchMethodException		{@code String} 인자 하나를 받는 생성자가 없는 경우.
+	 * @throws InvocationTargetException	생성자 본문에서 예외가 발생한 경우.
+	 * @throws InternalException			추상 클래스이거나 접근 권한 변경 실패 등 기타 사유.
+	 * @throws SecurityException			(unchecked) SecurityManager가 {@code setAccessible} 호출을
+	 *										차단한 경우.
+	 */
+	public static <T> T newInstance(String clsName, Class<T> typeCls, String msg)
+		throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException {
+		Preconditions.checkNotNullArgument(clsName, "clsName is null");
+		Preconditions.checkNotNullArgument(typeCls, "typeCls is null");
+		Preconditions.checkNotNullArgument(msg, "msg is null");
+
+		Class<?> cls = Class.forName(clsName);
+		if ( !typeCls.isAssignableFrom(cls) ) {
+			String message = String.format("Incompatible class-cast: actual=%s, expected=%s",
+											clsName, typeCls.getName());
+			throw new ClassCastException(message);
+		}
+
+		@SuppressWarnings("unchecked")
+		Class<? extends T> typed = (Class<? extends T>)cls;
+		try {
+			Constructor<? extends T> ctor = typed.getDeclaredConstructor(String.class);
+			ctor.setAccessible(true);
+			return ctor.newInstance(msg);
+		}
+		catch ( IllegalAccessException | InstantiationException | IllegalArgumentException e ) {
+			throw new InternalException("Failed to create an instance of class: " + clsName, e);
+		}
+	}
 }
