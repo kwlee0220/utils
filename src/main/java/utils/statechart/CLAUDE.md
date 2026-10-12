@@ -17,7 +17,7 @@ Hierarchical state chart built on top of `utils.async.AbstractAsyncExecution`. S
 - **`SingleOutState<C>`** — Reacts to exactly one trigger Signal (matched via `equals`); returns a static or supplier-provided transition. Other signals → `Optional.empty()`.
 - **`SinkState<C>`** — Final-state base. `exit()` and `selectTransition` throw `UnsupportedOperationException`.
 - **`ExceptionState<C>`** — `extends SinkState<C>`. Holds a `failureCause`. When chart's `traverse` reaches an `ExceptionState` that's a final state, `fail(cause)` is called instead of `complete()`. The cause must be set by the inbound transition's action before traverse calls `enter`.
-- **`DefaultCompositeState<C>`** — Holds an initial sub-state and forwards `selectTransition` to the current sub-state. `enter` requires not-yet-entered, `exit` requires entered (otherwise throws `IllegalStateException`).
+- **`DefaultCompositeState<C>`** — Holds an initial sub-state and forwards `selectTransition` to the current sub-state. `enter` requires not-yet-entered, `exit` requires entered (otherwise throws `IllegalStateException`). **Currently unusable from outside this package**: `setInitialState` is package-private and nothing else sets the field, so `enter()` NPEs unless the caller lives in `utils.statechart`. Only the tests exercise it.
 
 ## Transition factories (`Transitions`)
 
@@ -43,6 +43,8 @@ Hierarchical state chart built on top of `utils.async.AbstractAsyncExecution`. S
 - `addState` / `setInitialState` / `addFinalState` reject calls after the chart has started (`isNotStarted()` check).
 - `getState(path)` returns `null` for unknown paths (NOT IllegalArgumentException).
 - Argument validation uses `utils.Preconditions.checkNotNull` / `checkNotNullArgument` / `checkArgument`. Korean Javadoc dominant.
+- Two exceptions to that convention remain: `StateChart`'s constructor and all of `DefaultCompositeState` still use Guava `Preconditions`. Behaviour matches (`checkNotNull` → NPE, `checkState` → ISE) so the Javadoc `@throws` are written against the current behaviour; converting them changes nothing observable but should be done as one pass.
+- Javadoc in `StateChart` must write `{@link utils.statechart.State}` in full — the simple name does not resolve there (the source declares the type fully-qualified throughout), and `gradle javadoc` fails with "reference not found".
 
 ## Common gotchas
 

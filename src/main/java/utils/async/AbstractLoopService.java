@@ -10,7 +10,7 @@ import utils.thread.Guard;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public abstract class AbstractLoopThreadService extends AbstractExecutionThreadService {
+public abstract class AbstractLoopService extends AbstractExecutionThreadService {
 	protected final Guard m_guard = Guard.create();
 	@GuardedBy("m_guard") protected boolean m_stopRequested = false;
 	

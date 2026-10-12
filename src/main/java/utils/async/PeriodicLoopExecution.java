@@ -29,7 +29,7 @@ import utils.func.FOption;
  *  이 메소드는 {@link #getLoopInterval()} 주기로 반복적으로 호출되고, 반드시 구현해야 한다.
  * </ul>
  *
- * <h3>선택 옵션</h3>
+ * <h2>선택 옵션</h2>
  * 다음 옵션들은 loop 시작 전에만 설정할 수 있으며, 동작에 큰 영향을 준다.
  * <ul>
  *  <li>{@code cumulativeInterval} (생성자 인자):

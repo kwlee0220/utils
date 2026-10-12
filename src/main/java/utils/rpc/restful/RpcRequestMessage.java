@@ -104,8 +104,9 @@ public class RpcRequestMessage {
 
 	@Override
 	public String toString() {
-		String inputNames = FStream.from(m_inputs.keySet()).join(", ");
-
-		return inputNames;
+		return String.format("RpcRequestMessage[inputs={%s}, outputs={%s}, extraFields={%s}]",
+								FStream.from(m_inputs.keySet()).join(", "),
+								FStream.from(m_outputs.keySet()).join(", "),
+								FStream.from(m_extraFields.keySet()).join(", "));
 	}
 }

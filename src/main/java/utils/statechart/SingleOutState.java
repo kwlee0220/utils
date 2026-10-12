@@ -9,7 +9,7 @@ import utils.Preconditions;
 /**
  * 단 하나의 trigger 신호에만 반응하여 단일 전이를 수행하는 상태.
  * <p>
- * 생성 시 지정된 trigger 신호와 정확히 일치하는 신호({@code ==} 비교)가 들어오면
+ * 생성 시 지정된 trigger 신호와 일치하는 신호({@link Object#equals(Object)} 비교)가 들어오면
  * {@link #selectTransition(Signal)}이 등록된 전이를 반환하고, 그 외의 신호는
  * {@link Optional#empty()}을 반환하여 무시한다. 가장 단순한 형태의 상태로,
  * "특정 신호 도착 → 다음 상태로 이동" 시나리오에 적합하다.

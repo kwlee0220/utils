@@ -38,9 +38,8 @@ public class CommandVariable implements Keyed<String> {
 	 * 				{@link #m_file}에서 읽어온다.
 	 * @param file	Command variable 값이 기록될 파일.
 	 */
-	public CommandVariable(String name, @Nullable String value, @NonNull File file) {
+	public CommandVariable(@NotNull String name, @Nullable String value, @NotNull File file) {
 		Preconditions.checkNotNullArgument(name, "name");
-		Preconditions.checkNotNullArgument(value, "value is null");
 		Preconditions.checkNotNullArgument(file, "file is null");
 
 		m_name = name;
@@ -55,7 +54,7 @@ public class CommandVariable implements Keyed<String> {
 	 * @param value	Command variable 값.
 	 * @throws IOException	Command variable 값이 기록될 임시 파일을 생성하는 중 오류가 발생한 경우.
 	 */
-	public CommandVariable(String name, @NonNull String value) throws IOException {
+	public CommandVariable(@NotNull String name, @NotNull String value) throws IOException {
 		Preconditions.checkNotNullArgument(name, "name is null");
 		Preconditions.checkNotNullArgument(value, "value is null");
 
@@ -69,9 +68,8 @@ public class CommandVariable implements Keyed<String> {
 	 *
 	 * @param name	Command variable 이름.
 	 * @param file	Command variable 값이 기록될 파일.
-	 * @throws IOException	Command variable 값이 기록될 임시 파일을 생성하는 중 오류가 발생한 경우.
 	 */
-	public CommandVariable(String name, File file) throws IOException {
+	public CommandVariable(@NotNull String name, @NotNull File file) {
 		Preconditions.checkNotNullArgument(name, "name");
 		Preconditions.checkNotNullArgument(file, "file");
 
@@ -90,7 +88,7 @@ public class CommandVariable implements Keyed<String> {
 		return getName();
 	}
 
-	public String getName() {
+	public @NotNull String getName() {
 		return m_name;
 	}
 	

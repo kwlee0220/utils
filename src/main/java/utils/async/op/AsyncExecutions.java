@@ -45,7 +45,7 @@ import utils.stream.FStream;
  *       {@link #concurrent(StartableExecution...)},
  *       {@link #backgrounded(StartableExecution, StartableExecution)},
  *       {@link #fold(FStream, Supplier, BiFunction)}.</li>
- *   <li><b>스케줄러</b> — {@link #getScheduler()}, {@link #createScheduler()}.</li>
+ *   <li><b>스케줄러</b> — {@link #createScheduler()}.</li>
  * </ul>
  * 시간 관련 메소드의 executor 정책:
  * <ul>
@@ -53,9 +53,10 @@ import utils.stream.FStream;
  *       {@link #delay(Execution, Duration)}는
  *       {@link CompletableFutureAsyncExecution#getDelayedExecutor}를 사용한다.
  *       {@link #delay(Execution, Duration, Executor)}는 호출자가 지정한 {@link Executor}를 사용한다.</li>
- *   <li>{@link #timed(StartableExecution, Duration)}는 공유
- *       {@link ListeningScheduledExecutorService}({@link #getScheduler()})를 사용한다.
- *       해당 스케줄러는 최초 호출 시 lazy하게 생성된다.</li>
+ *   <li>{@link #timed(StartableExecution, Duration)}는 공용 스케줄러
+ *       {@link Executions#getExecutor()}를 사용한다.
+ *       다른 스케줄러가 필요하면 {@link #timed(StartableExecution, Duration, ScheduledExecutorService)}를
+ *       사용한다.</li>
  *   <li>{@link #throwAsync(Throwable)} / {@link #cancelAsync()}는
  *       {@link CompletableFuture#runAsync(Runnable)}로 기본 실행자(공용 ForkJoin pool)에
  *       위임한다.</li>
@@ -184,7 +185,6 @@ public final class AsyncExecutions {
 	 * 앞 실행이 완료된 후 다음 실행을 시작하며, 어느 하나라도 실패/취소되면 전체가
 	 * 실패/취소된다.
 	 *
-	 * @param <T>      마지막 실행의 결과 타입
 	 * @param sequence 순차 실행할 실행 시퀀스
 	 * @return {@link SequentialAsyncExecution}
 	 */
@@ -195,7 +195,6 @@ public final class AsyncExecutions {
 	/**
 	 * 주어진 실행들을 순차적으로 수행하는 합성 실행을 생성한다.
 	 *
-	 * @param <T>  마지막 실행의 결과 타입
 	 * @param elms 순차 실행할 실행 리스트
 	 * @return {@link SequentialAsyncExecution}
 	 * @see #sequential(FStream)
@@ -207,7 +206,6 @@ public final class AsyncExecutions {
 	/**
 	 * 주어진 실행들을 순차적으로 수행하는 합성 실행을 생성한다.
 	 *
-	 * @param <T>      마지막 실행의 결과 타입
 	 * @param sequence 순차 실행할 실행 가변인자
 	 * @return {@link SequentialAsyncExecution}
 	 * @see #sequential(FStream)
@@ -303,8 +301,8 @@ public final class AsyncExecutions {
 	}
 
 	/**
-	 * 주어진 실행에 타임아웃을 적용한 합성 실행을 생성한다. 타임아웃 트리거에는 공유
-	 * 스케줄러({@link #getScheduler()})를 사용한다.
+	 * 주어진 실행에 타임아웃을 적용한 합성 실행을 생성한다. 타임아웃 트리거에는 공용 스케줄러
+	 * ({@link Executions#getExecutor()})를 사용한다.
 	 *
 	 * @param <T>     결과 타입
 	 * @param target  타임아웃을 적용할 실행
@@ -369,8 +367,9 @@ public final class AsyncExecutions {
 	 * 새로운 {@link ListeningScheduledExecutorService}를 생성한다.
 	 * <p>
 	 * {@link Executions#getExecutor()}를 {@link MoreExecutors#listeningDecorator}로 래핑한다.
-	 * 일반적으로 신규 인스턴스가 필요하지 않다면 {@link #getScheduler()}로 공유 인스턴스를
-	 * 사용한다.
+	 * 래핑 대상이 공용 executor이므로 반환값은 매번 새 wrapper이지만 그 아래의 스레드 풀은
+	 * 공유된다. {@link ListeningScheduledExecutorService}가 필요 없다면
+	 * {@link Executions#getExecutor()}를 그대로 쓰면 된다.
 	 *
 	 * @return 새로 생성된 스케줄러
 	 */

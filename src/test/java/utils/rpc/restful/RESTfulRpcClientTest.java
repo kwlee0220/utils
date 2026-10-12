@@ -18,8 +18,6 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 
 import utils.json.JacksonUtils;
-import utils.rpc.restful.RESTfulRpcClient;
-import utils.rpc.restful.RpcResponseMessage;
 
 
 /**
@@ -50,7 +48,7 @@ public class RESTfulRpcClientTest {
 	private RESTfulRpcClient client(Map<String,JsonNode> inputs) {
 		return RESTfulRpcClient.builder()
 									.setHttpClient(new OkHttpClient())
-									.setEndpoint(m_server.url("/operation").toString())
+									.setOperationUrl(m_server.url("/operation").toString())
 									.setJsonMapper(MAPPER)
 									.setInputs(inputs)
 									.build();

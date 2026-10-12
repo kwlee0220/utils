@@ -150,16 +150,21 @@ public class CommandExecutionTest {
 	}
 
 	@Test
-	public void testUndefinedVariableLeftAsIs() throws Exception {
-		// 일반/명령 변수 치환 모두에서 미정의된 ${X}는 sub-process에 그대로 전달된다.
+	public void testUndefinedVariableFails() throws Exception {
+		// 일반/명령 변수 치환 모두에서 매칭되지 않은 ${X}는 예외를 발생시키며,
+		// sub-process는 아예 실행되지 않는다.
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "raw=${undefined_var}")
 												.redirectStdoutToFile(m_outFile)
 												.build();
 		exec.start();
-		exec.waitForFinished();
+		AsyncResult<Void> result = exec.waitForFinished();
 
-		Assertions.assertEquals("raw=${undefined_var}", readOutput());
+		Assertions.assertEquals(AsyncState.FAILED, result.getState());
+		Throwable cause = result.getFailureCause();
+		Assertions.assertTrue(cause instanceof IllegalArgumentException, String.valueOf(cause));
+		Assertions.assertTrue(cause.getMessage().contains("undefined_var"), cause.getMessage());
+		Assertions.assertFalse(m_outFile.exists(), "sub-process가 실행되지 않아야 함");
 	}
 
 	@Test
@@ -379,6 +384,34 @@ public class CommandExecutionTest {
 		Assertions.assertTrue(elapsed < 2000, "close should not block long; elapsed=" + elapsed);
 	}
 
+	@Test
+	public void testCloseRetriesCancelWhenStartIsDelayed() throws Exception {
+		// Executor에서 시작이 cancel timeout보다 오래 지연되면, 첫 cancel(true)는 STARTING 상태에서
+		// 시간 초과로 false를 반환한다. 이때 close()가 명령이 스스로 끝날 때까지(30초) 막히지 않고,
+		// 시작 직후 다시 취소해야 한다.
+		CommandExecution exec = CommandExecution.builder()
+												.addCommand("/bin/sleep", "30")
+												.build();
+		exec.setCancelTimeout(200, TimeUnit.MILLISECONDS);
+		exec.setExecutor(task -> new Thread(() -> {
+			try {
+				Thread.sleep(1000);
+			}
+			catch ( InterruptedException e ) {
+				return;
+			}
+			task.run();
+		}).start());
+		exec.start();
+
+		long started = System.currentTimeMillis();
+		exec.close();
+		long elapsed = System.currentTimeMillis() - started;
+
+		Assertions.assertTrue(exec.isCancelled(), "state=" + exec.getState());
+		Assertions.assertTrue(elapsed < 5000, "close should not wait for the command; elapsed=" + elapsed);
+	}
+
 	// ----- Builder 검증 -----
 
 	@Test
@@ -462,6 +495,19 @@ public class CommandExecutionTest {
 							.addCommand("/bin/echo")
 							.addVariable(null);
 			});
+	}
+
+	@Test
+	public void testDuplicateVariableRejected() throws Exception {
+		CommandVariable first = new CommandVariable("greeting", "hi");
+		CommandExecution.Builder builder = CommandExecution.builder()
+															.addCommand("/bin/echo")
+															.addVariable(first);
+		Assertions.assertThrows(IllegalArgumentException.class,
+								() -> builder.addVariable(new CommandVariable("greeting", "bye")));
+
+		// 거부된 경우 기존 변수가 그대로 유지되어야 한다.
+		Assertions.assertSame(first, builder.build().getVariableMap().get("greeting"));
 	}
 
 	@Test

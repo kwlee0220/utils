@@ -6,6 +6,7 @@ JDK `java.net.http.WebSocket` 클라이언트를 [`utils.statechart`](../statech
 ### 기본 사용
 
 ```java
+// 상태 차트 수행 과정에서 사용할 상태 정보를 정의
 class MyCtx extends WebSocketContext<MyCtx> {
     MyCtx(String url) { super(url); }
 }
@@ -14,6 +15,8 @@ MyCtx ctx = new MyCtx("ws://example.com/socket");
 WebSocketStateChart<MyCtx> chart = new WebSocketStateChart<>(ctx);
 
 // (선택) keep-alive
+// 매 30초마다 ping 메시지를 보내고, ping 메시지 전송 후
+// 5초 이내에 pong 메시지가 도착하지 않으면 alive하지 않다고 판단함
 chart.setPingInterval(Duration.ofSeconds(30));
 chart.setPongTimeout(Duration.ofSeconds(5));
 
@@ -70,9 +73,19 @@ chart.setPingInterval(Duration.ofSeconds(30));
 chart.setPongTimeout(Duration.ofSeconds(5));
 ```
 
-두 값이 모두 설정되어야 keep-alive 가 활성화된다. 차트 시작 후 ping 타이머가 시작되며, ping 발송
-후 pong 이 timeout 안에 도착하지 않으면 `ErrorMessage` (`RuntimeTimeoutException`) 이 차트에
-전달되고 fall-back 으로 `fail` 처리된다. 차트 종료 시 타이머는 자동 정리.
+두 값이 모두 설정되어야 keep-alive 가 활성화되며, **연결이 열리기 전**에 설정해야 한다
+(타이머는 `onOpen` 에서 한 번만 시작된다). ping 발송 후 pong 이 timeout 안에 도착하지 않으면
+`ErrorMessage` (`RuntimeTimeoutException`) 가 차트에 전달되고 fall-back 으로 `fail` 처리된다.
+
+감시는 **ping 단위**로 이루어진다. ping 마다 자신의 pong 을 감시하는 태스크가 예약되고 해당 pong 이
+도착하면 취소되므로, 두 값의 대소 관계와 무관하게 동작한다. 대신 연결 두절 감지까지 최대
+`pingInterval + pongTimeout` 이 걸린다 — 위 예에서는 최대 35초다.
+
+타이머는 차트 종료 시, 그리고 **pong timeout 이 처음 발동했을 때** 정리되며 한 번 정리되면
+재개되지 않는다. `ErrorMessage` 를 받아 차트를 계속 실행시키는 transition 을 정의한 경우 그 이후로는
+keep-alive 감시가 없다는 뜻이다.
+
+pong 왕복 시간은 `utils.websocket` 로거를 DEBUG 로 내리면 `received PONG: elapsed=23ms` 형태로 확인할 수 있다.
 
 ### 종료 코드
 
@@ -80,8 +93,21 @@ chart.setPongTimeout(Duration.ofSeconds(5));
 WebSocket ws = chart.getWebSocket();   // 차트 종료 후에도 마지막 WebSocket 참조 유지
 ```
 
-`States.CompletedState` / `CancelledState` / `ErrorState` 는 진입 시 `NORMAL_CLOSURE` 로
-WebSocket 을 닫는다.
+연결 종료는 `chart.close()` 한 곳으로 모여 있다.
+
+```java
+chart.close();                                        // NORMAL_CLOSURE, "normal closure"
+chart.close(WebSocket.NORMAL_CLOSURE, "bye");         // 사유 지정
+```
+
+**best-effort 연산이다.** 연결 전이거나, 이미 닫혔거나, close 전송이 실패해도 조용히 넘어가므로
+반복 호출해도 안전하다. close 프레임이 전송될 때까지 블록하지만 상대의 응답은 기다리지 않는다.
+
+**차트가 종료되면 자동으로 호출된다.** 생성자에서 등록한 `whenFinished` 훅이 담당하기 때문에,
+`States.CompletedState` / `CancelledState` / `ErrorState` 로 전이하는 경우는 물론
+`complete()` / `fail()` / `cancel(true)` 를 직접 부르거나 사용자 정의 final state 를 쓰는 경우에도
+연결이 남지 않는다. 따라서 위 메소드를 직접 부를 일은 **차트를 끝내지 않고 연결만 끊고 싶을 때**뿐이다.
+close 사유는 실패 종료면 `"closure due to a error"`, 그 외에는 `"normal closure"` 가 된다.
 
 ### 한계
 

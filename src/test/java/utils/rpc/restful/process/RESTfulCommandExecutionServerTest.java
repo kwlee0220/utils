@@ -110,6 +110,25 @@ public class RESTfulCommandExecutionServerTest {
 	}
 
 	@Test
+	public void testEndToEndInOutVariableWithRequestOutputs() throws Exception {
+		// 'data'는 입력이자 출력 변수이다. 요청의 outputs에도 'data'가 지정되어 있으나,
+		// 중복 등록으로 실패하지 않고 입력 값이 그대로 사용되어야 한다.
+		File descFile = writeDescriptor(
+				"{\"commandLine\":[\"/bin/sh\",\"-c\",\"cat ${data:path} > ${result:path}\"],"
+				+ "\"outputVariables\":[\"data\",\"result\"],\"timeout\":\"30s\"}");
+		RESTfulCommandExecutionServer server = new RESTfulCommandExecutionServer(descFile, SERDE);
+
+		RpcRequestMessage reqMsg
+				= new RpcRequestMessage(Map.of("data", json("{\"v\":1}")),
+										Map.of("data", json("{\"v\":999}"), "result", json("null")));
+		RpcResponseMessage resp = waitForTermination(server, server.start(reqMsg));
+
+		Assertions.assertEquals(RpcState.COMPLETED, resp.getState());
+		Assertions.assertEquals(json("{\"v\":1}"), resp.getOutputs().get("data"));
+		Assertions.assertEquals(json("{\"v\":1}"), resp.getOutputs().get("result"));
+	}
+
+	@Test
 	public void testEndToEndFailedOnNonZeroExit() throws Exception {
 		File descFile = writeDescriptor(
 				"{\"commandLine\":[\"/bin/sh\",\"-c\",\"exit 3\"],"

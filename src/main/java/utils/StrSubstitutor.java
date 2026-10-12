@@ -26,7 +26,7 @@ import utils.io.IOUtils;
  * 사용자 정의 맵 lookup과 기본 interpolator lookup(<code>sys</code>, <code>env</code>,
  * <code>date</code> 등)을 함께 사용한다.
  *
- * <h3>변수 참조 라우팅</h3>
+ * <h2>변수 참조 라우팅</h2>
  * <ul>
  *   <li><b>prefix 없는 참조 — <code>${X}</code>:</b> 사용자 키-값 맵에서 {@code X}를 찾아 치환한다.</li>
  *   <li><b>prefix 있는 참조 — <code>${env:HOME}</code>, <code>${sys:user.dir}</code> 등:</b>
@@ -35,7 +35,7 @@ import utils.io.IOUtils;
  *       {@link IllegalArgumentException}을 던지거나 원본 토큰을 그대로 둔다.</li>
  * </ul>
  *
- * <h3>기본 설정</h3>
+ * <h2>기본 설정</h2>
  * <ul>
  *   <li>중첩 치환 활성화 — 치환된 값 내부의 참조와 변수 이름 내부의 참조를 모두 재치환한다.</li>
  *   <li>미정의 변수에 대해 예외를 발생시킨다({@link IllegalArgumentException}).</li>
@@ -43,7 +43,7 @@ import utils.io.IOUtils;
  * 각각은 {@link #enableNestedSubstitution(boolean)}, {@link #failOnUndefinedVariable(boolean)}로
  * 전환할 수 있다.
  *
- * <h3>사용 패턴</h3>
+ * <h2>사용 패턴</h2>
  * <ul>
  *   <li>키-값 매핑이 있을 때: {@link #with(Map)} 또는 {@link #with(String, String)}로 인스턴스를
  *       생성하고, chaining 으로 설정 후 {@link #replace(String)} 또는 {@link #replace(File, File)}을 호출.</li>

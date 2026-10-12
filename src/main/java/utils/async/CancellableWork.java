@@ -21,8 +21,8 @@ package utils.async;
  * 구현 시 다음을 유의한다.
  * <ul>
  *   <li>{@code cancelWork()}는 lock을 보유하지 않은 상태에서 호출되므로, 작업이 완료될 때까지 대기하는
- *       전략(synchronous cancel)이 가능하다. {@link AbstractLoopExecution#cancelWork()}는 이 패턴을
- *       사용한다.</li>
+ *       전략(synchronous cancel)이 가능하다. {@link AbstractLoopExecution}의 취소 협력 계약이
+ *       이 패턴을 따른다 — 진행 중인 iteration이 끝날 때까지 대기한다.</li>
  *   <li>중단 시점의 작업 상태에 따라 중단 요청이 무의미할 수 있다 — 예를 들어 작업이 이미 종료에
  *       임박한 경우. 이 경우 {@link #cancelWork()}는 {@code false}를 반환하여 요청이 사실상
  *       무시되었음을 알릴 수 있다.</li>

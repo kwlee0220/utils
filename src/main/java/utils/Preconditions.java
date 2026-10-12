@@ -18,14 +18,14 @@ import com.google.common.base.Strings;
  *   <tr><td>{@link #checkState}</td>                <td>{@link IllegalStateException}</td>   <td>객체 상태(필드/내부 상태) 검증</td></tr>
  * </table>
  *
- * <h3>메시지 형태</h3>
+ * <h2>메시지 형태</h2>
  * <ul>
  *   <li>단순 {@code String} — 메시지를 그대로 사용.</li>
  *   <li>{@code (msgTemplate, Object... msgArgs)} — {@link Strings#lenientFormat}으로 포맷팅.
  *       {@code %s} 자리표시자만 지원하며 args 개수 mismatch도 graceful 하게 처리한다.</li>
  * </ul>
  *
- * <h3>{@code checkNotNullArgument} vs {@code checkNotNull} 차이</h3>
+ * <h2>{@code checkNotNullArgument} vs {@code checkNotNull} 차이</h2>
  * <ul>
  *   <li>{@code checkNotNullArgument} — <b>메소드 인자</b>가 null인지 검사. 실패 시 {@code IllegalArgumentException}.
  *       반환값 없음.</li>
@@ -72,8 +72,9 @@ public final class Preconditions {
 	/**
 	 * 메소드 인자 중 {@code null}이 아닌지 검증한다.
 	 *
-	 * @param obj	검증 대상 객체들.
-	 * @param msg	{@code obj} 중 하나라도 {@code null}일 때 예외에 사용할 메시지.
+	 * @param obj			검증 대상 객체들.
+	 * @param msgTemplate	{@code obj} 중 하나라도 {@code null}일 때 예외에 사용할 메시지 템플릿.
+	 * @param msgArgs		메시지 템플릿에 채워넣을 인자들.
 	 * @throws IllegalArgumentException	{@code obj} 중 하나라도 {@code null}인 경우.
 	 */
 	public static void checkNotNullIterableArgument(Iterable<?> obj, String msgTemplate, Object... msgArgs) {

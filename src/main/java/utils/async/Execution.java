@@ -70,8 +70,9 @@ import utils.func.Result;
  *       {@link #whenFinished(Consumer)}, {@link #whenFinishedAsync(Consumer)}, 그리고 종료 케이스별
  *       편의 메소드 {@link #whenCompleted(Consumer)}, {@link #whenFailed(Consumer)}, {@link #whenCancelled(Runnable)}.
  *   <li><b>합성/chain</b>: {@link #map(Function)}(성공 시 값 변환),
- *       {@link EventDrivenExecution#flatMap(Function)}(모든 종료 케이스에서 다음 비동기 작업 결정,
- *       {@link EventDrivenExecution} 기반에서만 제공).
+ *       {@link utils.async.op.AsyncExecutions#flatMap(Execution, Function)}(모든 종료 케이스에서
+ *       다음 비동기 작업 결정. 인스턴스 메소드가 아닌 정적 팩토리이며, 후속 작업은
+ *       {@link EventDrivenExecution}이어야 한다).
  *   <li><b>중단/타임아웃</b>: {@link #cancel(boolean)}, {@link #setTimeout(long, TimeUnit)}.
  * </ul>
  *
@@ -90,7 +91,8 @@ import utils.func.Result;
  * <ul>
  *   <li>{@link AsyncResult} — polling/대기 API가 반환. 종료뿐 아니라
  *       {@code Running}(아직 수행 중) 상태도 표현 가능.
- *   <li>{@link Result} — finish 콜백 및 {@link EventDrivenExecution#flatMap(Function)}의 인자.
+ *   <li>{@link Result} — finish 콜백 및
+ *       {@link utils.async.op.AsyncExecutions#flatMap(Execution, Function)}의 인자.
  *       종료된 결과(성공/실패/취소)만 표현.
  * </ul>
  *
@@ -599,7 +601,7 @@ public interface Execution<T> extends Future<T> {
 	 * 즉 표준 monadic map 시맨틱(성공 시에만 변환)을 따른다.
 	 * <p>
 	 * 새 {@link Execution}을 chain하여 다른 비동기 작업을 이어가려면
-	 * {@link EventDrivenExecution#flatMap(Function)}을 사용한다.
+	 * {@link utils.async.op.AsyncExecutions#flatMap(Execution, Function)}을 사용한다.
 	 *
 	 * @param mapper	성공 결과 값을 변환하는 함수.
 	 * @param <S>	변환 후 결과 타입.

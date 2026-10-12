@@ -1,9 +1,15 @@
 package utils.websocket;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.net.http.WebSocket;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -164,5 +170,82 @@ public class WebSocketStateChartTest {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
 			newChart().handleSignal(null);
 		});
+	}
+
+	// ---- close ----
+
+	private WebSocket newMockWebSocket() {
+		WebSocket ws = mock(WebSocket.class);
+		when(ws.sendClose(anyInt(), anyString())).thenReturn(CompletableFuture.completedFuture(ws));
+		return ws;
+	}
+
+	@Test
+	public void close_before_connect_is_noop() {
+		// 연결 수립 전(WebSocket 미등록)에 닫아도 예외가 나지 않아야 한다.
+		Assertions.assertDoesNotThrow(() -> newChart().close());
+	}
+
+	@Test
+	public void close_sends_normal_closure() {
+		WebSocketStateChart<TestCtx> chart = newChart();
+		WebSocket ws = newMockWebSocket();
+		chart.setWebSocket(ws);
+
+		chart.close();
+
+		verify(ws).sendClose(eq(WebSocket.NORMAL_CLOSURE), anyString());
+	}
+
+	@Test
+	public void close_repeated_is_safe() {
+		// best-effort 시맨틱이므로 반복 호출이 안전해야 한다.
+		// (종료 상태의 enter()와 차트 종료 훅이 연달아 호출하는 경우가 실제로 발생한다)
+		WebSocketStateChart<TestCtx> chart = newChart();
+		chart.setWebSocket(newMockWebSocket());
+
+		Assertions.assertDoesNotThrow(() -> {
+			chart.close();
+			chart.close();
+		});
+	}
+
+	@Test
+	public void close_is_quiet_when_sendClose_throws() {
+		// close 실패가 호출자에게 전파되면 종료 상태 진입이나 종료 통지가 실패로 뒤집힌다.
+		WebSocketStateChart<TestCtx> chart = newChart();
+		WebSocket ws = mock(WebSocket.class);
+		when(ws.sendClose(anyInt(), anyString())).thenThrow(new IllegalStateException("already closed"));
+		chart.setWebSocket(ws);
+
+		Assertions.assertDoesNotThrow(() -> chart.close());
+	}
+
+	// ---- 차트 종료 시 자동 close ----
+
+	@Test
+	public void fail_closes_websocket() {
+		// 종료 상태를 거치지 않는 fail()에서도 연결이 닫혀야 한다.
+		// (ErrorMessage fall-back이 밟는 경로다)
+		WebSocketStateChart<TestCtx> chart = newChart();
+		WebSocket ws = newMockWebSocket();
+		chart.notifyStarted();
+		chart.setWebSocket(ws);
+
+		chart.fail(new IllegalStateException("boom"));
+
+		verify(ws).sendClose(WebSocket.NORMAL_CLOSURE, "closure due to a error");
+	}
+
+	@Test
+	public void complete_closes_websocket() {
+		WebSocketStateChart<TestCtx> chart = newChart();
+		WebSocket ws = newMockWebSocket();
+		chart.notifyStarted();
+		chart.setWebSocket(ws);
+
+		chart.complete();
+
+		verify(ws).sendClose(WebSocket.NORMAL_CLOSURE, "normal closure");
 	}
 }

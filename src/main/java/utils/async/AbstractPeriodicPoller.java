@@ -88,7 +88,7 @@ public abstract class AbstractPeriodicPoller<R> extends PeriodicLoopExecution<R>
 	 * 			아직 도달하지 않은 경우 {@link FOption#empty()}. {@code null}을 반환해서는 안 된다.
 	 * @throws InterruptedException		polling이 인터럽트된 경우.
 	 * @throws CancellationException	polling이 취소된 경우.
-	 * @throws Exception		polling 중 예외가 발생한 경우.
+	 * @throws ExecutionException		polling 중 예외가 발생한 경우.
 	 */
 	protected abstract FOption<R> tryPoll() throws InterruptedException, CancellationException,
 													ExecutionException;

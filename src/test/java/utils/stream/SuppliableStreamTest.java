@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Assertions;
@@ -143,10 +144,15 @@ public class SuppliableStreamTest {
 	public void test6() throws Exception {
 		FOption<Integer> r;
 
+		// endOfSupply() 직전에 세우는 flag. 두 번째 next()가 이 flag가 선 것을 관찰했다는 것은
+		// endOfSupply()를 기다렸다는 뜻이다. next()가 absent를 반환하는 경로는 end-of-supply
+		// 뿐이므로, 일찍 반환하는 회귀에서는 flag가 false로 남아 반드시 잡힌다.
+		AtomicBoolean ended = new AtomicBoolean(false);
 		CompletableFuture.runAsync(() -> {
 			try {
 				m_stream.supply(1);
 				Thread.sleep(300);
+				ended.set(true);
 				m_stream.endOfSupply();
 			}
 			catch ( InterruptedException e ) {
@@ -158,11 +164,9 @@ public class SuppliableStreamTest {
 		Assertions.assertEquals(true, r.isPresent());
 		Assertions.assertEquals(Integer.valueOf(1), r.get());
 
-		StopWatch watch = StopWatch.start();
 		r = m_stream.next();
-		watch.stop();
 		Assertions.assertEquals(true, r.isAbsent());
-		Assertions.assertTrue(watch.getElapsedInMillis() >= 300L);
+		Assertions.assertTrue(ended.get(), "두 번째 next()는 endOfSupply()까지 대기해야 함");
 	}
 
 	@Test

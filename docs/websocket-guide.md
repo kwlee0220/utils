@@ -129,14 +129,14 @@ final class BinaryMessage implements Message { byte[] getBytes(); boolean isLast
 
 | 신호 | 발생 시점 | 동봉 데이터 |
 |---|---|---|
-| [`Connected`](../src/main/java/utils/websocket/Signals.java#L16) | 연결 성공 (`OpenWebSocket.enter` 의 `whenComplete`) | `WebSocket` |
-| [`ConnectionFailed`](../src/main/java/utils/websocket/Signals.java#L26) | 연결 실패 | `Throwable` |
-| [`TextMessage`](../src/main/java/utils/websocket/Signals.java#L43) | 텍스트 메시지 수신 (모든 fragment 누적 후 발송) | `String` |
-| [`BinaryMessage`](../src/main/java/utils/websocket/Signals.java#L62) | 바이너리 fragment 수신 | `byte[]`, `last` |
-| [`ErrorMessage`](../src/main/java/utils/websocket/Signals.java#L87) | `onError` 또는 pong timeout | `Throwable` |
-| [`ConnectionClosed`](../src/main/java/utils/websocket/Signals.java#L106) | 서버가 close | `statusCode`, `reason` |
+| [`Connected`](../src/main/java/utils/websocket/Signals.java#L17) | 연결 성공 (`OpenWebSocket.enter` 의 `whenComplete`) | `WebSocket` |
+| [`ConnectionFailed`](../src/main/java/utils/websocket/Signals.java#L27) | 연결 실패 | `Throwable` |
+| [`TextMessage`](../src/main/java/utils/websocket/Signals.java#L44) | 텍스트 메시지 수신 (모든 fragment 누적 후 발송) | `String` |
+| [`BinaryMessage`](../src/main/java/utils/websocket/Signals.java#L63) | 바이너리 fragment 수신 | `byte[]`, `last` |
+| [`ErrorMessage`](../src/main/java/utils/websocket/Signals.java#L88) | `onError` 또는 pong timeout | `Throwable` |
+| [`ConnectionClosed`](../src/main/java/utils/websocket/Signals.java#L107) | 서버가 close | `statusCode`, `reason` |
 
-> 텍스트 신호는 listener 내부에서 [fragment를 모두 누적](../src/main/java/utils/websocket/WebSocketListener.java#L171)한 뒤 마지막 fragment에서 한 번 발송된다 (`WebSocketObservable`의 `collectTextFragments=true` 동작과 동일).
+> 텍스트 신호는 listener 내부에서 [fragment를 모두 누적](../src/main/java/utils/websocket/WebSocketListener.java#L200)한 뒤 마지막 fragment에서 한 번 발송된다 (`WebSocketObservable`의 `collectTextFragments=true` 동작과 동일).
 > 바이너리 신호는 fragment마다 발송하므로 사용자가 직접 합쳐야 한다.
 
 ### 3.3 라이프사이클
@@ -163,10 +163,10 @@ chart.sendText(...) / sendBinary(...)            ← 차트 RUNNING 동안 송�
 
 | 상태 | 베이스 | `enter()` 동작 |
 |---|---|---|
-| [`OpenWebSocket`](../src/main/java/utils/websocket/States.java#L50) | `AbstractState` | 비동기로 `HttpClient.newWebSocketBuilder().buildAsync(uri, listener)` 호출. 성공 시 `setWebSocket(ws)` + `Connected` 신호 발송 → `targetStatePath`로 전이. 실패 시 `ConnectionFailed` 신호 → `failStatePath`로 전이. |
-| [`CompletedState`](../src/main/java/utils/websocket/States.java#L110) | `SinkState` | `WebSocket.sendClose(NORMAL_CLOSURE, ...)` 후 join. |
-| [`CancelledState`](../src/main/java/utils/websocket/States.java#L121) | `SinkState` | 위와 동일 (취소 경로용 명명). |
-| [`ErrorState`](../src/main/java/utils/websocket/States.java#L132) | `ExceptionState` | 비정상 종료 경로용 close. |
+| [`OpenWebSocket`](../src/main/java/utils/websocket/States.java#L78) | `AbstractState` | 비동기로 `HttpClient.newWebSocketBuilder().buildAsync(uri, listener)` 호출. 성공 시 `setWebSocket(ws)` + `Connected` 신호 발송 → `targetStatePath`로 전이. 실패 시 `ConnectionFailed` 신호 → `failStatePath`로 전이. |
+| [`CompletedState`](../src/main/java/utils/websocket/States.java#L184) | `SinkState` | `WebSocket.sendClose(NORMAL_CLOSURE, ...)` 후 join. |
+| [`CancelledState`](../src/main/java/utils/websocket/States.java#L212) | `SinkState` | 위와 동일 (취소 경로용 명명). |
+| [`ErrorState`](../src/main/java/utils/websocket/States.java#L240) | `ExceptionState` | 비정상 종료 경로용 close. |
 
 ### 3.5 차트 구성 예제 — 에코 클라이언트
 
@@ -218,8 +218,8 @@ chart.waitForFinished();
 
 | 메서드 | 동작 |
 |---|---|
-| [`sendText(String, boolean)`](../src/main/java/utils/websocket/WebSocketStateChart.java#L162) | 비동기 텍스트 송신. `CompletableFuture<WebSocket>` 반환. |
-| [`sendTextSync(String, boolean)`](../src/main/java/utils/websocket/WebSocketStateChart.java#L183) | 송신 후 블록. 예외는 `RuntimeExecutionException`으로 unwrap. |
+| [`sendText(String, boolean)`](../src/main/java/utils/websocket/WebSocketStateChart.java#L221) | 비동기 텍스트 송신. `CompletableFuture<WebSocket>` 반환. |
+| [`sendTextSync(String, boolean)`](../src/main/java/utils/websocket/WebSocketStateChart.java#L242) | 송신 후 블록. 예외는 `RuntimeExecutionException`으로 unwrap. |
 | [`sendBinary(byte[], boolean)`](../src/main/java/utils/websocket/WebSocketStateChart.java#L203) | 비동기 바이너리 송신. |
 | [`sendBinarySync(byte[], boolean)`](../src/main/java/utils/websocket/WebSocketStateChart.java#L224) | 위와 동일. |
 
@@ -232,18 +232,30 @@ chart.waitForFinished();
 ```
 [ping interval 마다]
    sendPing(payload)
-   pong timeout 태스크 schedule
-       ↓ 도중에 onPong 도착 → 태스크 cancel
-       ↓ 도중에 도착 안함 → ErrorMessage(RuntimeTimeoutException) 신호 + 타이머 cancel
+   이 ping 전용 pong 감시 태스크를 pongTimeout 뒤에 schedule
+       ↓ 그 사이에 onPong 도착 → 해당 태스크 cancel
+       ↓ 도착하지 않음 → ping 중단(stopPing) + ErrorMessage(RuntimeTimeoutException) 신호
 ```
 
-차트가 종료되면 `whenFinished` 콜백에서 [ping 타이머가 자동 정리](../src/main/java/utils/websocket/WebSocketListener.java#L71)된다 — 콜백은 생성자에서 한 번만 등록되어 재연결로 인한 누적이 없다.
+**감시 태스크는 ping 마다 하나씩 살아 있다.** 다음 ping 을 보낼 때 직전 태스크를 취소하면 안 된다 —
+`pongTimeout > pingInterval` 인 설정에서 모든 태스크가 발동 전에 취소되어 감지가 조용히 사라지기 때문이다.
+늦게 도착한 pong 은 태스크 안의 `lastPongTime >= pingSentAt` 검사가 걸러낸다. 그 대가로 감지까지
+최대 `pingInterval + pongTimeout` 이 걸린다.
 
-`setPingInterval`/`setPongTimeout`은 listener가 사용되기 **전** (= 연결 시작 전) 에 호출되어야 한다. 연결 후 호출하면 다음 재연결 전까지 효과가 없다.
+타이머는 차트 종료 시 [`whenFinished` 콜백](../src/main/java/utils/websocket/WebSocketListener.java#L83)에서,
+그리고 **pong timeout 이 처음 발동했을 때** `stopPing()` 으로 정리된다. 한 번 정리되면 재개되지 않는다
+(`startPing` 은 `onOpen` 에서만 호출되고 재연결을 지원하지 않는다). 따라서 `ErrorMessage` 를 받아
+차트를 계속 실행시키는 transition 을 정의했다면 그 이후로는 keep-alive 감시가 없다.
+
+`setPingInterval`/`setPongTimeout`은 listener가 사용되기 **전** (= 연결 시작 전) 에 호출되어야 한다.
+연결 후 호출하면 효과가 없다.
+
+`onPing` 은 pong 을 직접 보내지 않는다 — JDK 가 자동으로 회신한다. `onPong` 은 직전 ping 기준
+왕복 시간을 DEBUG 로그로 남긴다 (`received PONG: elapsed=23ms`).
 
 ### 3.8 ErrorMessage / ConnectionClosed Fall-back
 
-[`handleSignal`](../src/main/java/utils/websocket/WebSocketStateChart.java#L249)이 `super.handleSignal(signal)`을 먼저 호출한 뒤, **선택된 transition이 없고** 차트가 여전히 RUNNING이면 다음 fall-back을 적용한다:
+[`handleSignal`](../src/main/java/utils/websocket/WebSocketStateChart.java#L309)이 `super.handleSignal(signal)`을 먼저 호출한 뒤, **선택된 transition이 없고** 차트가 여전히 RUNNING이면 다음 fall-back을 적용한다:
 
 | 신호 | Fall-back |
 |---|---|
@@ -291,7 +303,7 @@ chart.waitForFinished();
 | [`WebSocketContext<C>`](../src/main/java/utils/websocket/WebSocketContext.java) | 서버 URL 보유 도메인 컨텍스트 (CRTP) |
 | [`WebSocketListener<C>`](../src/main/java/utils/websocket/WebSocketListener.java) | (package-private) 콜백 → 신호 변환 + ping 타이머 |
 | [`Signals`](../src/main/java/utils/websocket/Signals.java) | 6종 도메인 신호 |
-| [`States.OpenWebSocket`](../src/main/java/utils/websocket/States.java#L50) | 비동기 연결 상태 |
-| [`States.CompletedState`](../src/main/java/utils/websocket/States.java#L110) | 정상 종료 SinkState |
-| [`States.CancelledState`](../src/main/java/utils/websocket/States.java#L121) | 취소 경로 SinkState |
-| [`States.ErrorState`](../src/main/java/utils/websocket/States.java#L132) | 실패 경로 ExceptionState |
+| [`States.OpenWebSocket`](../src/main/java/utils/websocket/States.java#L78) | 비동기 연결 상태 |
+| [`States.CompletedState`](../src/main/java/utils/websocket/States.java#L184) | 정상 종료 SinkState |
+| [`States.CancelledState`](../src/main/java/utils/websocket/States.java#L212) | 취소 경로 SinkState |
+| [`States.ErrorState`](../src/main/java/utils/websocket/States.java#L240) | 실패 경로 ExceptionState |

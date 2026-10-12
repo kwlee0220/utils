@@ -28,7 +28,7 @@ import utils.thread.Guard;
  * 소비자 쓰레드는 {@link #read()} / {@link #read(byte[], int, int)}로 그 chunk들을 공급된 순서대로
  * 읽는다. chunk가 없으면 소비자는 새 chunk가 공급되거나 스트림이 종료될 때까지 대기(block)한다.
  *
- * <h3>생애주기</h3>
+ * <h2>생애주기</h2>
  * <ul>
  *   <li><b>공급</b> — {@link #supply(ByteBuffer)} 또는 시간제한 있는
  *       {@link #supply(ByteBuffer, long, TimeUnit)}로 chunk를 추가한다. 큐 길이 상한
@@ -41,7 +41,7 @@ import utils.thread.Guard;
  *       {@link StreamClosedException}, 읽기는 {@link IOException}이 된다.</li>
  * </ul>
  *
- * <h3>스레드 안전성</h3>
+ * <h2>스레드 안전성</h2>
  * 내부 상태는 {@link Guard}로 보호되며 공급 쪽과 소비 쪽을 서로 다른 쓰레드에서 사용하도록 설계되었다.
  * 단, 소비(읽기)는 단일 쓰레드에서 수행하는 것을 전제로 한다. 외부 협력 대기를 위해
  * {@link #getGuard()}, {@link #awaitActiveChunk(int, long, TimeUnit)}를 제공한다.

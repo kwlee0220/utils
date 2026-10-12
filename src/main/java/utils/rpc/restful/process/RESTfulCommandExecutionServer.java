@@ -122,30 +122,33 @@ public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 																.workingDirectory(m_workingDir)
 																.environmentFile(m_envFile)
 																.timeout(m_opDesc.getTimeout());
+			
+			// 입력 변수 처리.
 			for ( var ent: reqMsg.getInputs().entrySet() ) {
 				CommandVariable var = m_serde.deserialize(ent.getKey(), sessionDir, ent.getValue());
 				builder.addVariable(var);
 			}
-			if ( reqMsg.getOutputs() != null ) {
-				Map<String,JsonNode> outputVars = reqMsg.getOutputs();
-				for ( String outVarName: m_opDesc.getOutputVariables() ) {
-					JsonNode outVarNode = outputVars.get(outVarName);
-					if ( outVarNode != null) {
-						CommandVariable var = m_serde.deserialize(outVarName, sessionDir, outVarNode);
-						builder.addVariable(var);
-					}
+			
+			// 출력 변수 처리.
+			// 연산 디스크립터에 정의된 출력 변수 중 요청 메시지에 지정된 출력 변수는
+			// 요청 메시지의 값을 사용하고, 지정되지 않은 출력 변수는 빈 문자열을 값으로 사용한다.
+			Map<String,JsonNode> outputValues = FOption.getOrElse(reqMsg.getOutputs(), Map.of());
+			for ( String outVarName: m_opDesc.getOutputVariables() ) {
+				// 입력 변수 이름과 동일한 출력 변수는 입력 변수를 그대로 사용한다.
+				if ( builder.hasVariable(outVarName) ) {
+					continue;
 				}
-			}
-			else {
-				// 요청 메시지에 출력 변수가 지정되지 않은 경우,
-				// 디스크립터에 정의된 출력 변수만을 사용한다.
-				for ( String varId: m_opDesc.getOutputVariables() ) {
-					// 만일 입력 변수 이름과 동일한 출력 변수를 사용하는 경우에는
-					// 출력 변수로 다시 등록하지 않는다.
-					if ( !builder.hasVariable(varId) ) {
-						CommandVariable var = m_serde.deserialize(varId, sessionDir, new TextNode(""));
-						builder.addVariable(var);
-					}
+				
+				JsonNode outValueNode = outputValues.get(outVarName);
+				if ( outValueNode != null) {
+					CommandVariable var = m_serde.deserialize(outVarName, sessionDir, outValueNode);
+					builder.addVariable(var);
+				}
+				else {
+					// 요청 메시지에 출력 변수가 지정되지 않은 경우,
+					// 디스크립터에 정의된 출력 변수만을 사용한다.
+					CommandVariable var = m_serde.deserialize(outVarName, sessionDir, new TextNode(""));
+					builder.addVariable(var);
 				}
 			}
 

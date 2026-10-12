@@ -27,6 +27,7 @@ import com.google.common.collect.Maps;
 import utils.KeyedValueList;
 import utils.Preconditions;
 import utils.ProcessTree;
+import utils.RuntimeInterruptedException;
 import utils.Split;
 import utils.StrSubstitutor;
 import utils.async.AbstractThreadedExecution;
@@ -43,17 +44,18 @@ import utils.stream.FStream;
  * <p>
  * {@link Builder}로 생성하며, 실행은 부모 클래스 {@link AbstractThreadedExecution}의 계약을 따른다.
  *
- * <h3>변수 치환</h3>
+ * <h2>변수 치환</h2>
  * Command line의 각 argument에는 두 단계의 변수 치환이 순차로 적용된다:
  * <ol>
  *   <li>일반 변수 치환 — 예약어 {@code ${WORKING_DIR}} 등 미리 정의된 시스템 변수를 치환한다.</li>
  *   <li>명령 변수 치환 — {@link Builder#addVariable(CommandVariable)}로 등록된
  *       {@link CommandVariable}을 {@code ${name}} 또는 {@code ${name:modifier}} 형태로 치환한다.</li>
  * </ol>
- * 두 단계 모두에서 매칭되지 않은 {@code ${X}}는 그대로 sub-process에 전달된다
- * (escape나 sub-process 측 shell 확장 의도일 수 있음).
+ * 1단계에서 매칭되지 않은 {@code ${X}}는 그대로 2단계로 넘어가지만, 2단계에서도 매칭되지 않으면
+ * {@link IllegalArgumentException}이 발생하여 sub-process가 실행되지 않고 작업이 실패한다.
+ * 변수 이름 오타가 원본 토큰 그대로 sub-process에 전달되어 조용히 잘못 동작하는 것을 막기 위함이다.
  *
- * <h3>표준 입출력 redirect 기본값</h3>
+ * <h2>표준 입출력 redirect 기본값</h2>
  * <ul>
  *   <li>{@code stdin} — 미설정 (ProcessBuilder의 기본 {@link Redirect#PIPE PIPE}). 자식 프로세스가
  *       stdin을 읽으려 하면 부모가 입력을 닫을 때까지 hang될 수 있으므로, 사용하지 않는 경우
@@ -64,25 +66,28 @@ import utils.stream.FStream;
  *       마지막 호출이 우선한다.</li>
  * </ul>
  *
- * <h3>종료 코드 처리</h3>
+ * <h2>종료 코드 처리</h2>
  * Sub-process 종료 코드가 {@code 0}이면 정상 완료로 간주하고, 그 외 값이면 작업 실패로 보아
  * {@link ExecutionException}을 던진다.
  *
- * <h3>환경 변수 파일</h3>
+ * <h2>환경 변수 파일</h2>
  * {@link Builder#environmentFile(File)}로 지정된 환경 변수 파일이 존재하지만 읽기에 실패하면
  * {@link ExecutionException}으로 fail-fast된다. 파일이 존재하지 않으면 무시된다.
  *
- * <h3>Timeout / Cancel</h3>
+ * <h2>Timeout / Cancel</h2>
  * {@link Builder#timeout(Duration)}이 설정되어 있고 그 안에 종료되지 않으면
  * {@link TimeoutException}이 발생한다. {@link AbstractThreadedExecution#cancel(boolean) cancel(true)}
  * 호출 시 sub-process와 descendants는 SIGTERM으로 종료되고 작업은 취소 상태가 된다.
  * 어떤 경로로 종료되든 sub-process와 descendants가 leak되지 않도록 finally에서 정리된다
  * (SIGTERM 후 1초 grace, 이후 SIGKILL).
  *
- * <h3>{@link #close()} 시맨틱</h3>
+ * <h2>{@link #close()} 시맨틱</h2>
  * {@link Closeable}이 호출되면 진행 중인 작업을 취소하고 완료를 기다린 뒤, 등록된 모든
  * {@link CommandVariable}을 close한다. {@code try-with-resources} 사용 시 sub-process leak 없이
- * 정리된다.
+ * 정리된다. 작업이 {@code STARTING} 상태에 cancel timeout 이상 머물러 첫 취소가 실패하면
+ * (예: Executor 큐에서 시작이 지연된 경우), 시작 단계가 끝나기를 기다린 뒤 다시 취소한다.
+ * 따라서 Executor가 작업을 실행하지 않는 동안에는 {@code close()}도 대기한다.
+ * 대기 중 인터럽트되면 인터럽트 상태를 복원하고 즉시 변수 정리로 넘어간다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -133,23 +138,30 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	
 	@Override
 	public void close() {
-		// 실행 중이면 취소를 요청하고 종료를 기다려서 sub-process가 leak되지 않도록 한다.
-		if ( !isDone() ) {
-			cancel(true);
-			try {
+		try {
+			// 실행 중이면 취소를 요청하고 종료를 기다려서 sub-process가 leak되지 않도록 한다.
+			if ( !isDone() ) {
+				if ( !cancel(true) && !isDone() ) {
+					// STARTING 상태가 cancel timeout을 넘기면 cancel(true)는 false를 반환한다
+					// (예: Executor 큐에서 시작이 지연된 경우). 이대로 종료를 기다리면 명령이
+					// 스스로 끝날 때까지 막히므로, 시작 단계가 끝나기를 기다린 뒤 다시 취소한다.
+					waitWhileStarting();
+					cancel(true);
+				}
 				waitForFinished();
 			}
-			catch ( InterruptedException e ) {
-				// 'close()' 함수의 signature에 InterruptedException이 없으므로,
-				// 현재 스레드의 인터럽트 상태를 복원한다.
-				// 또한 위에서 이어질 변수 close 수행할 수 있다.
-				Thread.currentThread().interrupt();
-			}
 		}
-
-		// 등록된 모든 변수를 close 시킨다.
-		FStream.from(m_variables.values())
-				.forEachOrIgnore(CommandVariable::close);
+		catch ( InterruptedException | RuntimeInterruptedException e ) {
+			// 'close()' 함수의 signature에 InterruptedException이 없으므로,
+			// 현재 스레드의 인터럽트 상태를 복원한다. (cancel()은 대기 중 인터럽트되면
+			// RuntimeInterruptedException을 던진다.)
+			Thread.currentThread().interrupt();
+		}
+		finally {
+			// 등록된 모든 변수를 close 시킨다.
+			FStream.from(m_variables.values())
+					.forEachOrIgnore(CommandVariable::close);
+		}
 	}
 	
 	/**
@@ -276,8 +288,8 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	 */
 	private ProcessBuilder buildProcessBuilder() throws ExecutionException {
 		// Command line에 포함된 command variable들을 실제 값으로 치환시킨다.
-		// 미정의 명령 변수는 그대로 두어, 두 단계 모두에서 매칭되지 않은 ${X}는 sub-process에
-		// 그대로 전달된다.
+		// 이 단계가 마지막이므로 여기서도 매칭되지 않은 ${X}는 예외로 처리한다. 원본 토큰을
+		// 그대로 넘기면 변수 이름 오타를 sub-process가 조용히 삼키게 된다.
 		CommandVariableLookup lut = new CommandVariableLookup(m_variables);
 		StringSubstitutor cmdVarSubst = new StringSubstitutor(lut)
 												.setEnableUndefinedVariableException(true);
@@ -492,12 +504,16 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		/**
 		 * Command line 변수 치환에 사용할 {@link CommandVariable}을 등록한다.
 		 * <p>
-		 * 이미 같은 이름의 변수가 등록되어 있으면 새 변수가 기존 변수를 대체한다.
-		 * 기존 변수를 보존하려면 {@link #addVariableIfAbsent(CommandVariable)}을 사용한다.
+		 * 이미 같은 이름의 변수가 등록되어 있으면 {@link IllegalArgumentException}이 발생하며,
+		 * 기존 변수는 그대로 유지된다. 대체를 허용하지 않는 이유는, 대체된 변수가 {@link CommandExecution#close()}
+		 * 대상에서 빠져 파일 기반 변수의 자원이 정리되지 않고, 같은 이름의 입력 값이 조용히 사라질 수
+		 * 있기 때문이다. 이미 등록된 경우를 무시하려면 {@link #addVariableIfAbsent(CommandVariable)}을,
+		 * 등록 여부를 미리 확인하려면 {@link #hasVariable(String)}을 사용한다.
 		 *
 		 * @param var	등록할 변수 (non-null)
 		 * @return	본 빌더 객체
-		 * @throws IllegalArgumentException	{@code var}가 {@code null}인 경우
+		 * @throws IllegalArgumentException	{@code var}가 {@code null}이거나, 같은 이름의 변수가 이미
+		 * 									등록되어 있는 경우
 		 */
 		public Builder addVariable(CommandVariable var) {
 			Preconditions.checkNotNullArgument(var, "variable must not be null");
@@ -740,16 +756,17 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 			// 해당 경로 값을 알기 위해 변수 값을 갖는 파일을 생성한다.
 			
 			Split split = Split.split(key, ":");
+			
+			// Modifier가 없는 경우에는 기본 modifier.name으로 간주한다.
+			String modifier = split.tail().orElse("name");
 
 			// 변수 이름에 해당하는 CommandVariable 객체를 획득한다.
 			CommandVariable commandVar = m_varMap.get(split.head());
 			if ( commandVar == null ) {
-				return null;
+				throw new IllegalArgumentException("Command variable not found: " + split.head());
 			}
-			else {
-				// Modifier 객체를 얻고, 이를 통한 variable replacement를 시도한다.
-				return commandVar.getValueByModifier(split.tail().orElse("name"));
-			}
+			// Modifier 객체를 얻고, 이를 통한 variable replacement를 시도한다.
+			return commandVar.getValueByModifier(modifier);
 		}
 	}
 }

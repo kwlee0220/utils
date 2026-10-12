@@ -20,7 +20,7 @@ import utils.func.FOption;
  *       cleanup을 수행한다.</li>
  * </ol>
  *
- * <h3>예외 처리</h3>
+ * <h2>예외 처리</h2>
  * 부모 클래스 {@link AbstractThreadedExecution}의 계약에 따라 {@link #executeWork()} 메서드가
  * 던지는 예외는 다음과 같이 해석된다:
  * <ul>
@@ -29,18 +29,23 @@ import utils.func.FOption;
  *   <li>그 외 {@link Exception} — 작업 실패로 간주되어 {@link AsyncState#FAILED} 상태로 전이.</li>
  * </ul>
  *
- * <h3>취소(cancel) 협력 계약</h3>
+ * <h2>취소(cancel) 협력 계약</h2>
+ * 본 클래스는 {@link CancellableWork}를 구현하지 않는다. 동기적 취소가 필요한 하위 클래스가
+ * 직접 {@link CancellableWork}를 구현하며, 그 경우
+ * {@link EventDrivenExecution#cancel(boolean)}이 lock 외부에서
+ * {@link CancellableWork#cancelWork()}를 호출한다.
+ * <p>
  * 취소 신호는 {@link #iterate(long)} 호출 사이에서만 검사된다. 따라서 한 번의
- * {@link #iterate(long)}이 오래 걸리는 경우, 그 동안 호출된 {@link #cancelWork()}는
- * 해당 iteration이 끝날 때까지 대기하게 된다. 자세한 내용과 구현 시 지켜야 할 패턴은
- * {@link #iterate(long)}의 Javadoc을 참고할 것.
+ * {@link #iterate(long)}이 오래 걸리는 경우, 그 동안 호출된
+ * {@link CancellableWork#cancelWork()}는 해당 iteration이 끝날 때까지 대기하게 된다.
+ * 자세한 내용과 구현 시 지켜야 할 패턴은 {@link #iterate(long)}의 Javadoc을 참고할 것.
  *
- * <h3>스레드 모델</h3>
+ * <h2>스레드 모델</h2>
  * {@link #executeWork()}는 {@link AbstractThreadedExecution}이 생성한 별도의 워커 스레드에서
  * 1회만 수행된다. 따라서 {@link #initializeLoop()} / {@link #iterate(long)} /
  * {@link #finalizeLoop()}은 모두 같은 워커 스레드에서 순차적으로 호출되며, 구현체에서 별도의
- * 동기화는 일반적으로 필요하지 않다. 다만 {@link #cancelWork()}는 외부 스레드에서 호출되므로
- * 구현체가 외부에서 관찰 가능한 상태를 노출하는 경우에는 별도의 동기화 처리를 고려해야 한다.
+ * 동기화는 일반적으로 필요하지 않다. 다만 {@link CancellableWork#cancelWork()}는 외부 스레드에서
+ * 호출되므로 구현체가 외부에서 관찰 가능한 상태를 노출하는 경우에는 별도의 동기화 처리를 고려해야 한다.
  *
  * @param <T>	loop 수행으로 생성되는 최종 결과의 타입
  * @author Kang-Woo Lee (ETRI)
@@ -74,8 +79,8 @@ public abstract class AbstractLoopExecution<T> extends AbstractThreadedExecution
 	 * <p>
 	 * <b>취소(cancel) 협력 계약:</b> 본 클래스의 취소 처리는 협력적(cooperative)으로 동작한다.
 	 * 취소 신호는 loop 본체가 다음 iteration을 시작하기 직전에만 {@link #isCancelRequested()}로 검사되므로,
-	 * 한 번의 iteration이 오래 걸리는 경우 그 동안 호출된 {@link #cancelWork()}는 해당 iteration이
-	 * 끝날 때까지 대기하게 된다. 따라서 본 메소드 구현체는 다음 중 하나를 따라야 한다:
+	 * 한 번의 iteration이 오래 걸리는 경우 그 동안 호출된 {@link CancellableWork#cancelWork()}는
+	 * 해당 iteration이 끝날 때까지 대기하게 된다. 따라서 본 메소드 구현체는 다음 중 하나를 따라야 한다:
 	 * <ul>
 	 *   <li>iteration 내부에서 주기적으로 {@link #isCancelRequested()}를 호출하여 {@code true}이면
 	 *       {@link CancellationException}을 던져 빠르게 종료한다.</li>

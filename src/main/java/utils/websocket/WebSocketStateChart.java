@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import utils.Preconditions;
 import utils.RuntimeExecutionException;
 import utils.Throwables;
+import utils.func.Result;
 import utils.statechart.Signal;
 import utils.statechart.StateChart;
 import utils.statechart.Transition;
@@ -68,13 +69,21 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 
 		setLogger(s_logger);
 		m_socketListener = new WebSocketListener<>(this);
+
+		// 어떤 경로로 종료되든 연결이 닫히도록 보장한다. 종료 상태({@link States.CompletedState} 등)로
+		// 전이한 경우는 그 상태의 enter()가 이미 닫았으므로 여기서의 호출은 no-op이 되고,
+		// complete()/fail()/cancel() 직접 호출이나 사용자 정의 final state처럼 종료 상태를
+		// 거치지 않는 경로에서는 이 훅이 유일한 close 지점이 된다.
+		whenFinished(result -> close(WebSocket.NORMAL_CLOSURE, closeReasonOf(result)));
 	}
 
 	/**
 	 * 현재 활성 WebSocket 연결을 반환한다.
 	 *
-	 * @return	연결된 {@link WebSocket}. {@link #setWebSocket(WebSocket)} 호출 전이거나
-	 *			연결이 close 된 경우 {@code null}.
+	 * 한 번 등록된 참조는 해제되지 않는다. 연결이 close된 뒤에도, 차트가 종료된 뒤에도 마지막
+	 * {@link WebSocket}을 그대로 반환한다.
+	 *
+	 * @return	등록된 {@link WebSocket}. {@link #setWebSocket(WebSocket)} 호출 전이면 {@code null}.
 	 */
 	public @Nullable WebSocket getWebSocket() {
 		return m_webSocket;
@@ -99,6 +108,56 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 		Preconditions.checkState(m_webSocket == null, "WebSocket is already set on this chart");
 
 		m_webSocket = ws;
+	}
+
+	/**
+	 * WebSocket 연결을 정상 종료 코드({@link WebSocket#NORMAL_CLOSURE})로 닫는다.
+	 *
+	 * @see #close(int, String)
+	 */
+	public void close() {
+		close(WebSocket.NORMAL_CLOSURE, "normal closure");
+	}
+
+	/**
+	 * WebSocket 연결을 닫는다.
+	 * <p>
+	 * <b>Best-effort 연산이다.</b> 연결이 수립되기 전이라 보유한 WebSocket이 없거나, 이미 닫혔거나,
+	 * 원격이 연결을 끊어 close 전송이 실패하는 경우를 모두 무시하고 조용히 반환한다. 이는 본 메소드가
+	 * 종료 경로(종료 상태 진입, 차트 종료 훅)에서 호출되기 때문으로, 여기서 던진 예외가 상태 전이나
+	 * 종료 통지를 실패로 뒤집지 않도록 하기 위함이다. 따라서 반복 호출도 안전하다.
+	 * <p>
+	 * close 프레임이 전송될 때까지 <b>블록</b>한다. 원격의 응답을 기다리지는 않는다.
+	 * <p>
+	 * 차트가 종료되면 이 메소드가 자동으로 호출되므로, 정상적인 시나리오에서 외부 코드가 직접
+	 * 호출할 일은 없다. 차트를 종료시키지 않고 연결만 끊어야 하는 경우에 사용한다.
+	 *
+	 * @param statusCode	close 상태 코드
+	 * @param reason		close 사유 문자열
+	 */
+	public void close(int statusCode, String reason) {
+		WebSocket ws = m_webSocket;
+		if ( ws == null ) {
+			return;
+		}
+
+		try {
+			ws.sendClose(statusCode, reason).join();
+		}
+		catch ( Throwable e ) {
+			getLogger().debug("ignored error while closing WebSocket: {}", ""+e);
+		}
+	}
+
+	/**
+	 * 차트 종료 결과에 대응하는 close 사유 문자열을 반환한다.
+	 *
+	 * @param result	차트 종료 결과.
+	 * @return	close 사유 문자열.
+	 */
+	private static String closeReasonOf(Result<?> result) {
+		// 취소도 프로토콜 상으로는 정상적인 연결 종료이므로 실패인 경우만 구분한다.
+		return result.isFailed() ? "closure due to a error" : "normal closure";
 	}
 
 	/**

@@ -120,15 +120,15 @@ COMPLETED / FAILED / CANCELLED
 
 | 메서드 | 호출 시점 | 효과 |
 |---|---|---|
-| [`addState(State<C>)`](../src/main/java/utils/statechart/StateChart.java#L63) | start 전 | 상태를 차트에 등록 (path가 키) |
-| [`setInitialState(String)`](../src/main/java/utils/statechart/StateChart.java#L74) | start 전 | 초기 상태의 path 지정 |
-| [`addFinalState(String)`](../src/main/java/utils/statechart/StateChart.java#L86) | start 전 | 최종 상태로 등록 (도달 시 자동 complete) |
-| [`start()`](../src/main/java/utils/statechart/StateChart.java#L103) | 한 번 | initial state.enter() → RUNNING |
-| [`handleSignal(Signal)`](../src/main/java/utils/statechart/StateChart.java#L151) | RUNNING 동안 | 현 상태가 transition 선택, traverse |
-| [`getCurrentState()`](../src/main/java/utils/statechart/StateChart.java#L98) | 언제든 | 현재 상태 (lock 보유 후 안전 접근) |
-| [`complete()`](../src/main/java/utils/statechart/StateChart.java#L180) | 사용자 호출 또는 자동 | 정상 완료 통지 |
-| [`fail(Throwable)`](../src/main/java/utils/statechart/StateChart.java#L192) | 사용자 호출 또는 자동 | 실패 통지 |
-| [`cancelWork()`](../src/main/java/utils/statechart/StateChart.java#L219) | `cancel(true)` 경유 | 현 상태 exit + 종료 |
+| [`addState(State<C>)`](../src/main/java/utils/statechart/StateChart.java#L134) | start 전 | 상태를 차트에 등록 (path가 키) |
+| [`setInitialState(String)`](../src/main/java/utils/statechart/StateChart.java#L161) | start 전 | 초기 상태의 path 지정 |
+| [`addFinalState(String)`](../src/main/java/utils/statechart/StateChart.java#L187) | start 전 | 최종 상태로 등록 (도달 시 자동 complete) |
+| [`start()`](../src/main/java/utils/statechart/StateChart.java#L228) | 한 번 | initial state.enter() → RUNNING |
+| [`handleSignal(Signal)`](../src/main/java/utils/statechart/StateChart.java#L286) | RUNNING 동안 | 현 상태가 transition 선택, traverse |
+| [`getCurrentState()`](../src/main/java/utils/statechart/StateChart.java#L210) | 언제든 | 현재 상태 (lock 보유 후 안전 접근) |
+| [`complete()`](../src/main/java/utils/statechart/StateChart.java#L333) | 사용자 호출 또는 자동 | 정상 완료 통지 |
+| [`fail(Throwable)`](../src/main/java/utils/statechart/StateChart.java#L355) | 사용자 호출 또는 자동 | 실패 통지 |
+| [`cancelWork()`](../src/main/java/utils/statechart/StateChart.java#L380) | `cancel(true)` 경유 | 현 상태 exit + 종료 |
 
 ### 3.3 `State<C>` — 상태
 

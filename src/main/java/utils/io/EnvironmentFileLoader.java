@@ -27,7 +27,7 @@ import utils.StrSubstitutor;
  * 추가로 {@link #withFacts(Map)}로 등록한 변수와 {@code ${env:...}}, {@code ${sys:...}} 등
  * 내장 lookup도 참조할 수 있다.
  *
- * <h3>사용 패턴</h3>
+ * <h2>사용 패턴</h2>
  * <pre>{@code
  * Map<String,String> env = EnvironmentFileLoader.from(new File(".env"))
  *                                               .withFacts(Map.of("HOME", "/home/user"))

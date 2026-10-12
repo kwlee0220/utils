@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -30,19 +31,23 @@ import utils.stream.FStream;
  * <ul>
  *   <li>{@code COMPLETED} - {@code outputs}에 연산 출력이 담긴다.</li>
  *   <li>{@code FAILED} - {@code error}에 실패 정보({@link RESTfulErrorEntity})가 담긴다.</li>
- *   <li>{@code RUNNING} - 비동기 수행 중이며 {@code sessionEndpoint}로 세션을 식별한다.</li>
+ *   <li>{@code RUNNING} - 비동기 수행 중이며 {@code session_endpoint}로 세션을 식별한다.</li>
  *   <li>{@code CANCELLED} - 연산이 취소되었다.</li>
  * </ul>
+ * {@code outputs}는 상태와 무관하게 항상 존재하며, 출력이 없는 경우는 빈 객체({@code {}})가 된다.
  * JSON 직렬화 시 {@code null} 필드는 생략된다({@link JsonInclude}).
+ * 역직렬화 시 알려지지 않은 필드는 무시하기 때문에({@link JsonIgnoreProperties}) 서버가 필드를
+ * 추가하더라도 구버전 클라이언트가 깨지지 않는다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
 @JsonInclude(Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public final class RpcResponseMessage {
 	/** 다중 세션으로 수행하는 경우 할당된 세션의 엔드포인트 */
-	@JsonProperty("sessionEndpoint") @Nullable private final String m_sessionEndpoint;
+	@JsonProperty("session_endpoint") @Nullable private final String m_sessionEndpoint;
 	/** 연산의 수행 상태 */
-	@JsonProperty("state") @NotNull private final RpcState m_state;
+	@JsonProperty("status") @NotNull private final RpcState m_state;
 	/** 연산 수행 결과 (성공적으로 연산이 완료된 경우) */
 	@JsonProperty("outputs") @NotNull private final Map<String,JsonNode> m_outputs;
 	/** 연산 수행 결과 메시지 (연산 수행이 성공적으로 완료되지 못한 경우) */
@@ -53,40 +58,45 @@ public final class RpcResponseMessage {
 	 *
 	 * @param sessionEndpoint 세션 식별자. (다중 세션 비동기 수행이 아니면 {@code null})
 	 * @param status    연산 수행 상태. ({@code null} 불가)
-	 * @param outputs   연산 출력. ({@code COMPLETED}인 경우 {@code null} 불가)
+	 * @param outputs   연산 출력. ({@code COMPLETED}인 경우 {@code null} 불가.
+	 *                  그 외의 상태에서 {@code null}이면 빈 {@code Map}으로 대체된다)
 	 * @param error     실패 정보. ({@code FAILED}인 경우 {@code null} 불가)
-	 * @throws IllegalArgumentException {@code status}가 {@code null}인 경우.
-	 * @throws IllegalStateException    상태와 필드 구성이 일치하지 않는 경우.
-	 *                                  ({@code COMPLETED}인데 {@code outputs}가 없거나,
-	 *                                  {@code FAILED}인데 {@code error}가 없는 경우)
+	 * @throws IllegalArgumentException {@code status}가 {@code null}이거나, 상태와 필드 구성이
+	 *                                  일치하지 않는 경우. ({@code COMPLETED}인데 {@code outputs}가
+	 *                                  없거나, {@code FAILED}인데 {@code error}가 없는 경우)
+	 *                                  단, 이 생성자를 JSON 역직렬화 경로에서 호출한 경우에는
+	 *                                  Jackson이 {@code ValueInstantiationException}으로 감싸므로
+	 *                                  이 예외가 그대로 노출되지 않는다.
 	 */
 	@JsonCreator
-	public RpcResponseMessage(@JsonProperty("sessionEndpoint") String sessionEndpoint,
-									@JsonProperty("state") RpcState status,
-									@JsonProperty("outputs") Map<String,JsonNode> outputs,
-									@JsonProperty("error") RESTfulErrorEntity error) {
+	public RpcResponseMessage(@JsonProperty("session_endpoint") String sessionEndpoint,
+								@JsonProperty("status") RpcState status,
+								@JsonProperty("outputs") Map<String,JsonNode> outputs,
+								@JsonProperty("error") RESTfulErrorEntity error) {
 		Preconditions.checkNotNullArgument(status, "'status' is null");
-		Preconditions.checkState(status != RpcState.COMPLETED || outputs != null,
+		Preconditions.checkArgument(status != RpcState.COMPLETED || outputs != null,
 								"status is COMPLETED but 'outputs' is null");
-		Preconditions.checkState(status != RpcState.FAILED || error != null, 
+		Preconditions.checkArgument(status != RpcState.FAILED || error != null,
 								"status is FAILED but 'error' is null");
-		
+
 		m_sessionEndpoint = sessionEndpoint;
 		m_state = status;
-		m_outputs = outputs;
+		// 검증을 마친 뒤에 정규화한다. 순서가 바뀌면 COMPLETED인데 outputs가 없는 경우가
+		// 빈 Map으로 둔갑하여 위의 checkArgument를 무력화시킨다.
+		m_outputs = (outputs != null) ? outputs : Map.of();
 		m_error = error;
 	}
 	
 	private RpcResponseMessage(Builder builder) {
 		Preconditions.checkNotNullArgument(builder.m_state, "'status' is null");
-		Preconditions.checkState(builder.m_state != RpcState.COMPLETED || builder.m_outputs != null,
+		Preconditions.checkArgument(builder.m_state != RpcState.COMPLETED || builder.m_outputs != null,
 								"status is COMPLETED but 'outputs' is null");
-		Preconditions.checkState(builder.m_state != RpcState.FAILED || builder.m_error != null, 
+		Preconditions.checkArgument(builder.m_state != RpcState.FAILED || builder.m_error != null,
 								"status is FAILED but 'error' is null");
 								
 		m_sessionEndpoint = builder.m_sessionEndpoint;
 		m_state = builder.m_state;
-		m_outputs = builder.m_outputs;
+		m_outputs = (builder.m_outputs != null) ? builder.m_outputs : Map.of();
 		m_error = builder.m_error;
 	}
 	
@@ -95,6 +105,7 @@ public final class RpcResponseMessage {
 	 *
 	 * @return 세션 엔드포인트. 비동기 수행이 아니면 {@code null}.
 	 */
+	@JsonProperty("session_endpoint")
 	public String getSessionEndpoint() {
 		return m_sessionEndpoint;
 	}
@@ -104,6 +115,7 @@ public final class RpcResponseMessage {
 	 *
 	 * @return 연산 수행 상태.
 	 */
+	@JsonProperty("status")
 	public RpcState getState() {
 		return m_state;
 	}
@@ -111,7 +123,7 @@ public final class RpcResponseMessage {
 	/**
 	 * 연산 출력을 반환한다. (성공적으로 완료된 경우)
 	 *
-	 * @return 연산 출력. (출력 이름 → 값) 출력이 없으면 {@code null}.
+	 * @return 연산 출력. (출력 이름 → 값) 출력이 없으면 빈 {@code Map}. ({@code null} 아님)
 	 */
 	public Map<String,JsonNode> getOutputs() {
 		return m_outputs;
@@ -129,11 +141,11 @@ public final class RpcResponseMessage {
 	/**
 	 * 실패 정보({@link #getError()})로부터 복원된 Java 예외 객체를 반환한다.
 	 *
-	 * @return 복원된 예외. ({@link RESTfulErrorEntity#toRemoteException()} 참조)
+	 * @return 복원된 예외. ({@code null} 아님. {@link RESTfulErrorEntity#toRemoteException()} 참조)
 	 * @throws IllegalStateException 연산 상태가 {@code FAILED}가 아니거나 실패 정보가 없는 경우.
 	 */
 	@JsonIgnore
-	@Nullable public RESTfulRemoteException getJavaException() {
+	public RESTfulRemoteException getJavaException() {
 		Preconditions.checkState(m_state == RpcState.FAILED, "status is not FAILED: %s", m_state);
 		Preconditions.checkState(m_error != null, "error is null");
 
@@ -142,8 +154,8 @@ public final class RpcResponseMessage {
 	
 	@Override
 	public String toString() {
-		String valuesStr = (m_outputs != null)? FStream.from(m_outputs.keySet()).join(", ") : "";
-		String errorMsg = (m_error != null) ? m_error.toString() : "";
+		String valuesStr = FStream.from(m_outputs.keySet()).join(", ");
+		String errorMsg = (m_error != null) ? String.format(", error=%s", m_error) : "";
 		return String.format("[session=%s] status=%s, outputs={%s}%s",
 							this.m_sessionEndpoint, this.m_state, valuesStr, errorMsg);
 	}
@@ -188,7 +200,6 @@ public final class RpcResponseMessage {
 		return RpcResponseMessage.builder()
 								.session(sessionEndpoint)
 								.status(RpcState.FAILED)
-								.outputArguments(null)
 								.error(error)
 								.build();
 	}
@@ -203,7 +214,6 @@ public final class RpcResponseMessage {
 		return RpcResponseMessage.builder()
 								.session(sessionEndpoint)
 								.status(RpcState.CANCELLED)
-								.outputArguments(null)
 								.build();
 	}
 

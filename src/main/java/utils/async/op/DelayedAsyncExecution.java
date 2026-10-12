@@ -20,6 +20,9 @@ import utils.async.StartableExecution;
  * <p>
  * target이 {@link StartableExecution}이 아니라면 (이미 외부에서 시작되었다는 가정), 지연 후 그 결과를
  * 단순히 따라간다.
+ * <p>
+ * 본 실행을 {@code cancel(true)}로 취소하면 target execution도 함께 취소된다. 지연 중에 취소되면
+ * target은 시작되지 않는다.
  *
  * @param <T> 결과 타입.
  * @author Kang-Woo Lee (ETRI)
@@ -78,5 +81,22 @@ public class DelayedAsyncExecution<T> extends CompletableFutureAsyncExecution<T>
 		};
 		
 		return CompletableFuture.supplyAsync(invoker, m_executor);
+	}
+
+	/**
+	 * target execution을 먼저 취소한 뒤 지연 작업을 취소한다.
+	 * <p>
+	 * {@link CompletableFuture#cancel(boolean)}은 이미 수행 중인 작업을 인터럽트하지 않으므로,
+	 * 상위 클래스의 {@code cancelWork()}만으로는 지연이 끝나 시작된 target(예: 외부 프로세스를
+	 * 수행하는 {@code CommandExecution})이 취소되지 않고 계속 수행된다.
+	 * <p>
+	 * target을 먼저 취소하는 이유는, 지연 작업을 먼저 취소하면 본 실행이 곧바로 {@code CANCELLED}로
+	 * 종료되어 이를 기다리던 쪽(예: JVM shutdown hook)이 target의 정리가 끝나기 전에 진행할 수
+	 * 있기 때문이다.
+	 */
+	@Override
+	public boolean cancelWork() {
+		m_target.cancel(true);
+		return super.cancelWork();
 	}
 }

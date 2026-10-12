@@ -247,6 +247,51 @@ public class ProgramServiceTest {
 		Assertions.assertTrue(lineCount >= 3, "delay=0 시 다회 재시작: 실제 " + lineCount);
 	}
 
+	/**
+	 * {@code restartDelay}가 양수일 때 재시작된 명령도 stop으로 종료되어야 한다.
+	 * <p>
+	 * 첫 실행은 marker 파일만 만들고 바로 종료하고, 재시작된 실행은 자신의 pid를 기록한 뒤
+	 * 장시간 실행된다. 재시작된 실행은 {@link utils.async.op.DelayedAsyncExecution}으로 감싸지므로,
+	 * stop의 취소가 감싸진 명령까지 전달되지 않으면 서비스만 TERMINATED가 되고 프로세스는 남는다.
+	 */
+	@Test
+	@Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+	public void stop_terminates_command_restarted_after_delay() throws Exception {
+		File marker = new File(m_workDir, "marker");
+		File pidFile = new File(m_workDir, "pid.txt");
+		String script = String.format("if [ -f %s ]; then echo $$ > %s; exec sleep 30; else touch %s; fi",
+										marker.getAbsolutePath(), pidFile.getAbsolutePath(),
+										marker.getAbsolutePath());
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sh", "-c", script);
+		cfg.setRestartDelay(Duration.ofMillis(200));
+		ProgramService svc = ProgramService.create(cfg);
+
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+
+		// 재시작된 실행이 pid를 기록할 때까지 대기.
+		long deadline = System.currentTimeMillis() + 5_000;
+		while ( !(pidFile.exists() && pidFile.length() > 0) && System.currentTimeMillis() < deadline ) {
+			Thread.sleep(50);
+		}
+		Assertions.assertTrue(pidFile.exists(), "재시작된 명령이 실행되어야 함");
+		long pid = Long.parseLong(Files.readString(pidFile.toPath()).trim());
+		ProcessHandle proc = ProcessHandle.of(pid).orElseThrow();
+
+		try {
+			svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+			Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+
+			proc.onExit().get(3, TimeUnit.SECONDS);
+			Assertions.assertFalse(proc.isAlive(), "재시작된 명령의 프로세스가 종료되어야 함: pid=" + pid);
+		}
+		catch ( java.util.concurrent.TimeoutException e ) {
+			Assertions.fail("stop 후에도 재시작된 명령의 프로세스가 남아 있음: pid=" + pid);
+		}
+		finally {
+			proc.destroyForcibly();
+		}
+	}
+
 	// ---------- 일반 라이프사이클 ----------
 
 	@Test

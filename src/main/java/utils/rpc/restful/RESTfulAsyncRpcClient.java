@@ -1,5 +1,7 @@
 package utils.rpc.restful;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -20,6 +22,7 @@ import utils.async.CancellableWork;
 import utils.func.FOption;
 import utils.http.HttpRESTfulClient;
 import utils.http.JacksonErrorEntityDeserializer;
+import utils.http.RESTfulException;
 
 /**
  * 원격 연산(operation)을 비동기 방식의 HTTP로 호출하는 클라이언트.
@@ -89,8 +92,8 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 		
 		String requestJson = m_jsonMapper.writeValueAsString(m_requestMsg);
 		RequestBody reqBody = RequestBody.create(requestJson, HttpRESTfulClient.MEDIA_TYPE_JSON);
-		RpcResponseMessage resp = m_restClient.post(m_opEndpoint, reqBody,
-													RpcResponseMessage.newDeserializer(m_jsonMapper));
+		String respStr = m_restClient.post(m_opEndpoint, reqBody);
+		RpcResponseMessage resp = m_jsonMapper.readValue(respStr, RpcResponseMessage.class);
 
 		// 비동기 연산인 경우에는 RUNNING, FAILED 상태만 가능함.											
 		switch ( resp.getState() ) {
@@ -120,8 +123,15 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	@Override
 	protected FOption<Map<String,JsonNode>> tryPoll() throws InterruptedException, CancellationException,
 															ExecutionException {
-		RpcResponseMessage resp = m_restClient.get(m_sessionUrl + "/state",
-														RpcResponseMessage.newDeserializer(m_jsonMapper));
+		String respStr = m_restClient.get(m_sessionUrl);
+		RpcResponseMessage resp;
+		try {
+			resp = m_jsonMapper.readValue(respStr, RpcResponseMessage.class);
+		}
+		catch ( IOException e ) {
+			throw new ExecutionException("rpc failed: " + e.getMessage(), e);
+		}
+		
 		switch ( resp.getState() ) {
 			case RUNNING:
 				getLogger().info("rpc is running, session={}", m_opEndpoint);
@@ -142,29 +152,37 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	/**
 	 * 원격 세션에 취소를 요청한다.
 	 * <p>
-	 * 세션 URL로 HTTP DELETE를 보내 원격 연산을 취소시키고, 그 응답 상태로 취소 접수 여부를 판단한다.
-	 * 아직 수행 중({@code RUNNING})이거나 이미 취소({@code CANCELLED})된 경우는 취소가 유효하므로
-	 * {@code true}를, 이미 완료({@code COMPLETED})된 경우는 {@code false}를 반환한다.
+	 * 세션 URL로 HTTP DELETE를 보내 원격 연산을 취소시키고, 그 응답으로 취소 확정 여부를 판단한다.
+	 * 프로토콜 규약에 따라 취소가 확정되면 {@code 200 OK}와 함께 {@code CANCELLED} 상태가 오고,
+	 * 대상 세션이 이미 종료 상태여서 취소가 허용되지 않으면 {@code 409 Conflict}가 온다.
+	 * 후자의 경우 취소할 대상이 없다는 뜻이므로 예외 대신 {@code false}를 반환한다.
+	 * <p>
+	 * 세션이 존재하지 않거나 보존 기간이 지나 회수된 경우({@code 404 Not Found})는 취소 거부와 구분되는
+	 * 상황이므로 {@link utils.http.RESTfulException}이 그대로 전파된다.
 	 *
-	 * @return	취소가 접수되었으면 {@code true}, 이미 완료되어 취소할 수 없으면 {@code false}.
-	 * @throws utils.http.RESTfulRemoteException	원격 연산이 {@code FAILED}로 응답한 경우.
+	 * @return	취소가 확정되었으면 {@code true}, 이미 종료되어 취소할 수 없으면 {@code false}.
+	 * @throws utils.http.RESTfulException	세션이 존재하지 않는 등 취소 요청 자체가 실패한 경우.
 	 */
 	@Override
 	public boolean cancelWork() {
-		RpcResponseMessage resp = m_restClient.delete(m_sessionUrl,
-													RpcResponseMessage.newDeserializer(m_jsonMapper));
-		switch ( resp.getState() ) {
-			case RUNNING:
-				return true;
-			case COMPLETED:
-				return false;
-			case FAILED:
-				throw resp.getJavaException();
-			case CANCELLED:
-				return true;
-			default:
-				throw new AssertionError("unexpected rpc status: " + resp.getState());
+		RpcResponseMessage resp;
+		try {
+			resp = m_restClient.delete(m_sessionUrl, RpcResponseMessage.newDeserializer(m_jsonMapper));
 		}
+		catch ( RESTfulException e ) {
+			if ( e.getHttpStatusCode() == HttpURLConnection.HTTP_CONFLICT ) {
+				// 대상 세션이 이미 종료 상태여서 취소가 허용되지 않는 경우.
+				getLogger().info("rpc is already finished, cannot cancel: session={}", m_sessionUrl);
+				return false;
+			}
+			throw e;
+		}
+		
+		// 취소가 확정된 응답은 CANCELLED만 가능하다. 그 외의 종료 상태는 409로 전달된다.
+		if ( resp.getState() != RpcState.CANCELLED ) {
+			throw new AssertionError("unexpected rpc status: " + resp.getState());
+		}
+		return true;
 	}
 	
 	/**

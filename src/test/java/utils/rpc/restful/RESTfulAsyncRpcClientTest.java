@@ -125,7 +125,7 @@ public class RESTfulAsyncRpcClientTest {
 	}
 
 	@Test
-	public void testPollsStateEndpoint() throws Exception {
+	public void testPollsSessionEndpoint() throws Exception {
 		enqueue(RpcResponseMessage.running("/sessions/1"));
 		enqueue(RpcResponseMessage.completed("/sessions/1", Map.of()));
 
@@ -139,10 +139,11 @@ public class RESTfulAsyncRpcClientTest {
 		Assertions.assertNotNull(post, "최초 POST 요청이 도착해야 함");
 		Assertions.assertEquals("POST", post.getMethod());
 
-		// 2) 세션 state 폴링 요청 (GET .../sessions/1/state)
+		// 2) 세션 상태 폴링 요청. 서버(RESTfulAsyncRpcServer)는 세션 상태를 세션 endpoint 자체로
+		// 서빙하므로, 별도의 하위 경로 없이 응답의 session_endpoint를 그대로 GET한다.
 		var poll = m_server.takeRequest(5, TimeUnit.SECONDS);
-		Assertions.assertNotNull(poll, "세션 state 폴링 요청이 도착해야 함");
+		Assertions.assertNotNull(poll, "세션 상태 폴링 요청이 도착해야 함");
 		Assertions.assertEquals("GET", poll.getMethod());
-		Assertions.assertTrue(poll.getPath().endsWith("/sessions/1/state"), poll.getPath());
+		Assertions.assertTrue(poll.getPath().endsWith("/sessions/1"), poll.getPath());
 	}
 }

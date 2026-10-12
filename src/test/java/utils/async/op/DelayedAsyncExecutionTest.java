@@ -127,6 +127,45 @@ public class DelayedAsyncExecutionTest {
 		Assertions.assertTrue(result.isFailed(), "target이 시작 불가능하면 본 실행은 실패해야 함");
 	}
 
+	// ---------- 취소 ----------
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void cancel_after_delay_cancels_running_target() throws Exception {
+		// 지연이 끝나 target이 실행 중일 때 본 실행을 취소하면 target도 취소되어야 한다.
+		StartableExecution<String> target = AsyncExecutions.idle("v", Duration.ofSeconds(30));
+		DelayedAsyncExecution<String> exec = AsyncExecutions.delay(target, Duration.ofMillis(50));
+
+		exec.start();
+		long deadline = System.currentTimeMillis() + 2_000;
+		while ( !target.isRunning() && System.currentTimeMillis() < deadline ) {
+			Thread.sleep(10);
+		}
+		Assertions.assertTrue(target.isRunning(), "delay 후 target이 실행 중이어야 함");
+
+		exec.cancel(true);
+
+		AsyncResult<String> targetResult = target.waitForFinished(2, TimeUnit.SECONDS);
+		Assertions.assertTrue(targetResult.isCancelled(), "target이 취소되어야 함: " + targetResult);
+		Assertions.assertTrue(exec.waitForFinished().isCancelled());
+	}
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void cancel_during_delay_prevents_target_start() throws Exception {
+		AtomicBoolean targetStarted = new AtomicBoolean(false);
+		TrackingExecution<String> target = new TrackingExecution<>(targetStarted);
+		DelayedAsyncExecution<String> exec = AsyncExecutions.delay(target, Duration.ofMillis(300));
+
+		exec.start();
+		Thread.sleep(50);
+		exec.cancel(true);
+
+		Assertions.assertTrue(exec.waitForFinished().isCancelled());
+		Thread.sleep(400);   // delay가 지나도 target이 시작되지 않아야 함.
+		Assertions.assertFalse(targetStarted.get(), "취소된 뒤에는 target이 시작되지 않아야 함");
+	}
+
 	// ---------- 인자 검증 ----------
 
 	@Test

@@ -132,11 +132,11 @@ public class RESTfulRpcClient {
 		/**
 		 * 연산 호출 URL을 설정한다. (필수)
 		 *
-		 * @param endpoint	연산 호출 URL.
+		 * @param opUrl	연산 호출 URL.
 		 * @return	이 빌더.
 		 */
-		public Builder setEndpoint(String endpoint) {
-			m_operationUrl = endpoint;
+		public Builder setOperationUrl(String opUrl) {
+			m_operationUrl = opUrl;
 			return this;
 		}
 

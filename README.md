@@ -4,9 +4,12 @@ Java 17 유틸리티 라이브러리. `utils.*` 패키지 하위에 함수형 �
 
 자세한 패키지 구조와 컨벤션은 [CLAUDE.md](CLAUDE.md)와 다음 문서를 참고한다.
 * 스트림: [docs/stream-guide.md](docs/stream-guide.md), [src/main/java/utils/stream/CLAUDE.md](src/main/java/utils/stream/CLAUDE.md)
+* 스레드/동시성: [docs/thread-guide.md](docs/thread-guide.md), [src/main/java/utils/thread/CLAUDE.md](src/main/java/utils/thread/CLAUDE.md)
+* HTTP REST 클라이언트: [docs/http-guide.md](docs/http-guide.md), [src/main/java/utils/http/CLAUDE.md](src/main/java/utils/http/CLAUDE.md)
 * 상태차트: [docs/statechart-guide.md](docs/statechart-guide.md), [src/main/java/utils/statechart/CLAUDE.md](src/main/java/utils/statechart/CLAUDE.md)
 * WebSocket: [docs/websocket-guide.md](docs/websocket-guide.md), [src/main/java/utils/websocket/CLAUDE.md](src/main/java/utils/websocket/CLAUDE.md)
 * 비동기 실행: [src/main/java/utils/async/CLAUDE.md](src/main/java/utils/async/CLAUDE.md)
+* RESTful RPC: [src/main/java/utils/rpc/restful/README.md](src/main/java/utils/rpc/restful/README.md), [src/main/java/utils/rpc/restful/CLAUDE.md](src/main/java/utils/rpc/restful/CLAUDE.md)
 
 ## 설치 방법
 

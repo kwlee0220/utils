@@ -3,15 +3,18 @@ package utils.json;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import utils.Preconditions;
+import utils.stream.KeyValueFStream;
 
 /**
  *
@@ -124,5 +127,19 @@ public class JacksonUtils {
 		else {
 			return field.fields();
 		}
+	}
+	
+	public static ObjectNode toObjectNode(Map<String,Supplier<JsonNode>> map) {
+		return KeyValueFStream.from(map)
+								.mapValue(Supplier::get)
+								.collect(MAPPER.createObjectNode(), (n,kv) -> n.set(kv.key(), kv.value()));
+	}
+	public static ObjectNode toObjectNodeFloats(Map<String,Float> map) {
+		return KeyValueFStream.from(map)
+								.collect(MAPPER.createObjectNode(), (n,kv) -> n.put(kv.key(), kv.value()));
+	}
+	public static ObjectNode toObjectNodeDoubles(Map<String,Double> map) {
+		return KeyValueFStream.from(map)
+								.collect(MAPPER.createObjectNode(), (n,kv) -> n.put(kv.key(), kv.value()));
 	}
 }
