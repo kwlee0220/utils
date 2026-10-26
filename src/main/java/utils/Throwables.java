@@ -44,7 +44,8 @@ public class Throwables {
 	 * {@link InvocationTargetException}, {@link UndeclaredThrowableException},
 	 * {@link ExecutionException}, {@link RuntimeExecutionException},
 	 * {@link RuntimeInterruptedException}, {@link RuntimeTimeoutException},
-	 * {@link CompletionException}, 그리고 cause가 있는 {@link RuntimeException}.
+	 * {@link CompletionException}, 그리고 정확히 {@link RuntimeException} 타입인 범용 래퍼.
+	 * RuntimeException 하위 타입은 자체 오류 정보가 있으므로 일반적으로 벗기지 않는다.
 	 * 더 이상 벗길 cause가 없으면 현재 예외를 반환한다.
 	 *
 	 * @param e 벗길 예외.
@@ -75,8 +76,8 @@ public class Throwables {
 			else if ( e instanceof CompletionException ) {
 				cause = ((CompletionException)e).getCause();
 			}
-			else if ( e instanceof RuntimeException ) {
-				cause = ((RuntimeException)e).getCause();
+			else if ( e != null && e.getClass() == RuntimeException.class ) {
+				cause = e.getCause();
 			}
 			else {
 				return e;
