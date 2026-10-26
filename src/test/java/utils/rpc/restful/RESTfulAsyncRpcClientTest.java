@@ -14,8 +14,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import okhttp3.OkHttpClient;
+import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 
 import utils.async.AsyncResult;
 import utils.json.JacksonUtils;
@@ -145,5 +147,66 @@ public class RESTfulAsyncRpcClientTest {
 		Assertions.assertNotNull(poll, "세션 상태 폴링 요청이 도착해야 함");
 		Assertions.assertEquals("GET", poll.getMethod());
 		Assertions.assertTrue(poll.getPath().endsWith("/sessions/1"), poll.getPath());
+	}
+
+	/**
+	 * POST/GET에는 항상 RUNNING을, DELETE에는 주어진 응답을 돌려주도록 서버를 설정한다.
+	 */
+	private void dispatchWithCancelResponse(MockResponse deleteResp) throws IOException {
+		String running = MAPPER.writeValueAsString(RpcResponseMessage.running("/sessions/1"));
+		m_server.setDispatcher(new Dispatcher() {
+			@Override
+			public MockResponse dispatch(RecordedRequest req) {
+				return "DELETE".equals(req.getMethod()) ? deleteResp : new MockResponse().setBody(running);
+			}
+		});
+	}
+
+	/**
+	 * 세션을 확보하고 폴링을 시작한 클라이언트를 반환한다.
+	 */
+	private RESTfulAsyncRpcClient startPolling() throws Exception {
+		RESTfulAsyncRpcClient client = client();
+		client.start();
+		Assertions.assertEquals("POST", m_server.takeRequest(5, TimeUnit.SECONDS).getMethod());
+		Assertions.assertEquals("GET", m_server.takeRequest(5, TimeUnit.SECONDS).getMethod());
+		return client;
+	}
+
+	@Test
+	public void testCancelConfirmed() throws Exception {
+		// 취소가 즉시 확정되는 서버: 200 + CANCELLED
+		String cancelled = MAPPER.writeValueAsString(RpcResponseMessage.cancelled("/sessions/1"));
+		dispatchWithCancelResponse(new MockResponse().setBody(cancelled));
+
+		RESTfulAsyncRpcClient client = startPolling();
+		Assertions.assertTrue(client.cancelWork());
+		client.cancel(true);
+		Assertions.assertTrue(client.waitForFinished(5, TimeUnit.SECONDS).isCancelled());
+	}
+
+	@Test
+	public void testCancelAcceptedButStillStopping() throws Exception {
+		// 정지에 시간이 걸리는 서버: 202 + RUNNING(phase=CANCELING)으로 취소 접수만 알리고,
+		// 최종 CANCELLED는 이후 세션 조회로 확인하게 한다. 취소 접수로 처리되어야 한다.
+		dispatchWithCancelResponse(new MockResponse().setResponseCode(202)
+												.setBody("{\"status\":\"RUNNING\",\"phase\":\"CANCELING\"}"));
+
+		RESTfulAsyncRpcClient client = startPolling();
+		Assertions.assertTrue(client.cancelWork());
+		Assertions.assertTrue(client.cancel(true));
+		Assertions.assertTrue(client.waitForFinished(5, TimeUnit.SECONDS).isCancelled());
+	}
+
+	@Test
+	public void testCancelAfterFinished() throws Exception {
+		// 이미 종료된 세션: 409 Conflict → 취소할 대상이 없으므로 false
+		dispatchWithCancelResponse(new MockResponse().setResponseCode(409)
+						.setBody("{\"error\":{\"code\":\"NOT_CANCELLABLE\",\"message\":\"session already COMPLETED\"}}"));
+
+		RESTfulAsyncRpcClient client = startPolling();
+		Assertions.assertFalse(client.cancelWork());
+		client.cancel(true);
+		client.waitForFinished(5, TimeUnit.SECONDS);
 	}
 }

@@ -19,6 +19,7 @@ import okhttp3.RequestBody;
 import utils.Preconditions;
 import utils.async.AbstractPeriodicPoller;
 import utils.async.CancellableWork;
+import utils.async.IntervalMode;
 import utils.func.FOption;
 import utils.http.HttpRESTfulClient;
 import utils.http.JacksonErrorEntityDeserializer;
@@ -53,7 +54,7 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	private String m_sessionUrl;
 	
 	RESTfulAsyncRpcClient(Builder builder) {
-		super(builder.m_pollInterval, true);
+		super(builder.m_pollInterval, IntervalMode.FIXED_RATE);
 
 		Preconditions.checkNotNullArgument(builder.m_httpClient, "httpClient is not specified");
 		Preconditions.checkNotNullArgument(builder.m_baseUrl, "baseUrl is not specified");
@@ -152,15 +153,22 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	/**
 	 * 원격 세션에 취소를 요청한다.
 	 * <p>
-	 * 세션 URL로 HTTP DELETE를 보내 원격 연산을 취소시키고, 그 응답으로 취소 확정 여부를 판단한다.
-	 * 프로토콜 규약에 따라 취소가 확정되면 {@code 200 OK}와 함께 {@code CANCELLED} 상태가 오고,
+	 * 세션 URL로 HTTP DELETE를 보내 원격 연산을 취소시키고, 그 응답으로 취소 접수 여부를 판단한다.
+	 * 취소가 접수된 응답은 두 가지이다.
+	 * <ul>
+	 *   <li>{@code CANCELLED} — 취소가 즉시 확정된 경우. ({@code 200 OK})</li>
+	 *   <li>{@code RUNNING} — 정지에 시간이 걸리는 서버(예: 로봇 트윈)가 취소 접수만 알리는 경우.
+	 *       ({@code 202 Accepted}, {@code phase: CANCELING}) 원격 연산은 아직 정지 중일 수 있으며,
+	 *       최종 {@code CANCELLED}는 이후의 세션 조회로만 확인된다.</li>
+	 * </ul>
 	 * 대상 세션이 이미 종료 상태여서 취소가 허용되지 않으면 {@code 409 Conflict}가 온다.
-	 * 후자의 경우 취소할 대상이 없다는 뜻이므로 예외 대신 {@code false}를 반환한다.
+	 * 이 경우 취소할 대상이 없다는 뜻이므로 예외 대신 {@code false}를 반환한다.
 	 * <p>
 	 * 세션이 존재하지 않거나 보존 기간이 지나 회수된 경우({@code 404 Not Found})는 취소 거부와 구분되는
 	 * 상황이므로 {@link utils.http.RESTfulException}이 그대로 전파된다.
 	 *
-	 * @return	취소가 확정되었으면 {@code true}, 이미 종료되어 취소할 수 없으면 {@code false}.
+	 * @return	취소가 접수되었으면 {@code true}, 이미 종료되어 취소할 수 없으면 {@code false}.
+	 * 			{@code true}가 원격 연산의 정지 완료를 뜻하지는 않는다.
 	 * @throws utils.http.RESTfulException	세션이 존재하지 않는 등 취소 요청 자체가 실패한 경우.
 	 */
 	@Override
@@ -178,11 +186,17 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 			throw e;
 		}
 		
-		// 취소가 확정된 응답은 CANCELLED만 가능하다. 그 외의 종료 상태는 409로 전달된다.
-		if ( resp.getState() != RpcState.CANCELLED ) {
-			throw new AssertionError("unexpected rpc status: " + resp.getState());
+		// 취소가 접수된 응답은 CANCELLED(확정) 또는 RUNNING(정지 중)뿐이다. 그 외의 종료 상태는 409로 전달된다.
+		switch ( resp.getState() ) {
+			case CANCELLED:
+				return true;
+			case RUNNING:
+				getLogger().info("rpc cancel is accepted, remote operation is still stopping: session={}",
+								m_sessionUrl);
+				return true;
+			default:
+				throw new AssertionError("unexpected rpc status: " + resp.getState());
 		}
-		return true;
 	}
 	
 	/**

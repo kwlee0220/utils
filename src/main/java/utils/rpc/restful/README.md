@@ -99,8 +99,13 @@ client.cancel(true);                      // 세션에 DELETE 전송
 | DELETE 응답 | `cancelWork()` |
 |---|---|
 | `200` + `CANCELLED` | `true` — 취소 확정 |
+| `202` + `RUNNING` (`phase: CANCELING`) | `true` — 취소 접수. 원격 연산은 아직 정지 중일 수 있다 |
 | `409 Conflict` | `false` — 이미 종료되었거나 연산이 취소를 거부함 |
 | `404 Not Found` | `RESTfulException` 전파 — 세션이 없거나 보존 기간이 지남 |
+
+`202` + `RUNNING` 은 정지에 시간이 걸리는 서버(예: 로봇 트윈)의 응답이다. 서버는 세션을 유지한 채 정지를
+진행하고, 최종 `CANCELLED` 는 이후의 세션 조회로만 확인된다. 클라이언트 쪽 execution 은 다음 폴링 경계에서
+`CANCELLED` 로 끝나므로, **원격 연산이 실제로 멈췄는지는 보장하지 않는다.**
 
 `409` 와 `404` 는 다른 상황이므로 뭉뚱그리지 않는다. 전자는 "취소할 것이 없다", 후자는 "그런 세션이
 없다" 이다.
