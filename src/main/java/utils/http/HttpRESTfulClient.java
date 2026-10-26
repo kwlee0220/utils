@@ -5,6 +5,8 @@ import java.io.InterruptedIOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +97,8 @@ public class HttpRESTfulClient implements LoggerSettable {
 	private final LinkedHashMap<String,String> m_headers;
 	private final ErrorEntityDeserializer m_errorEntityDeser;
 	private final JsonMapper m_mapper;
+	// 에러 code → 클라이언트 측 예외 생성기. 등록된 code만 해당 예외로 복원한다 (Builder#remoteException).
+	private final Map<String,Function<String,? extends RuntimeException>> m_remoteExceptions;
 	private volatile Logger m_logger = null;
 	
 	/**
@@ -137,7 +141,8 @@ public class HttpRESTfulClient implements LoggerSettable {
 	}
 
 	private HttpRESTfulClient(OkHttpClient client, LinkedHashMap<String,String> headers,
-								ErrorEntityDeserializer deser, JsonMapper mapper) {
+								ErrorEntityDeserializer deser, JsonMapper mapper,
+								Map<String,Function<String,? extends RuntimeException>> remoteExceptions) {
 		Preconditions.checkNotNullArgument(client, "httpClient is null");
 		Preconditions.checkNotNullArgument(deser, "deserializer is null");
 		Preconditions.checkNotNullArgument(mapper, "jsonMapper is null");
@@ -146,6 +151,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 		m_headers = Maps.newLinkedHashMap(headers);
 		m_errorEntityDeser = deser;
 		m_mapper = mapper;
+		m_remoteExceptions = Map.copyOf(remoteExceptions);
 	}
 
 	/**
@@ -466,6 +472,8 @@ public class HttpRESTfulClient implements LoggerSettable {
 		private LinkedHashMap<String,String> m_headers = Maps.newLinkedHashMap();
 		private ErrorEntityDeserializer m_deser;
 		private JsonMapper m_mapper;
+		private final Map<String,Function<String,? extends RuntimeException>> m_remoteExceptions
+																		= new LinkedHashMap<>();
 
 		private Builder() { }
 
@@ -482,7 +490,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 			ErrorEntityDeserializer deser = (m_deser != null)
 											? m_deser
 											: new JacksonErrorEntityDeserializer(mapper);
-			return new HttpRESTfulClient(client, m_headers, deser, mapper);
+			return new HttpRESTfulClient(client, m_headers, deser, mapper, m_remoteExceptions);
 		}
 
 		/**
@@ -531,6 +539,31 @@ public class HttpRESTfulClient implements LoggerSettable {
 		 */
 		public Builder jsonMapper(JsonMapper mapper) {
 			m_mapper = mapper;
+			return this;
+		}
+
+		/**
+		 * 서버가 보낸 에러 {@code code}를 클라이언트 측 예외로 복원하는 규칙을 등록한다.
+		 * <p>
+		 * 에러 응답의 {@code code}(일반적으로 서버 측 예외 클래스 이름)가 {@code code}와 같으면
+		 * {@link RESTfulRemoteException} 대신 {@code factory}가 만든 예외를 던진다. {@code factory}는
+		 * 에러 메시지({@link RESTfulErrorEntity}의 {@code message} 또는 {@link TypedServerErrorMessage}의
+		 * {@code text}. 없으면 {@code null})를 받는다.
+		 * <p>
+		 * 원격 응답이 지정한 임의 클래스를 로딩하지 않으면서, 호출부가 서버 예외를 타입으로 구분할 수 있게
+		 * 하는 허용 목록(allowlist)이다. 등록하지 않은 {@code code}는 기존처럼 {@link RESTfulRemoteException}으로
+		 * 전달된다. {@code factory}가 실패하거나 {@code null}을 반환해도 기존 처리로 돌아간다.
+		 * 같은 {@code code}로 다시 호출하면 덮어쓴다.
+		 *
+		 * @param code		에러 code. (예: {@code "mdt.model.ResourceNotFoundException"})
+		 * @param factory	에러 메시지로부터 예외를 만드는 함수.
+		 * @return 이 빌더.
+		 */
+		public Builder remoteException(String code, Function<String,? extends RuntimeException> factory) {
+			Preconditions.checkNotNullArgument(code, "code is null");
+			Preconditions.checkNotNullArgument(factory, "factory is null");
+
+			m_remoteExceptions.put(code, factory);
 			return this;
 		}
 	}
@@ -733,8 +766,9 @@ public class HttpRESTfulClient implements LoggerSettable {
 
 			if ( root.has("messageType") ) {
 				// 커스텀 포맷: TypedServerErrorMessage {messageType, code, text, timestamp}
-				Throwable cause = m_mapper.convertValue(root, TypedServerErrorMessage.class).toException();
-				return toRemoteException(cause);
+				TypedServerErrorMessage errorMsg = m_mapper.convertValue(root, TypedServerErrorMessage.class);
+				RuntimeException known = toRegisteredException(errorMsg.getCode(), errorMsg.getText());
+				return (known != null) ? known : toRemoteException(errorMsg.toException());
 			}
 			else if ( root.has("status") && root.has("path") ) {
 				// Spring Boot 기본 에러 포맷: {timestamp, status, error, message, path}
@@ -746,7 +780,8 @@ public class HttpRESTfulClient implements LoggerSettable {
 				try {
 					String errorMsg = m_mapper.writeValueAsString(root);
 					RESTfulErrorEntity error = m_errorEntityDeser.deserialize(errorMsg);
-					return error.toRemoteException();
+					RuntimeException known = toRegisteredException(error.getCode(), error.getMessage());
+					return (known != null) ? known : error.toRemoteException();
 				}
 				catch ( IOException e ) {
 					return new RESTfulIOException(withHttpContext(statusCode, url,
@@ -781,6 +816,22 @@ public class HttpRESTfulClient implements LoggerSettable {
 	 * 복원된 원인 예외를 클라이언트 측 unchecked 예외로 감싼다.
 	 * 이미 unchecked이면 그대로, checked이면 {@link RESTfulRemoteException}으로 래핑한다.
 	 */
+	private RuntimeException toRegisteredException(String code, String message) {
+		// Builder#remoteException으로 등록된 code만 복원한다. 규칙이 없거나 예외 생성이 실패하면
+		// null을 반환하여 기본 처리(RESTfulRemoteException)를 따르게 한다 — 이 경로도 예외를 던지면 안 된다.
+		Function<String,? extends RuntimeException> factory = (code != null) ? m_remoteExceptions.get(code) : null;
+		if ( factory == null ) {
+			return null;
+		}
+		try {
+			return factory.apply(message);
+		}
+		catch ( RuntimeException e ) {
+			getLogger().warn("failed to create the registered exception: code={}, cause={}", code, e.toString());
+			return null;
+		}
+	}
+
 	private RuntimeException toRemoteException(Throwable cause) {
 		return Throwables.toRuntimeException(cause,
 									c -> new RESTfulRemoteException("Remote RESTful exception: " + c, c));

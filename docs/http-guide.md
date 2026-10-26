@@ -284,6 +284,29 @@ path=/api/x"`)으로 검증해야 한다 (`HttpRESTfulClientTest.springBootError
 
 `TypedServerErrorMessage.toException()`은 반대로 클래스를 로드하지 않고 항상 `RESTfulRemoteException`을 반환한다.
 
+**서버 예외를 타입으로 잡아야 하면 허용 목록으로 등록한다.** 클래스를 로딩하지 않고도 알려진 `code`만 원래
+예외로 복원할 수 있다. 등록한 `code`의 에러 응답은 `RESTfulRemoteException` 대신 지정한 예외로 던져지며,
+`{code, message}` 포맷과 `{messageType, code, text}` 포맷에 모두 적용된다. 생성 함수는 에러 메시지
+(`message` 또는 `text`)를 받는다.
+
+```java
+HttpRESTfulClient client = HttpRESTfulClient.builder()
+        .remoteException("mdt.model.ResourceNotFoundException", ResourceNotFoundException::new)
+        .remoteException("mdt.model.ResourceAlreadyExistsException", ResourceAlreadyExistsException::new)
+        .build();
+
+try {
+    client.post(url, body, deser);
+}
+catch ( ResourceAlreadyExistsException e ) {      // 등록하지 않았다면 RESTfulRemoteException 이다
+    ...
+}
+```
+
+등록하지 않은 `code`는 기존처럼 `RESTfulRemoteException`이다. 생성 함수가 실패하거나 `null`을 반환해도
+`RESTfulRemoteException`으로 돌아가며, 등록한 예외가 `RESTfulException` 하위가 아니면 HTTP 상태 코드
+(`getHttpStatusCode()`)는 실리지 않는다.
+
 ### 6.5 서버 측에서 에러 엔티티 만들기
 
 ```java

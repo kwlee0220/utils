@@ -72,6 +72,19 @@ public class HttpRESTfulClientTest {
 	}
 
 	@Test
+	public void nestedErrorObject_with_extra_fields_becomes_remote_exception() {
+		// code/message 외의 부가 필드가 있어도 우리 포맷으로 처리되어 code가 보존되어야 한다.
+		// (부가 필드 때문에 파싱이 실패하면 RESTfulIOException으로 떨어져 code로 분기할 수 없다)
+		String respBody = "{\"error\":{\"code\":\"RESOURCE_BUSY\",\"message\":\"resource 'arm' is occupied\","
+						+ "\"resource\":\"arm\",\"operation\":\"move_linear\",\"estimated_remaining_ms\":1200}}";
+
+		RESTfulRemoteException thrown = assertThrows(RESTfulRemoteException.class,
+													() -> { throw toException(respBody); });
+
+		assertEquals("RESOURCE_BUSY", thrown.getRemoteErrorEntity().getCode());
+	}
+
+	@Test
 	public void springExceptionEntity_with_messageType_becomes_remote_exception() {
 		// 커스텀 포맷 {messageType, code, text}: 예외를 복원하지 않고 RESTfulRemoteException으로 변환한다.
 		String respBody = "{\"messageType\":\"Exception\",\"code\":\"java.io.IOException\","
@@ -139,6 +152,58 @@ public class HttpRESTfulClientTest {
 
 		assertTrue(thrown.getMessage().contains("404"), thrown.getMessage());
 		assertTrue(thrown.getMessage().contains("/svc/items"), thrown.getMessage());
+	}
+
+	// ----- 등록된 에러 code의 예외 복원 (Builder#remoteException) -----
+
+	@SuppressWarnings("serial")
+	public static class AlreadyExists extends RuntimeException {
+		public AlreadyExists(String msg) { super(msg); }
+	}
+
+	private final HttpRESTfulClient m_registered = HttpRESTfulClient.builder()
+								.remoteException("my.AlreadyExists", AlreadyExists::new)
+								.remoteException("my.Broken", msg -> { throw new IllegalStateException("boom"); })
+								.build();
+
+	@Test
+	public void registeredCode_in_errorEntity_becomes_registered_exception() {
+		// {code, message} 포맷: 등록된 code이면 RESTfulRemoteException 대신 등록한 예외가 된다.
+		String respBody = "{\"code\":\"my.AlreadyExists\",\"message\":\"WorkflowModel(x)\"}";
+
+		AlreadyExists thrown = assertThrows(AlreadyExists.class,
+								() -> { throw m_registered.toRESTfulClientException(409, URL, respBody); });
+		assertEquals("WorkflowModel(x)", thrown.getMessage());
+	}
+
+	@Test
+	public void registeredCode_in_typedMessage_becomes_registered_exception() {
+		// {messageType, code, text} 포맷도 같은 규칙을 따른다. 메시지는 text다.
+		String respBody = "{\"messageType\":\"Exception\",\"code\":\"my.AlreadyExists\",\"text\":\"Instance(x)\"}";
+
+		AlreadyExists thrown = assertThrows(AlreadyExists.class,
+								() -> { throw m_registered.toRESTfulClientException(400, URL, respBody); });
+		assertEquals("Instance(x)", thrown.getMessage());
+	}
+
+	@Test
+	public void unregisteredCode_stays_remote_exception() {
+		// 등록하지 않은 code는 클래스를 로딩하지 않고 기존처럼 RESTfulRemoteException이다.
+		String respBody = "{\"code\":\"java.lang.IllegalStateException\",\"message\":\"boom\"}";
+
+		RESTfulRemoteException thrown = assertThrows(RESTfulRemoteException.class,
+								() -> { throw m_registered.toRESTfulClientException(500, URL, respBody); });
+		assertEquals("java.lang.IllegalStateException", thrown.getRemoteErrorEntity().getCode());
+	}
+
+	@Test
+	public void failingFactory_falls_back_to_remote_exception() {
+		// 등록한 생성기가 실패해도 이 메소드는 예외를 던지지 않고 기본 처리로 돌아간다.
+		String respBody = "{\"code\":\"my.Broken\",\"message\":\"x\"}";
+
+		RESTfulRemoteException thrown = assertThrows(RESTfulRemoteException.class,
+								() -> { throw m_registered.toRESTfulClientException(500, URL, respBody); });
+		assertEquals("my.Broken", thrown.getRemoteErrorEntity().getCode());
 	}
 
 	private RuntimeException toException(String respBody) {

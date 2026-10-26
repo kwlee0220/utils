@@ -1,6 +1,7 @@
 package utils.http;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -17,10 +18,14 @@ import utils.func.Optionals;
  * 서버에서 발생한 {@link Throwable} 구현 클래스의 fully-qualified class name이 담기지만,
  * 클라이언트는 보안상(임의 클래스 로딩 회피) 이를 이용해 예외를 복원하지 않고, {@code code}/{@code message}를
  * 보유한 {@link RESTfulRemoteException}으로 변환한다({@link #toRemoteException()} 참조).
+ * <p>
+ * 역직렬화 시 {@code code}/{@code message} 외의 필드는 무시한다. 서버가 부가 정보(예: 자원 점유자,
+ * 예상 잔여 시간)를 함께 실어 보내더라도 엔티티로 읽혀야 {@code code}로 분기할 수 있기 때문이다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
 @JsonInclude(Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public final class RESTfulErrorEntity {
 	private final String m_code;
 	private final String m_message;

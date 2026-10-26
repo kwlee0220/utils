@@ -105,6 +105,18 @@ public class RESTfulErrorEntityTest {
 		assertEquals("disk full", entity.getMessage());
 	}
 
+	@Test
+	public void jsonDeserializeIgnoresUnknownFields() throws IOException {
+		// 서버가 code/message 외의 부가 정보를 함께 실어 보내도 엔티티로 읽혀야 한다.
+		// (예: 자원 점유 거부에 점유자와 예상 잔여 시간을 싣는 서버)
+		RESTfulErrorEntity entity = MAPPER.readValue(
+				"{\"code\":\"RESOURCE_BUSY\",\"message\":\"resource 'arm' is occupied\","
+				+ "\"resource\":\"arm\",\"estimated_remaining_ms\":1200}", RESTfulErrorEntity.class);
+
+		assertEquals("RESOURCE_BUSY", entity.getCode());
+		assertEquals("resource 'arm' is occupied", entity.getMessage());
+	}
+
 	@SuppressWarnings("serial")
 	private static class MyError extends RuntimeException {
 		MyError(String msg) { super(msg); }
