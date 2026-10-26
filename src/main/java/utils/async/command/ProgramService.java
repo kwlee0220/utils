@@ -181,7 +181,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 		}
 		else {
 			Duration delay = m_config.getRestartDelay();
-			if ( delay.isPositive() ) {
+			if ( delay.compareTo(Duration.ZERO) > 0 ) {
 				exec = AsyncExecutions.delay(cmdExec, delay);
 				exec.whenStarted(() -> {
 					getLogger().info("restarting the command after " + m_config.getRestartDelay());

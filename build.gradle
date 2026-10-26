@@ -11,6 +11,9 @@ java {
 	targetCompatibility = JavaVersion.VERSION_17
 }
 [compileJava,compileTestJava]*.options*.encoding = 'UTF-8'
+// Java 17 API 로 컴파일한다. 지정하지 않으면 JDK 21 로 빌드할 때 Java 18 이후의 API
+// (예: Duration.isPositive())를 써도 컴파일되어, Java 17 기준인 Eclipse 빌드와 결과가 달라진다.
+[compileJava,compileTestJava]*.options*.release = 17
 
 ext {
 	slf4j_version = '2.0.17'
