@@ -555,9 +555,12 @@ public class JdbcProcessor {
 		String jdbcUrl = parsed.get("jdbcUrl");
 		String user = parsed.get("user");
 		String password = parsed.get("password");
+		// 오류 메시지에 비밀번호가 노출되지 않도록, 입력 문자열 대신 질의 부분('?' 이후)을 뺀 URL과
+		// 사용자 이름만 출력하고 비밀번호는 지정 여부만 표시한다.
 		Preconditions.checkArgument(jdbcUrl != null && user != null && password != null,
 									"fullJdbcUrl must include jdbcUrl, user and password"
-									+ " (format: <jdbcUrl>?user=<user>&password=<passwd>): %s", fullJdbcUrl);
+									+ " (format: <jdbcUrl>?user=<user>&password=<passwd>): url=%s, user=%s, password=%s",
+									fullJdbcUrl.split("\\?", 2)[0], user, (password != null) ? "****" : null);
 
 		return new Builder()
 					.jdbcUrl(jdbcUrl)

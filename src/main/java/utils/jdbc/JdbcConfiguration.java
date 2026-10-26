@@ -109,9 +109,17 @@ public class JdbcConfiguration {
 		m_maxPoolSize = maxPoolSize;
 	}
 	
+	/**
+	 * JDBC URL과 사용자 이름을 {@code <jdbcUrl>?user=<user>} 형식으로 반환한다.
+	 * <p>
+	 * 로그나 예외 메시지에 비밀번호가 노출되지 않도록 비밀번호는 출력하지 않는다.
+	 * 따라서 반환 값을 {@link #parseString(String)}에 넘겨 접속 설정을 복원할 수는 없다.
+	 *
+	 * @return	비밀번호를 제외한 접속 설정 문자열.
+	 */
 	@Override
 	public String toString() {
-		return String.format("%s?user=%s&password=%s", m_jdbcUrl, m_user, m_password);
+		return String.format("%s?user=%s", m_jdbcUrl, m_user);
 	}
 
     public static JdbcConfiguration parseString(String fullJdbcUrl) {
