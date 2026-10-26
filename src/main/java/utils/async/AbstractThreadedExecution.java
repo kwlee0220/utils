@@ -52,8 +52,45 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 * @throws Exception	초기화 중 오류가 발생한 경우.
 	 */
 	 protected void initializeThread() throws Exception { }
-	 
-	 protected void finalizeThread(){ }
+
+	/**
+	 * 작업 수행이 끝난 뒤 정리가 필요한 경우 서브클래스에서 구현한다.
+	 * <p>
+	 * {@link #executeWork()}가 호출된 경우({@code RUNNING}까지 전이한 경우)에만, 종료 사유(완료·실패·취소)와
+	 * 무관하게 1회 호출된다. {@link #start()}·{@link #run()} 두 경로 모두에서 작업을 수행한 스레드가 호출하며,
+	 * 호출 시점은 종료 상태로 전이한 <b>이후</b>이다. 따라서 {@link #waitForFinished()} 등으로 종료를 기다리던 쪽은
+	 * 본 메소드가 끝나기 전에 깨어날 수 있다.
+	 * <p>
+	 * {@link #initializeThread()}가 실패했거나, 초기화 도중 외부에서 종료되어 {@code RUNNING}으로 전이하지 못한
+	 * 경우에는 호출되지 않는다(후자는 {@link #abortAfterInitialize()}가 대신 호출된다).
+	 * 발생한 예외는 로그만 남기고 무시하므로 연산의 결과에 영향을 주지 않는다.
+	 */
+	protected void finalizeThread() { }
+
+	/**
+	 * {@link #executeWork()}가 정상 반환한 결과가 최종 결과로 채택되지 못했을 때 호출된다.
+	 * <p>
+	 * {@link #executeWork()}가 결과를 반환했지만, 그 사이 외부에서 이미 종료 상태({@code FAILED} 등)로 확정되어
+	 * {@code COMPLETED}로의 전이({@link #notifyCompleted(Object)})가 실패한 경우에 1회 호출된다.
+	 * 결과가 연결 객체처럼 자원을 소유하는 경우, 그 자원을 정리하기 위한 hook이다. 완료 전이의 실패 여부로
+	 * 판단하므로, 결과를 반환한 직후부터 완료 전이 사이의 어느 시점에 외부 종료가 확정되더라도 빠짐없이 호출된다.
+	 * <p>
+	 * 작업을 수행한 스레드에서 {@link #finalizeThread()}보다 먼저 호출되며, 발생한 예외는 경고 로그만 남기고
+	 * 무시된다. 기본 구현은 아무 작업도 하지 않는다.
+	 *
+	 * @param result	채택되지 못한 결과.
+	 */
+	protected void onResultDiscarded(T result) { }
+
+	/**
+	 * {@link #initializeThread()}는 성공했지만 그 사이 외부에서 이미 종료(실패·취소)되어
+	 * {@code RUNNING}으로 전이하지 못한 경우에 호출된다. 이때 {@link #executeWork()}는 호출되지 않는다.
+	 * <p>
+	 * {@link #initializeThread()}에서 확보한 자원을 정리해야 하는 서브클래스가 구현한다.
+	 * {@link #start()}·{@link #run()} 두 경로 모두에서 초기화를 수행한 스레드가 1회 호출하며,
+	 * 발생한 예외는 로그만 남기고 무시한다.
+	 */
+	protected void abortAfterInitialize() { }
 	
 	/**
 	 * 서브클래스가 구현해야 할 실제 작업 본문.
@@ -98,6 +135,11 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 *   <li>작업 도중 외부에서 cancel 호출 → {@code CANCELLED}, {@link CancellationException} throw.</li>
 	 *   <li>그 외 예외 → {@code FAILED}, 원인을 감싼 {@link ExecutionException} throw
 	 *       (이미 {@code ExecutionException}이면 그대로 throw).</li>
+	 *   <li>작업 도중(초기화 단계인 {@link #initializeThread()} 포함) 외부에서 이미 종료 상태로 확정된 경우
+	 *       ({@link #notifyFailed(Throwable)} 등) →
+	 *       {@code executeWork()}의 반환·예외와 무관하게 확정된 상태가 유지되고, 그 결과를 따른다.
+	 *       {@code FAILED}이면 확정된 실패 원인을 담은 {@link ExecutionException}을 throw한다.
+	 *       {@code InterruptedException}으로 끝난 경우에는 호출 스레드의 인터럽트 상태를 복원한다.</li>
 	 * </ul>
 	 *
 	 * @return	작업 수행 결과.
@@ -108,7 +150,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	 *                                  이미 호출됨).
 	 */
 	public final T run() throws CancellationException, InterruptedException, ExecutionException {
-		if ( !notifyStarting() ) {
+		if ( !beginExecution() ) {
 			throw new IllegalStateException("already started: " + this);
 		}
 		
@@ -119,30 +161,50 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 			// 시작 준비(initializeThread) 도중 외부에서 취소/실패가 끼어들어 RUNNING으로 못 올라간 경우,
 			// 작업을 수행하지 않고 이미 확정된 종료 결과를 반환한다.
 			if ( !notifyStarted() ) {
+				abortAfterInitializeQuietly();
 				return get();
 			}
 		}
 		catch ( CancellationException | InterruptedException e ) {
-			notifyCancelled();
-			throw e;
+			// 시작 준비 중인 이 스레드가 STARTING을 쥐고 있으므로 기다리지 않고 취소로 전이한다.
+			if ( notifyCancelledWhileStarting() ) {
+				throw e;
+			}
+			// 시작 준비 도중 외부에서 이미 다른 종료 상태(주로 notifyFailed)로 확정된 경우는 그 결과를 따른다.
+			if ( e instanceof InterruptedException ) {
+				Thread.currentThread().interrupt();
+			}
+			return getFinishedResult();
 		}
 		catch ( Exception e ) {
-			Throwables.throwIfInstanceOf(e, Error.class);
 			Throwable cause = Throwables.unwrapThrowable(e);
-			notifyFailed(cause);
-			Throwables.throwIfInstanceOf(e, ExecutionException.class);
-
-			throw new ExecutionException(cause);
+			if ( notifyFailed(cause) ) {
+				Throwables.throwIfInstanceOf(e, ExecutionException.class);
+				throw new ExecutionException(cause);
+			}
+			// 시작 준비 도중 외부에서 이미 종료 상태로 확정된 경우는 initializeThread()의 예외 대신 그 결과를 따른다.
+			return getFinishedResult();
 		}
-		
+
 		try {
 			return runAction();
 		}
 		finally {
-			finalizeThread();
+			finalizeThreadQuietly();
 		}
 	}
 	
+	/** start/run의 진입만 원자적으로 제한한다. 이벤트 통지의 멱등성은 유지한다. */
+	private boolean beginExecution() {
+		m_aopGuard.lock();
+		try {
+			return isNotStarted() && notifyStarting();
+		}
+		finally {
+			m_aopGuard.unlock();
+		}
+	}
+
 	public String getThreadNamePrefix() {
 		return m_threadNamePrefix;
 	}
@@ -171,7 +233,7 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	@Override
 	public final void start() {
 		// STARTING 상태로 전이
-		if ( !notifyStarting() ) {
+		if ( !beginExecution() ) {
 			throw new IllegalStateException("already started: " + this);
 		}
 
@@ -215,7 +277,8 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 			initializeThread();
 		}
 		catch ( CancellationException | InterruptedException e ) {
-			notifyCancelled();
+			// 시작 준비 중인 이 스레드가 STARTING을 쥐고 있으므로 기다리지 않고 취소로 전이한다.
+			notifyCancelledWhileStarting();
 			return;
 		}
 		catch ( Throwable e ) {
@@ -230,12 +293,22 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 			// 비동기 컨텍스트(Executor/Thread)이므로 throw 대신 로깅 후 종료한다.
 			// 시작 실패는 주로 외부에서 이미 cancel된 경우 발생.
 			getLogger().debug("failed to start work: {}", this);
+			abortAfterInitializeQuietly();
 			return;
 		}
 
+		try {
+			runActionInThread();
+		}
+		finally {
+			finalizeThreadQuietly();
+		}
+	}
+
+	private void runActionInThread() {
 		T result;
 		try {
-			// executeWork() 함수는 RUNNING 상태에서 호출됨 
+			// executeWork() 함수는 RUNNING 상태에서 호출됨
 			result = executeWork();
 		}
 		catch ( InterruptedException | CancellationException e ) {
@@ -252,11 +325,40 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		if ( notifyCompleted(result) ) {
 			return;
 		}
+		// 외부에서 이미 종료 상태로 확정되어 결과가 채택되지 못한 경우.
+		discardResultQuietly(result);
 		if ( notifyCancelled() ) {
 			return;
 		}
 		// executeWork()가 정상 반환되었으나 두 전이 모두 실패 — 외부에서 이미 종료(주로 notifyFailed) 처리된 경우.
 		getLogger().debug("execution finished by external party: {}", this);
+	}
+
+	private void discardResultQuietly(T result) {
+		try {
+			onResultDiscarded(result);
+		}
+		catch ( Exception e ) {
+			getLogger().warn("failed to discard result: {}, result={}", this, result, e);
+		}
+	}
+
+	private void finalizeThreadQuietly() {
+		try {
+			finalizeThread();
+		}
+		catch ( Exception e ) {
+			getLogger().warn("failed to finalize thread: {}", this, e);
+		}
+	}
+
+	private void abortAfterInitializeQuietly() {
+		try {
+			abortAfterInitialize();
+		}
+		catch ( Exception e ) {
+			getLogger().warn("failed to clean up after aborted start: {}", this, e);
+		}
 	}
 
 	private T runAction() throws CancellationException, InterruptedException, ExecutionException {
@@ -267,28 +369,48 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		catch ( InterruptedException | CancellationException e ) {
 			// executeWork()에서 InterruptedException/CancellationException이 발생한 경우는
 			// 작업이 취소된 것으로 간주한다.
-			notifyCancelled();
-			throw e;
+			if ( notifyCancelled() ) {
+				throw e;
+			}
+			// 외부에서 이미 다른 종료 상태(주로 notifyFailed)로 확정된 경우는 그 결과를 따른다.
+			if ( e instanceof InterruptedException ) {
+				Thread.currentThread().interrupt();
+			}
+			return getFinishedResult();
 		}
 		catch ( Throwable e ) {
 			Throwables.throwIfInstanceOf(e, Error.class);
 			Throwable cause = Throwables.unwrapThrowable(e);
-			notifyFailed(cause);
-			Throwables.throwIfInstanceOf(e, ExecutionException.class);
-
-			throw new ExecutionException(cause);
+			if ( notifyFailed(cause) ) {
+				Throwables.throwIfInstanceOf(e, ExecutionException.class);
+				throw new ExecutionException(cause);
+			}
+			// 외부에서 이미 다른 종료 상태로 확정된 경우는 executeWork()의 예외 대신 그 결과를 따른다.
+			return getFinishedResult();
 		}
 
 		// 정상 종료 경로
 		if ( notifyCompleted(result) ) {
 			return result;
 		}
+		// 외부에서 이미 종료 상태로 확정되어 결과가 채택되지 못한 경우.
+		discardResultQuietly(result);
 		// executeWork()가 정상 반환되었으나 notifyCompleted()가 false를 반환한 경우는
 		// 외부에서 cancel을 호출하거나, notifyFailed()가 호출된 경우이기 때문에 체크한다.
 		if ( notifyCancelled() ) {
 			throw new CancellationException("cancelled externally: " + this);
 		}
-		// 남은 상태는 FAILED뿐이므로 원인 예외를 얻기 위한 poll().get() 호출.
+		// 남은 상태는 FAILED뿐이므로 원인 예외를 얻는다.
+		return getFinishedResult();
+	}
+
+	/**
+	 * 외부에서 이미 종료 상태로 확정된 실행의 결과를 {@link #run()}의 반환 형태로 돌려준다.
+	 * <p>
+	 * {@code COMPLETED}이면 결과 값을 반환하고, {@code FAILED}이면 원인을 담은 {@link ExecutionException}을,
+	 * {@code CANCELLED}이면 {@link CancellationException}을 던진다.
+	 */
+	private T getFinishedResult() throws CancellationException, ExecutionException {
 		try {
 			return poll().get();
 		}

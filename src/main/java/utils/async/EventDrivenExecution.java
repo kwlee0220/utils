@@ -565,7 +565,38 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     		m_aopGuard.unlock();
     	}
     }
-	
+
+	/**
+	 * 시작 준비({@code STARTING}) 중인 스레드가 그 과정에서 취소를 감지했을 때 취소 상태로 전이한다.
+	 * <p>
+	 * {@link #notifyCancelled()}는 {@code STARTING}이 끝나기를 기다리므로, 시작 준비를 하던 스레드가
+	 * 직접 호출하면 상태를 바꿀 주체가 없어 대기 시간만 지나고 {@code STARTING}에 머문다.
+	 * 본 메소드는 기다리지 않고 {@code STARTING → CANCELLED}로 전이하며 finish listener들을 호출한다.
+	 * {@code STARTING}이 아닌 경우에는 {@link #notifyCancelled()}와 같다.
+	 * <p>
+	 * 시작 준비를 수행하는 스레드만 호출해야 한다.
+	 *
+	 * @return	{@code CANCELLED}로 전이했거나 이미 취소된 경우 {@code true}, 이미 다른 상태로 종료된 경우 {@code false}
+	 */
+	boolean notifyCancelledWhileStarting() {
+		m_aopGuard.lock();
+		try {
+			if ( m_aopState != AsyncState.STARTING ) {
+				return notifyCancelled();
+			}
+			m_asyncResult = AsyncResult.cancelled();
+			m_aopState = AsyncState.CANCELLED;
+			m_aopGuard.signalAll();
+			getLogger().info("cancelled while starting: {}", this);
+
+			notifyFinishListenersInGuard();
+			return true;
+		}
+		finally {
+			m_aopGuard.unlock();
+		}
+	}
+
 	/**
 	 * 종료 상태에 따라 결과를 {@link Result}로 반환한다.
 	 * <p>

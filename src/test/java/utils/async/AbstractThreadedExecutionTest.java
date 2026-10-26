@@ -9,6 +9,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Assertions;
@@ -107,13 +108,32 @@ public class AbstractThreadedExecutionTest {
 		Assertions.assertFalse(task.executeWorkCalled.get());
 	}
 
-	// NOTE:
-	// initializeThread()가 InterruptedException/CancellationException을 던지는 경우,
-	// 현재 구현은 STARTING 상태에서 notifyCancelled()를 호출하게 되며,
-	// EventDrivenExecution.notifyCancelled()는 STARTING 상태에서 외부 전이를 대기하도록
-	// 설계되어 있어 자가-호출(self-call)에서 데드락(또는 cancelTimeout 후 false) 상태가 된다.
-	// 이는 별도 버그로 다뤄야 하므로 해당 시나리오 테스트는 의도적으로 생략했다.
-	// (FAILED 전이는 정상 동작하므로 위 start_initializeThread_failure_skips_executeWork만 검증.)
+	// initializeThread()가 취소 예외를 던지면, 시작 준비 중인 스레드가 STARTING을 쥐고 있는 상태에서
+	// 취소 전이를 해야 한다. cancelTimeout(기본 3초)을 기다리지 않고 바로 CANCELLED가 되어야 한다.
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void start_initializeThread_InterruptedException_transitions_to_CANCELLED() throws Exception {
+		assertStartInitCancelled(new InterruptedException("init-interrupted"));
+	}
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void start_initializeThread_CancellationException_transitions_to_CANCELLED() throws Exception {
+		assertStartInitCancelled(new CancellationException("init-cancelled"));
+	}
+
+	private static void assertStartInitCancelled(Exception cause) throws Exception {
+		InitFailingTask task = new InitFailingTask(cause);
+		CountDownLatch finished = new CountDownLatch(1);
+		task.whenFinished(r -> finished.countDown());
+		task.start();
+
+		AsyncResult<Void> result = task.waitForFinished(1, TimeUnit.SECONDS);
+		Assertions.assertTrue(result.isCancelled(), result.toString());
+		Assertions.assertEquals(AsyncState.CANCELLED, task.getState());
+		Assertions.assertTrue(finished.await(1, TimeUnit.SECONDS), "whenFinished listener not called");
+		Assertions.assertFalse(task.executeWorkCalled.get());
+	}
 
 	@Test
 
@@ -335,8 +355,28 @@ public class AbstractThreadedExecutionTest {
 		Assertions.assertEquals(AsyncState.FAILED, task.getState());
 	}
 
-	// NOTE: run()의 initializeThread()가 InterruptedException/CancellationException을 던지는
-	// 시나리오는 위와 동일한 STARTING-self-cancel 이슈로 인해 누락. 별도 버그로 보고.
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void run_initializeThread_InterruptedException_transitions_to_CANCELLED() {
+		assertRunInitCancelled(new InterruptedException("init-interrupted"), InterruptedException.class);
+	}
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void run_initializeThread_CancellationException_transitions_to_CANCELLED() {
+		assertRunInitCancelled(new CancellationException("init-cancelled"), CancellationException.class);
+	}
+
+	private static void assertRunInitCancelled(Exception cause, Class<? extends Exception> expected) {
+		InitFailingTask task = new InitFailingTask(cause);
+		long started = System.nanoTime();
+		Assertions.assertThrows(expected, task::run);
+		long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+
+		Assertions.assertEquals(AsyncState.CANCELLED, task.getState());
+		Assertions.assertTrue(elapsedMs < 1_000, "waited for cancelTimeout: " + elapsedMs + "ms");
+		Assertions.assertFalse(task.executeWorkCalled.get());
+	}
 
 	@Test
 
@@ -360,7 +400,213 @@ public class AbstractThreadedExecutionTest {
 			});
 	}
 
+	@Test
+	public void queued_start_rejects_second_start_and_run() throws Exception {
+		java.util.List<Runnable> queued = new java.util.ArrayList<>();
+		ResultTask task = new ResultTask("ok");
+		task.setExecutor(queued::add);
+		task.start();
+		Assertions.assertThrows(IllegalStateException.class, task::start);
+		Assertions.assertThrows(IllegalStateException.class, task::run);
+		Assertions.assertEquals(1, queued.size());
+		queued.get(0).run();
+		Assertions.assertEquals("ok", task.get());
+	}
+
+	@Test
+	@Timeout(5)
+	public void concurrent_start_submits_only_one_worker() throws Exception {
+		java.util.List<Runnable> queued = new java.util.concurrent.CopyOnWriteArrayList<>();
+		ResultTask task = new ResultTask("ok");
+		task.setExecutor(queued::add);
+		CountDownLatch ready = new CountDownLatch(2);
+		CountDownLatch go = new CountDownLatch(1);
+		java.util.concurrent.atomic.AtomicInteger rejected = new java.util.concurrent.atomic.AtomicInteger();
+		ExecutorService callers = Executors.newFixedThreadPool(2);
+		try {
+			java.util.List<java.util.concurrent.Future<?>> attempts = new java.util.ArrayList<>();
+			for ( int i = 0; i < 2; ++i ) {
+				attempts.add(callers.submit(() -> {
+					ready.countDown();
+					go.await();
+					try { task.start(); }
+					catch ( IllegalStateException expected ) { rejected.incrementAndGet(); }
+					return null;
+				}));
+			}
+			Assertions.assertTrue(ready.await(2, TimeUnit.SECONDS));
+			go.countDown();
+			for ( var attempt : attempts ) { attempt.get(2, TimeUnit.SECONDS); }
+			Assertions.assertEquals(1, rejected.get());
+			Assertions.assertEquals(1, queued.size());
+			queued.get(0).run();
+			Assertions.assertEquals("ok", task.get());
+		}
+		finally {
+			go.countDown();
+			callers.shutdownNow();
+		}
+	}
+
+	@Test
+	public void run_and_start_preserve_domain_exception_with_nested_cause() throws Exception {
+		IllegalStateException domain = new IllegalStateException("domain", new java.io.IOException("transport"));
+		FailingTask sync = new FailingTask(domain);
+		Assertions.assertSame(domain, Assertions.assertThrows(ExecutionException.class, sync::run).getCause());
+		Assertions.assertSame(domain, Assertions.assertThrows(ExecutionException.class, sync::get).getCause());
+		FailingTask async = new FailingTask(domain);
+		async.start();
+		Assertions.assertSame(domain, Assertions.assertThrows(ExecutionException.class,
+				() -> async.get(2, TimeUnit.SECONDS)).getCause());
+	}
+
+	// ---------- finalizeThread ----------
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void start_calls_finalizeThread_once_after_terminal_transition() throws Exception {
+		for ( Exception workThrow: new Exception[] { null, new IllegalStateException("boom"),
+													new CancellationException("cancel") } ) {
+			FinalizingTask task = new FinalizingTask();
+			task.workThrow = workThrow;
+			task.start();
+
+			Assertions.assertTrue(task.finalized.await(2, TimeUnit.SECONDS), "finalizeThread not called: " + workThrow);
+			Assertions.assertTrue(task.waitForFinished().isFinished());
+			Assertions.assertEquals(1, task.finalizeCalls.get(), String.valueOf(workThrow));
+			Assertions.assertTrue(task.doneWhenFinalized, "finalizeThread must run after the terminal transition");
+		}
+	}
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void run_calls_finalizeThread_once_after_terminal_transition() throws Exception {
+		FinalizingTask task = new FinalizingTask();
+		Assertions.assertEquals("done", task.run());
+		Assertions.assertEquals(1, task.finalizeCalls.get());
+		Assertions.assertTrue(task.doneWhenFinalized, "finalizeThread must run after the terminal transition");
+	}
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void finalizeThread_not_called_when_initializeThread_fails() throws Exception {
+		FinalizingTask started = new FinalizingTask();
+		started.initThrow = new IllegalStateException("init");
+		started.start();
+		Assertions.assertTrue(started.waitForFinished(2, TimeUnit.SECONDS).isFailed());
+		Assertions.assertEquals(0, started.finalizeCalls.get());
+
+		FinalizingTask ran = new FinalizingTask();
+		ran.initThrow = new IllegalStateException("init");
+		Assertions.assertThrows(ExecutionException.class, ran::run);
+		Assertions.assertEquals(0, ran.finalizeCalls.get());
+	}
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void finalizeThread_exception_does_not_affect_result() throws Exception {
+		FinalizingTask ran = new FinalizingTask();
+		ran.finalizeThrows = true;
+		Assertions.assertEquals("done", ran.run());
+		Assertions.assertTrue(ran.isCompleted());
+
+		FinalizingTask started = new FinalizingTask();
+		started.finalizeThrows = true;
+		started.start();
+		Assertions.assertEquals("done", started.get(2, TimeUnit.SECONDS));
+		Assertions.assertTrue(started.finalized.await(2, TimeUnit.SECONDS));
+		Assertions.assertEquals(1, started.finalizeCalls.get());
+	}
+
+	// ---------- onResultDiscarded ----------
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void onResultDiscarded_called_when_completion_transition_fails() throws Exception {
+		// executeWork가 결과를 반환했지만 그 전에 외부에서 FAILED로 확정되면, 그 결과가 onResultDiscarded로 넘겨져야 한다.
+		IllegalStateException external = new IllegalStateException("external");
+		DiscardingTask ran = new DiscardingTask(external);
+		ExecutionException thrown = Assertions.assertThrows(ExecutionException.class, ran::run);
+		Assertions.assertSame(external, thrown.getCause());
+		Assertions.assertEquals(java.util.List.of("result"), ran.discarded);
+
+		DiscardingTask started = new DiscardingTask(external);
+		started.start();
+		Assertions.assertTrue(started.waitForFinished(2, TimeUnit.SECONDS).isFailed());
+		Assertions.assertTrue(started.finalized.await(2, TimeUnit.SECONDS));
+		Assertions.assertEquals(java.util.List.of("result"), started.discarded);
+	}
+
+	@Test
+	@Timeout(value = 5_000, unit = TimeUnit.MILLISECONDS)
+	public void onResultDiscarded_not_called_on_normal_completion() throws Exception {
+		DiscardingTask task = new DiscardingTask(null);
+		Assertions.assertEquals("result", task.run());
+		Assertions.assertTrue(task.discarded.isEmpty());
+	}
+
 	// ---------- helper task classes ----------
+
+	/**
+	 * {@code executeWork()} 안에서 (지정된 경우) 외부 실패를 확정시킨 뒤 결과를 반환하고,
+	 * {@code onResultDiscarded}로 넘겨진 결과를 기록하는 작업.
+	 */
+	private static class DiscardingTask extends AbstractThreadedExecution<String> {
+		final java.util.List<String> discarded = new java.util.concurrent.CopyOnWriteArrayList<>();
+		final CountDownLatch finalized = new CountDownLatch(1);
+		private final Throwable m_externalFailure;
+		DiscardingTask(Throwable externalFailure) { m_externalFailure = externalFailure; }
+		@Override
+		protected String executeWork() {
+			if ( m_externalFailure != null ) {
+				notifyFailed(m_externalFailure);
+			}
+			return "result";
+		}
+		@Override
+		protected void onResultDiscarded(String result) {
+			discarded.add(result);
+		}
+		@Override
+		protected void finalizeThread() {
+			finalized.countDown();
+		}
+	}
+
+	/**
+	 * {@link AbstractThreadedExecution#finalizeThread()} 호출 여부와 시점을 기록하는 작업.
+	 */
+	private static class FinalizingTask extends AbstractThreadedExecution<String> {
+		final AtomicInteger finalizeCalls = new AtomicInteger();
+		final CountDownLatch finalized = new CountDownLatch(1);
+		volatile boolean doneWhenFinalized;
+		Exception initThrow;
+		Exception workThrow;
+		boolean finalizeThrows;
+
+		@Override
+		protected void initializeThread() throws Exception {
+			if ( initThrow != null ) {
+				throw initThrow;
+			}
+		}
+		@Override
+		protected String executeWork() throws Exception {
+			if ( workThrow != null ) {
+				throw workThrow;
+			}
+			return "done";
+		}
+		@Override
+		protected void finalizeThread() {
+			finalizeCalls.incrementAndGet();
+			doneWhenFinalized = isDone();
+			finalized.countDown();
+			if ( finalizeThrows ) {
+				throw new IllegalStateException("finalize-boom");
+			}
+		}
+	}
 
 	private static class ResultTask extends AbstractThreadedExecution<String> {
 		private final String m_result;

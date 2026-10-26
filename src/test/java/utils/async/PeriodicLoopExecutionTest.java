@@ -3,8 +3,10 @@ package utils.async;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,8 +35,8 @@ public class PeriodicLoopExecutionTest {
 			m_lastIteration = lastIteration;
 		}
 
-		TestPeriodicLoop(Duration interval, boolean cumulative, int lastIteration) {
-			super(interval, cumulative);
+		TestPeriodicLoop(Duration interval, IntervalMode mode, int lastIteration) {
+			super(interval, mode);
 
 			m_lastIteration = lastIteration;
 		}
@@ -163,6 +165,7 @@ public class PeriodicLoopExecutionTest {
 
 		Assertions.assertTrue(result.isFailed(), "state=" + result.getState());
 		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
+		Assertions.assertEquals("timeout=PT0.2S", result.getFailureCause().getMessage());
 		// 대충 200ms 근처에서 종료되어야 한다.
 		Assertions.assertTrue(elapsed >= 180 && elapsed < 350, "elapsed=" + elapsed);
 	}
@@ -220,6 +223,10 @@ public class PeriodicLoopExecutionTest {
 		Assertions.assertTrue(result.isFailed());
 		// timeout(10초)가 아니라 due(200ms)에 의해 종료되어야 한다.
 		Assertions.assertTrue(elapsed < 500, "elapsed=" + elapsed);
+		// 예외 메시지도 실제로 적용된 due를 가리켜야 한다.
+		Throwable cause = result.getFailureCause();
+		Assertions.assertInstanceOf(TimeoutException.class, cause);
+		Assertions.assertTrue(cause.getMessage().startsWith("due="), cause.getMessage());
 	}
 
 	@Test
@@ -250,7 +257,7 @@ public class PeriodicLoopExecutionTest {
 		// interval=50ms, action=120ms, lastIteration=4
 		// 누적 모드면 약 4 * 120ms = 480ms (action 시간이 지배적)
 		AtomicInteger count = new AtomicInteger(0);
-		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_50MS, true) {
+		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_50MS, IntervalMode.FIXED_RATE) {
 			@Override
 			protected FOption<Integer> performPeriodicAction(long loopIndex) throws InterruptedException {
 				int c = count.incrementAndGet();
@@ -270,29 +277,55 @@ public class PeriodicLoopExecutionTest {
 	}
 
 	@Test
-	public void testNonCumulativeTimingFromIterStart() throws Exception {
-		// cumulativeInterval=false (기본값): 다음 iteration은 이번 iteration 시작 시각 + interval
-		// action이 interval보다 짧으면 interval만큼 간격이 유지된다.
-		// interval=100ms, action=20ms, 5번 iteration.
-		// 마지막 iteration이 결과를 반환하면 마지막 sleep이 생략되므로
-		// 예상 elapsed ~= 4 * 100ms + action ≈ 420ms.
+	public void testNonCumulativeDelayFromIterEnd() throws Exception {
+		// cumulativeInterval=false (기본값): 다음 iteration은 이번 iteration 종료 시각 + interval (fixed-delay)
+		// interval=100ms, action=60ms, 5번 iteration.
+		// 마지막 iteration이 결과를 반환하면 마지막 대기가 생략되므로
+		// 예상 elapsed ~= 5 * 60ms + 4 * 100ms ≈ 700ms. (시작 시각 기준이었다면 ≈ 460ms)
+		long[] gaps = measureNonCumulativeGaps(INTERVAL_100MS, 60, 5);
+		for ( long gap: gaps ) {
+			Assertions.assertTrue(gap >= 90, "gap after iteration end=" + gap);
+		}
+	}
+
+	@Test
+	public void testNonCumulativeDelayKeptWhenActionOverrunsInterval() throws Exception {
+		// action(150ms)이 interval(100ms)보다 오래 걸려도 다음 iteration 전에 interval만큼 대기해야 한다.
+		// (시작 시각 기준이었다면 대기 없이 곧바로 다음 iteration이 시작된다.)
+		long[] gaps = measureNonCumulativeGaps(INTERVAL_100MS, 150, 3);
+		for ( long gap: gaps ) {
+			Assertions.assertTrue(gap >= 90, "gap after iteration end=" + gap);
+		}
+	}
+
+	/**
+	 * non-cumulative loop를 {@code iterations}번 수행하고, 각 iteration 종료부터 다음 iteration 시작까지의
+	 * 간격(ms)을 반환한다.
+	 */
+	private static long[] measureNonCumulativeGaps(Duration interval, long actionMillis, int iterations)
+		throws Exception {
+		long[] starts = new long[iterations];
+		long[] ends = new long[iterations];
 		AtomicInteger count = new AtomicInteger(0);
-		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_100MS) {
+		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(interval) {
 			@Override
 			protected FOption<Integer> performPeriodicAction(long loopIndex) throws InterruptedException {
+				starts[(int)loopIndex] = System.nanoTime();
 				int c = count.incrementAndGet();
-				Thread.sleep(20);
-				return c >= 5 ? FOption.of(c) : FOption.empty();
+				Thread.sleep(actionMillis);
+				ends[(int)loopIndex] = System.nanoTime();
+				return c >= iterations ? FOption.of(c) : FOption.empty();
 			}
 		};
 
-		long started = System.currentTimeMillis();
 		loop.start();
-		int result = loop.waitForFinished().get();
-		long elapsed = System.currentTimeMillis() - started;
+		Assertions.assertEquals(iterations, (int)loop.waitForFinished(5, TimeUnit.SECONDS).get());
 
-		Assertions.assertEquals(5, result);
-		Assertions.assertTrue(elapsed >= 380 && elapsed < 700, "elapsed=" + elapsed);
+		long[] gaps = new long[iterations-1];
+		for ( int i = 0; i < gaps.length; ++i ) {
+			gaps[i] = TimeUnit.NANOSECONDS.toMillis(starts[i+1] - ends[i]);
+		}
+		return gaps;
 	}
 
 	// ----- 예외 전파 -----
@@ -467,6 +500,105 @@ public class PeriodicLoopExecutionTest {
 		Assertions.assertTrue(result.isFailed());
 		// initializeLoop 성공 후의 종료 사유와 무관하게 finalizeLoop은 호출되어야 한다.
 		Assertions.assertEquals(1, finalizeCount.get());
+	}
+
+	@Test
+	public void testExternalFailureWakesIntervalWait() throws Exception {
+		// 주기 대기 중 외부에서 FAILED로 확정되면 interval이 끝나기를 기다리지 않고 곧바로 loop를 끝내야 한다.
+		AtomicInteger actionCount = new AtomicInteger(0);
+		AtomicInteger finalizeCount = new AtomicInteger(0);
+		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(Duration.ofSeconds(10)) {
+			@Override
+			protected void finalizeLoop() {
+				super.finalizeLoop();
+				finalizeCount.incrementAndGet();
+			}
+			@Override
+			protected FOption<Integer> performPeriodicAction(long loopIndex) {
+				actionCount.incrementAndGet();
+				return FOption.empty();
+			}
+		};
+
+		loop.start();
+		loop.waitForStarted();
+		Thread.sleep(100);		// 첫 iteration 이후 주기 대기에 들어가도록 한다.
+
+		IllegalStateException external = new IllegalStateException("external");
+		Assertions.assertTrue(loop.notifyFailed(external));
+
+		// FAILED 전이는 즉시 확정되므로 finalizeLoop 호출 여부를 짧은 시간 안에 확인한다.
+		long started = System.currentTimeMillis();
+		while ( finalizeCount.get() == 0 && System.currentTimeMillis() - started < 2_000 ) {
+			Thread.sleep(10);
+		}
+		Assertions.assertEquals(1, finalizeCount.get(), "loop did not finish while waiting for next iteration");
+		Assertions.assertEquals(1, actionCount.get());
+		Assertions.assertSame(external, loop.poll().getFailureCause());
+	}
+
+	@Test
+	public void testExternalFailureDuringActionPrevailsOverTimeout() throws Exception {
+		// 작업 수행 중 외부에서 FAILED로 확정되고 작업이 제한 시간을 넘긴 뒤 empty를 반환하는 경우,
+		// 새 TimeoutException이 아니라 확정된 실패 원인이 run()에 전달되어야 한다.
+		IllegalStateException external = new IllegalStateException("original external failure");
+		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_50MS) {
+			@Override
+			protected FOption<Integer> performPeriodicAction(long loopIndex) throws InterruptedException {
+				notifyFailed(external);
+				Thread.sleep(150);		// 제한 시간(50ms)을 넘긴다.
+				return FOption.empty();
+			}
+		};
+		loop.setTimeout(Duration.ofMillis(50));
+
+		ExecutionException thrown = Assertions.assertThrows(ExecutionException.class, loop::run);
+		Assertions.assertSame(external, thrown.getCause());
+		Assertions.assertSame(external, loop.poll().getFailureCause());
+	}
+
+	@Test
+	public void testHugeTimeoutTreatedAsUnlimited() throws Exception {
+		// ChronoUnit.FOREVER처럼 표현 범위를 넘는 timeout도 초기화를 실패시키지 않아야 한다.
+		TestPeriodicLoop loop = new TestPeriodicLoop(INTERVAL_50MS, 2);
+		loop.setTimeout(ChronoUnit.FOREVER.getDuration());
+
+		loop.start();
+		AsyncResult<Integer> result = loop.waitForFinished(2, TimeUnit.SECONDS);
+		Assertions.assertTrue(result.isCompleted(), result.toString());
+		Assertions.assertEquals(2, result.get());
+		Assertions.assertEquals(Instant.MAX, loop.getDue());
+	}
+
+	@Test
+	public void testGetRemainingTime() throws Exception {
+		// 시작 전이나 제한 시간이 없으면 empty, 수행 중에는 남은 시간(0 < t <= timeout)을 반환해야 한다.
+		java.util.List<FOption<Duration>> seen = new java.util.concurrent.CopyOnWriteArrayList<>();
+		PeriodicLoopExecution<Integer> loop = new PeriodicLoopExecution<Integer>(INTERVAL_50MS) {
+			@Override
+			protected FOption<Integer> performPeriodicAction(long loopIndex) {
+				seen.add(getRemainingTime());
+				return loopIndex >= 1 ? FOption.of(1) : FOption.empty();
+			}
+		};
+		loop.setTimeout(Duration.ofSeconds(10));
+		Assertions.assertTrue(loop.getRemainingTime().isAbsent());
+
+		loop.start();
+		Assertions.assertTrue(loop.waitForFinished(2, TimeUnit.SECONDS).isCompleted());
+		Assertions.assertEquals(2, seen.size());
+		for ( FOption<Duration> remaining: seen ) {
+			Assertions.assertTrue(remaining.isPresent());
+			Assertions.assertTrue(remaining.get().compareTo(Duration.ZERO) > 0
+									&& remaining.get().compareTo(Duration.ofSeconds(10)) <= 0, remaining.get().toString());
+		}
+		// 두 번째 iteration의 남은 시간은 첫 번째보다 작아야 한다(적어도 interval만큼 경과).
+		Assertions.assertTrue(seen.get(1).get().compareTo(seen.get(0).get()) < 0);
+
+		TestPeriodicLoop unlimited = new TestPeriodicLoop(INTERVAL_50MS, 1);
+		unlimited.start();
+		unlimited.waitForFinished(2, TimeUnit.SECONDS);
+		Assertions.assertTrue(unlimited.getRemainingTime().isAbsent());
 	}
 
 	@Test

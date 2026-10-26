@@ -1,8 +1,6 @@
 package utils.async;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Date;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang3.time.DurationUtils;
@@ -10,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.math.LongMath;
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import com.google.common.util.concurrent.Service;
 
@@ -31,7 +30,7 @@ import utils.func.Optionals;
  * <pre>{@code
  * PeriodicLoopService svc = PeriodicLoopService.builder(() -> collectStatistics())
  *                                              .name("stat-collector")
- *                                              .interval(Duration.ofSeconds(10))
+ *                                              .fixedRate(Duration.ofSeconds(10))
  *                                              .initialDelay(Duration.ofSeconds(3))
  *                                              .build();
  * svc.startAsync().awaitRunning();
@@ -41,14 +40,16 @@ import utils.func.Optionals;
  *
  * <h2>주기 계산 방식</h2>
  * <ul>
- *   <li>{@link Builder#interval(Duration)} (누적/fixed-rate, 기본값): loop 시작 시각을 기준으로
+ *   <li>{@link Builder#fixedRate(Duration)} ({@link IntervalMode#FIXED_RATE}, 기본값): loop 시작 시각을 기준으로
  *       매 iteration의 시작 시각을 누적 계산한다. 즉 {@code n}번째 iteration은
- *       {@code loop시작시각 + interval * n}에 시작한다. 한 iteration의 수행 시간이 주기보다 길어지면
+ *       {@code loop시작시각 + rate * n}에 시작한다. 한 iteration의 수행 시간이 주기보다 길어지면
  *       다음 iteration은 대기 없이 곧바로 시작된다(catch-up).</li>
- *   <li>{@link Builder#delay(Duration)} (비누적/fixed-delay): 매 iteration이 <b>종료된 시각</b>부터
+ *   <li>{@link Builder#fixedDelay(Duration)} ({@link IntervalMode#FIXED_DELAY}): 매 iteration이 <b>종료된 시각</b>부터
  *       고정된 시간만큼 대기한 뒤 다음 iteration을 시작한다. 따라서 실제 반복 간격은
  *       {@code 작업 수행 시간 + delay}가 된다.</li>
  * </ul>
+ * 주기와 초기 지연은 시스템 시계가 아닌 단조 시계({@link System#nanoTime()})로 측정한다. 따라서 NTP 동기화 등으로
+ * 시스템 시계가 앞뒤로 점프해도 iteration이 몰려서 실행되거나(catch-up 폭주) 대기가 길어지지 않는다.
  *
  * <h2>종료 및 예외 처리</h2>
  * <ul>
@@ -70,7 +71,7 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 
 	private final String m_name;
 	private final Duration m_interval;
-	private final boolean m_cumulativeInterval;
+	private final IntervalMode m_intervalMode;
 	private final @Nullable Duration m_initialDelay;
 	private final boolean m_stopOnError;
 	private final @Nullable CheckedRunnable m_task;
@@ -92,7 +93,7 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 
 		m_name = builder.m_name;
 		m_interval = builder.m_interval;
-		m_cumulativeInterval = builder.m_cumulativeInterval;
+		m_intervalMode = builder.m_intervalMode;
 		// 초기 지연이 0인 경우는 지연이 없는 것으로 간주한다.
 		m_initialDelay = ( builder.m_initialDelay != null && !builder.m_initialDelay.isZero() )
 						? builder.m_initialDelay : null;
@@ -147,13 +148,24 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 	}
 
 	/**
+	 * 주기 계산 방식을 반환한다.
+	 *
+	 * @return {@link Builder#fixedRate(Duration)}로 설정된 경우는 {@link IntervalMode#FIXED_RATE},
+	 *         {@link Builder#fixedDelay(Duration)}로 설정된 경우는 {@link IntervalMode#FIXED_DELAY}.
+	 */
+	public IntervalMode getIntervalMode() {
+		return m_intervalMode;
+	}
+
+	/**
 	 * 누적 주기(fixed-rate) 모드 여부를 반환한다.
 	 *
-	 * @return {@link Builder#interval(Duration)}로 설정된 경우는 {@code true},
-	 *         {@link Builder#delay(Duration)}로 설정된 경우는 {@code false}.
+	 * @return {@link IntervalMode#FIXED_RATE}이면 {@code true}, {@link IntervalMode#FIXED_DELAY}이면 {@code false}.
+	 * @deprecated	{@link #getIntervalMode()}를 사용한다.
 	 */
+	@Deprecated
 	public boolean isCumulativeInterval() {
-		return m_cumulativeInterval;
+		return m_intervalMode == IntervalMode.FIXED_RATE;
 	}
 
 	/**
@@ -188,7 +200,8 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 
 	@Override
 	public String toString() {
-		String intervalStr = m_cumulativeInterval ? "interval=" + m_interval : "delay=" + m_interval;
+		String intervalStr = (m_intervalMode == IntervalMode.FIXED_RATE)
+								? "fixedRate=" + m_interval : "fixedDelay=" + m_interval;
 		return String.format("%s[%s, iterations=%d]", m_name, intervalStr, m_iterationCount);
 	}
 
@@ -259,16 +272,18 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 
 	@Override
 	protected final void run() throws Exception {
-		Instant loopStarted = Instant.now();
+		// 일정은 시스템 시계가 아닌 단조 시계(System.nanoTime) 기준으로, loop 시작 시점부터의 경과 시간(ns)으로
+		// 계산한다. 시스템 시계가 NTP 동기화 등으로 점프해도 iteration이 몰려서 실행되거나 대기가 길어지지 않는다.
+		long originNanos = System.nanoTime();
 
 		// 초기 지연이 설정된 경우에는 그 시간만큼 대기한 후 첫 iteration을 시작한다.
-		if ( m_initialDelay != null ) {
-			loopStarted = loopStarted.plus(m_initialDelay);
-			if ( !awaitDue(loopStarted) ) {
-				return;
-			}
+		// FIXED_RATE 모드의 주기 계산 기준 시점은 초기 지연이 끝나는 시점이다.
+		long baseNanos = (m_initialDelay != null) ? toNanosSaturated(m_initialDelay) : 0;
+		if ( baseNanos > 0 && !awaitNanos(baseNanos) ) {
+			return;
 		}
 
+		long intervalNanos = toNanosSaturated(m_interval);
 		for ( long loopIndex = 0; !isStopRequested(); ++loopIndex ) {
 			try {
 				performPeriodicAction(loopIndex);
@@ -295,46 +310,48 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 			}
 
 			//
-			// 다음 iteration의 시작 시각을 계산하고, 그 시각까지 대기한다.
+			// 다음 iteration의 시작 시점(loop 시작 시점부터의 경과 시간)을 계산하고, 그때까지 대기한다.
 			//
-			Instant iterationDue;
-			if ( m_cumulativeInterval ) {
-				// 누적 주기 모드인 경우는 loop 시작 시각에 'interval*(loopIndex+1)'을 더해서
-				// 다음 iteration의 시작 시각을 계산한다.
-				// 작업 수행 시간이 주기보다 긴 경우에는 계산된 시각이 이미 과거이므로
+			long elapsedNanos = System.nanoTime() - originNanos;
+			long nextStartNanos;
+			if ( m_intervalMode == IntervalMode.FIXED_RATE ) {
+				// FIXED_RATE 모드인 경우는 기준 시점에 'interval*(loopIndex+1)'을 더해서
+				// 다음 iteration의 시작 시점을 계산한다.
+				// 작업 수행 시간이 주기보다 긴 경우에는 계산된 시점이 이미 지났으므로
 				// 대기 없이 곧바로 다음 iteration이 시작된다.
-				iterationDue = loopStarted.plus(m_interval.multipliedBy(loopIndex + 1));
+				nextStartNanos = LongMath.saturatedAdd(baseNanos, LongMath.saturatedMultiply(intervalNanos, loopIndex + 1));
 			}
 			else {
-				// 비누적 주기 모드인 경우는 이번 iteration이 종료된 시각을 기준으로
-				// 다음 iteration의 시작 시각을 계산한다.
-				iterationDue = Instant.now().plus(m_interval);
+				// FIXED_DELAY 모드인 경우는 이번 iteration이 종료된 시점을 기준으로
+				// 다음 iteration의 시작 시점을 계산한다.
+				nextStartNanos = LongMath.saturatedAdd(elapsedNanos, intervalNanos);
 			}
 
-			if ( !awaitDue(iterationDue) ) {
+			if ( !awaitNanos(Math.max(0, nextStartNanos - elapsedNanos)) ) {
 				return;
 			}
 		}
 	}
 
 	/**
-	 * 주어진 시각까지 대기한다.
+	 * 주어진 시간만큼 대기한다.
 	 * <p>
+	 * 대기 시간은 단조 시계 기준으로 측정되므로 시스템 시계 변경의 영향을 받지 않는다.
 	 * 대기 중에 중지 요청이 발생하거나 쓰레드가 인터럽트된 경우에는 즉시 대기를 종료한다.
 	 *
-	 * @param due 대기 제한 시각.
-	 * @return 중지 요청 없이 제한 시각까지 대기한 경우는 {@code true},
+	 * @param waitNanos 대기 시간(ns). {@code 0}이면 중지 요청 여부만 확인한다.
+	 * @return 중지 요청 없이 대기 시간이 경과한 경우는 {@code true},
 	 *         중지 요청 또는 인터럽트로 대기가 중단된 경우는 {@code false}.
 	 */
-	private boolean awaitDue(Instant due) {
+	private boolean awaitNanos(long waitNanos) {
 		try {
-			m_guard.awaitCondition(() -> m_stopRequested, Date.from(due)).andReturn();
+			m_guard.awaitCondition(() -> m_stopRequested, Duration.ofNanos(waitNanos)).andReturn();
 
 			// 중지 요청으로 대기가 종료된 경우.
 			return false;
 		}
 		catch ( TimeoutException expected ) {
-			// 중지 요청 없이 제한 시각이 경과한 경우.
+			// 중지 요청 없이 대기 시간이 경과한 경우.
 			return true;
 		}
 		catch ( InterruptedException e ) {
@@ -348,10 +365,22 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 	}
 
 	/**
+	 * {@link Duration}을 nano 초로 변환한다. {@code long} 범위를 넘는 경우에는 최댓값으로 포화시킨다.
+	 */
+	private static long toNanosSaturated(Duration duration) {
+		try {
+			return duration.toNanos();
+		}
+		catch ( ArithmeticException e ) {
+			return Long.MAX_VALUE;
+		}
+	}
+
+	/**
 	 * {@link PeriodicLoopService}의 빌더.
 	 * <p>
-	 * {@link #interval(Duration)}과 {@link #delay(Duration)}는 상호 배타적이며,
-	 * 나중에 호출된 쪽이 적용된다. 미설정 시 1초 주기의 누적(fixed-rate) 모드가 사용된다.
+	 * {@link #fixedRate(Duration)}과 {@link #fixedDelay(Duration)}는 상호 배타적이며,
+	 * 나중에 호출된 쪽이 적용된다. 미설정 시 {@code fixedRate(1초)}가 사용된다.
 	 */
 	public static class Builder {
 		private static final Duration DEFAULT_INTERVAL = Duration.ofSeconds(1);
@@ -359,7 +388,7 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 
 		private String m_name = DEFAULT_NAME;
 		private Duration m_interval = DEFAULT_INTERVAL;
-		private boolean m_cumulativeInterval = true;
+		private IntervalMode m_intervalMode = IntervalMode.FIXED_RATE;
 		private @Nullable Duration m_initialDelay = null;
 		private boolean m_stopOnError = true;
 		private @Nullable CheckedRunnable m_task = null;
@@ -408,52 +437,78 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 		}
 
 		/**
-		 * 반복 주기를 누적(fixed-rate) 모드로 설정한다.
+		 * 고정 주기({@link IntervalMode#FIXED_RATE}) 모드로 반복 주기를 설정한다.
 		 * <p>
 		 * Loop 시작 시각을 기준으로 매 iteration의 시작 시각을 누적 계산한다. 한 iteration의 수행 시간이
-		 * {@code interval}보다 길어지면 다음 iteration은 대기 없이 곧바로 시작된다(catch-up).
+		 * {@code rate}보다 길어지면 밀린 만큼 다음 iteration을 <b>대기 없이 연달아</b> 시작한다(catch-up).
 		 * <p>
-		 * 이 메소드와 {@link #delay(Duration)}는 상호 배타적이며, 나중에 호출된 쪽이 적용된다.
+		 * 이 메소드와 {@link #fixedDelay(Duration)}는 상호 배타적이며, 나중에 호출된 쪽이 적용된다.
+		 * 둘 다 설정하지 않으면 {@code fixedRate(1초)}가 적용된다.
 		 *
-		 * @param interval 반복 주기 (양수).
-		 *                 {@code null}이거나 양수가 아닌 경우 {@link IllegalArgumentException}이 발생한다.
+		 * @param rate 반복 주기 (양수).
+		 *             {@code null}이거나 양수가 아닌 경우 {@link IllegalArgumentException}이 발생한다.
 		 * @return 이 빌더.
 		 */
-		public Builder interval(Duration interval) {
-			Preconditions.checkArgument(interval != null && DurationUtils.isPositive(interval),
-										"invalid interval: %s", interval);
+		public Builder fixedRate(Duration rate) {
+			Preconditions.checkArgument(rate != null && DurationUtils.isPositive(rate),
+										"invalid rate: %s", rate);
 
-			m_interval = interval;
-			m_cumulativeInterval = true;
+			m_interval = rate;
+			m_intervalMode = IntervalMode.FIXED_RATE;
 			return this;
 		}
 
 		/**
-		 * 반복 주기를 비누적(fixed-delay) 모드로 설정한다.
+		 * 고정 지연({@link IntervalMode#FIXED_DELAY}) 모드로 반복 주기를 설정한다.
 		 * <p>
-		 * {@link #interval(Duration)}과 달리 이전 iteration의 수행 시간을 고려하지 않고,
+		 * {@link #fixedRate(Duration)}과 달리 이전 iteration의 수행 시간을 고려하지 않고,
 		 * 매 iteration이 종료된 시각부터 고정된 {@code delay}만큼 대기한 뒤 다음 iteration을 시작한다.
+		 * 한 iteration이 오래 걸려도 연달아 수행되지 않는다.
 		 * <p>
-		 * 이 메소드와 {@link #interval(Duration)}는 상호 배타적이며, 나중에 호출된 쪽이 적용된다.
+		 * 이 메소드와 {@link #fixedRate(Duration)}는 상호 배타적이며, 나중에 호출된 쪽이 적용된다.
 		 *
 		 * @param delay 각 iteration 종료 후 다음 iteration 시작까지의 대기 시간 (양수).
 		 *              {@code null}이거나 양수가 아닌 경우 {@link IllegalArgumentException}이 발생한다.
 		 * @return 이 빌더.
 		 */
-		public Builder delay(Duration delay) {
+		public Builder fixedDelay(Duration delay) {
 			Preconditions.checkArgument(delay != null && DurationUtils.isPositive(delay),
 										"invalid delay: %s", delay);
 
 			m_interval = delay;
-			m_cumulativeInterval = false;
+			m_intervalMode = IntervalMode.FIXED_DELAY;
 			return this;
+		}
+
+		/**
+		 * 고정 주기({@link IntervalMode#FIXED_RATE}) 모드로 반복 주기를 설정한다.
+		 *
+		 * @param interval 반복 주기 (양수).
+		 * @return 이 빌더.
+		 * @deprecated	밀린 경우 연달아 실행된다는 성질이 호출부에서 드러나도록 {@link #fixedRate(Duration)}를 사용한다.
+		 */
+		@Deprecated
+		public Builder interval(Duration interval) {
+			return fixedRate(interval);
+		}
+
+		/**
+		 * 고정 지연({@link IntervalMode#FIXED_DELAY}) 모드로 반복 주기를 설정한다.
+		 *
+		 * @param delay 각 iteration 종료 후 다음 iteration 시작까지의 대기 시간 (양수).
+		 * @return 이 빌더.
+		 * @deprecated	{@link #fixedRate(Duration)}와 짝을 이루는 {@link #fixedDelay(Duration)}를 사용한다.
+		 */
+		@Deprecated
+		public Builder delay(Duration delay) {
+			return fixedDelay(delay);
 		}
 
 		/**
 		 * 서비스 시작 후 첫 iteration이 수행되기까지의 대기 시간을 설정한다.
 		 * <p>
 		 * 미설정 시에는 서비스가 시작되면 곧바로 첫 iteration이 수행된다.
-		 * 누적 주기 모드인 경우 초기 지연이 끝나는 시각이 주기 계산의 기준 시각이 된다.
+		 * {@link IntervalMode#FIXED_RATE} 모드인 경우 초기 지연이 끝나는 시각이 주기 계산의 기준 시각이 된다.
 		 *
 		 * @param initialDelay 첫 iteration 수행 전 대기 시간 (음수가 아니어야 함).
 		 *                     {@code null} 또는 {@link Duration#ZERO}이면 지연 없음.

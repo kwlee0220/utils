@@ -43,8 +43,8 @@ public class AbstractStatePollerTest {
 			m_resultValue = resultValue;
 		}
 
-		CountingPoller(Duration interval, boolean cumulative, int targetIteration, int resultValue) {
-			super(interval, cumulative);
+		CountingPoller(Duration interval, IntervalMode mode, int targetIteration, int resultValue) {
+			super(interval, mode);
 			m_targetIteration = targetIteration;
 			m_resultValue = resultValue;
 		}
@@ -367,7 +367,7 @@ public class AbstractStatePollerTest {
 		// pollState가 interval보다 오래 걸리면 누적 모드에서는 catch-up.
 		// interval=50ms, action=80ms, target=4 → 약 4 * 80ms = 320ms.
 		AtomicInteger pollCount = new AtomicInteger(0);
-		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS, true) {
+		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS, IntervalMode.FIXED_RATE) {
 			@Override
 			protected FOption<Integer> tryPoll() throws InterruptedException {
 				int n = pollCount.incrementAndGet();
