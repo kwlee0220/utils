@@ -933,6 +933,7 @@ Execution 계열에서 **외부 코드가 종료를 먼저 통지한 경우**에
 
 ## 11. 관련 문서
 
+- [`utils.async.command` 사용 가이드](async-command-guide.md) — 외부 명령 실행, 파일 변수, 프로그램 서비스와 재시작 정책
 - [`utils.async` 개발 노트](../src/main/java/utils/async/CLAUDE.md) — 상태 전이, 취소 흐름, 조합 연산자 등 내부 동작
 - [`utils.async` README](../src/main/java/utils/async/README.md) — 짧은 사용 예
 - [`utils.thread` 가이드](thread-guide.md) — `Guard`, `Timer` 등 이 계층이 기반으로 쓰는 동시성 도구
