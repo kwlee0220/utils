@@ -1,6 +1,6 @@
 # utils.async
 
-Async execution primitives. Built on `Execution<T> extends Future<T>` with explicit lifecycle state (`AsyncState`) and listener-based completion handling. Subpackages: [op/](op/) (combinators), [command/](command/) (sub-process orchestration). User guide for the thread-based Execution family (threaded/loop/periodic/poller) and Service family (`AbstractLoopService`/`PeriodicLoopService`): [docs/async-threaded-guide.md](../../../../../docs/async-threaded-guide.md).
+Async execution primitives. Built on `Execution<T> extends Future<T>` with explicit lifecycle state (`AsyncState`) and listener-based completion handling. Subpackages: [op/](op/) (combinators), [command/](command/) (sub-process orchestration). User guide for the thread-based Execution family (threaded/loop/periodic/poller) and Service family (`AbstractLoopService`/`PeriodicLoopService`): [docs/async-threaded-guide.md](../../../../../docs/async-threaded-guide.md). User guide for `command/` (`CommandExecution`, `CommandVariable`, `ProgramService`): [docs/async-command-guide.md](../../../../../docs/async-command-guide.md).
 
 ## Core types
 

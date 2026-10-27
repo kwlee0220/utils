@@ -272,3 +272,4 @@ var server = new RESTfulCommandExecutionServer(descriptorFile, new DefaultComman
 
 자세한 내부 계약과 함정은 [CLAUDE.md](CLAUDE.md) 를, HTTP 계층의 에러 처리는
 [`utils.http`](../../http/CLAUDE.md) 및 [docs/http-guide.md](../../../../../../docs/http-guide.md) 를 참고한다.
+외부 명령 실행과 변수 치환은 [docs/async-command-guide.md](../../../../../../docs/async-command-guide.md) 를 참고한다.

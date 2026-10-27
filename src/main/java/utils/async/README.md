@@ -6,6 +6,8 @@ listener, 취소 / 타임아웃 처리를 제공한다.
 스레드 기반 실행 클래스, 즉 Execution 계열(`AbstractThreadedExecution` → `AbstractLoopExecution` →
 `PeriodicLoopExecution` → `AbstractPeriodicPoller` → `PeriodicPoller`)과 Service 계열(`AbstractLoopService` →
 `PeriodicLoopService`)의 자세한 사용법은 [스레드 기반 실행 사용자 가이드](../../../../../docs/async-threaded-guide.md)를 참고한다.
+외부 명령 실행(`CommandExecution`, `CommandVariable`, `ProgramService`)은
+[`utils.async.command` 사용 가이드](../../../../../docs/async-command-guide.md)를 참고한다.
 
 ### 라이프사이클
 

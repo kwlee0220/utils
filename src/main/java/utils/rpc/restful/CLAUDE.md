@@ -53,7 +53,7 @@ Any *other* top-level field is preserved verbatim in `getExtraFields()` via `@Js
 
 - Each request gets its own directory `session-<UUID>-<seq>` under the working directory — the UUID is fixed per server instance, the sequence number per request — and `releaseSession` deletes it. Session endpoints are `/api/v1/sessions/<seq>`. (The class Javadoc says `<baseUrl>/sessions/<seq>`; the constant is `SESSION_PREFIX = "/api/v1/sessions/"`.)
 - Operation inputs become `CommandVariable`s and reach the command through substitution — `${name:path}` materializes the value into a file and passes its absolute path. Outputs are read back from the files the command wrote. `CommandVariableSerDe` / `DefaultCommandVariableSerDe` own that mapping.
-- Substitution goes through `utils.async.command.CommandExecution`, so **an unresolved `${X}` fails the operation** instead of reaching the shell as a literal token — see [utils.async](../../async/CLAUDE.md).
+- Substitution goes through `utils.async.command.CommandExecution`, so **an unresolved `${X}` fails the operation** instead of reaching the shell as a literal token — see [utils.async](../../async/CLAUDE.md) and the user guide [docs/async-command-guide.md](../../../../../../docs/async-command-guide.md).
 
 ## Conventions
 
