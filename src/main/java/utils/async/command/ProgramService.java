@@ -4,11 +4,16 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.OptionalInt;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -17,16 +22,20 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.util.concurrent.AbstractService;
 
 import utils.LoggerSettable;
+import utils.Preconditions;
 import utils.async.StartableExecution;
 import utils.async.op.AsyncExecutions;
 import utils.func.Optionals;
 import utils.func.Result;
-import utils.io.IOUtils;
 import utils.async.command.CommandExecution.Output;
 import utils.thread.Guard;
 
@@ -96,6 +105,9 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	private final ArrayDeque<Long> m_restartNanos = new ArrayDeque<>();
 	// 현재 실행의 자식 프로세스가 시작된(RUNNING) 시각. 시작되지 못한 실행은 -1.
 	private volatile long m_runStartNanos = -1;
+	// 운영 조회용 통계. 쓰기는 순차적인 실행 콜백에서만 일어난다.
+	private volatile int m_restartCount = 0;
+	private volatile OptionalInt m_lastExitCode = OptionalInt.empty();
 	
 	// 명령 실행에 사용할 executor. null이면 실행마다 쓰레드를 만든다. 테스트에서 시작 지연을 재현하는 데 사용한다.
 	@Nullable private volatile Executor m_executor = null;
@@ -115,30 +127,62 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	/**
 	 * 설정 파일(JSON)을 읽어 {@link ProgramService} 인스턴스를 생성한다.
 	 * <p>
-	 * 파일 내용은 Apache Commons Text의 {@link StringSubstitutor#createInterpolator()}로
-	 * 환경 변수 및 시스템 프로퍼티가 치환된 뒤 JSON으로 파싱된다. Jackson {@link JsonMapper}는
-	 * {@link JavaTimeModule}을 포함해 활성 모듈을 자동 로드한다.
+	 * 파일을 JSON으로 먼저 파싱한 뒤, <b>문자열 값</b>에 포함된 참조({@code ${env:HOME}}, {@code ${sys:user.dir}} 등)를
+	 * Apache Commons Text의 {@link StringSubstitutor#createInterpolator()}로 치환한다. 원문 전체를 치환한 뒤 파싱하면
+	 * 따옴표·역슬래시·줄바꿈이 든 값이 JSON 구문을 깨뜨리기 때문이다. 따라서 참조는 문자열 안에 써야 한다
+	 * (숫자 항목도 {@code "restartLimit": "${env:LIMIT}"}처럼 쓰면 Jackson이 숫자로 변환한다). 객체의 키는 치환하지
+	 * 않는다. Jackson {@link JsonMapper}는 {@link JavaTimeModule}을 포함해 활성 모듈을 자동 로드한다.
 	 *
 	 * @param configFile JSON 설정 파일.
 	 * @return 생성된 서비스 인스턴스.
 	 * @throws IOException 파일 읽기 또는 JSON 파싱이 실패한 경우.
 	 */
 	public static ProgramService create(File configFile) throws IOException {
-		String configJsonStr = IOUtils.toString(configFile);
-		StringSubstitutor interpolator = StringSubstitutor.createInterpolator();
-		configJsonStr = interpolator.replace(configJsonStr);
+		JsonMapper mapper = JsonMapper.builder()
+									.addModule(new JavaTimeModule())
+									.findAndAddModules()
+									.build();
+		JsonNode config = mapper.readTree(configFile);
+		substituteStrings(config, StringSubstitutor.createInterpolator());
 
-		ProgramServiceConfig program = JsonMapper.builder()
-												.addModule(new JavaTimeModule())
-												.findAndAddModules()
-												.build()
-												.readerFor(ProgramServiceConfig.class)
-												.readValue(configJsonStr);
-		return create(program);
+		return create(mapper.treeToValue(config, ProgramServiceConfig.class));
+	}
+
+	/**
+	 * JSON 트리의 모든 문자열 값에 변수 치환을 적용한다 (객체의 키는 제외).
+	 */
+	private static void substituteStrings(JsonNode node, StringSubstitutor interpolator) {
+		if ( node instanceof ObjectNode obj ) {
+			for ( Iterator<Map.Entry<String,JsonNode>> it = obj.fields(); it.hasNext(); ) {
+				Map.Entry<String,JsonNode> field = it.next();
+				if ( field.getValue().isTextual() ) {
+					field.setValue(TextNode.valueOf(interpolator.replace(field.getValue().textValue())));
+				}
+				else {
+					substituteStrings(field.getValue(), interpolator);
+				}
+			}
+		}
+		else if ( node instanceof ArrayNode array ) {
+			for ( int i = 0; i < array.size(); ++i ) {
+				JsonNode elm = array.get(i);
+				if ( elm.isTextual() ) {
+					array.set(i, TextNode.valueOf(interpolator.replace(elm.textValue())));
+				}
+				else {
+					substituteStrings(elm, interpolator);
+				}
+			}
+		}
 	}
 
 	private ProgramService(ProgramServiceConfig config) {
-		m_config = config;
+		Preconditions.checkNotNullArgument(config, "config is null");
+		Preconditions.checkArgument(config.getCommandLine() != null && !config.getCommandLine().isEmpty(),
+									"commandLine must not be empty: %s", config);
+
+		// 서비스 실행 중 호출자가 설정 객체를 바꿔도 다음 재시작의 명령·정책이 달라지지 않도록 복사해 둔다.
+		m_config = new ProgramServiceConfig(config);
 	}
 	
 	@Override
@@ -161,6 +205,28 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	 *
 	 * @param executor	executor. {@code null}이면 실행마다 쓰레드를 만든다.
 	 */
+	/**
+	 * 서비스가 명령을 재시작한 횟수를 반환한다. 첫 실행은 세지 않으며, {@code restartDelay} 동안 대기 중인 재시작도
+	 * 센다.
+	 *
+	 * @return	재시작 횟수.
+	 */
+	public int getRestartCount() {
+		return m_restartCount;
+	}
+
+	/**
+	 * 가장 최근에 종료 코드를 남기고 끝난 자식 프로세스의 종료 코드를 반환한다.
+	 * <p>
+	 * 중지나 취소로 종료 코드 없이 끝난 실행은 반영하지 않으므로, 재시작을 거듭하다 중지된 서비스에서도 마지막으로
+	 * 스스로 종료한 프로세스의 코드를 얻을 수 있다. 서비스 실패 원인을 파악하는 데 사용한다.
+	 *
+	 * @return	종료 코드. 아직 종료 코드를 남기고 끝난 실행이 없으면 빈 값.
+	 */
+	public OptionalInt getLastExitCode() {
+		return m_lastExitCode;
+	}
+
 	void setExecutor(@Nullable Executor executor) {
 		m_executor = executor;
 	}
@@ -178,7 +244,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 		StartableExecution<Void> exec = buildExecution(true, Duration.ZERO);
 		m_guard.run(() -> m_exec = exec);
 
-		Duration startTimeout = m_config.getStartTimeoutAsDuration();
+		Duration startTimeout = m_config.getStartTimeout();
 		if ( startTimeout != null && startTimeout.compareTo(Duration.ZERO) > 0 ) {
 			CompletableFuture.delayedExecutor(startTimeout.toNanos(), TimeUnit.NANOSECONDS)
 							.execute(() -> onStartTimeout(exec, startTimeout));
@@ -257,7 +323,9 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 			return e;
 		});
 		if ( toCancel != null ) {
-			toCancel.cancel(true);
+			// cancel()은 실행의 lock을 잡는다. 실행의 종료 콜백 쪽이 그 lock을 쥔 채 Guava의 lock을 기다리는 경우와
+			// 교착되지 않도록, Guava의 lock 밖(별도 쓰레드)에서 취소한다.
+			CompletableFuture.runAsync(() -> toCancel.cancel(true));
 		}
 	}
 
@@ -283,6 +351,8 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	private StartableExecution<Void> buildExecution(boolean firstExec, Duration restartDelay) {
 		CommandExecution cmdExec = buildCommandExecution();
 		cmdExec.whenStarted(() -> m_runStartNanos = System.nanoTime());
+		// 종료 코드는 재시작 판단(onExecutionFinished)보다 먼저 기록되도록 먼저 등록한다.
+		cmdExec.whenFinished(r -> cmdExec.getExitCode().ifPresent(code -> m_lastExitCode = OptionalInt.of(code)));
 		
 		StartableExecution<Void> exec = cmdExec;
 		if ( firstExec ) {
@@ -320,7 +390,27 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 			}
 		}
 		
-		exec.whenFinished(this::onExecutionFinished);
+		// 종료 처리는 실제 명령 실행(cmdExec)의 종료를 기준으로 한다. 지연 래퍼는 취소되면 대상 프로세스의 정리가
+		// 끝나기 전에 먼저 종료되므로, 래퍼를 기준으로 하면 프로세스가 남은 채 서비스가 종료될 수 있다.
+		// cmdExec은 프로세스 정리를 마친 뒤 종료 상태로 전이한다.
+		// 또한 콜백이 실행의 lock 밖에서 돌도록 비동기로 등록한다. 콜백은 Guava의 상태 전이(notifyXxx)를 호출하므로,
+		// lock을 쥔 채 호출하면 Guava의 lock을 쥔 쪽의 cancel()과 교착될 수 있다.
+		AtomicBoolean handled = new AtomicBoolean();
+		Consumer<Result<Void>> onFinished = result -> {
+			if ( handled.compareAndSet(false, true) ) {
+				onExecutionFinished(result);
+			}
+		};
+		cmdExec.whenFinishedAsync(onFinished);
+		if ( exec != cmdExec ) {
+			// 지연 래퍼가 대상을 시작하지 못하고 실패한 경우에는 대상이 종료되지 않으므로 래퍼의 결과로 처리한다.
+			// (래퍼가 취소된 경우에는 대상도 취소되어 위의 콜백이 호출된다.)
+			exec.whenFinishedAsync(result -> {
+				if ( result.isFailed() && cmdExec.isNotStarted() ) {
+					onFinished.accept(result);
+				}
+			});
+		}
 		
 		return exec;
 	}
@@ -443,6 +533,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 		if ( next != null ) {
 			try {
 				next.start();
+				++m_restartCount;
 			}
 			catch ( Exception e ) {
 				if ( m_guard.get(() -> m_stopRequested) ) {

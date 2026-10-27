@@ -50,7 +50,7 @@ public class DefaultCommandVariableSerDe implements CommandVariableSerDe {
 		try {
 			String argValue = m_jsonMapper.writeValueAsString(jnode);
 
-			return new CommandVariable(id, argValue, file);
+			return CommandVariable.input(id, argValue, file);
 		}
 		catch ( IOException e ) {
 			throw new IOException("Failed to write value to file: name=" + id

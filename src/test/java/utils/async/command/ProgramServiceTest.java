@@ -637,7 +637,7 @@ public class ProgramServiceTest {
 		File started = new File(m_workDir, "started");
 		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sh", "-c",
 										"touch " + started.getAbsolutePath() + "; exec /bin/sleep 31.7");
-		cfg.setStartTimeout("200ms");
+		cfg.setStartTimeout(Duration.ofMillis(200));
 		ProgramService svc = ProgramService.create(cfg);
 		svc.setExecutor(delaying);
 
@@ -671,7 +671,7 @@ public class ProgramServiceTest {
 	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
 	public void start_timeout_does_not_affect_service_that_started_in_time() throws Exception {
 		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sleep", "30");
-		cfg.setStartTimeout("200ms");
+		cfg.setStartTimeout(Duration.ofMillis(200));
 		ProgramService svc = ProgramService.create(cfg);
 
 		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
@@ -700,7 +700,7 @@ public class ProgramServiceTest {
 		}).start();
 
 		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sleep", "30");
-		cfg.setStartTimeout("0s");
+		cfg.setStartTimeout(Duration.ZERO);
 		ProgramService svc = ProgramService.create(cfg);
 		svc.setExecutor(delaying);
 
@@ -809,5 +809,173 @@ public class ProgramServiceTest {
 		Assertions.assertEquals(Service.State.RUNNING, svc.state());
 		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
 		Assertions.assertTrue(countLines() >= 3, "runs: " + countLines());
+	}
+
+	// ---------- 운영 조회 ----------
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void restart_count_and_last_exit_code_are_reported() throws Exception {
+		ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "/bin/sh", "-c", "exit 7"));
+		Assertions.assertEquals(0, svc.getRestartCount());
+		Assertions.assertTrue(svc.getLastExitCode().isEmpty());
+
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		long due = System.currentTimeMillis() + 5_000;
+		while ( svc.getRestartCount() < 3 && System.currentTimeMillis() < due ) {
+			Thread.sleep(20);
+		}
+		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+
+		Assertions.assertTrue(svc.getRestartCount() >= 3, "restarts: " + svc.getRestartCount());
+		Assertions.assertEquals(7, svc.getLastExitCode().getAsInt());
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void last_exit_code_survives_stop() throws Exception {
+		// 스스로 종료한 실행의 코드는, 이후 중지로 종료 코드 없이 끝난 실행이 있어도 유지된다.
+		File marker = new File(m_workDir, "ran-once");
+		ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "/bin/sh", "-c",
+								"if [ -e " + marker.getAbsolutePath() + " ]; then exec /bin/sleep 30; fi; "
+								+ "touch " + marker.getAbsolutePath() + "; exit 3"));
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		long due = System.currentTimeMillis() + 5_000;
+		while ( svc.getRestartCount() < 1 && System.currentTimeMillis() < due ) {
+			Thread.sleep(20);
+		}
+		Thread.sleep(200);			// 두 번째 실행(sleep 30)이 시작되도록 기다린다.
+		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+
+		Assertions.assertEquals(1, svc.getRestartCount());
+		Assertions.assertEquals(3, svc.getLastExitCode().getAsInt());
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void no_restart_policy_reports_zero_restarts() throws Exception {
+		ProgramService svc = ProgramService.create(config(RestartPolicy.NO, "/bin/sh", "-c", "exit 4"));
+		svc.startAsync();
+		Assertions.assertThrows(IllegalStateException.class, () -> svc.awaitTerminated(5, TimeUnit.SECONDS));
+		Assertions.assertEquals(0, svc.getRestartCount());
+		Assertions.assertEquals(4, svc.getLastExitCode().getAsInt());
+	}
+
+	// ---------- 검토 의견 재현 테스트 ----------
+
+	@Test
+	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
+	public void stop_while_execution_is_finishing_does_not_deadlock() throws Exception {
+		// 실행이 자신의 lock을 쥔 채 종료 처리 중일 때 stopAsync()가 들어와도 교착되지 않아야 한다.
+		// (예전에는 Guava의 lock을 쥔 doStop()이 실행의 cancel()에서 실행의 lock을, 실행의 종료 콜백은 실행의 lock을
+		// 쥔 채 notifyStopped()에서 Guava의 lock을 기다려 교착되었다.)
+		ProgramServiceConfig cfg = config(RestartPolicy.NO, "/bin/sh", "-c",
+										"while [ ! -e done ]; do sleep 0.02; done");
+		ProgramService svc = ProgramService.create(cfg);
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+
+		java.lang.reflect.Field execField = ProgramService.class.getDeclaredField("m_exec");
+		execField.setAccessible(true);
+		CommandExecution exec = (CommandExecution)execField.get(svc);
+
+		// 실행이 lock을 쥔 채 남기는 "completed:" 로그에서 실행을 붙잡는다.
+		java.util.concurrent.CountDownLatch completing = new java.util.concurrent.CountDownLatch(1);
+		java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+		Logger blocking = (Logger)java.lang.reflect.Proxy.newProxyInstance(Logger.class.getClassLoader(),
+								new Class<?>[] { Logger.class }, (proxy, method, args) -> {
+			if ( method.getName().equals("debug") && args != null && args.length > 0
+				&& String.valueOf(args[0]).startsWith("completed:") ) {
+				completing.countDown();
+				release.await(10, TimeUnit.SECONDS);
+			}
+			if ( method.getReturnType() == boolean.class ) return true;
+			if ( method.getName().equals("getName") ) return "blocking";
+			return null;
+		});
+		exec.setLogger(blocking);
+
+		Files.writeString(new File(m_workDir, "done").toPath(), "done");
+		Assertions.assertTrue(completing.await(5, TimeUnit.SECONDS), "execution did not reach completion");
+
+		Thread stopper = new Thread(svc::stopAsync, "test-service-stopper");
+		stopper.setDaemon(true);
+		stopper.start();
+		stopper.join(2_000);
+		Assertions.assertFalse(stopper.isAlive(), "stopAsync() blocked while the execution was finishing");
+
+		release.countDown();
+		svc.awaitTerminated(5, TimeUnit.SECONDS);
+		Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+		Assertions.assertNull(java.lang.management.ManagementFactory.getThreadMXBean().findDeadlockedThreads());
+	}
+
+	@Test
+	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
+	public void stop_after_delayed_restart_terminates_after_process_cleanup() throws Exception {
+		// 지연 재시작으로 시작된 실행을 중지하면, 프로세스가 정리된 뒤에 서비스가 TERMINATED가 되어야 한다.
+		// (예전에는 지연 래퍼가 먼저 CANCELLED가 되어, SIGTERM을 무시하는 프로세스가 살아 있는 채 서비스가 종료되었다.)
+		File pidFile = new File(m_workDir, "pid");
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sh", "-c",
+								"if [ ! -e first ]; then touch first; exit 0; fi; "
+								+ "trap '' TERM; echo $$ > pid; while true; do sleep 0.05; done");
+		cfg.setRestartDelay(Duration.ofMillis(100));
+		cfg.setMaxRestartDelay(Duration.ofMillis(100));
+		ProgramService svc = ProgramService.create(cfg);
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+
+		long due = System.currentTimeMillis() + 5_000;
+		while ( !(pidFile.exists() && pidFile.length() > 0) && System.currentTimeMillis() < due ) {
+			Thread.sleep(20);
+		}
+		long pid = Long.parseLong(Files.readString(pidFile.toPath()).trim());
+		try {
+			svc.stopAsync().awaitTerminated(10, TimeUnit.SECONDS);
+			Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+			Assertions.assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false),
+									"process must be cleaned up before the service terminates");
+		}
+		finally {
+			ProcessHandle.of(pid).ifPresent(ProcessHandle::destroyForcibly);
+		}
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void config_interpolation_keeps_json_special_characters() throws Exception {
+		// 따옴표·역슬래시가 든 값이 JSON 구문을 깨지 않고 그대로 들어가야 한다.
+		String key = "programservice.test.value";
+		System.setProperty(key, "quoted\"value\\tail");
+		try {
+			File jsonFile = new File(m_workDir, "config.json");
+			Files.writeString(jsonFile.toPath(),
+							"{\"commandLine\":[\"/bin/echo\",\"${sys:" + key + "}\"],\"restartPolicy\":\"NO\"}");
+			ProgramService svc = ProgramService.create(jsonFile);
+			Assertions.assertTrue(svc.toString().contains("quoted\"value\\tail"), svc.toString());
+		}
+		finally {
+			System.clearProperty(key);
+		}
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void service_uses_a_copy_of_its_config() throws Exception {
+		// 서비스 생성 후 원래 설정 객체를 바꿔도 서비스의 동작은 달라지지 않아야 한다.
+		ProgramServiceConfig cfg = config(RestartPolicy.NO, "/bin/echo", "original");
+		ProgramService svc = ProgramService.create(cfg);
+		cfg.setCommandLine(Arrays.asList("/bin/echo", "changed"));
+
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		svc.awaitTerminated(5, TimeUnit.SECONDS);
+		Assertions.assertEquals("original",
+						Files.readString(new File(m_workDir, "application.log").toPath(), StandardCharsets.UTF_8).trim());
+	}
+
+	@Test
+	public void create_rejects_empty_command_line() {
+		ProgramServiceConfig cfg = new ProgramServiceConfig();
+		Assertions.assertThrows(IllegalArgumentException.class, () -> ProgramService.create(cfg));
+		cfg.setCommandLine(Arrays.asList());
+		Assertions.assertThrows(IllegalArgumentException.class, () -> ProgramService.create(cfg));
 	}
 }

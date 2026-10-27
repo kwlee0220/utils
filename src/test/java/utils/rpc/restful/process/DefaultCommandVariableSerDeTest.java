@@ -86,7 +86,7 @@ public class DefaultCommandVariableSerDeTest {
 
 	@Test
 	public void testSerializeParsesValueBackToNode() throws IOException {
-		CommandVariable var = new CommandVariable("greeting", "\"hello\"", new File(m_dir, "greeting"));
+		CommandVariable var = CommandVariable.input("greeting", "\"hello\"", new File(m_dir, "greeting"));
 
 		KeyValue<String,JsonNode> kv = m_serde.serialize(var);
 

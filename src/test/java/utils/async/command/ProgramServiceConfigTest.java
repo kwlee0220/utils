@@ -143,26 +143,32 @@ public class ProgramServiceConfigTest {
 	@Test
 	public void setStartTimeout_stores_value() {
 		ProgramServiceConfig cfg = new ProgramServiceConfig();
-		cfg.setStartTimeout("1m");
+		cfg.setStartTimeout(Duration.ofMinutes(1));
 
-		Assertions.assertEquals("1m", cfg.getStartTimeout());
+		Assertions.assertEquals(Duration.ofMinutes(1), cfg.getStartTimeout());
 	}
 
 	@Test
 	public void setStartTimeout_null_falls_back_to_default() {
 		ProgramServiceConfig cfg = new ProgramServiceConfig();
-		cfg.setStartTimeout("1m");
+		cfg.setStartTimeout(Duration.ofMinutes(1));
 		cfg.setStartTimeout(null);
 
 		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_START_TIMEOUT, cfg.getStartTimeout());
 	}
 
 	@Test
-	public void getStartTimeoutAsDuration_parses_value() {
+	public void setStartTimeout_rejects_negative() {
 		ProgramServiceConfig cfg = new ProgramServiceConfig();
-		cfg.setStartTimeout("1m");
+		Assertions.assertThrows(IllegalArgumentException.class, () -> cfg.setStartTimeout(Duration.ofSeconds(-1)));
+	}
 
-		Assertions.assertEquals(Duration.ofMinutes(1), cfg.getStartTimeoutAsDuration());
+	@Test
+	public void json_start_timeout_accepts_string_form() throws Exception {
+		String json = "{\"commandLine\":[\"/bin/echo\"],\"startTimeout\":\"1m\"}";
+		ProgramServiceConfig cfg = JsonMapper.builder().addModule(new JavaTimeModule()).build()
+											.readValue(json, ProgramServiceConfig.class);
+		Assertions.assertEquals(Duration.ofMinutes(1), cfg.getStartTimeout());
 	}
 
 	// ---------- setRestartDelay ----------
@@ -275,7 +281,7 @@ public class ProgramServiceConfigTest {
 		env.put("FOO", "bar");
 		original.setEnvironments(env);
 		original.setRestartPolicy(RestartPolicy.ON_FAILED);
-		original.setStartTimeout("45s");
+		original.setStartTimeout(Duration.ofSeconds(45));
 		original.setRestartDelay(Duration.ofSeconds(7));
 		original.setMaxRestartDelay(Duration.ofSeconds(90));
 		original.setStableRunTime(Duration.ofSeconds(20));
@@ -342,5 +348,35 @@ public class ProgramServiceConfigTest {
 		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_STABLE_RUN_TIME, cfg.getStableRunTime());
 		cfg.setRestartLimitInterval(null);
 		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_RESTART_LIMIT_INTERVAL, cfg.getRestartLimitInterval());
+	}
+
+	// ---------- copy ----------
+
+	@Test
+	public void copy_constructor_copies_fields_and_detaches_collections() {
+		ProgramServiceConfig original = new ProgramServiceConfig();
+		original.setCommandLine(new java.util.ArrayList<>(Arrays.asList("/bin/echo", "hi")));
+		Map<String,String> env = new HashMap<>();
+		env.put("FOO", "bar");
+		original.setEnvironments(env);
+		original.setRestartPolicy(RestartPolicy.ON_FAILED);
+		original.setStartTimeout(Duration.ofSeconds(45));
+		original.setRestartDelay(Duration.ofSeconds(7));
+		original.setMaxRestartDelay(Duration.ofSeconds(90));
+		original.setStableRunTime(Duration.ofSeconds(20));
+		original.setRestartLimit(4);
+		original.setRestartLimitInterval(Duration.ofMinutes(2));
+
+		ProgramServiceConfig copy = new ProgramServiceConfig(original);
+		Assertions.assertEquals(original.toString(), copy.toString());
+		Assertions.assertEquals(original.getEnvironments(), copy.getEnvironments());
+		Assertions.assertEquals(original.getStableRunTime(), copy.getStableRunTime());
+
+		// 원본의 컬렉션을 바꿔도 복사본은 영향받지 않고, 복사본의 컬렉션은 수정할 수 없다.
+		original.getCommandLine().set(1, "changed");
+		env.put("FOO", "changed");
+		Assertions.assertEquals(List.of("/bin/echo", "hi"), copy.getCommandLine());
+		Assertions.assertEquals("bar", copy.getEnvironments().get("FOO"));
+		Assertions.assertThrows(UnsupportedOperationException.class, () -> copy.getCommandLine().add("x"));
 	}
 }

@@ -34,7 +34,7 @@ import utils.io.FileUtils;
  *   <li>{@code environmentFile}: 없음 (선택).</li>
  *   <li>{@code environments}: 빈 맵.</li>
  *   <li>{@code restartPolicy}: {@link RestartPolicy#ALWAYS}.</li>
- *   <li>{@code startTimeout}: {@link #DEFAULT_START_TIMEOUT} ({@value #DEFAULT_START_TIMEOUT}).</li>
+ *   <li>{@code startTimeout}: {@link #DEFAULT_START_TIMEOUT} (30초). 0이면 제한하지 않는다.</li>
  *   <li>{@code restartDelay}: {@link #DEFAULT_RESTART_DELAY} (5초).</li>
  *   <li>{@code maxRestartDelay}: {@link #DEFAULT_MAX_RESTART_DELAY} (1분). 짧은 실행이 연달아 일어날 때 늘어나는
  *       재시작 지연의 상한. {@code restartDelay} 이하이면 backoff를 하지 않는다.</li>
@@ -52,8 +52,8 @@ import utils.io.FileUtils;
 					"restartPolicy", "restartDelay", "maxRestartDelay", "stableRunTime",
 					"restartLimit", "restartLimitInterval", "startTimeout" })
 public class ProgramServiceConfig {
-	/** 시작 타임아웃의 기본값 (문자열 형태, {@link UnitUtils#parseDuration}로 파싱). */
-	public static final String DEFAULT_START_TIMEOUT = "30s";
+	/** 시작 타임아웃의 기본값 (30초). */
+	public static final Duration DEFAULT_START_TIMEOUT = Duration.ofSeconds(30);
 
 	/** 재시작 지연의 기본값 (5초). */
 	public static final Duration DEFAULT_RESTART_DELAY = Duration.ofSeconds(5);
@@ -69,7 +69,7 @@ public class ProgramServiceConfig {
 	@Nullable private File m_environmentFile;
 	private Map<String,String> m_environments = Maps.newHashMap();
 	private RestartPolicy m_restartPolicy = RestartPolicy.ALWAYS;
-	private String m_startTimeout = DEFAULT_START_TIMEOUT;
+	private Duration m_startTimeout = DEFAULT_START_TIMEOUT;
 	private Duration m_restartDelay = DEFAULT_RESTART_DELAY;
 	private Duration m_maxRestartDelay = DEFAULT_MAX_RESTART_DELAY;
 	private Duration m_stableRunTime = DEFAULT_STABLE_RUN_TIME;
@@ -85,6 +85,31 @@ public class ProgramServiceConfig {
 	 */
 	public ProgramServiceConfig() {
 		m_workingDirectory = FileUtils.getCurrentWorkingDirectory();
+	}
+
+	/**
+	 * 주어진 설정의 복사본을 생성한다. 명령행과 환경 변수 맵은 수정할 수 없는 복사본으로 만든다.
+	 * <p>
+	 * {@link ProgramService}는 생성 시 설정을 복사해 보관하므로, 서비스 생성 후 원래 설정 객체를 바꿔도 서비스의
+	 * 동작(다음 재시작의 명령·정책 등)은 달라지지 않는다.
+	 *
+	 * @param other	복사할 설정.
+	 * @throws IllegalArgumentException	{@code other}가 {@code null}인 경우.
+	 */
+	public ProgramServiceConfig(ProgramServiceConfig other) {
+		Preconditions.checkNotNullArgument(other, "other is null");
+
+		m_commandLine = (other.m_commandLine != null) ? List.copyOf(other.m_commandLine) : null;
+		m_workingDirectory = other.m_workingDirectory;
+		m_environmentFile = other.m_environmentFile;
+		m_environments = Map.copyOf(other.m_environments);
+		m_restartPolicy = other.m_restartPolicy;
+		m_startTimeout = other.m_startTimeout;
+		m_restartDelay = other.m_restartDelay;
+		m_maxRestartDelay = other.m_maxRestartDelay;
+		m_stableRunTime = other.m_stableRunTime;
+		m_restartLimit = other.m_restartLimit;
+		m_restartLimitInterval = other.m_restartLimitInterval;
 	}
 
 	/**
@@ -184,36 +209,32 @@ public class ProgramServiceConfig {
 	}
 
 	/**
-	 * 시작 타임아웃을 문자열 형태로 반환한다(예: "30s", "1m").
+	 * 시작 타임아웃을 반환한다.
 	 * <p>
 	 * {@link ProgramService}는 첫 실행이 이 시간 안에 RUNNING(자식 프로세스 기동 완료)이 되지 못하면 서비스를
-	 * FAILED로 전이한다. {@code "0s"}이면 제한하지 않는다.
+	 * FAILED로 전이한다. 0이면 제한하지 않는다.
 	 *
-	 * @return 시작 타임아웃 문자열. 기본값 {@value #DEFAULT_START_TIMEOUT}.
+	 * @return 시작 타임아웃. 기본값 {@link #DEFAULT_START_TIMEOUT} (30초).
 	 */
-	public String getStartTimeout() {
+	@JsonFormat(shape = JsonFormat.Shape.STRING)
+	public Duration getStartTimeout() {
 		return m_startTimeout;
-	}
-
-	/**
-	 * 시작 타임아웃을 {@link Duration}으로 변환하여 반환한다.
-	 * <p>
-	 * Jackson에는 별도 property로 노출되지 않도록 {@link JsonIgnore}로 표시한다.
-	 *
-	 * @return 파싱된 {@link Duration}.
-	 */
-	@JsonIgnore
-	public Duration getStartTimeoutAsDuration() {
-		return FOption.map(m_startTimeout, UnitUtils::parseDuration);
 	}
 
 	/**
 	 * 시작 타임아웃을 설정한다. {@code null}이면 기본값으로 fallback한다.
 	 *
-	 * @param startTimeout {@link UnitUtils#parseDuration}이 인식하는 문자열(예: "30s", "1m"), 또는 {@code null}.
+	 * @param startTimeout 시작 타임아웃 (0이면 제한 없음), 또는 {@code null}.
+	 * @throws IllegalArgumentException {@code startTimeout}이 음수인 경우.
 	 */
-	public void setStartTimeout(String startTimeout) {
-		m_startTimeout = Optionals.getOrElse(startTimeout, DEFAULT_START_TIMEOUT);
+	@JsonIgnore
+	public void setStartTimeout(@Nullable Duration startTimeout) {
+		m_startTimeout = nonNegative(startTimeout, DEFAULT_START_TIMEOUT, "startTimeout");
+	}
+
+	@JsonProperty("startTimeout")
+	private void setStartTimeoutString(@Nullable String startTimeout) {
+		setStartTimeout(parse(startTimeout));
 	}
 
 	/**
@@ -373,8 +394,7 @@ public class ProgramServiceConfig {
 	
 	@Override
 	public String toString() {
-		String startTimeoutStr = (m_startTimeout != null)
-								? String.format("startTimeout=%s, ", m_startTimeout) : "";
+		String startTimeoutStr = String.format("startTimeout=%s, ", m_startTimeout);
 		String limitStr = (m_restartLimit > 0)
 						? String.format(", restartLimit=%d/%s", m_restartLimit, m_restartLimitInterval) : "";
 		return String.format("command=%s, workingDirectory=%s, restartPolicy=%s, %srestartDelay=%s, "

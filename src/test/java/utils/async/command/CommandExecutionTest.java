@@ -115,7 +115,7 @@ public class CommandExecutionTest {
 		// ${var} (modifier 생략)은 변수 이름을 반환한다.
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "name=${greeting}")
-												.addVariable(new CommandVariable("greeting", "hi"))
+												.addVariable(CommandVariable.input("greeting", "hi"))
 												.stdout(Output.file(m_outFile))
 												.build();
 		exec.start();
@@ -129,7 +129,7 @@ public class CommandExecutionTest {
 		// ${var:value}로 값을 가져온다.
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "value=${greeting:value}")
-												.addVariable(new CommandVariable("greeting", "hi"))
+												.addVariable(CommandVariable.input("greeting", "hi"))
 												.stdout(Output.file(m_outFile))
 												.build();
 		exec.start();
@@ -144,8 +144,8 @@ public class CommandExecutionTest {
 		// ${secret:value}가 다른 변수(secret)의 값으로 바뀌어 노출된다.
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "${msg:value}")
-												.addVariable(new CommandVariable("msg", "hello ${secret:value}"))
-												.addVariable(new CommandVariable("secret", "TOP-SECRET"))
+												.addVariable(CommandVariable.input("msg", "hello ${secret:value}"))
+												.addVariable(CommandVariable.input("secret", "TOP-SECRET"))
 												.stdout(Output.file(m_outFile))
 												.build();
 		exec.start();
@@ -162,7 +162,7 @@ public class CommandExecutionTest {
 		// 그대로 전달되어야 한다.
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "${script:value}")
-												.addVariable(new CommandVariable("script", "echo ${HOME}"))
+												.addVariable(CommandVariable.input("script", "echo ${HOME}"))
 												.stdout(Output.file(m_outFile))
 												.build();
 		exec.start();
@@ -208,7 +208,7 @@ public class CommandExecutionTest {
 	public void testStringVariableValueModifier() throws Exception {
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "${greeting:value}")
-												.addVariable(new CommandVariable("greeting", "hi"))
+												.addVariable(CommandVariable.input("greeting", "hi"))
 												.stdout(Output.file(m_outFile))
 												.build();
 		exec.start();
@@ -536,12 +536,12 @@ public class CommandExecutionTest {
 
 	@Test
 	public void testDuplicateVariableRejected() throws Exception {
-		CommandVariable first = new CommandVariable("greeting", "hi");
+		CommandVariable first = CommandVariable.input("greeting", "hi");
 		CommandExecution.Builder builder = CommandExecution.builder()
 															.addCommand("/bin/echo")
 															.addVariable(first);
 		Assertions.assertThrows(IllegalArgumentException.class,
-								() -> builder.addVariable(new CommandVariable("greeting", "bye")));
+								() -> builder.addVariable(CommandVariable.input("greeting", "bye")));
 
 		// 거부된 경우 기존 변수가 그대로 유지되어야 한다.
 		Assertions.assertSame(first, builder.build().getVariableMap().get("greeting"));
@@ -743,7 +743,7 @@ public class CommandExecutionTest {
 		try {
 			CommandExecution exec = CommandExecution.builder()
 													.addCommand("/bin/echo", "${token:value}")
-													.addVariable(new CommandVariable("token", "TOP-SECRET"))
+													.addVariable(CommandVariable.input("token", "TOP-SECRET"))
 													.stdout(Output.file(m_outFile))
 													.build();
 			exec.setLogger(logger);
@@ -936,5 +936,63 @@ public class CommandExecutionTest {
 		exec.start();
 		Assertions.assertEquals(AsyncState.COMPLETED, exec.waitForFinished().getState());
 		Assertions.assertEquals("previous\nappended\n", Files.readString(errFile.toPath(), StandardCharsets.UTF_8));
+	}
+
+	// ----- 초기화 중 외부 실패 -----
+
+	@Test
+	@org.junit.jupiter.api.Timeout(value = 20, unit = TimeUnit.SECONDS)
+	public void testProcessStartedAfterExternalFailureIsCleanedUp() throws Exception {
+		// 초기화(변수 치환) 도중 외부에서 notifyFailed()로 종료되면 executeWork()가 호출되지 않는다. 이후 시작된
+		// 프로세스는 abortAfterInitialize()에서 정리되어야 하고, close()는 그 정리가 끝난 뒤 반환해야 한다.
+		File pidFile = new File(m_workDir, "pid");
+		java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
+		java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+		CommandVariable gate = new CommandVariable("gate", "ready", null, true) {
+			@Override
+			public synchronized String getValueByModifier(String modifier) {
+				entered.countDown();
+				try {
+					release.await(5, TimeUnit.SECONDS);
+				}
+				catch ( InterruptedException e ) {
+					Thread.currentThread().interrupt();
+				}
+				return "ready";
+			}
+		};
+		CommandExecution exec = CommandExecution.builder()
+												.addCommand("/bin/sh", "-c", "echo $$ > pid; exec sleep 30", "${gate:value}")
+												.workingDirectory(m_workDir)
+												.addVariable(gate)
+												.build();
+		exec.start();
+		Assertions.assertTrue(entered.await(5, TimeUnit.SECONDS));
+		exec.notifyFailed(new IllegalStateException("external failure during startup"));
+		release.countDown();
+
+		long due = System.currentTimeMillis() + 5_000;
+		while ( !(pidFile.exists() && pidFile.length() > 0) && System.currentTimeMillis() < due ) {
+			Thread.sleep(20);
+		}
+		long pid = Long.parseLong(Files.readString(pidFile.toPath()).trim());
+		try {
+			exec.close();
+			Assertions.assertEquals(AsyncState.FAILED, exec.getState());
+			Assertions.assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false),
+									"process started after the external failure must be cleaned up by close()");
+		}
+		finally {
+			ProcessHandle.of(pid).ifPresent(ProcessHandle::destroyForcibly);
+		}
+	}
+
+	@Test
+	public void testVariableMapIsReadOnly() {
+		CommandExecution exec = CommandExecution.builder()
+												.addCommand("/bin/true")
+												.addVariable(CommandVariable.input("greeting", "hi"))
+												.build();
+		Assertions.assertThrows(UnsupportedOperationException.class, () -> exec.getVariableMap().remove("greeting"));
 	}
 }

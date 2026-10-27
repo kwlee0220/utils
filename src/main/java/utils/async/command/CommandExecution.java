@@ -8,6 +8,7 @@ import java.lang.ProcessBuilder.Redirect;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -102,6 +103,11 @@ import utils.stream.FStream;
  * 종료 요청과 grace 대기는 별도 쓰레드에서 수행되므로 {@code cancel(true)}는 프로세스 종료를 기다리지 않고
  * 반환한다. 어떤 경로로 종료되든 sub-process와 descendants가 leak되지 않도록 finally에서 정리된다
  * (SIGTERM 후 1초 grace, 이후 SIGKILL).
+ * <p>
+ * <b>descendants 정리는 최선 노력(best-effort)이다.</b> descendants는 {@link ProcessHandle}의 부모·자식 관계를
+ * 주기적으로 조회하여 추적하므로, 조회 사이에 자식을 만들고 곧바로 종료하는 부모(예: daemon화를 위해 fork 후
+ * 종료하는 프로그램)의 자식은 부모와의 관계가 끊겨 추적되지 않고 남을 수 있다. 확실한 정리가 필요하면 명령이
+ * 스스로 자식을 정리하도록 하거나, OS의 프로세스 그룹·작업 객체(job object)를 쓰는 방식으로 감싸야 한다.
  *
  * <h2>로그</h2>
  * 변수 값에는 비밀값이 들어 있을 수 있으므로 변수가 치환된 command line은 로그에 남기지 않는다.
@@ -114,6 +120,10 @@ import utils.stream.FStream;
  * (예: Executor 큐에서 시작이 지연된 경우), 시작 단계가 끝나기를 기다린 뒤 다시 취소한다.
  * 따라서 Executor가 작업을 실행하지 않는 동안에는 {@code close()}도 대기한다.
  * 대기 중 인터럽트되면 인터럽트 상태를 복원하고 즉시 변수 정리로 넘어간다.
+ * <p>
+ * 작업이 이미 종료 상태여도(예: 초기화 도중 외부에서 {@code notifyFailed()}로 종료를 통지한 경우) 작업 쓰레드가
+ * 아직 프로세스를 쥐고 있을 수 있으므로, {@code close()}는 남은 프로세스를 종료시키고 작업 쓰레드가 프로세스
+ * 정리를 마칠 때까지 기다린 뒤 반환한다. 즉 상태의 종료와 자원 정리 완료를 구분하여, 후자까지 보장한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -261,6 +271,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	
 	@GuardedBy("m_aopGuard") private Process m_process;
 	@GuardedBy("m_aopGuard") private ProcessTree m_processTree;
+	// 작업 쓰레드가 프로세스를 다루는 중인지 여부. initializeThread() 진입 시 true가 되고, 프로세스 정리를 마치면
+	// (executeWork()의 finally, abortAfterInitialize(), 초기화 실패) false가 된다. close()는 이것이 false가 되기를 기다린다.
+	@GuardedBy("m_aopGuard") private boolean m_workerActive = false;
+	@GuardedBy("m_aopGuard") private boolean m_closeRequested = false;
 	private volatile @Nullable Integer m_exitCode = null;
 	
 	private CommandExecution(Builder builder) {
@@ -270,7 +284,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		m_command = List.copyOf(builder.m_command);
 		m_envFile = builder.m_envFile;
 		m_environmentVariables = Map.copyOf(builder.m_environmentVariables);
-		m_variables = builder.m_variables.toMap();
+		m_variables = Collections.unmodifiableMap(builder.m_variables.toMap());
 		m_stdin = builder.m_stdin;
 		m_stdout = builder.m_stdout;
 		m_stderr = builder.m_stderr;
@@ -285,6 +299,8 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	
 	@Override
 	public void close() {
+		// 이후 작업 쓰레드가 초기화에 들어오면 프로세스를 만들지 않도록 한다.
+		m_aopGuard.run(() -> m_closeRequested = true);
 		try {
 			// 실행 중이면 취소를 요청하고 종료를 기다려서 sub-process가 leak되지 않도록 한다.
 			if ( !isDone() ) {
@@ -297,6 +313,14 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 				}
 				waitForFinished();
 			}
+
+			// 종료 상태가 되었어도 작업 쓰레드가 아직 프로세스를 쥐고 있을 수 있다(예: 외부에서 notifyFailed()로
+			// 종료를 통지한 경우). 남은 프로세스를 직접 종료시키고, 작업 쓰레드가 정리를 마칠 때까지 기다린다.
+			ProcessTree remaining = m_aopGuard.get(() -> m_processTree);
+			if ( remaining != null ) {
+				remaining.terminate(PROCESS_TERMINATION_GRACE);
+			}
+			m_aopGuard.awaitCondition(() -> !m_workerActive).andReturn();
 		}
 		catch ( InterruptedException | RuntimeInterruptedException e ) {
 			// 'close()' 함수의 signature에 InterruptedException이 없으므로,
@@ -313,8 +337,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	
 	/**
 	 * Command 실행에서 사용 중인 Command variable 맵을 반환한다.
+	 * <p>
+	 * 읽기 전용이다. 변수를 바깥에서 제거하면 {@link #close()}의 정리 대상에서 빠지므로 수정을 허용하지 않는다.
 	 * 
-	 * @return	Command variable 맵
+	 * @return	Command variable 맵 (수정 불가)
 	 */
 	public Map<String,CommandVariable> getVariableMap() {
 		return m_variables;
@@ -338,13 +364,61 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	protected void initializeThread() throws Exception {
 		// AsyncState.STARTING 상태.
 		// cancel하려고 해도 취소 작업이 대기 중인 상태.
-		ProcessBuilder builder = buildProcessBuilder();
-		Process process = builder.start();
-		ProcessTree processTree = ProcessTree.of(process);
-		processTree.refresh();   // root가 종료되기 전 descendants 초기 snapshot을 시도한다.
-		m_aopGuard.runChecked(() -> {
-			m_process = process;
-			m_processTree = processTree;
+		boolean closed = m_aopGuard.get(() -> {
+			if ( m_closeRequested ) {
+				return true;
+			}
+			m_workerActive = true;
+			return false;
+		});
+		if ( closed ) {
+			throw new CancellationException("Command execution is closed");
+		}
+
+		Process process = null;
+		try {
+			ProcessBuilder builder = buildProcessBuilder();
+			process = builder.start();
+			ProcessTree processTree = ProcessTree.of(process);
+			processTree.refresh();   // root가 종료되기 전 descendants 초기 snapshot을 시도한다.
+			Process started = process;
+			m_aopGuard.runChecked(() -> {
+				m_process = started;
+				m_processTree = processTree;
+			});
+		}
+		catch ( Exception e ) {
+			// 프로세스를 만든 뒤 초기화가 실패하면 프로세스가 남지 않도록 정리한다.
+			if ( process != null ) {
+				ProcessTree.of(process).terminate(PROCESS_TERMINATION_GRACE);
+			}
+			releaseProcess();
+			throw e;
+		}
+	}
+
+	/**
+	 * 초기화는 끝났지만 그 사이 외부에서 종료(실패·취소)되어 {@link #executeWork()}가 호출되지 않는 경우에
+	 * 시작된 프로세스를 정리한다.
+	 */
+	@Override
+	protected void abortAfterInitialize() {
+		ProcessTree processTree = m_aopGuard.get(() -> m_processTree);
+		try {
+			if ( processTree != null ) {
+				processTree.terminate(PROCESS_TERMINATION_GRACE);
+			}
+		}
+		finally {
+			releaseProcess();
+		}
+	}
+
+	private void releaseProcess() {
+		m_aopGuard.run(() -> {
+			m_process = null;
+			m_processTree = null;
+			m_workerActive = false;
 		});
 	}
 
@@ -354,12 +428,12 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		// (드믄 경우) cancel이 호출된 상태라면 취소 작업이 대기 중인 상태.
 		Process process = m_aopGuard.get(() -> m_process);
 		ProcessTree processTree = m_aopGuard.get(() -> m_processTree);
-		if ( process == null || processTree == null ) {
-			// 연산이 중단(취소)된 상태.
-			throw new CancellationException("Command execution is cancelled");
-		}
-		
 		try {
+			if ( process == null || processTree == null ) {
+				// 연산이 중단(취소)된 상태.
+				throw new CancellationException("Command execution is cancelled");
+			}
+
 			// 제한시간이 설정된 경우에는 제한시간만큼만, 그렇지 않으면 종료될 때까지 프로세스를 대기한다.
 			Duration timeout = m_timeout;
 			boolean terminated;
@@ -391,13 +465,13 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 		finally {
 			// 인터럽트/timeout/예외 등 어떤 경로로 빠져나가든 sub-process가 leak되지 않도록 정리한다.
-			processTree.terminate(PROCESS_TERMINATION_GRACE);
-			// defunct process 참조를 정리해 cancelWork가 죽은 프로세스에 destroy를
-			// 시도하지 않도록 한다.
-			m_aopGuard.run(() -> {
-				m_process = null;
-				m_processTree = null;
-			});
+			// 정리는 종료 상태 전이보다 먼저 끝나므로, 종료 통지를 받은 쪽은 프로세스가 정리된 뒤에 깨어난다.
+			if ( processTree != null ) {
+				processTree.terminate(PROCESS_TERMINATION_GRACE);
+			}
+			// defunct process 참조를 정리해 cancelWork가 죽은 프로세스에 destroy를 시도하지 않도록 하고,
+			// close()에 정리가 끝났음을 알린다.
+			releaseProcess();
 		}
 	}
 
