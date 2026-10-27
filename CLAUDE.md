@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Java 17 utility library published as `etri:utils` (current version `25.10.27`) via Gradle (`java-library` plugin). There is no main method — the output is a JAR consumed by other projects in `$HOME/development/common/…`. Source and Javadoc comments are primarily in Korean; match that language when modifying or adding doc comments near existing Korean docs.
+Java 17 utility library published as `etri:utils` (current version `26.10.27`) via Gradle (`java-library` plugin). There is no main method — the output is a JAR consumed by other projects in `$HOME/development/common/…`. Source and Javadoc comments are primarily in Korean; match that language when modifying or adding doc comments near existing Korean docs.
 
 ## Common commands
 

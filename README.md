@@ -67,5 +67,5 @@ $ gradle test --tests 'utils.stream.*'              # 패키지 단위
 
 ### 5. 산출물
 
-* GAV 좌표: `etri:utils:25.10.27`
-* 출력 JAR: `build/libs/utils-25.10.27.jar`
+* GAV 좌표: `etri:utils:26.10.27`
+* 출력 JAR: `build/libs/utils-26.10.27.jar`
