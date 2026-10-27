@@ -378,30 +378,6 @@ public class PeriodicPoller<T> extends AbstractPeriodicPoller<T> {
 		}
 
 		/**
-		 * 고정 주기({@link IntervalMode#FIXED_RATE}) 모드로 polling 간격을 설정한다.
-		 *
-		 * @param interval Polling 주기 (양수).
-		 * @return 이 빌더.
-		 * @deprecated	밀린 경우 연달아 실행된다는 성질이 호출부에서 드러나도록 {@link #fixedRate(Duration)}를 사용한다.
-		 */
-		@Deprecated
-		public Builder<T> interval(Duration interval) {
-			return fixedRate(interval);
-		}
-
-		/**
-		 * 고정 지연({@link IntervalMode#FIXED_DELAY}) 모드로 polling 간격을 설정한다.
-		 *
-		 * @param delay 각 polling 완료 후 다음 polling 시작까지의 대기 시간 (양수).
-		 * @return 이 빌더.
-		 * @deprecated	{@link #fixedRate(Duration)}와 짝을 이루는 {@link #fixedDelay(Duration)}를 사용한다.
-		 */
-		@Deprecated
-		public Builder<T> delay(Duration delay) {
-			return fixedDelay(delay);
-		}
-
-		/**
 		 * Polling 제한 기간을 설정한다.
 		 * <p>
 		 * Polling이 <b>실제로 시작된 시점</b>부터 측정한 경과 시간이 {@code timeout}을 초과하면

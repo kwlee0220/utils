@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +34,7 @@ public class AbstractStatePollerTest {
 		final AtomicInteger m_initCount = new AtomicInteger(0);
 		final AtomicInteger m_pollCount = new AtomicInteger(0);
 		final AtomicInteger m_finalizeCount = new AtomicInteger(0);
-		final AtomicReference<Integer> m_finalizedState = new AtomicReference<>();
+		final AtomicReference<AsyncResult<Integer>> m_finalizedState = new AtomicReference<>();
 
 		CountingPoller(Duration interval, int targetIteration, int resultValue) {
 			super(interval);
@@ -64,9 +63,9 @@ public class AbstractStatePollerTest {
 		}
 
 		@Override
-		protected void finalizePoller(@Nullable Integer state) {
+		protected void cleanupPoller(AsyncResult<Integer> outcome) {
 			m_finalizeCount.incrementAndGet();
-			m_finalizedState.set(state);
+			m_finalizedState.set(outcome);
 		}
 	}
 
@@ -116,13 +115,13 @@ public class AbstractStatePollerTest {
 		Assertions.assertEquals(1, poller.m_initCount.get());
 		Assertions.assertEquals(2, poller.m_pollCount.get());
 		Assertions.assertEquals(1, poller.m_finalizeCount.get());
-		// 정상 종료 시 finalizePoller에 결과값이 전달되어야 한다.
-		Assertions.assertEquals(Integer.valueOf(99), poller.m_finalizedState.get());
+		// 정상 종료 시 cleanupPoller에 완료 결과와 결과값이 전달되어야 한다.
+		Assertions.assertEquals(Integer.valueOf(99), poller.m_finalizedState.get().getUnchecked());
 	}
 
 	@Test
-	public void testFinalizePollerStateNullOnCancel() throws Exception {
-		// 절대 도달하지 않는 목표를 설정한 뒤 취소하면, finalizePoller(null)이 호출되어야 한다.
+	public void testCleanupPollerOutcomeOnCancel() throws Exception {
+		// 절대 도달하지 않는 목표를 설정한 뒤 취소하면, cleanupPoller에 취소 결과가 전달되어야 한다.
 		CountingPoller poller = new CountingPoller(INTERVAL_50MS, Integer.MAX_VALUE, 0);
 
 		poller.start();
@@ -137,11 +136,11 @@ public class AbstractStatePollerTest {
 
 		Assertions.assertTrue(result.isCancelled());
 		Assertions.assertEquals(1, poller.m_finalizeCount.get());
-		Assertions.assertNull(poller.m_finalizedState.get());
+		Assertions.assertTrue(poller.m_finalizedState.get().isCancelled());
 	}
 
 	@Test
-	public void testFinalizePollerStateNullOnTimeout() throws Exception {
+	public void testCleanupPollerOutcomeOnTimeout() throws Exception {
 		CountingPoller poller = new CountingPoller(INTERVAL_50MS, Integer.MAX_VALUE, 0);
 		poller.setTimeout(Duration.ofMillis(150));
 
@@ -151,12 +150,13 @@ public class AbstractStatePollerTest {
 		Assertions.assertTrue(result.isFailed());
 		Assertions.assertTrue(result.getFailureCause() instanceof TimeoutException);
 		Assertions.assertEquals(1, poller.m_finalizeCount.get());
-		Assertions.assertNull(poller.m_finalizedState.get());
+		Assertions.assertTrue(poller.m_finalizedState.get().isFailed());
+		Assertions.assertInstanceOf(TimeoutException.class, poller.m_finalizedState.get().getFailureCause());
 	}
 
 	@Test
-	public void testFinalizePollerStateNullOnException() throws Exception {
-		AtomicReference<Integer> finalized = new AtomicReference<>();
+	public void testCleanupPollerOutcomeOnException() throws Exception {
+		AtomicReference<AsyncResult<Integer>> finalized = new AtomicReference<>();
 		AtomicInteger finalizeCount = new AtomicInteger(0);
 
 		AbstractPeriodicPoller<Integer> poller = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
@@ -165,9 +165,9 @@ public class AbstractStatePollerTest {
 				throw new IllegalStateException("boom");
 			}
 			@Override
-			protected void finalizePoller(@Nullable Integer state) {
+			protected void cleanupPoller(AsyncResult<Integer> outcome) {
 				finalizeCount.incrementAndGet();
-				finalized.set(state);
+				finalized.set(outcome);
 			}
 		};
 
@@ -176,11 +176,12 @@ public class AbstractStatePollerTest {
 
 		Assertions.assertTrue(result.isFailed());
 		Assertions.assertEquals(1, finalizeCount.get());
-		Assertions.assertNull(finalized.get());
+		Assertions.assertTrue(finalized.get().isFailed());
+		Assertions.assertEquals("boom", finalized.get().getFailureCause().getMessage());
 	}
 
 	@Test
-	public void testFinalizePollerNotCalledWhenInitializePollerFails() throws Exception {
+	public void testCleanupPollerNotCalledWhenInitializePollerFails() throws Exception {
 		AtomicInteger initCount = new AtomicInteger(0);
 		AtomicInteger pollCount = new AtomicInteger(0);
 		AtomicInteger finalizeCount = new AtomicInteger(0);
@@ -197,7 +198,7 @@ public class AbstractStatePollerTest {
 				return FOption.empty();
 			}
 			@Override
-			protected void finalizePoller(@Nullable Integer state) {
+			protected void cleanupPoller(AsyncResult<Integer> outcome) {
 				finalizeCount.incrementAndGet();
 			}
 		};
@@ -207,7 +208,7 @@ public class AbstractStatePollerTest {
 
 		Assertions.assertTrue(result.isFailed());
 		Assertions.assertEquals(1, initCount.get());
-		// pollState도 finalizePoller도 호출되지 않아야 한다.
+		// pollState도 cleanupPoller도 호출되지 않아야 한다.
 		Assertions.assertEquals(0, pollCount.get());
 		Assertions.assertEquals(0, finalizeCount.get());
 	}

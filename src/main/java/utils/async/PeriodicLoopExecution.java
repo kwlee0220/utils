@@ -124,19 +124,6 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 	}
 
 	/**
-	 * 주기적인 loop 작업을 수행하는 객체를 생성한다.
-	 *
-	 * @param interval 주기
-	 * @param cumulativeInterval	{@code true}이면 {@link IntervalMode#FIXED_RATE},
-	 * 								{@code false}이면 {@link IntervalMode#FIXED_DELAY}.
-	 * @deprecated	호출부에서 의미가 드러나도록 {@link #PeriodicLoopExecution(Duration, IntervalMode)}를 사용한다.
-	 */
-	@Deprecated
-	protected PeriodicLoopExecution(Duration interval, boolean cumulativeInterval) {
-		this(interval, IntervalMode.fromCumulative(cumulativeInterval));
-	}
-
-	/**
 	 * {@link IntervalMode#FIXED_DELAY} 모드로 주기적인 loop 작업을 수행하는 객체를 생성한다.
 	 *
 	 * @param interval 주기

@@ -3,9 +3,9 @@
 `Execution<T>` 인터페이스 (Java `Future<T>` 의 확장) 를 중심으로 비동기 작업의 라이프사이클,
 listener, 취소 / 타임아웃 처리를 제공한다.
 
-스레드 기반 실행 계열(`AbstractThreadedExecution` → `AbstractLoopExecution` → `PeriodicLoopExecution`
-→ `AbstractPeriodicPoller` → `PeriodicPoller`)의 자세한 사용법은
-[스레드 기반 Execution 사용자 가이드](../../../../../docs/async-execution-guide.md)를 참고한다.
+스레드 기반 실행 클래스, 즉 Execution 계열(`AbstractThreadedExecution` → `AbstractLoopExecution` →
+`PeriodicLoopExecution` → `AbstractPeriodicPoller` → `PeriodicPoller`)과 Service 계열(`AbstractLoopService` →
+`PeriodicLoopService`)의 자세한 사용법은 [스레드 기반 실행 사용자 가이드](../../../../../docs/async-threaded-guide.md)를 참고한다.
 
 ### 라이프사이클
 
@@ -95,8 +95,7 @@ PeriodicPoller.pollUntil(this::isReady)
         .start();
 ```
 
-`fixedRate(Duration)` 와 `fixedDelay(Duration)` 는 상호 배타적이며 마지막 호출이 적용된다
-(이전 이름 `interval(...)`/`delay(...)` 는 deprecated 이며 각각 같은 동작으로 위임된다).
+`fixedRate(Duration)` 와 `fixedDelay(Duration)` 는 상호 배타적이며 마지막 호출이 적용된다.
 둘 다 지정하지 않으면 `fixedDelay(1초)` 가 기본값이다. 원격 서버 조회나 재연결처럼 한 번의 polling 이
 오래 걸릴 수 있는 경우에는 비누적 모드를 쓰는 것이 좋다 — 누적 모드는 밀린 만큼 대기 없이 연달아 polling 한다.
 시간 제한은 `timeout(Duration)` 또는 `due(Instant)` 로 설정 — 둘 다 설정 시 `due` 가 우선.
@@ -116,7 +115,7 @@ supplier 가 연결처럼 자원을 가진 값을 반환하면 `onDiscarded(...)
 `AbstractPeriodicPoller(Duration)` 생성자는 `IntervalMode.FIXED_DELAY` 를 사용하며, 고정 주기(catch-up)가
 필요하면 `AbstractPeriodicPoller(Duration, IntervalMode.FIXED_RATE)` 를 사용한다.
 hook 안에서 `getPollAttempt()` 로 현재 polling 시도 번호(0부터)를 얻을 수 있다 — 재연결 시도 횟수 로깅 등에 사용.
-`finalizePoller` 는 정상 종료 시 결과값, 취소/timeout/예외 시 `null` 을 받는다.
+`cleanupPoller` 는 종료 결과(`AsyncResult`)를 받는다 — 완료(결과값, `null` 일 수 있음), 실패(원인), 취소 중 하나.
 
 ### 명시적 취소 — `CancellableWork`
 

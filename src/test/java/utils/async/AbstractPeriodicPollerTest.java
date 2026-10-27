@@ -307,25 +307,11 @@ public class AbstractPeriodicPollerTest {
 	}
 
 	@Test
-	@SuppressWarnings("deprecation")
-	public void testPeriodicPollerDeprecatedIntervalDelayDelegate() {
-		// deprecated된 interval()/delay()는 각각 fixedRate()/fixedDelay()와 같게 동작해야 한다(하위 호환).
-		Assertions.assertEquals(IntervalMode.FIXED_RATE,
-								PeriodicPoller.pollUntil(() -> true).interval(INTERVAL_50MS).build().getIntervalMode());
-		Assertions.assertEquals(IntervalMode.FIXED_DELAY,
-								PeriodicPoller.pollUntil(() -> true).delay(INTERVAL_50MS).build().getIntervalMode());
-		Assertions.assertThrows(IllegalArgumentException.class,
-								() -> PeriodicPoller.pollUntil(() -> true).interval(Duration.ZERO));
-	}
-
-	@Test
-	@SuppressWarnings("deprecation")
 	public void testIntervalModeOfConstructors() {
-		// 단일 인자 생성자는 FIXED_DELAY, deprecated boolean 생성자는 true/false가 FIXED_RATE/FIXED_DELAY에 대응해야 한다.
+		// 단일 인자 생성자는 FIXED_DELAY, IntervalMode 생성자는 지정한 모드를 따라야 한다.
 		class ModePoller extends AbstractPeriodicPoller<Integer> {
 			ModePoller() { super(INTERVAL_50MS); }
 			ModePoller(IntervalMode mode) { super(INTERVAL_50MS, mode); }
-			ModePoller(boolean cumulative) { super(INTERVAL_50MS, cumulative); }
 			@Override
 			protected FOption<Integer> tryPoll() {
 				return FOption.of(0);
@@ -333,8 +319,6 @@ public class AbstractPeriodicPollerTest {
 		}
 		Assertions.assertEquals(IntervalMode.FIXED_DELAY, new ModePoller().getIntervalMode());
 		Assertions.assertEquals(IntervalMode.FIXED_RATE, new ModePoller(IntervalMode.FIXED_RATE).getIntervalMode());
-		Assertions.assertEquals(IntervalMode.FIXED_RATE, new ModePoller(true).getIntervalMode());
-		Assertions.assertEquals(IntervalMode.FIXED_DELAY, new ModePoller(false).getIntervalMode());
 		Assertions.assertThrows(IllegalArgumentException.class, () -> new ModePoller((IntervalMode)null));
 	}
 
@@ -808,40 +792,6 @@ public class AbstractPeriodicPollerTest {
 		Assertions.assertEquals(0, initCalls.get());
 		Assertions.assertEquals(0, pollCalls.get());
 		Assertions.assertEquals(0, cleanupCalls.get());
-	}
-
-	@Test
-	@SuppressWarnings("deprecation")
-	public void testDeprecatedFinalizePollerStillCalled() throws Exception {
-		// 구 인터페이스 finalizePoller(R)만 override한 하위 클래스도 계속 호출되어야 한다(하위 호환).
-		AtomicReference<Integer> finalized = new AtomicReference<>(-1);
-		AbstractPeriodicPoller<Integer> success = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
-			@Override
-			protected FOption<Integer> tryPoll() {
-				return FOption.of(5);
-			}
-			@Override
-			protected void finalizePoller(@Nullable Integer state) {
-				finalized.set(state);
-			}
-		};
-		success.start();
-		Assertions.assertEquals(5, (int)success.waitForFinished(2, TimeUnit.SECONDS).get());
-		Assertions.assertEquals(Integer.valueOf(5), finalized.get());
-
-		AbstractPeriodicPoller<Integer> failure = new AbstractPeriodicPoller<Integer>(INTERVAL_50MS) {
-			@Override
-			protected FOption<Integer> tryPoll() {
-				throw new IllegalStateException("boom");
-			}
-			@Override
-			protected void finalizePoller(@Nullable Integer state) {
-				finalized.set(state);
-			}
-		};
-		failure.start();
-		Assertions.assertTrue(failure.waitForFinished(2, TimeUnit.SECONDS).isFailed());
-		Assertions.assertNull(finalized.get());
 	}
 
 	@Test

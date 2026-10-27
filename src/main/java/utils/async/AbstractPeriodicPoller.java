@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,19 +70,6 @@ public abstract class AbstractPeriodicPoller<R> extends PeriodicLoopExecution<R>
 
 	/**
 	 * Poller 객체를 생성한다.
-	 *
-	 * @param pollInterval			Polling 주기.
-	 * @param cumulativeInterval	{@code true}이면 {@link IntervalMode#FIXED_RATE},
-	 * 								{@code false}이면 {@link IntervalMode#FIXED_DELAY}.
-	 * @deprecated	호출부에서 의미가 드러나도록 {@link #AbstractPeriodicPoller(Duration, IntervalMode)}를 사용한다.
-	 */
-	@Deprecated
-	protected AbstractPeriodicPoller(Duration pollInterval, boolean cumulativeInterval) {
-		this(pollInterval, IntervalMode.fromCumulative(cumulativeInterval));
-	}
-
-	/**
-	 * Poller 객체를 생성한다.
 	 * <p>
 	 * {@link IntervalMode#FIXED_DELAY} 모드를 사용한다. 즉, 매 polling이 끝난 시각부터 {@code pollInterval}만큼
 	 * 대기한 뒤 다음 polling을 시작한다. 한 번의 polling이 주기보다 오래 걸려도 다음 polling 전에 항상
@@ -101,7 +87,7 @@ public abstract class AbstractPeriodicPoller<R> extends PeriodicLoopExecution<R>
 	 * 현재(또는 마지막으로) 수행된 polling의 시도 번호를 반환한다.
 	 * <p>
 	 * 첫 {@link #tryPoll()} 호출 시 {@code 0}이며 매 polling마다 1씩 증가한다. 따라서 {@link #tryPoll()}과
-	 * {@link #onTargetReached(Object)} 안에서는 현재 시도 번호를, {@link #finalizePoller(FOption)} 안에서는
+	 * {@link #onTargetReached(Object)} 안에서는 현재 시도 번호를, {@link #cleanupPoller(AsyncResult)} 안에서는
 	 * 마지막 시도 번호를 나타낸다(지금까지 수행된 polling 횟수는 이 값 + 1). 첫 polling 전에는 {@code -1}이다.
 	 * 재연결 시도 횟수 로깅이나 시도 횟수에 따른 동작 변경 등에 사용한다.
 	 *
@@ -205,7 +191,7 @@ public abstract class AbstractPeriodicPoller<R> extends PeriodicLoopExecution<R>
 	 * 영향을 주지 않는다. 결과 반영처럼 실패가 결과에 드러나야 하는 처리는 {@link #onTargetReached(Object)}에서
 	 * 수행한다.
 	 * <p>
-	 * 기본 구현은 하위 호환을 위해 {@link #finalizePoller(Object)}를 호출한다.
+	 * 기본 구현은 아무 작업도 하지 않는다.
 	 *
 	 * @param outcome	polling의 종료 결과. 완료({@link AsyncResult#isCompleted()}, 결과 값은 {@code null}일 수
 	 * 					있다), 실패({@link AsyncResult#getFailureCause()}로 원인 조회. timeout이면
@@ -214,21 +200,7 @@ public abstract class AbstractPeriodicPoller<R> extends PeriodicLoopExecution<R>
 	 * 					다를 수 있다.
 	 * @throws Exception	정리 도중 오류가 발생한 경우(로그만 남는다).
 	 */
-	protected void cleanupPoller(AsyncResult<R> outcome) throws Exception {
-		finalizePoller(outcome.isCompleted() ? outcome.getUnchecked() : null);
-	}
-
-	/**
-	 * Polling이 종료될 때 호출되는 정리 작업 (구 인터페이스).
-	 * <p>
-	 * 비정상 종료와 "최종 결과 값이 {@code null}인 정상 종료"를 구분할 수 없으므로
-	 * {@link #cleanupPoller(AsyncResult)}를 사용한다. 결과 반영 용도라면 {@link #onTargetReached(Object)}를 사용한다.
-	 *
-	 * @param state	정상적으로 목표 상태에 도달한 경우 그 최종 결과 값. 비정상 종료 시에는 {@code null}.
-	 * @deprecated	{@link #cleanupPoller(AsyncResult)} 또는 {@link #onTargetReached(Object)}를 사용한다.
-	 */
-	@Deprecated
-	protected void finalizePoller(@Nullable R state) { }
+	protected void cleanupPoller(AsyncResult<R> outcome) throws Exception { }
 
 	@Override
 	protected final void initializeLoop() throws Exception {
