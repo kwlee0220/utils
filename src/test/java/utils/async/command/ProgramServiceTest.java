@@ -52,6 +52,8 @@ public class ProgramServiceTest {
 		cfg.setRestartPolicy(policy);
 		// delay 분기를 우회하기 위해 0으로 설정 (isPositive()는 false).
 		cfg.setRestartDelay(Duration.ZERO);
+		// 재시작 동작을 빠르게 확인하기 위해 backoff를 끈다 (maxRestartDelay <= restartDelay).
+		cfg.setMaxRestartDelay(Duration.ZERO);
 		return cfg;
 	}
 
@@ -199,7 +201,6 @@ public class ProgramServiceTest {
 
 	/**
 	 * 매 실행마다 작업 디렉터리의 {@code count.txt}에 한 줄을 append하는 명령을 생성한다.
-	 * {@code application.log}는 매 실행마다 덮어쓰여지므로 누적 횟수 측정에 부적합.
 	 */
 	private String[] appendingCommand() {
 		File counter = new File(m_workDir, "count.txt");
@@ -464,5 +465,349 @@ public class ProgramServiceTest {
 		Assertions.assertEquals(Service.State.TERMINATED, svc.state());
 		// 재시작 없이 즉시 종료되어야 함 (30초 sleep을 새로 시작하면 timeout에 걸림).
 		Assertions.assertTrue(elapsed < 3000, "stop 후 재시작 없이 종료되어야 함: elapsed=" + elapsed);
+	}
+
+	// ---------- 시작 실패 / 시작 중 중지 ----------
+
+	@Test
+	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
+	public void start_failure_fails_service_regardless_of_restart_policy() {
+		// 실행 파일이 없어 첫 실행이 RUNNING에 이르지 못하면, 재시작 정책과 무관하게 서비스가 FAILED가 되어야 한다.
+		// (이전에는 ALWAYS/ON_FAILED에서 재시작만 반복하며 STARTING에 갇혔다.)
+		for ( RestartPolicy policy: RestartPolicy.values() ) {
+			ProgramService svc = ProgramService.create(config(policy, "/nonexistent/program-for-start-failure"));
+			svc.startAsync();
+
+			IllegalStateException e = Assertions.assertThrows(IllegalStateException.class,
+															() -> svc.awaitRunning(5, TimeUnit.SECONDS),
+															"policy=" + policy);
+			Assertions.assertEquals(Service.State.FAILED, svc.state(), "policy=" + policy);
+			Assertions.assertInstanceOf(java.io.IOException.class, svc.failureCause(), "policy=" + policy);
+		}
+	}
+
+	@Test
+	@Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)
+	public void stop_right_after_start_terminates_service() throws Exception {
+		// 시작 직후 곧바로 중지하면 시작 중(STARTING)이든 이미 RUNNING이든 서비스가 TERMINATED로 끝나야 한다.
+		for ( int i = 0; i < 10; ++i ) {
+			ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "sleep", "30"));
+			svc.startAsync();
+			svc.stopAsync();
+			svc.awaitTerminated(5, TimeUnit.SECONDS);
+			Assertions.assertEquals(Service.State.TERMINATED, svc.state(), "round " + i);
+		}
+	}
+
+	@Test
+	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
+	public void restart_build_failure_fails_service() throws Exception {
+		// 실행 중에 working directory가 사라지면, 재시작하려는 다음 실행을 구성하지 못한다.
+		// 이때 서비스가 자식 프로세스 없이 RUNNING으로 남지 않고 FAILED가 되어야 한다.
+		ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "sleep", "0.5"));
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+
+		for ( File f: m_workDir.listFiles() ) {
+			f.delete();
+		}
+		Assertions.assertTrue(m_workDir.delete(), "working directory must be deleted for the test");
+
+		Assertions.assertThrows(IllegalStateException.class, () -> svc.awaitTerminated(5, TimeUnit.SECONDS));
+		Assertions.assertEquals(Service.State.FAILED, svc.state());
+		Assertions.assertInstanceOf(IllegalArgumentException.class, svc.failureCause());
+	}
+
+	// ---------- 재시작 판단 중 중지 (deadlock 방지) ----------
+
+	/**
+	 * 지정된 메시지를 기록하려는 쓰레드를 {@code release}가 열릴 때까지 붙잡는 appender.
+	 * 재시작 판단 도중의 특정 시점에서 재시작 쓰레드를 멈춰 두기 위해 사용한다.
+	 */
+	private static final class BlockingAppender
+		extends ch.qos.logback.core.UnsynchronizedAppenderBase<ch.qos.logback.classic.spi.ILoggingEvent> {
+		final java.util.concurrent.atomic.AtomicBoolean armed = new java.util.concurrent.atomic.AtomicBoolean();
+		final java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
+		final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+		final java.util.List<String> messages = new java.util.concurrent.CopyOnWriteArrayList<>();
+		private final String m_blockOn;
+
+		BlockingAppender(String blockOn) {
+			m_blockOn = blockOn;
+		}
+
+		@Override
+		protected void append(ch.qos.logback.classic.spi.ILoggingEvent ev) {
+			String msg = ev.getFormattedMessage();
+			messages.add(msg);
+			if ( armed.get() && msg.contains(m_blockOn) ) {
+				armed.set(false);
+				entered.countDown();
+				try {
+					release.await(10, TimeUnit.SECONDS);
+				}
+				catch ( InterruptedException e ) {
+					Thread.currentThread().interrupt();
+				}
+			}
+		}
+	}
+
+	@Test
+	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
+	public void stop_during_restart_decision_does_not_block() throws Exception {
+		// 실행이 종료되어 다음 실행을 만드는 도중(재시작 판단 중)에 stopAsync()가 호출되어도, stopAsync()는
+		// 판단이 끝나기를 기다리지 않고 곧바로 반환해야 한다. (예전에는 Guava의 lock을 쥔 doStop()이 판단 종료를
+		// 기다려, 판단 쪽의 notifyStopped()/notifyFailed()와 서로를 기다리는 deadlock이 생길 수 있었다.)
+		// 판단이 끝나면 다음 실행은 시작되지 않고 서비스는 TERMINATED가 되어야 한다.
+		ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger)
+				LoggerFactory.getLogger(ProgramServiceTest.class.getName() + ".restartDecision");
+		logger.setLevel(ch.qos.logback.classic.Level.INFO);
+		BlockingAppender appender = new BlockingAppender("command output will be redirected");
+		appender.start();
+		logger.addAppender(appender);
+
+		ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "sleep", "0.3"));
+		svc.setLogger(logger);
+		try {
+			svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+			appender.armed.set(true);			// 재시작을 위해 다음 실행을 만드는 시점에서 붙잡는다.
+			Assertions.assertTrue(appender.entered.await(5, TimeUnit.SECONDS), "restart decision not reached");
+
+			java.util.concurrent.CompletableFuture<Void> stop
+					= java.util.concurrent.CompletableFuture.runAsync(() -> svc.stopAsync());
+			stop.get(1, TimeUnit.SECONDS);		// 판단이 끝나기를 기다리지 않고 반환해야 한다.
+
+			appender.release.countDown();
+			svc.awaitTerminated(5, TimeUnit.SECONDS);
+			Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+			Assertions.assertTrue(appender.messages.stream().noneMatch(m -> m.startsWith("restarting the command")),
+									"the next execution must not be started after stop: " + appender.messages);
+		}
+		finally {
+			appender.release.countDown();
+			logger.detachAppender(appender);
+		}
+	}
+
+	// ---------- application.log append ----------
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void application_log_is_appended_across_restarts() throws Exception {
+		// 재시작해도 이전 실행의 출력(종료 원인 등)이 지워지지 않아야 한다. (예전에는 실행마다 덮어썼다.)
+		ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "/bin/echo", "run-line"));
+		File log = new File(m_workDir, "application.log");
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		try {
+			long due = System.currentTimeMillis() + 5_000;
+			long lines = 0;
+			while ( System.currentTimeMillis() < due ) {
+				lines = log.exists() ? Files.lines(log.toPath()).filter("run-line"::equals).count() : 0;
+				if ( lines >= 3 ) {
+					break;
+				}
+				Thread.sleep(20);
+			}
+			Assertions.assertTrue(lines >= 3, "application.log lines: " + lines);
+		}
+		finally {
+			svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+		}
+	}
+
+	// ---------- startTimeout ----------
+
+	@Test
+	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
+	public void start_timeout_fails_service_when_command_does_not_start_in_time() throws Exception {
+		// 첫 실행이 startTimeout 안에 RUNNING이 되지 못하면 서비스는 TimeoutException 원인으로 FAILED가 된다.
+		// 실행을 executor에서 붙잡아 STARTING에 머물게 한다. 늦게 시작된 실행은 곧바로 취소되어 자식 프로세스가
+		// 남지 않아야 한다.
+		java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+		java.util.concurrent.Executor delaying = task -> new Thread(() -> {
+			try {
+				release.await();
+			}
+			catch ( InterruptedException e ) {
+				return;
+			}
+			task.run();
+		}).start();
+
+		File started = new File(m_workDir, "started");
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sh", "-c",
+										"touch " + started.getAbsolutePath() + "; exec /bin/sleep 31.7");
+		cfg.setStartTimeout("200ms");
+		ProgramService svc = ProgramService.create(cfg);
+		svc.setExecutor(delaying);
+
+		svc.startAsync();
+		Assertions.assertThrows(IllegalStateException.class, () -> svc.awaitRunning(5, TimeUnit.SECONDS));
+		Assertions.assertEquals(Service.State.FAILED, svc.state());
+		Assertions.assertInstanceOf(java.util.concurrent.TimeoutException.class, svc.failureCause());
+
+		// 실행을 풀어 주면 자식 프로세스가 시작되었다가 취소되어야 한다.
+		release.countDown();
+		long due = System.currentTimeMillis() + 5_000;
+		while ( !started.exists() && System.currentTimeMillis() < due ) {
+			Thread.sleep(20);
+		}
+		Assertions.assertTrue(started.exists(), "the delayed command never started");
+		while ( countSleepers("31.7") > 0 && System.currentTimeMillis() < due + 5_000 ) {
+			Thread.sleep(50);
+		}
+		Assertions.assertEquals(0, countSleepers("31.7"), "the late command must be cancelled");
+		Assertions.assertEquals(Service.State.FAILED, svc.state());
+	}
+
+	private static long countSleepers(String arg) {
+		return ProcessHandle.current().descendants()
+							.filter(ProcessHandle::isAlive)
+							.filter(p -> p.info().arguments().map(a -> Arrays.asList(a).contains(arg)).orElse(false))
+							.count();
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void start_timeout_does_not_affect_service_that_started_in_time() throws Exception {
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sleep", "30");
+		cfg.setStartTimeout("200ms");
+		ProgramService svc = ProgramService.create(cfg);
+
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		try {
+			Thread.sleep(500);			// startTimeout이 지나도 RUNNING이어야 한다.
+			Assertions.assertEquals(Service.State.RUNNING, svc.state());
+		}
+		finally {
+			svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+		}
+		Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void zero_start_timeout_means_no_limit() throws Exception {
+		java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+		java.util.concurrent.Executor delaying = task -> new Thread(() -> {
+			try {
+				release.await();
+			}
+			catch ( InterruptedException e ) {
+				return;
+			}
+			task.run();
+		}).start();
+
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sleep", "30");
+		cfg.setStartTimeout("0s");
+		ProgramService svc = ProgramService.create(cfg);
+		svc.setExecutor(delaying);
+
+		svc.startAsync();
+		Thread.sleep(300);
+		Assertions.assertEquals(Service.State.STARTING, svc.state());
+		release.countDown();
+		svc.awaitRunning(5, TimeUnit.SECONDS);
+		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+		Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+	}
+
+	// ---------- restart backoff ----------
+
+	@Test
+	public void computeRestartDelay_doubles_from_at_least_one_second_up_to_max() {
+		Duration base = Duration.ofSeconds(5);
+		Duration max = Duration.ofMinutes(1);
+		Assertions.assertEquals(base, ProgramService.computeRestartDelay(base, max, 0));
+		Assertions.assertEquals(base, ProgramService.computeRestartDelay(base, max, 1));
+		Assertions.assertEquals(Duration.ofSeconds(10), ProgramService.computeRestartDelay(base, max, 2));
+		Assertions.assertEquals(Duration.ofSeconds(20), ProgramService.computeRestartDelay(base, max, 3));
+		Assertions.assertEquals(Duration.ofSeconds(40), ProgramService.computeRestartDelay(base, max, 4));
+		Assertions.assertEquals(max, ProgramService.computeRestartDelay(base, max, 5));
+		Assertions.assertEquals(max, ProgramService.computeRestartDelay(base, max, 1_000));
+
+		// restartDelay가 0이어도 1초부터 늘어난다.
+		Assertions.assertEquals(Duration.ZERO, ProgramService.computeRestartDelay(Duration.ZERO, max, 1));
+		Assertions.assertEquals(Duration.ofSeconds(2), ProgramService.computeRestartDelay(Duration.ZERO, max, 2));
+
+		// maxRestartDelay <= restartDelay이면 backoff하지 않는다.
+		Assertions.assertEquals(base, ProgramService.computeRestartDelay(base, base, 10));
+		Assertions.assertEquals(Duration.ZERO, ProgramService.computeRestartDelay(Duration.ZERO, Duration.ZERO, 10));
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void short_runs_back_off_restarts() throws Exception {
+		// 즉시 종료하는 명령: backoff가 없으면 1.5초 동안 수십 번 재시작되지만, backoff(최대 400ms) 적용 시
+		// 0 → 400ms → 400ms … 로 몇 번에 그친다.
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, appendingCommand());
+		cfg.setMaxRestartDelay(Duration.ofMillis(400));
+		ProgramService svc = ProgramService.create(cfg);
+
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		Thread.sleep(1_500);
+		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+
+		long runs = countLines();
+		Assertions.assertTrue(runs >= 2 && runs <= 7, "runs with backoff: " + runs);
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void stable_runs_do_not_back_off() throws Exception {
+		// 매 실행이 stableRunTime 이상 지속되면 backoff 없이 restartDelay(50ms)로 재시작한다.
+		// (backoff가 잘못 적용되면 두 번째부터 1초 이상 지연되어 2초 동안 2~3회에 그친다.)
+		File counter = new File(m_workDir, "count.txt");
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sh", "-c",
+										"echo tick >> " + counter.getAbsolutePath() + "; sleep 0.2");
+		cfg.setRestartDelay(Duration.ofMillis(50));
+		cfg.setMaxRestartDelay(Duration.ofSeconds(5));
+		cfg.setStableRunTime(Duration.ofMillis(100));
+		ProgramService svc = ProgramService.create(cfg);
+
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		Thread.sleep(2_000);
+		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+
+		long runs = countLines();
+		Assertions.assertTrue(runs >= 5, "runs without backoff: " + runs);
+	}
+
+	// ---------- restart limit ----------
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void exceeding_restart_limit_fails_service() throws Exception {
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, appendingCommand());
+		cfg.setRestartLimit(3);
+		cfg.setRestartLimitInterval(Duration.ofSeconds(30));
+		ProgramService svc = ProgramService.create(cfg);
+
+		svc.startAsync();
+		Assertions.assertThrows(IllegalStateException.class, () -> svc.awaitTerminated(5, TimeUnit.SECONDS));
+		Assertions.assertEquals(Service.State.FAILED, svc.state());
+		Assertions.assertTrue(svc.failureCause() instanceof IllegalStateException
+								&& svc.failureCause().getMessage().contains("restart limit exceeded"),
+								"cause: " + svc.failureCause());
+		Assertions.assertEquals(4, countLines(), "first run + 3 restarts");
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void restart_limit_counts_only_restarts_within_interval() throws Exception {
+		// 재시작 간격(200ms)이 제한 구간(150ms)보다 길면, 구간 안의 재시작은 늘 1회 이하라 제한(1회)에 걸리지 않는다.
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, appendingCommand());
+		cfg.setRestartDelay(Duration.ofMillis(200));
+		cfg.setMaxRestartDelay(Duration.ofMillis(200));
+		cfg.setRestartLimit(1);
+		cfg.setRestartLimitInterval(Duration.ofMillis(150));
+		ProgramService svc = ProgramService.create(cfg);
+
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		Thread.sleep(1_000);
+		Assertions.assertEquals(Service.State.RUNNING, svc.state());
+		svc.stopAsync().awaitTerminated(5, TimeUnit.SECONDS);
+		Assertions.assertTrue(countLines() >= 3, "runs: " + countLines());
 	}
 }

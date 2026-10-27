@@ -144,11 +144,13 @@ class InterruptibleTask extends AbstractThreadedExecution<Void> implements Cance
 
 ```java
 import utils.async.command.CommandExecution;
+import utils.async.command.CommandExecution.Output;
 
 try (CommandExecution cmd = CommandExecution.builder()
         .addCommand("git", "log", "--oneline", "-5")
         .workingDirectory(new File("/repo"))
-        .redirectStdoutToFile(new File("out.txt"))
+        .stdout(Output.file(new File("out.txt")))      // 이어 쓰려면 Output.file(...).append()
+        .stderr(Output.toStdout())                      // stderr를 stdout에 합침
         .timeout(Duration.ofSeconds(30))
         .build()) {
     cmd.start();

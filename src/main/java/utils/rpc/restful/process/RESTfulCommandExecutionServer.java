@@ -20,6 +20,7 @@ import lombok.experimental.Delegate;
 import utils.Preconditions;
 import utils.async.StartableExecution;
 import utils.async.command.CommandExecution;
+import utils.async.command.CommandExecution.Output;
 import utils.async.command.CommandVariable;
 import utils.func.FOption;
 import utils.func.Unchecked;
@@ -155,8 +156,8 @@ public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 			// stdout/stderr redirection
 			// 로그는 공용 작업 디렉토리에 남겨 세션 디렉토리 삭제 후에도 보존하며, 연산 간 덮어쓰기를
 			// 막기 위해 append 모드로 기록한다.
-			builder.redirectErrorStream();
-			builder.redirectStdoutToFile(new File("output.log"), true);
+			builder.stderr(Output.toStdout());
+			builder.stdout(Output.file(new File("output.log")).append());
 
 			CommandExecution cmdExec = builder.build();
 			CommandExecutionOperation op = new CommandExecutionOperation(sessionId, sessionDir, cmdExec);

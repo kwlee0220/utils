@@ -38,6 +38,10 @@ public class ProgramServiceConfigTest {
 		Assertions.assertEquals(RestartPolicy.ALWAYS, cfg.getRestartPolicy());
 		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_START_TIMEOUT, cfg.getStartTimeout());
 		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_RESTART_DELAY, cfg.getRestartDelay());
+		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_MAX_RESTART_DELAY, cfg.getMaxRestartDelay());
+		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_STABLE_RUN_TIME, cfg.getStableRunTime());
+		Assertions.assertEquals(0, cfg.getRestartLimit());
+		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_RESTART_LIMIT_INTERVAL, cfg.getRestartLimitInterval());
 	}
 
 	// ---------- setCommandLine ----------
@@ -200,11 +204,27 @@ public class ProgramServiceConfigTest {
 	// ---------- RestartPolicy ----------
 
 	@Test
-	public void RestartPolicy_toString_returns_kebab_name() {
-		Assertions.assertEquals("always", RestartPolicy.ALWAYS.toString());
-		Assertions.assertEquals("on-completed", RestartPolicy.ON_COMPLETED.toString());
-		Assertions.assertEquals("on-failed", RestartPolicy.ON_FAILED.toString());
-		Assertions.assertEquals("no", RestartPolicy.NO.toString());
+	public void RestartPolicy_toString_returns_constant_name() {
+		// 로그 표기가 설정(JSON) 표기와 같도록 상수 이름을 사용한다.
+		Assertions.assertEquals("ALWAYS", RestartPolicy.ALWAYS.toString());
+		Assertions.assertEquals("ON_COMPLETED", RestartPolicy.ON_COMPLETED.toString());
+		Assertions.assertEquals("ON_FAILED", RestartPolicy.ON_FAILED.toString());
+		Assertions.assertEquals("NO", RestartPolicy.NO.toString());
+	}
+
+	@Test
+	public void RestartPolicy_json_accepts_constant_and_kebab_names() throws Exception {
+		JsonMapper mapper = JsonMapper.builder().addModule(new JavaTimeModule()).build();
+		for ( String name: List.of("\"ON_COMPLETED\"", "\"on-completed\"", "\"On_Completed\"") ) {
+			ProgramServiceConfig cfg = mapper.readValue("{\"commandLine\":[\"/bin/true\"],\"restartPolicy\":" + name + "}",
+														ProgramServiceConfig.class);
+			Assertions.assertEquals(RestartPolicy.ON_COMPLETED, cfg.getRestartPolicy(), name);
+		}
+		// 직렬화는 상수 이름을 사용한다.
+		ProgramServiceConfig cfg = new ProgramServiceConfig();
+		cfg.setCommandLine(List.of("/bin/true"));
+		cfg.setRestartPolicy(RestartPolicy.ON_FAILED);
+		Assertions.assertTrue(mapper.writeValueAsString(cfg).contains("\"restartPolicy\":\"ON_FAILED\""));
 	}
 
 	@Test
@@ -214,6 +234,7 @@ public class ProgramServiceConfigTest {
 		Assertions.assertEquals(RestartPolicy.ON_COMPLETED, RestartPolicy.fromString("on-completed"));
 		Assertions.assertEquals(RestartPolicy.ON_FAILED, RestartPolicy.fromString("on-failed"));
 		Assertions.assertEquals(RestartPolicy.NO, RestartPolicy.fromString("no"));
+		Assertions.assertEquals(RestartPolicy.ON_FAILED, RestartPolicy.fromString("ON_FAILED"));
 	}
 
 	@Test
@@ -233,7 +254,7 @@ public class ProgramServiceConfigTest {
 
 		String s = cfg.toString();
 		Assertions.assertTrue(s.contains("/bin/echo"));
-		Assertions.assertTrue(s.contains("on-failed"));
+		Assertions.assertTrue(s.contains("ON_FAILED"));
 	}
 
 	// ---------- JSON round-trip ----------
@@ -256,6 +277,10 @@ public class ProgramServiceConfigTest {
 		original.setRestartPolicy(RestartPolicy.ON_FAILED);
 		original.setStartTimeout("45s");
 		original.setRestartDelay(Duration.ofSeconds(7));
+		original.setMaxRestartDelay(Duration.ofSeconds(90));
+		original.setStableRunTime(Duration.ofSeconds(20));
+		original.setRestartLimit(4);
+		original.setRestartLimitInterval(Duration.ofMinutes(2));
 
 		JsonMapper mapper = JsonMapper.builder()
 									.addModule(new JavaTimeModule())
@@ -270,6 +295,10 @@ public class ProgramServiceConfigTest {
 		Assertions.assertEquals(original.getRestartPolicy(), restored.getRestartPolicy());
 		Assertions.assertEquals(original.getStartTimeout(), restored.getStartTimeout());
 		Assertions.assertEquals(original.getRestartDelay(), restored.getRestartDelay());
+		Assertions.assertEquals(original.getMaxRestartDelay(), restored.getMaxRestartDelay());
+		Assertions.assertEquals(original.getStableRunTime(), restored.getStableRunTime());
+		Assertions.assertEquals(original.getRestartLimit(), restored.getRestartLimit());
+		Assertions.assertEquals(original.getRestartLimitInterval(), restored.getRestartLimitInterval());
 	}
 
 	@Test
@@ -282,5 +311,36 @@ public class ProgramServiceConfigTest {
 		ProgramServiceConfig cfg = mapper.readValue(json, ProgramServiceConfig.class);
 
 		Assertions.assertEquals(Duration.ofSeconds(15), cfg.getRestartDelay());
+	}
+
+	// ---------- restart backoff / limit ----------
+
+	@Test
+	public void json_backoff_and_limit_accept_string_form() throws Exception {
+		String json = "{\"commandLine\":[\"/bin/echo\"],\"maxRestartDelay\":\"2m\",\"stableRunTime\":\"30s\","
+					+ "\"restartLimit\":5,\"restartLimitInterval\":\"10m\"}";
+		ProgramServiceConfig cfg = JsonMapper.builder().addModule(new JavaTimeModule()).build()
+											.readValue(json, ProgramServiceConfig.class);
+		Assertions.assertEquals(Duration.ofMinutes(2), cfg.getMaxRestartDelay());
+		Assertions.assertEquals(Duration.ofSeconds(30), cfg.getStableRunTime());
+		Assertions.assertEquals(5, cfg.getRestartLimit());
+		Assertions.assertEquals(Duration.ofMinutes(10), cfg.getRestartLimitInterval());
+	}
+
+	@Test
+	public void backoff_and_limit_setters_validate_and_fall_back() {
+		ProgramServiceConfig cfg = new ProgramServiceConfig();
+		Assertions.assertThrows(IllegalArgumentException.class, () -> cfg.setMaxRestartDelay(Duration.ofSeconds(-1)));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> cfg.setStableRunTime(Duration.ofSeconds(-1)));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> cfg.setRestartLimit(-1));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> cfg.setRestartLimitInterval(Duration.ZERO));
+
+		cfg.setMaxRestartDelay(Duration.ofSeconds(3));
+		cfg.setMaxRestartDelay(null);
+		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_MAX_RESTART_DELAY, cfg.getMaxRestartDelay());
+		cfg.setStableRunTime(null);
+		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_STABLE_RUN_TIME, cfg.getStableRunTime());
+		cfg.setRestartLimitInterval(null);
+		Assertions.assertEquals(ProgramServiceConfig.DEFAULT_RESTART_LIMIT_INTERVAL, cfg.getRestartLimitInterval());
 	}
 }

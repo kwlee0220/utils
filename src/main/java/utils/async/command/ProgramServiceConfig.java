@@ -36,18 +36,33 @@ import utils.io.FileUtils;
  *   <li>{@code restartPolicy}: {@link RestartPolicy#ALWAYS}.</li>
  *   <li>{@code startTimeout}: {@link #DEFAULT_START_TIMEOUT} ({@value #DEFAULT_START_TIMEOUT}).</li>
  *   <li>{@code restartDelay}: {@link #DEFAULT_RESTART_DELAY} (5초).</li>
+ *   <li>{@code maxRestartDelay}: {@link #DEFAULT_MAX_RESTART_DELAY} (1분). 짧은 실행이 연달아 일어날 때 늘어나는
+ *       재시작 지연의 상한. {@code restartDelay} 이하이면 backoff를 하지 않는다.</li>
+ *   <li>{@code stableRunTime}: {@link #DEFAULT_STABLE_RUN_TIME} (10초). 이보다 짧게 끝난 실행을 backoff 대상인
+ *       "짧은 실행"으로 본다.</li>
+ *   <li>{@code restartLimit}: 0 (제한 없음). 양수이면 {@code restartLimitInterval} 안에 이 횟수를 넘겨 재시작하려 할 때
+ *       서비스를 FAILED로 전이한다.</li>
+ *   <li>{@code restartLimitInterval}: {@link #DEFAULT_RESTART_LIMIT_INTERVAL} (1분).</li>
  * </ul>
+ * 시간 항목은 JSON에서 {@link UnitUtils#parseDuration}이 인식하는 문자열(예: "5s", "1m", "PT5S")로 지정한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
 @JsonPropertyOrder({ "commandLine", "workingDirectory", "environmentFile", "environments",
-					"restartPolicy", "restartDelay", "startTimeout" })
+					"restartPolicy", "restartDelay", "maxRestartDelay", "stableRunTime",
+					"restartLimit", "restartLimitInterval", "startTimeout" })
 public class ProgramServiceConfig {
 	/** 시작 타임아웃의 기본값 (문자열 형태, {@link UnitUtils#parseDuration}로 파싱). */
 	public static final String DEFAULT_START_TIMEOUT = "30s";
 
 	/** 재시작 지연의 기본값 (5초). */
 	public static final Duration DEFAULT_RESTART_DELAY = Duration.ofSeconds(5);
+	/** 최대 재시작 지연의 기본값 (1분). */
+	public static final Duration DEFAULT_MAX_RESTART_DELAY = Duration.ofMinutes(1);
+	/** 안정 실행 시간의 기본값 (10초). */
+	public static final Duration DEFAULT_STABLE_RUN_TIME = Duration.ofSeconds(10);
+	/** 재시작 횟수 제한 구간의 기본값 (1분). */
+	public static final Duration DEFAULT_RESTART_LIMIT_INTERVAL = Duration.ofMinutes(1);
 
 	private List<String> m_commandLine;
 	private File m_workingDirectory;
@@ -56,6 +71,10 @@ public class ProgramServiceConfig {
 	private RestartPolicy m_restartPolicy = RestartPolicy.ALWAYS;
 	private String m_startTimeout = DEFAULT_START_TIMEOUT;
 	private Duration m_restartDelay = DEFAULT_RESTART_DELAY;
+	private Duration m_maxRestartDelay = DEFAULT_MAX_RESTART_DELAY;
+	private Duration m_stableRunTime = DEFAULT_STABLE_RUN_TIME;
+	private int m_restartLimit = 0;
+	private Duration m_restartLimitInterval = DEFAULT_RESTART_LIMIT_INTERVAL;
 
 	/**
 	 * 기본 설정 객체를 생성한다.
@@ -166,6 +185,9 @@ public class ProgramServiceConfig {
 
 	/**
 	 * 시작 타임아웃을 문자열 형태로 반환한다(예: "30s", "1m").
+	 * <p>
+	 * {@link ProgramService}는 첫 실행이 이 시간 안에 RUNNING(자식 프로세스 기동 완료)이 되지 못하면 서비스를
+	 * FAILED로 전이한다. {@code "0s"}이면 제한하지 않는다.
 	 *
 	 * @return 시작 타임아웃 문자열. 기본값 {@value #DEFAULT_START_TIMEOUT}.
 	 */
@@ -238,12 +260,126 @@ public class ProgramServiceConfig {
 		m_restartDelay = parsedDelay;
 	}
 	
+	/**
+	 * 최대 재시작 지연을 반환한다. 짧은 실행이 연달아 일어날 때 backoff로 늘어나는 재시작 지연의 상한이다.
+	 *
+	 * @return 최대 재시작 지연. 기본값 {@link #DEFAULT_MAX_RESTART_DELAY} (1분).
+	 */
+	@JsonFormat(shape = JsonFormat.Shape.STRING)
+	public Duration getMaxRestartDelay() {
+		return m_maxRestartDelay;
+	}
+
+	/**
+	 * 최대 재시작 지연을 설정한다. {@code restartDelay} 이하로 설정하면 backoff를 하지 않는다.
+	 * {@code null}이면 기본값으로 fallback한다.
+	 *
+	 * @param delay 최대 재시작 지연, 또는 {@code null}.
+	 * @throws IllegalArgumentException {@code delay}가 음수인 경우.
+	 */
+	@JsonIgnore
+	public void setMaxRestartDelay(@Nullable Duration delay) {
+		m_maxRestartDelay = nonNegative(delay, DEFAULT_MAX_RESTART_DELAY, "maxRestartDelay");
+	}
+
+	@JsonProperty("maxRestartDelay")
+	private void setMaxRestartDelayString(@Nullable String delay) {
+		setMaxRestartDelay(parse(delay));
+	}
+
+	/**
+	 * 안정 실행 시간을 반환한다. 이보다 짧게 끝난 실행이 연달아 일어나면 재시작 지연을 늘린다(backoff).
+	 *
+	 * @return 안정 실행 시간. 기본값 {@link #DEFAULT_STABLE_RUN_TIME} (10초).
+	 */
+	@JsonFormat(shape = JsonFormat.Shape.STRING)
+	public Duration getStableRunTime() {
+		return m_stableRunTime;
+	}
+
+	/**
+	 * 안정 실행 시간을 설정한다. {@code null}이면 기본값으로 fallback한다.
+	 *
+	 * @param time 안정 실행 시간, 또는 {@code null}.
+	 * @throws IllegalArgumentException {@code time}이 음수인 경우.
+	 */
+	@JsonIgnore
+	public void setStableRunTime(@Nullable Duration time) {
+		m_stableRunTime = nonNegative(time, DEFAULT_STABLE_RUN_TIME, "stableRunTime");
+	}
+
+	@JsonProperty("stableRunTime")
+	private void setStableRunTimeString(@Nullable String time) {
+		setStableRunTime(parse(time));
+	}
+
+	/**
+	 * 재시작 횟수 제한을 반환한다.
+	 *
+	 * @return {@code restartLimitInterval} 안에 허용되는 재시작 횟수. 0이면 제한하지 않는다 (기본값).
+	 */
+	public int getRestartLimit() {
+		return m_restartLimit;
+	}
+
+	/**
+	 * 재시작 횟수 제한을 설정한다. {@code restartLimitInterval} 안에 이 횟수를 넘겨 재시작하려 하면 서비스를
+	 * FAILED로 전이한다.
+	 *
+	 * @param limit 허용 재시작 횟수. 0이면 제한하지 않는다.
+	 * @throws IllegalArgumentException {@code limit}이 음수인 경우.
+	 */
+	public void setRestartLimit(int limit) {
+		Preconditions.checkArgument(limit >= 0, "restartLimit must be non-negative: %s", limit);
+		m_restartLimit = limit;
+	}
+
+	/**
+	 * 재시작 횟수 제한의 시간 구간을 반환한다.
+	 *
+	 * @return 시간 구간. 기본값 {@link #DEFAULT_RESTART_LIMIT_INTERVAL} (1분).
+	 */
+	@JsonFormat(shape = JsonFormat.Shape.STRING)
+	public Duration getRestartLimitInterval() {
+		return m_restartLimitInterval;
+	}
+
+	/**
+	 * 재시작 횟수 제한의 시간 구간을 설정한다. {@code null}이면 기본값으로 fallback한다.
+	 *
+	 * @param interval 시간 구간, 또는 {@code null}.
+	 * @throws IllegalArgumentException {@code interval}이 양수가 아닌 경우.
+	 */
+	@JsonIgnore
+	public void setRestartLimitInterval(@Nullable Duration interval) {
+		Preconditions.checkArgument(interval == null || (!interval.isNegative() && !interval.isZero()),
+									"restartLimitInterval must be positive: %s", interval);
+		m_restartLimitInterval = Optionals.getOrElse(interval, DEFAULT_RESTART_LIMIT_INTERVAL);
+	}
+
+	@JsonProperty("restartLimitInterval")
+	private void setRestartLimitIntervalString(@Nullable String interval) {
+		setRestartLimitInterval(parse(interval));
+	}
+
+	private static @Nullable Duration parse(@Nullable String str) {
+		return FOption.map(str, UnitUtils::parseDuration);
+	}
+
+	private static Duration nonNegative(@Nullable Duration value, Duration defaultValue, String name) {
+		Preconditions.checkArgument(value == null || !value.isNegative(), "%s must be non-negative: %s", name, value);
+		return Optionals.getOrElse(value, defaultValue);
+	}
+	
 	@Override
 	public String toString() {
 		String startTimeoutStr = (m_startTimeout != null)
 								? String.format("startTimeout=%s, ", m_startTimeout) : "";
-		return String.format("command=%s, workingDirectory=%s, restartPolicy=%s, %srestartDelay=%s",
+		String limitStr = (m_restartLimit > 0)
+						? String.format(", restartLimit=%d/%s", m_restartLimit, m_restartLimitInterval) : "";
+		return String.format("command=%s, workingDirectory=%s, restartPolicy=%s, %srestartDelay=%s, "
+							+ "maxRestartDelay=%s%s",
 							m_commandLine, m_workingDirectory.getAbsolutePath(), m_restartPolicy,
-							startTimeoutStr, m_restartDelay);
+							startTimeoutStr, m_restartDelay, m_maxRestartDelay, limitStr);
 	}
 }

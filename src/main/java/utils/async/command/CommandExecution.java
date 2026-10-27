@@ -3,12 +3,17 @@ package utils.async.command;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.ProcessBuilder.Redirect;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -33,6 +38,7 @@ import utils.StrSubstitutor;
 import utils.async.AbstractThreadedExecution;
 import utils.async.AsyncState;
 import utils.async.CancellableWork;
+import utils.async.Executions;
 import utils.func.Optionals;
 import utils.io.EnvironmentFileLoader;
 import utils.io.FileUtils;
@@ -54,21 +60,36 @@ import utils.stream.FStream;
  * 1단계에서 매칭되지 않은 {@code ${X}}는 그대로 2단계로 넘어가지만, 2단계에서도 매칭되지 않으면
  * {@link IllegalArgumentException}이 발생하여 sub-process가 실행되지 않고 작업이 실패한다.
  * 변수 이름 오타가 원본 토큰 그대로 sub-process에 전달되어 조용히 잘못 동작하는 것을 막기 위함이다.
+ * <p>
+ * 2단계에서 치환된 변수 값은 다시 치환하지 않는다. 즉 값에 {@code ${...}}가 들어 있으면 그대로
+ * sub-process에 전달되며, 다른 변수 값으로 바뀌거나 미정의 변수로 실패하지 않는다.
  *
- * <h2>표준 입출력 redirect 기본값</h2>
+ * <h2>표준 입출력</h2>
+ * {@link Builder#stdin(Input)}, {@link Builder#stdout(Output)}, {@link Builder#stderr(Output)}에 각 스트림의
+ * 연결 방식을 값 객체({@link Input}, {@link Output})로 지정한다. 같은 스트림을 다시 지정하면 마지막 값이 쓰인다.
+ * <pre>{@code
+ * CommandExecution.builder()
+ *     .addCommand(...)
+ *     .stdin(Input.file(inFile))
+ *     .stdout(Output.file(logFile).append())
+ *     .stderr(Output.toStdout())          // stderr를 stdout에 합침
+ *     .build();
+ * }</pre>
+ * 기본값은 다음과 같다:
  * <ul>
- *   <li>{@code stdin} — 미설정 (ProcessBuilder의 기본 {@link Redirect#PIPE PIPE}). 자식 프로세스가
- *       stdin을 읽으려 하면 부모가 입력을 닫을 때까지 hang될 수 있으므로, 사용하지 않는 경우
- *       {@link Builder#discardStdin()} 호출 권장.</li>
- *   <li>{@code stdout} — {@link Redirect#DISCARD}.</li>
- *   <li>{@code stderr} — {@link Redirect#DISCARD}. {@link Builder#redirectErrorStream()} 호출 시 stdout으로 합쳐짐.
- *       4개 stderr 메소드({@code redirectErrorStream}/{@code redirectStderrToFile}/{@code inheritStderr}/{@code discardStderr})는
- *       마지막 호출이 우선한다.</li>
+ *   <li>{@code stdin} — {@link Input#none()} (OS의 null device). 자식 프로세스가 stdin을 읽으면 즉시 EOF를
+ *       받는다. 본 클래스는 {@link Process}를 노출하지 않아 호출자가 pipe에 쓸 방법이 없으므로,
+ *       ProcessBuilder의 기본값인 {@link Redirect#PIPE PIPE}를 쓰면 stdin을 읽는 자식이 영원히 멈추게 된다.</li>
+ *   <li>{@code stdout} — {@link Output#discard()}.</li>
+ *   <li>{@code stderr} — {@link Output#discard()}.</li>
  * </ul>
+ * 파일의 상대 경로는 working directory를 기준으로 실행 시점에 해석된다.
  *
  * <h2>종료 코드 처리</h2>
- * Sub-process 종료 코드가 {@code 0}이면 정상 완료로 간주하고, 그 외 값이면 작업 실패로 보아
- * {@link ExecutionException}을 던진다.
+ * Sub-process 종료 코드가 성공 코드(기본 {@code 0}, {@link Builder#successExitCodes(int...)}로 변경)이면
+ * 정상 완료로 간주하고, 그 외 값이면 작업 실패로 보아 {@link CommandFailedException}({@link ExecutionException}의
+ * 하위 타입)을 던진다. 정상 완료된 경우에도 실제 종료 코드는 {@link #getExitCode()}로 얻을 수 있다. 이 예외로 종료 코드와,
+ * stderr(또는 stderr가 합쳐진 stdout)가 파일로 redirect된 경우 그 파일의 마지막 부분을 얻을 수 있다.
  *
  * <h2>환경 변수 파일</h2>
  * {@link Builder#environmentFile(File)}로 지정된 환경 변수 파일이 존재하지만 읽기에 실패하면
@@ -78,8 +99,13 @@ import utils.stream.FStream;
  * {@link Builder#timeout(Duration)}이 설정되어 있고 그 안에 종료되지 않으면
  * {@link TimeoutException}이 발생한다. {@link AbstractThreadedExecution#cancel(boolean) cancel(true)}
  * 호출 시 sub-process와 descendants는 SIGTERM으로 종료되고 작업은 취소 상태가 된다.
- * 어떤 경로로 종료되든 sub-process와 descendants가 leak되지 않도록 finally에서 정리된다
+ * 종료 요청과 grace 대기는 별도 쓰레드에서 수행되므로 {@code cancel(true)}는 프로세스 종료를 기다리지 않고
+ * 반환한다. 어떤 경로로 종료되든 sub-process와 descendants가 leak되지 않도록 finally에서 정리된다
  * (SIGTERM 후 1초 grace, 이후 SIGKILL).
+ *
+ * <h2>로그</h2>
+ * 변수 값에는 비밀값이 들어 있을 수 있으므로 변수가 치환된 command line은 로그에 남기지 않는다.
+ * INFO에는 실행 파일과 working directory만, DEBUG에는 치환 전 command line을 남긴다.
  *
  * <h2>{@link #close()} 시맨틱</h2>
  * {@link Closeable}이 호출되면 진행 중인 작업을 취소하고 완료를 기다린 뒤, 등록된 모든
@@ -95,23 +121,147 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	private static final Logger s_logger = LoggerFactory.getLogger(CommandExecution.class);
 	private static final Duration PROCESS_TERMINATION_GRACE = Duration.ofSeconds(1);
 	private static final Duration PROCESS_TREE_REFRESH_INTERVAL = Duration.ofMillis(50);
+	/** 실패 시 {@link CommandFailedException}에 담는 출력 파일 끝부분의 최대 크기(byte). */
+	private static final int OUTPUT_TAIL_BYTES = 4096;
+	/** OS의 null device를 읽는 stdin redirect. ({@link Redirect#DISCARD}는 출력 전용이라 stdin에 쓸 수 없다.) */
+	private static final Redirect NULL_INPUT = Redirect.from(Redirect.DISCARD.file());
+
+	/**
+	 * Sub-process의 stdin 연결 방식.
+	 *
+	 * @see Builder#stdin(Input)
+	 */
+	public sealed interface Input permits Input.None, Input.Inherit, Input.FromFile {
+		/**
+		 * OS의 null device({@code /dev/null}, Windows는 {@code NUL})에 연결한다. 자식 프로세스는 읽기 시도 시
+		 * 즉시 EOF를 받는다. 기본값이다.
+		 *
+		 * @return	null device 입력.
+		 */
+		public static Input none() {
+			return None.INSTANCE;
+		}
+
+		/**
+		 * 부모 프로세스의 stdin을 물려준다.
+		 *
+		 * @return	상속 입력.
+		 */
+		public static Input inherit() {
+			return Inherit.INSTANCE;
+		}
+
+		/**
+		 * 지정된 파일을 stdin으로 연결한다. 파일은 실행 시점에 존재해야 하며, 없으면 작업이
+		 * {@link IllegalArgumentException}으로 실패한다.
+		 *
+		 * @param file	입력 파일. 상대 경로이면 working directory 기준으로 실행 시점에 해석된다.
+		 * @return	파일 입력.
+		 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우.
+		 */
+		public static Input file(File file) {
+			return new FromFile(file);
+		}
+
+		/** {@link #none()}. */
+		public enum None implements Input { INSTANCE }
+		/** {@link #inherit()}. */
+		public enum Inherit implements Input { INSTANCE }
+		/** {@link #file(File)}. */
+		public record FromFile(File file) implements Input {
+			public FromFile {
+				Preconditions.checkNotNullArgument(file, "stdin file must not be null");
+			}
+		}
+	}
+
+	/**
+	 * Sub-process의 stdout/stderr 연결 방식.
+	 *
+	 * @see Builder#stdout(Output)
+	 * @see Builder#stderr(Output)
+	 */
+	public sealed interface Output permits Output.Discard, Output.Inherit, Output.ToFile, Output.ToStdout {
+		/**
+		 * 출력을 버린다. 기본값이다.
+		 *
+		 * @return	버리는 출력.
+		 */
+		public static Output discard() {
+			return Discard.INSTANCE;
+		}
+
+		/**
+		 * 부모 프로세스의 같은 스트림(stdout 또는 stderr)을 물려준다.
+		 *
+		 * @return	상속 출력.
+		 */
+		public static Output inherit() {
+			return Inherit.INSTANCE;
+		}
+
+		/**
+		 * 지정된 파일에 기록한다. 파일이 이미 있으면 덮어쓰며, 이어 쓰려면 {@link ToFile#append()}를 붙인다.
+		 *
+		 * @param file	출력 파일. 없으면 생성된다. 상대 경로이면 working directory 기준으로 실행 시점에 해석된다.
+		 * @return	파일 출력 (덮어쓰기).
+		 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우.
+		 */
+		public static ToFile file(File file) {
+			return new ToFile(file, false);
+		}
+
+		/**
+		 * stderr를 stdout에 합친다 ({@link ProcessBuilder#redirectErrorStream(boolean)}). stderr에만 지정할 수 있다.
+		 *
+		 * @return	stdout으로 합치는 출력.
+		 */
+		public static Output toStdout() {
+			return ToStdout.INSTANCE;
+		}
+
+		/** {@link #discard()}. */
+		public enum Discard implements Output { INSTANCE }
+		/** {@link #inherit()}. */
+		public enum Inherit implements Output { INSTANCE }
+		/** {@link #toStdout()}. */
+		public enum ToStdout implements Output { INSTANCE }
+		/**
+		 * {@link #file(File)}.
+		 *
+		 * @param file		출력 파일.
+		 * @param appending	{@code true}이면 기존 내용 뒤에 이어 쓰고, {@code false}이면 덮어쓴다.
+		 */
+		public record ToFile(File file, boolean appending) implements Output {
+			public ToFile {
+				Preconditions.checkNotNullArgument(file, "output file must not be null");
+			}
+
+			/**
+			 * 기존 내용을 지우지 않고 파일 뒤에 이어 쓰도록 한다.
+			 *
+			 * @return	이어 쓰는 파일 출력.
+			 */
+			public ToFile append() {
+				return new ToFile(file, true);
+			}
+		}
+	}
 
 	private final List<String> m_command;
 	private final File m_workingDirectory;
 	private final @Nullable File m_envFile;
 	private final Map<String,String> m_environmentVariables;
 	private final Map<String,CommandVariable> m_variables;
-	private final @Nullable Redirect m_stdin;
-	private final @Nullable File m_stdinFile;
-	private final @Nullable Redirect m_stdout;
-	private final @Nullable File m_stdoutFile;
-	private final boolean m_stdoutAppend;
-	private final @Nullable Redirect m_stderr;
-	private final @Nullable File m_stderrFile;
+	private final Input m_stdin;
+	private final Output m_stdout;
+	private final Output m_stderr;
 	private final @Nullable Duration m_timeout;
+	private final Set<Integer> m_successExitCodes;
 	
 	@GuardedBy("m_aopGuard") private Process m_process;
 	@GuardedBy("m_aopGuard") private ProcessTree m_processTree;
+	private volatile @Nullable Integer m_exitCode = null;
 	
 	private CommandExecution(Builder builder) {
 		Preconditions.checkArgument(!builder.m_command.isEmpty(), "command must not be empty");
@@ -122,13 +272,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		m_environmentVariables = Map.copyOf(builder.m_environmentVariables);
 		m_variables = builder.m_variables.toMap();
 		m_stdin = builder.m_stdin;
-		m_stdinFile = builder.m_stdinFile;
 		m_stdout = builder.m_stdout;
-		m_stdoutFile = builder.m_stdoutFile;
-		m_stdoutAppend = builder.m_stdoutAppend;
 		m_stderr = builder.m_stderr;
-		m_stderrFile = builder.m_stderrFile;
 		m_timeout = builder.m_timeout;
+		m_successExitCodes = builder.m_successExitCodes;
 		
 		// Builder.workingDirectory()에서 isDirectory 검증을 수행하므로 여기서는 fallback만 처리한다.
 		m_workingDirectory = Optionals.getOrElse(builder.m_workingDirectory, FileUtils::getCurrentWorkingDirectory);
@@ -172,6 +319,20 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	public Map<String,CommandVariable> getVariableMap() {
 		return m_variables;
 	}
+
+	/**
+	 * Sub-process의 종료 코드를 반환한다.
+	 * <p>
+	 * 성공 코드가 여러 개인 명령(예: {@code grep}의 0=찾음, 1=못 찾음)은 정상 완료 후 본 메소드로 어떤 코드로
+	 * 끝났는지 구분한다. 실패한 경우에는 {@link CommandFailedException#getExitCode()}로도 얻을 수 있다.
+	 *
+	 * @return	종료 코드. 프로세스가 아직 종료되지 않았거나, 종료 코드를 얻기 전에 timeout/취소로 끝난 경우에는
+	 * 			빈 값.
+	 */
+	public OptionalInt getExitCode() {
+		Integer code = m_exitCode;
+		return (code != null) ? OptionalInt.of(code) : OptionalInt.empty();
+	}
 	
 	@Override
 	protected void initializeThread() throws Exception {
@@ -188,7 +349,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 	}
 
 	@Override
-	public Void executeWork() throws InterruptedException, CancellationException, TimeoutException, ExecutionException {
+	protected Void executeWork() throws InterruptedException, CancellationException, TimeoutException, ExecutionException {
 		// (대부분의 경우) AsyncState.RUNNING 상태.
 		// (드믄 경우) cancel이 호출된 상태라면 취소 작업이 대기 중인 상태.
 		Process process = m_aopGuard.get(() -> m_process);
@@ -199,52 +360,34 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 		
 		try {
+			// 제한시간이 설정된 경우에는 제한시간만큼만, 그렇지 않으면 종료될 때까지 프로세스를 대기한다.
 			Duration timeout = m_timeout;
+			boolean terminated;
 			if ( timeout != null ) {
-				// 제한시간이 설정된 경우
-				// 제한시간만큼 프로세스를 대기한다.
-				boolean completed = processTree.waitForRootTerminated(PROCESS_TREE_REFRESH_INTERVAL, timeout);
-
-				// 사용자의 강제 종료를 통해 프로그램이 종료되었을 수도 있기 때문에
-				// 이를 확인하여 강제 종료된 경우 CancellationException을 발생시킨다.
-				throwCancellationIfCancelRequested();
-
-				if ( completed ) {
-					// 제한시간 내에 마친 경우
-					int retCode = process.exitValue();
-					if ( retCode == 0 ) {
-						// 프로그램 수행이 성공적으로 마친 경우
-						return null;
-					}
-					else {
-						// 프로그램 종료시 반환 코드가 0이 아닌 경우는 수행 실패로 간주한다.
-						throw new ExecutionException("Process failed: retCode=" + retCode, null);
-					}
-				}
-				else {
-					// 제한시간이 경과한 경우. 프로세스 종료는 finally의 ensureProcessTerminated가 담당한다.
-					throw new TimeoutException(timeout.toString());
-				}
+				terminated = processTree.waitForRootTerminated(PROCESS_TREE_REFRESH_INTERVAL, timeout);
 			}
 			else {
-				// 무제한 대기
 				processTree.waitForRootTerminated(PROCESS_TREE_REFRESH_INTERVAL);
-				int retCode = process.exitValue();
-				getLogger().info("Process terminated: retCode={}", retCode);
-
-				// 사용자의 강제 종료를 통해 프로그램이 종료되었을 수도 있기 때문에
-				// 이를 확인하여 강제 종료된 경우 CancellationException을 발생시킨다.
-				throwCancellationIfCancelRequested();
-
-				if ( retCode == 0 ) {
-					// 프로그램 수행이 성공적으로 마친 경우
-					return null;
-				}
-				else {
-					// 프로그램 종료시 반환 코드가 0이 아닌 경우는 수행 실패로 간주한다.
-					throw new ExecutionException("Process failed: retCode=" + retCode, null);
-				}
+				terminated = true;
 			}
+
+			// 사용자의 강제 종료를 통해 프로그램이 종료되었을 수도 있기 때문에
+			// 이를 확인하여 강제 종료된 경우 CancellationException을 발생시킨다.
+			throwCancellationIfCancelRequested();
+
+			if ( !terminated ) {
+				// 제한시간이 경과한 경우. 프로세스 종료는 finally의 terminate가 담당한다.
+				throw new TimeoutException(timeout.toString());
+			}
+
+			int retCode = process.exitValue();
+			m_exitCode = retCode;
+			getLogger().info("Process terminated: retCode={}", retCode);
+			if ( !m_successExitCodes.contains(retCode) ) {
+				// 반환 코드가 성공 코드가 아닌 경우는 수행 실패로 간주한다.
+				throw new CommandFailedException(retCode, readOutputTail());
+			}
+			return null;
 		}
 		finally {
 			// 인터럽트/timeout/예외 등 어떤 경로로 빠져나가든 sub-process가 leak되지 않도록 정리한다.
@@ -260,12 +403,55 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 
 	@Override
 	public boolean cancelWork() {
-		// 프로세스가 시작되어 아직 살아있는 경우에만 강제 종료한다.
+		// 프로세스가 시작되어 아직 살아있는 경우에만 종료시킨다. ProcessTree.terminate()는 grace 동안
+		// 기다리므로, cancel(true)를 호출한 쓰레드(예: Guava의 lock을 쥔 ProgramService.doStop())를
+		// 붙잡지 않도록 별도 쓰레드에서 수행한다. SIGTERM을 받은 root가 종료되면 executeWork()가 깨어나
+		// finally에서 남은 descendants를 정리한다.
 		ProcessTree processTree = m_aopGuard.get(() -> m_processTree);
 		if ( processTree != null ) {
-			processTree.terminate(PROCESS_TERMINATION_GRACE);
+			CompletableFuture.runAsync(() -> processTree.terminate(PROCESS_TERMINATION_GRACE),
+										Executions.getExecutor());
 		}
 		return true;
+	}
+
+	/**
+	 * 실패 원인 파악을 위해 출력 파일의 마지막 부분을 읽는다.
+	 * <p>
+	 * stderr가 파일로 redirect되었으면 그 파일을, 아니면 stdout 파일(stderr가 합쳐졌을 수 있음)을 읽는다.
+	 * 출력이 파일로 redirect되지 않았거나 읽지 못하면 {@code null}을 반환한다. stdout을 append 모드로
+	 * 기록하는 경우에는 이전 실행의 출력이 포함될 수 있다.
+	 */
+	private @Nullable String readOutputTail() {
+		File file;
+		if ( m_stderr instanceof Output.ToFile err ) {
+			file = err.file();
+		}
+		else if ( m_stdout instanceof Output.ToFile out ) {
+			file = out.file();
+		}
+		else {
+			return null;
+		}
+		file = resolveAgainstWorkingDirectory(file);
+		try ( RandomAccessFile raf = new RandomAccessFile(file, "r") ) {
+			long length = raf.length();
+			long start = Math.max(0, length - OUTPUT_TAIL_BYTES);
+			byte[] buf = new byte[(int)(length - start)];
+			raf.seek(start);
+			raf.readFully(buf);
+			String tail = new String(buf, StandardCharsets.UTF_8);
+			if ( start > 0 ) {
+				// 중간부터 읽은 경우 잘린 첫 줄은 버린다.
+				int nl = tail.indexOf('\n');
+				tail = (nl >= 0) ? tail.substring(nl + 1) : tail;
+			}
+			return tail.strip();
+		}
+		catch ( IOException e ) {
+			getLogger().debug("failed to read output tail: file={}, cause={}", file, ""+e);
+			return null;
+		}
 	}
 	
 	@Override
@@ -290,9 +476,12 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		// Command line에 포함된 command variable들을 실제 값으로 치환시킨다.
 		// 이 단계가 마지막이므로 여기서도 매칭되지 않은 ${X}는 예외로 처리한다. 원본 토큰을
 		// 그대로 넘기면 변수 이름 오타를 sub-process가 조용히 삼키게 된다.
+		// 치환된 변수 값은 데이터이므로 그 안의 ${...}는 다시 치환하지 않는다. 재치환하면 값에 들어 있는
+		// ${other:value}가 다른 변수 값으로 바뀌고(값 노출), 값의 ${X}가 미정의 변수 예외로 실패한다.
 		CommandVariableLookup lut = new CommandVariableLookup(m_variables);
 		StringSubstitutor cmdVarSubst = new StringSubstitutor(lut)
-												.setEnableUndefinedVariableException(true);
+												.setEnableUndefinedVariableException(true)
+												.setDisableSubstitutionInValues(true);
 		
 		// Command line에 포함된 일반 변수들을 실제 값으로 치환한다.
 		Map<String,String> initMapping = Map.of("WORKING_DIR", m_workingDirectory.getAbsolutePath());
@@ -308,38 +497,23 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		
 		ProcessBuilder builder = new ProcessBuilder(command)
 									.directory(m_workingDirectory);
+		// 변수 값(비밀값일 수 있음)이 치환된 command line은 로그에 남기지 않는다.
 		if ( getLogger().isInfoEnabled() ) {
-			getLogger().info("WorkingDir: {}", m_workingDirectory.getAbsolutePath());
-			getLogger().info("Command (variable-replaced): {}", FStream.from(command).join(' '));
+			getLogger().info("starting command: program={}, workingDir={}",
+							command.get(0), m_workingDirectory.getAbsolutePath());
+		}
+		if ( getLogger().isDebugEnabled() ) {
+			getLogger().debug("command line (before variable substitution): {}", FStream.from(m_command).join(' '));
 		}
 		
-		// Standard error 처리
-		if ( m_stderrFile != null ) {
-			builder.redirectError(Redirect.to(resolveAgainstWorkingDirectory(m_stderrFile)));
-		}
-		else if ( m_stderr != null ) {
-			builder.redirectError(m_stderr);
-		}
-		else {
+		// 표준 입출력 연결
+		builder.redirectInput(toRedirect(m_stdin));
+		builder.redirectOutput(toRedirect(m_stdout));
+		if ( m_stderr == Output.ToStdout.INSTANCE ) {
 			builder.redirectErrorStream(true);
 		}
-		// Standard output 처리
-		if ( m_stdoutFile != null ) {
-			File stdoutFile = resolveAgainstWorkingDirectory(m_stdoutFile);
-			builder.redirectOutput(m_stdoutAppend ? Redirect.appendTo(stdoutFile) : Redirect.to(stdoutFile));
-		}
-		else if ( m_stdout != null ) {
-			builder.redirectOutput(m_stdout);
-		}
-
-		// Standard input 처리
-		if ( m_stdinFile != null ) {
-			File stdinFile = resolveAgainstWorkingDirectory(m_stdinFile);
-			Preconditions.checkArgument(stdinFile.isFile(), "stdin file does not exist: %s", stdinFile);
-			builder.redirectInput(Redirect.from(stdinFile));
-		}
-		else if ( m_stdin != null ) {
-			builder.redirectInput(m_stdin);
+		else {
+			builder.redirectError(toRedirect(m_stderr));
 		}
 		
 		// 환경 변수 파일이 설정되면 해당 파일을 읽어 환경변수로 추가한다.
@@ -369,6 +543,36 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		return builder;
 	}
 
+	private Redirect toRedirect(Input input) {
+		if ( input instanceof Input.FromFile in ) {
+			File file = resolveAgainstWorkingDirectory(in.file());
+			Preconditions.checkArgument(file.isFile(), "stdin file does not exist: %s", file);
+			return Redirect.from(file);
+		}
+		else if ( input == Input.Inherit.INSTANCE ) {
+			return Redirect.INHERIT;
+		}
+		else {
+			return NULL_INPUT;
+		}
+	}
+
+	private Redirect toRedirect(Output output) {
+		if ( output instanceof Output.ToFile out ) {
+			File file = resolveAgainstWorkingDirectory(out.file());
+			return out.appending() ? Redirect.appendTo(file) : Redirect.to(file);
+		}
+		else if ( output == Output.Inherit.INSTANCE ) {
+			return Redirect.INHERIT;
+		}
+		else if ( output == Output.Discard.INSTANCE ) {
+			return Redirect.DISCARD;
+		}
+		else {
+			throw new IllegalStateException("unexpected output: " + output);
+		}
+	}
+
 	private File resolveAgainstWorkingDirectory(File file) {
 		return file.isAbsolute() ? file : new File(m_workingDirectory, file.getPath());
 	}
@@ -390,13 +594,10 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		@Nullable private File m_envFile;
 		private KeyedValueList<String,CommandVariable> m_variables = KeyedValueList.with(CommandVariable::getName);
 		private Duration m_timeout;
-		private Redirect m_stdin;
-		private File m_stdinFile;
-		private Redirect m_stdout = Redirect.DISCARD;
-		private File m_stdoutFile;
-		private boolean m_stdoutAppend = false;
-		private Redirect m_stderr = Redirect.DISCARD;
-		private File m_stderrFile;
+		private Set<Integer> m_successExitCodes = Set.of(0);
+		private Input m_stdin = Input.none();
+		private Output m_stdout = Output.discard();
+		private Output m_stderr = Output.discard();
 		
 		/**
 		 * 현재 빌더 설정으로 {@link CommandExecution}을 생성한다.
@@ -544,172 +745,47 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 		
 		/**
-		 * stdin을 지정된 파일로 리다이렉트한다.
+		 * stdin 연결 방식을 지정한다. 기본값은 {@link Input#none()}이다.
 		 *
-		 * @param file	stdin으로 리다이렉트할 파일. 존재해야 하며, 파일이 디렉토리거나 읽을 수 없는 경우
-		 * 				예외가 발생한다. 파일이 상대 경로인 경우 working directory를 기준으로 실행 시점에
-		 * 				해석된다.
-		 * @return 본 빌더 객체. 본 메소드와 {@link #inheritStdin()} / {@link #discardStdin()}는
-		 *         동일한 stdin 설정을 갱신하므로, 마지막 호출이 우선한다.
-		 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우
+		 * @param input	stdin 연결 방식.
+		 * @return	본 빌더 객체.
+		 * @throws IllegalArgumentException	{@code input}이 {@code null}인 경우.
 		 */
-		public Builder redirectStdinFromFile(File file) {
-			Preconditions.checkNotNullArgument(file, "stdin file must not be null");
+		public Builder stdin(Input input) {
+			Preconditions.checkNotNullArgument(input, "stdin must not be null");
 
-			m_stdinFile = file;
-			m_stdin = null;
-			return this;
-		}
-		
-		/**
-		 * stdin을 부모 프로세스의 stdin으로 리다이렉트한다.
-		 *
-		 * @return	본 빌더 객체.
-		 *   		본 메소드와 {@link #redirectStdinFromFile(File)} / {@link #discardStdin()}는
-		 *          동일한 stdin 설정을 갱신하므로, 마지막 호출이 우선한다.
-		 */
-		public Builder inheritStdin() {
-			m_stdinFile = null;
-			m_stdin = Redirect.INHERIT;
-			return this;
-		}
-		
-		/**
-		 * stdin을 버린다 ({@link Redirect#DISCARD}).
-		 * <p>
-		 * 자식 프로세스가 stdin을 읽으려 하면 부모가 입력을 닫을 때까지 hang될 수 있으므로,
-		 * stdin을 사용하지 않는 sub-process라면 본 메소드를 호출해 자식이 즉시 EOF를 받도록 하는 것이 안전하다.
-		 *
-		 * @return	본 빌더 객체.
-		 *    		본 메소드와 {@link #redirectStdinFromFile(File)} / {@link #inheritStdin()}는
-		 *			동일한 stdin 설정을 갱신하므로, 마지막 호출이 우선한다.
-		 */
-		public Builder discardStdin() {
-			m_stdinFile = null;
-			m_stdin = Redirect.DISCARD;
-			return this;
-		}
-		
-		/**
-		 * stdout를 지정된 파일로 리다이렉트한다. (기존 내용 덮어쓰기)
-		 * <p>
-		 * {@code redirectStdoutToFile(file, false)}와 동일하다.
-		 *
-		 * @param file stdout로 리다이렉트할 파일. 존재하지 않으면 생성된다. 파일이 이미 존재하면
-		 * 			기존 내용을 덮어쓴다. 파일이 디렉토리거나 생성할 수 없는 경우 예외가 발생한다.
-		 * 			파일이 상대 경로인 경우 working directory를 기준으로 실행 시점에 해석된다.
-		 * @return	본 빌더 객체.
-		 * 			본 메소드와 {@link #inheritStdout()} / {@link #discardStdout()}는
-		 *         	동일한 stdout 설정을 갱신하므로, 마지막 호출이 우선한다.
-		 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우
-		 */
-		public Builder redirectStdoutToFile(File file) {
-			return redirectStdoutToFile(file, false);
-		}
-
-		/**
-		 * stdout를 지정된 파일로 리다이렉트한다.
-		 *
-		 * @param file stdout로 리다이렉트할 파일. 존재하지 않으면 생성된다. 파일이 디렉토리거나 생성할
-		 * 			수 없는 경우 예외가 발생한다. 파일이 상대 경로인 경우 working directory를 기준으로
-		 * 			실행 시점에 해석된다.
-		 * @param append {@code true}이면 기존 내용 뒤에 이어 쓰고({@link Redirect#appendTo}),
-		 * 			{@code false}이면 기존 내용을 덮어쓴다({@link Redirect#to}).
-		 * @return	본 빌더 객체.
-		 * 			본 메소드와 {@link #inheritStdout()} / {@link #discardStdout()}는
-		 *         	동일한 stdout 설정을 갱신하므로, 마지막 호출이 우선한다.
-		 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우
-		 */
-		public Builder redirectStdoutToFile(File file, boolean append) {
-			Preconditions.checkNotNullArgument(file, "stdout file must not be null");
-
-			m_stdoutFile = file;
-			m_stdoutAppend = append;
-			m_stdout = null;
-			return this;
-		}
-		
-		/**
-		 * stdout를 부모 프로세스의 stdout으로 리다이렉트한다.
-		 *
-		 * @return 본 빌더 객체
-		 *      본 메소드와 {@link #redirectStdoutToFile(File)} / {@link #discardStdout()}는
-		 *      동일한 stdout 설정을 갱신하므로, 마지막 호출이 우선한다.
-		 */
-		public Builder inheritStdout() {
-			m_stdoutFile = null;
-			m_stdout = Redirect.INHERIT;
-			return this;
-		}
-		
-		/**
-		 * stdout를 버린다.
-		 *
-		 * @return	본 빌더 객체.
-		 *     		본 메소드와 {@link #redirectStdoutToFile(File)} / {@link #inheritStdout()}는
-		 *     		동일한 stdout 설정을 갱신하므로, 마지막 호출이 우선한다.
-		 */
-		public Builder discardStdout() {
-			m_stdoutFile = null;
-			m_stdout = Redirect.DISCARD;
-			return this;
-		}
-		
-		/**
-		 * stderr를 stdout으로 합치도록 설정한다 ({@link ProcessBuilder#redirectErrorStream(boolean)}와
-		 * 동일).
-		 *
-		 * @return	본 빌더 객체.
-		 * 			본 메소드와 {@link #redirectStderrToFile(File)} / {@link #inheritStderr()} /
-		 * 			{@link #discardStderr()}는 동일한 stderr 설정을 갱신하므로, 마지막 호출이 우선한다.
-		 */
-		public Builder redirectErrorStream() {
-			m_stderrFile = null;
-			m_stderr = null;
+			m_stdin = input;
 			return this;
 		}
 
 		/**
-		 * stderr를 지정된 파일로 리다이렉트한다.
-		 * <p>
-		 * 파일이 상대 경로인 경우 working directory를 기준으로 실행 시점에 해석된다.
+		 * stdout 연결 방식을 지정한다. 기본값은 {@link Output#discard()}이다.
 		 *
-		 * @param file	stderr를 리다이렉트할 파일.
+		 * @param output	stdout 연결 방식. {@link Output#toStdout()}는 지정할 수 없다.
 		 * @return	본 빌더 객체.
-		 * 			본 메소드와 {@link #redirectErrorStream()} / {@link #inheritStderr()} /
-		 * 			{@link #discardStderr()}는 동일한 stderr 설정을 갱신하므로, 마지막 호출이 우선한다.
+		 * @throws IllegalArgumentException	{@code output}이 {@code null}이거나 {@link Output#toStdout()}인 경우.
 		 */
-		public Builder redirectStderrToFile(File file) {
-			Preconditions.checkNotNullArgument(file, "stderr file must not be null");
+		public Builder stdout(Output output) {
+			Preconditions.checkNotNullArgument(output, "stdout must not be null");
+			Preconditions.checkArgument(output != Output.ToStdout.INSTANCE,
+										"Output.toStdout() is only for stderr");
 
-			m_stderrFile = file;
-			m_stderr = null;
+			m_stdout = output;
 			return this;
 		}
 
 		/**
-		 * stderr를 부모 프로세스의 stderr로 리다이렉트한다.
+		 * stderr 연결 방식을 지정한다. 기본값은 {@link Output#discard()}이며, {@link Output#toStdout()}로
+		 * stdout에 합칠 수 있다.
 		 *
+		 * @param output	stderr 연결 방식.
 		 * @return	본 빌더 객체.
-		 * 			본 메소드와 {@link #redirectErrorStream()} / {@link #redirectStderrToFile(File)} /
-		 * 			{@link #discardStderr()}는 동일한 stderr 설정을 갱신하므로, 마지막 호출이 우선한다.
+		 * @throws IllegalArgumentException	{@code output}이 {@code null}인 경우.
 		 */
-		public Builder inheritStderr() {
-			m_stderrFile = null;
-			m_stderr = Redirect.INHERIT;
-			return this;
-		}
+		public Builder stderr(Output output) {
+			Preconditions.checkNotNullArgument(output, "stderr must not be null");
 
-		/**
-		 * stderr를 버린다 ({@link Redirect#DISCARD}).
-		 *
-		 * @return	본 빌더 객체.
-		 * 			본 메소드와 {@link #redirectErrorStream()} / {@link #redirectStderrToFile(File)} /
-		 * 			{@link #inheritStderr()}는 동일한 stderr 설정을 갱신하므로, 마지막 호출이 우선한다.
-		 */
-		public Builder discardStderr() {
-			m_stderrFile = null;
-			m_stderr = Redirect.DISCARD;
+			m_stderr = output;
 			return this;
 		}
 		
@@ -734,6 +810,25 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 									"invalid timeout: %s", timeout);
 
 			m_timeout = timeout;
+			return this;
+		}
+
+		/**
+		 * 정상 완료로 간주할 종료 코드를 지정한다. 기본값은 {@code 0}뿐이다.
+		 * <p>
+		 * 예: {@code grep}은 1(못 찾음)도 정상 결과이므로 {@code successExitCodes(0, 1)}로 지정한다.
+		 * 지정한 코드로 끝나면 작업은 COMPLETED가 되고, 실제 코드는 {@link CommandExecution#getExitCode()}로
+		 * 얻는다. 그 외 코드로 끝나면 {@link CommandFailedException}으로 실패한다. 기존 설정을 대체하며 누적되지 않는다.
+		 *
+		 * @param codes	성공 종료 코드들. 하나 이상이어야 한다.
+		 * @return	본 빌더 객체.
+		 * @throws IllegalArgumentException	{@code codes}가 {@code null}이거나 비어 있는 경우.
+		 */
+		public Builder successExitCodes(int... codes) {
+			Preconditions.checkNotNullArgument(codes, "success exit codes must not be null");
+			Preconditions.checkArgument(codes.length > 0, "success exit codes must not be empty");
+
+			m_successExitCodes = Arrays.stream(codes).boxed().collect(java.util.stream.Collectors.toUnmodifiableSet());
 			return this;
 		}
 	}

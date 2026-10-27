@@ -1,5 +1,8 @@
 package utils.async.command;
 
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,17 +19,25 @@ import utils.func.Optionals;
  * 통해 정상 경로에서 {@link Registration#unregister()}로 hook을 해제할 수 있다.
  * 정상 종료 경로에서 hook을 해제하지 않으면 JVM 종료 시 이미 TERMINATED 상태인
  * service에 다시 {@code stopAsync()}가 호출되어 잡음 로그가 출력된다.
+ * <p>
+ * Hook은 service에 {@code stopAsync()}를 호출한 뒤 종료 대기 시간(기본 {@link #DEFAULT_TERMINATION_TIMEOUT})
+ * 동안 TERMINATED가 되기를 기다린다. 자식 프로세스 정리처럼 시간이 더 필요한 service는
+ * {@link #register(String, Service, Duration)}로 대기 시간을 지정한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
 public final class ServiceShutdownHook implements Runnable, LoggerSettable {
 	private static final Logger s_logger = LoggerFactory.getLogger(ServiceShutdownHook.class);
+	/** Service가 TERMINATED가 되기를 기다리는 기본 시간 (3초). */
+	public static final Duration DEFAULT_TERMINATION_TIMEOUT = Duration.ofSeconds(3);
 
 	private final Service m_service;
-	private Logger m_logger = null;
+	private final Duration m_terminationTimeout;
+	private volatile Logger m_logger = null;
 
 	/**
-	 * 주어진 service를 위한 JVM shutdown hook을 등록한다.
+	 * 주어진 service를 위한 JVM shutdown hook을 등록한다. 종료 대기 시간은
+	 * {@link #DEFAULT_TERMINATION_TIMEOUT}이다.
 	 *
 	 * @param name    hook thread 이름의 prefix (실제 이름은 {@code name + "-ShutdownHook"}).
 	 * @param service JVM 종료 시 정리할 service.
@@ -34,17 +45,34 @@ public final class ServiceShutdownHook implements Runnable, LoggerSettable {
 	 * @throws IllegalArgumentException {@code name} 또는 {@code service}가 null인 경우.
 	 */
 	public static Registration register(String name, Service service) {
+		return register(name, service, DEFAULT_TERMINATION_TIMEOUT);
+	}
+
+	/**
+	 * 주어진 service를 위한 JVM shutdown hook을 등록한다.
+	 *
+	 * @param name    hook thread 이름의 prefix (실제 이름은 {@code name + "-ShutdownHook"}).
+	 * @param service JVM 종료 시 정리할 service.
+	 * @param terminationTimeout	{@code stopAsync()} 후 service가 TERMINATED가 되기를 기다리는 시간.
+	 * 						JVM 종료를 그만큼 늦출 수 있으므로 너무 길게 잡지 않는다.
+	 * @return 등록된 hook의 핸들. 정상 경로에서 {@link Registration#unregister()}로 해제 가능.
+	 * @throws IllegalArgumentException 인자가 null이거나 {@code terminationTimeout}이 음수인 경우.
+	 */
+	public static Registration register(String name, Service service, Duration terminationTimeout) {
 		Preconditions.checkNotNullArgument(name, "name is null");
 		Preconditions.checkNotNullArgument(service, "service is null");
+		Preconditions.checkNotNullArgument(terminationTimeout, "terminationTimeout is null");
+		Preconditions.checkArgument(!terminationTimeout.isNegative(),
+									"terminationTimeout must not be negative: %s", terminationTimeout);
 
-		Thread hook = new Thread(new ServiceShutdownHook(service), name + "-ShutdownHook");
+		Thread hook = new Thread(new ServiceShutdownHook(service, terminationTimeout), name + "-ShutdownHook");
 		Runtime.getRuntime().addShutdownHook(hook);
 		return new Registration(hook);
 	}
 
-	private ServiceShutdownHook(Service service) {
-		Preconditions.checkNotNullArgument(service, "service is null");
+	private ServiceShutdownHook(Service service, Duration terminationTimeout) {
 		m_service = service;
+		m_terminationTimeout = terminationTimeout;
 	}
 	
 	@Override
@@ -54,7 +82,7 @@ public final class ServiceShutdownHook implements Runnable, LoggerSettable {
 		m_service.stopAsync();
 		try {
 			// 정상적으로 종료될 때까지 잠시 대기
-			m_service.awaitTerminated(3, java.util.concurrent.TimeUnit.SECONDS);
+			m_service.awaitTerminated(m_terminationTimeout.toNanos(), TimeUnit.NANOSECONDS);
 		}
 		catch ( Exception e ) {
 			getLogger().warn("Failed to cleanly shutdown {}, cause={}", m_service, ""+e);
