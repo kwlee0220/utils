@@ -19,12 +19,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.text.StringSubstitutor;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.zaxxer.hikari.HikariDataSource;
 
 import utils.CSV;
 import utils.Preconditions;
@@ -33,6 +36,7 @@ import utils.func.CheckedConsumerX;
 import utils.func.CheckedFunctionX;
 import utils.func.FOption;
 import utils.io.IOUtils;
+import utils.jdbc.JdbcConnectionPools.PoolKey;
 import utils.stream.FStream;
 import utils.stream.KeyValueFStream;
 
@@ -70,6 +74,10 @@ import utils.stream.KeyValueFStream;
  *     // ...
  * }
  * </pre>
+ * <p>
+ * 빌더에서 {@link Builder#pooled()}를 지정하면 {@link #connect()}는 연결을 새로 만들지 않고
+ * {@link JdbcConnectionPools}가 관리하는 연결 풀에서 얻는다. 연결 정보가 같은 pooled processor들은
+ * 하나의 풀을 공유하므로, 질의마다 {@code JdbcProcessor}를 새로 만드는 코드도 연결을 재사용한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -82,6 +90,12 @@ public class JdbcProcessor {
 	private final String m_driverClsName;
 	private @Nullable File m_jarFile;
 	private @Nullable ClassLoader m_cloader;
+	/** 별도 ClassLoader로 적재한 드라이버. 한 번 만들어 재사용한다. */
+	private @Nullable Driver m_driver;
+	/** 연결 풀의 키. 풀을 사용하지 않으면 {@code null}. */
+	private @Nullable PoolKey m_poolKey;
+	private int m_maxPoolSize;
+	private volatile @Nullable HikariDataSource m_pool;
 	
 	/**
 	 * 주어진 시스템 단축 이름에 해당하는 JDBC 드라이버 클래스명을 반환한다.
@@ -163,25 +177,115 @@ public class JdbcProcessor {
 	public ClassLoader getClassLoader() {
 		return m_cloader;
 	}
+
+	/**
+	 * 연결 풀 사용 여부를 반환한다.
+	 *
+	 * @return	{@link Builder#pooled()}로 생성된 경우 {@code true}.
+	 */
+	public boolean isPooled() {
+		return m_poolKey != null;
+	}
+
+	/**
+	 * 연결 풀의 최대 크기를 반환한다.
+	 * <p>
+	 * 같은 연결 정보의 풀이 이미 있었다면 실제 풀의 크기는 그 풀을 처음 만든 processor의 값을 따른다.
+	 *
+	 * @return	최대 풀 크기. 풀을 사용하지 않으면 0.
+	 */
+	public int getMaxPoolSize() {
+		return m_maxPoolSize;
+	}
 	
 	/**
-	 * 설정된 정보를 이용하여 JDBC {@link Connection}을 생성하여 반환한다.
+	 * 설정된 정보를 이용하여 JDBC {@link Connection}을 반환한다.
+	 * <p>
+	 * {@link Builder#pooled()}로 생성된 경우는 {@link JdbcConnectionPools}의 연결 풀에서 연결을 얻으며,
+	 * 반환된 연결을 {@link Connection#close()}하면 연결은 풀로 반환된다. 풀의 연결이 모두 사용 중이면
+	 * 최대 {@value JdbcConnectionPools#CONNECTION_TIMEOUT_MILLIS}ms 동안 기다린다.
+	 * 그렇지 않은 경우는 호출할 때마다 새 연결을 만든다.
 	 * <p>
 	 * 드라이버 클래스 적재 순서는 다음과 같다.
 	 * <ol>
 	 *     <li>{@link Builder#classLoader(ClassLoader)}로 명시 ClassLoader가 지정된 경우 그것을 사용.</li>
 	 *     <li>그렇지 않고 {@link Builder#jarFile(File)}로 jar 파일이 지정된 경우, 해당 jar를 적재하는
 	 *         {@link URLClassLoader}를 한 번 생성해 그 이후의 호출에서 재사용한다.</li>
-	 *     <li>둘 다 지정되지 않은 경우 시스템 기본 ClassLoader로 {@link Class#forName(String)}을 호출.</li>
+	 *     <li>둘 다 지정되지 않은 경우 시스템 기본 ClassLoader로 {@link Class#forName(String)}을 호출하고
+	 *         {@link DriverManager}로 연결한다.</li>
 	 * </ol>
-	 * (1)·(2)의 경우 {@link Driver}가 인스턴스화되어 {@link DriverManager#registerDriver(Driver)}로
-	 * 등록된다.
+	 * (1)·(2)의 경우 {@link Driver}를 한 번 인스턴스화하여 재사용하며, {@link DriverManager}에 등록하지 않고
+	 * 직접 연결한다.
 	 *
 	 * @return	JDBC 연결 객체.
-	 * @throws SQLException	jar URL 변환 실패, 드라이버 클래스 적재 실패, 또는
-	 * 						{@link DriverManager#getConnection(String, String, String)} 실패 시.
+	 * @throws SQLException	풀에서 제한 시간 안에 연결을 얻지 못한 경우. 드라이버 적재나 연결이 실패한 경우도
+	 * 						풀을 쓰면 이 예외의 원인으로 보고된다.
+	 * @throws JdbcException	풀을 쓰지 않을 때, jar URL 변환·드라이버 클래스 적재·연결이 실패한 경우.
+	 * 						예외의 원인(cause)으로 드라이버가 보고한 예외가 붙는다.
 	 */
 	public Connection connect() throws SQLException {
+		if ( m_poolKey != null ) {
+			HikariDataSource pool = m_pool;
+			if ( pool == null || pool.isClosed() ) {
+				// 처음 연결하거나 JdbcConnectionPools.closeAll()로 풀이 닫힌 경우.
+				m_pool = pool = JdbcConnectionPools.getOrCreate(this, m_poolKey, m_maxPoolSize);
+			}
+			return pool.getConnection();
+		}
+		else {
+			return connectDirect();
+		}
+	}
+
+	/**
+	 * 연결 풀을 거치지 않고 새 JDBC 연결을 만든다.
+	 * <p>
+	 * 연결 풀도 새 물리 연결을 만들 때 이 메소드를 사용한다.
+	 *
+	 * @return	새 JDBC 연결 객체.
+	 * @throws JdbcException	jar URL 변환·드라이버 클래스 적재·연결이 실패한 경우.
+	 */
+	Connection connectDirect() throws SQLException {
+		Driver driver;
+		try {
+			driver = loadDriver();
+		}
+		catch ( ReflectiveOperationException | SQLException e ) {
+			throw new JdbcException("fails to load JDBC driver class: name=" + m_driverClsName
+									+ ", jdbcUrl=" + m_jdbcUrl, e);
+		}
+
+		try {
+			if ( driver != null ) {
+				Properties props = new Properties();
+				props.setProperty("user", m_user);
+				props.setProperty("password", m_passwd);
+				Connection conn = driver.connect(m_jdbcUrl, props);
+				if ( conn == null ) {
+					// Driver.connect()는 처리할 수 없는 URL이면 null을 반환한다.
+					throw new SQLException("JDBC driver does not accept the URL: driver=" + m_driverClsName);
+				}
+				return conn;
+			}
+			else {
+				return DriverManager.getConnection(m_jdbcUrl, m_user, m_passwd);
+			}
+		}
+		catch ( SQLException e ) {
+			throw new JdbcException("fails to connect: jdbcUrl=" + m_jdbcUrl + ", user=" + m_user, e);
+		}
+	}
+
+	/**
+	 * 드라이버 클래스를 적재한다.
+	 *
+	 * @return	별도 ClassLoader로 적재한 드라이버. 시스템 기본 ClassLoader로 적재한 경우는 {@code null}.
+	 */
+	private synchronized @Nullable Driver loadDriver() throws SQLException, ReflectiveOperationException {
+		if ( m_driver != null ) {
+			return m_driver;
+		}
+
 		if ( m_jarFile != null && m_cloader == null ) {
 			try {
 				URI uri = new URI(String.format("jar:file:%s!/", m_jarFile.getAbsolutePath()));
@@ -192,23 +296,16 @@ public class JdbcProcessor {
 										+ ", invalid jar path=" + m_jarFile, e);
 			}
 		}
-		
-		try {
-			if ( m_cloader != null ) {
-				Driver driver = (Driver)Class.forName(m_driverClsName, true, m_cloader)
-												.getDeclaredConstructor()
-												.newInstance();
-				DriverManager.registerDriver(new DriverDelegate(driver));
-			}
-			else {
-				Class.forName(m_driverClsName);
-			}
 
-			return DriverManager.getConnection(m_jdbcUrl, m_user, m_passwd);
+		if ( m_cloader != null ) {
+			m_driver = (Driver)Class.forName(m_driverClsName, true, m_cloader)
+										.getDeclaredConstructor()
+										.newInstance();
+			return m_driver;
 		}
-		catch ( ReflectiveOperationException | SQLException e ) {
-			throw new JdbcException("fails to load JDBC driver class: name=" + m_driverClsName
-									+ ", jdbcUrl=" + m_jdbcUrl, e);
+		else {
+			Class.forName(m_driverClsName);
+			return null;
 		}
 	}
 	
@@ -498,7 +595,8 @@ public class JdbcProcessor {
 
 	@Override
 	public String toString() {
-		return String.format("%s?user=%s,driver=%s", m_jdbcUrl, m_user, m_driverClsName);
+		String poolStr = (m_poolKey != null) ? ",maxPoolSize=" + m_maxPoolSize : "";
+		return String.format("%s?user=%s,driver=%s%s", m_jdbcUrl, m_user, m_driverClsName, poolStr);
 	}
 
 	/**
@@ -516,6 +614,8 @@ public class JdbcProcessor {
 	 * URL·사용자·패스워드가 빌더에 적용된다. {@code config}에 드라이버 클래스명이 명시되어 있으면
 	 * {@link Builder#driverClassName(String)}로도 적용된다. 호출자가 반환된 빌더에서
 	 * {@code driverClassName}을 다시 호출하면 그 값이 우선한다 (마지막 setter 호출이 우선).
+	 * {@code config}의 {@link JdbcConfiguration#getMaxPoolSize() maxPoolSize}가 0보다 크면, 반환된 빌더에서
+	 * {@link Builder#pooled()}를 호출했을 때의 최대 풀 크기로 쓰인다. 이 값만으로 풀이 사용되지는 않는다.
 	 *
 	 * @param config	JDBC 연결 설정 객체.
 	 * @return			주어진 설정이 적용된 {@link Builder}.
@@ -533,6 +633,7 @@ public class JdbcProcessor {
 		if ( config.getDriverClassName() != null ) {
 			builder.driverClassName(config.getDriverClassName());
 		}
+		builder.m_configMaxPoolSize = config.getMaxPoolSize();
 		return builder;
 	}
 
@@ -544,6 +645,8 @@ public class JdbcProcessor {
 	 * <br>예: {@code jdbc:mysql://localhost:3306/mydb?user=root&password=secret}
 	 * <p>
 	 * 파라미터 값은 URL 인코딩되어 있을 수 있으며 {@link FullJdbcUrlParser}에 의해 디코딩된다.
+	 * {@code maxPoolSize} 파라미터가 있으면 {@link #builder(JdbcConfiguration)}와 같이, 반환된 빌더에서
+	 * {@link Builder#pooled()}를 호출했을 때의 최대 풀 크기로 쓰인다.
 	 *
 	 * @param fullJdbcUrl	JDBC URL·사용자·패스워드가 합쳐진 문자열.
 	 * @return				주어진 정보가 적용된 {@link Builder}.
@@ -562,10 +665,20 @@ public class JdbcProcessor {
 									+ " (format: <jdbcUrl>?user=<user>&password=<passwd>): url=%s, user=%s, password=%s",
 									fullJdbcUrl.split("\\?", 2)[0], user, (password != null) ? "****" : null);
 
-		return new Builder()
-					.jdbcUrl(jdbcUrl)
-					.user(user)
-					.password(password);
+		Builder builder = new Builder()
+							.jdbcUrl(jdbcUrl)
+							.user(user)
+							.password(password);
+		String maxPoolSize = parsed.get("maxPoolSize");
+		if ( maxPoolSize != null ) {
+			try {
+				builder.m_configMaxPoolSize = Integer.parseInt(maxPoolSize);
+			}
+			catch ( NumberFormatException e ) {
+				throw new IllegalArgumentException("invalid maxPoolSize: " + maxPoolSize, e);
+			}
+		}
+		return builder;
 	}
 
 	/**
@@ -637,6 +750,9 @@ public class JdbcProcessor {
 		private @Nullable String m_dbName;
 		private @Nullable File m_jarFile;
 		private @Nullable ClassLoader m_classLoader;
+		private boolean m_pooled = false;
+		private int m_maxPoolSize = 0;
+		private int m_configMaxPoolSize = 0;	// 연결 설정(JdbcConfiguration 등)에 지정된 값
 
 		private Builder() { }
 
@@ -776,6 +892,42 @@ public class JdbcProcessor {
 		}
 
 		/**
+		 * 연결 풀을 사용하도록 지정한다.
+		 * <p>
+		 * 생성된 processor의 {@link JdbcProcessor#connect()}는 {@link JdbcConnectionPools}의 연결 풀에서
+		 * 연결을 얻는다. 최대 풀 크기는 {@link JdbcProcessor#builder(JdbcConfiguration)}나
+		 * {@link JdbcProcessor#builderFromFullJdbcUrl(String)}로 전달된 연결 설정의 {@code maxPoolSize}가 0보다
+		 * 크면 그 값을, 아니면 {@link JdbcConnectionPools#DEFAULT_MAX_POOL_SIZE}를 사용한다.
+		 * <p>
+		 * 풀은 반환된 연결의 세션 상태 중 일부(auto-commit 등)만 복원하므로, {@code SET} 문 등으로 세션
+		 * 상태를 바꾸는 호출자는 사용 후 원래대로 돌려 놓아야 한다. 또한 연결 검사에 JDBC 4의
+		 * {@link Connection#isValid(int)}를 사용하므로, 이를 지원하지 않는 드라이버에는 쓸 수 없다.
+		 *
+		 * @return	자기 자신.
+		 */
+		public Builder pooled() {
+			m_pooled = true;
+			return this;
+		}
+
+		/**
+		 * 주어진 최대 크기의 연결 풀을 사용하도록 지정한다.
+		 * <p>
+		 * 같은 연결 정보의 풀이 이미 있으면 그 풀을 공유하며, 이때 풀의 크기는 바뀌지 않는다.
+		 *
+		 * @param maxPoolSize	최대 풀 크기. 0보다 커야 한다.
+		 * @return	자기 자신.
+		 * @throws IllegalArgumentException	{@code maxPoolSize}가 0 이하인 경우.
+		 * @see #pooled()
+		 */
+		public Builder pooled(int maxPoolSize) {
+			Preconditions.checkArgument(maxPoolSize > 0, "invalid maxPoolSize: %d", maxPoolSize);
+			m_pooled = true;
+			m_maxPoolSize = maxPoolSize;
+			return this;
+		}
+
+		/**
 		 * 설정된 정보로부터 {@link JdbcProcessor}를 생성한다.
 		 *
 		 * @return	생성된 {@link JdbcProcessor}.
@@ -829,6 +981,12 @@ public class JdbcProcessor {
 			}
 			if ( m_classLoader != null ) {
 				processor.m_cloader = m_classLoader;
+			}
+			if ( m_pooled ) {
+				processor.m_maxPoolSize = (m_maxPoolSize > 0) ? m_maxPoolSize
+										: (m_configMaxPoolSize > 0) ? m_configMaxPoolSize
+										: JdbcConnectionPools.DEFAULT_MAX_POOL_SIZE;
+				processor.m_poolKey = new PoolKey(jdbcUrl, m_user, m_passwd, driver, m_classLoader, m_jarFile);
 			}
 			return processor;
 		}

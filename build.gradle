@@ -31,6 +31,7 @@ ext {
 	commons_text_version = '1.15.0'
 	commons_lang3_version = '3.20.0'
 	okhttp_version = '4.12.0'
+	hikaricp_version = '5.1.0'
 	
 	jakarta_persistence_version = '3.1.0'
 
@@ -80,6 +81,9 @@ dependencies {
 	
 	// jakarta api
 	implementation "jakarta.persistence:jakarta.persistence-api:${jakarta_persistence_version}"
+
+	// JDBC connection pool (utils.jdbc.JdbcConnectionPools)
+	implementation "com.zaxxer:HikariCP:${hikaricp_version}"
 
 	// test (JUnit 5 / Jupiter)
 	testImplementation "org.junit.jupiter:junit-jupiter:${junit_jupiter_version}"

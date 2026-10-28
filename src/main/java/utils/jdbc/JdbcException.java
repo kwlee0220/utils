@@ -9,7 +9,7 @@ public class JdbcException extends RuntimeException {
 	private static final long serialVersionUID = -5253204991351254866L;
 	
 	public JdbcException(String details, Throwable cause) {
-		super(details);
+		super(details, cause);
 	}
 
 	public JdbcException(Throwable cause) {
