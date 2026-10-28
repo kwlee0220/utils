@@ -252,7 +252,7 @@ public class JdbcProcessor {
 		}
 		catch ( ReflectiveOperationException | SQLException e ) {
 			throw new JdbcException("fails to load JDBC driver class: name=" + m_driverClsName
-									+ ", jdbcUrl=" + m_jdbcUrl, e);
+									+ ", jdbcUrl=" + JdbcUtils.maskPassword(m_jdbcUrl), e);
 		}
 
 		try {
@@ -272,7 +272,8 @@ public class JdbcProcessor {
 			}
 		}
 		catch ( SQLException e ) {
-			throw new JdbcException("fails to connect: jdbcUrl=" + m_jdbcUrl + ", user=" + m_user, e);
+			throw new JdbcException("fails to connect: jdbcUrl=" + JdbcUtils.maskPassword(m_jdbcUrl)
+									+ ", user=" + m_user, e);
 		}
 	}
 
@@ -596,7 +597,8 @@ public class JdbcProcessor {
 	@Override
 	public String toString() {
 		String poolStr = (m_poolKey != null) ? ",maxPoolSize=" + m_maxPoolSize : "";
-		return String.format("%s?user=%s,driver=%s%s", m_jdbcUrl, m_user, m_driverClsName, poolStr);
+		return String.format("%s?user=%s,driver=%s%s", JdbcUtils.maskPassword(m_jdbcUrl), m_user,
+							m_driverClsName, poolStr);
 	}
 
 	/**

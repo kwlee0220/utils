@@ -133,7 +133,7 @@ public final class JdbcConnectionPools {
 		HikariDataSource pool = new HikariDataSource(conf);
 		// 비밀번호는 출력하지 않는다.
 		s_logger.info("created JDBC connection pool: name={}, url={}, user={}, maxSize={}",
-						poolName, jdbc.getJdbcUrl(), jdbc.getUser(), maxPoolSize);
+						poolName, JdbcUtils.maskPassword(jdbc.getJdbcUrl()), jdbc.getUser(), maxPoolSize);
 		return pool;
 	}
 
@@ -192,7 +192,8 @@ public final class JdbcConnectionPools {
 
 		@Override
 		public String toString() {
-			return String.format("%s?user=%s,driver=%s", m_jdbcUrl, m_user, m_driverClassName);
+			return String.format("%s?user=%s,driver=%s", JdbcUtils.maskPassword(m_jdbcUrl), m_user,
+								m_driverClassName);
 		}
 	}
 

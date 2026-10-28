@@ -119,7 +119,7 @@ public class JdbcConfiguration {
 	 */
 	@Override
 	public String toString() {
-		return String.format("%s?user=%s", m_jdbcUrl, m_user);
+		return String.format("%s?user=%s", JdbcUtils.maskPassword(m_jdbcUrl), m_user);
 	}
 
     public static JdbcConfiguration parseString(String fullJdbcUrl) {

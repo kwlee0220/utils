@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 import utils.CallHandler;
 import utils.Preconditions;
@@ -34,7 +35,32 @@ public final class JdbcUtils {
 	private JdbcUtils() {
 		throw new AssertionError("Should not be called: " + JdbcUtils.class);
 	}
-	
+
+	// URL 파라미터 형식의 비밀번호: ?password=xxx, &pwd=xxx, ;password=xxx (SQL Server 등)
+	private static final Pattern PASSWORD_PARAM
+					= Pattern.compile("([?&;](?:password|passwd|pwd)=)[^&;]*", Pattern.CASE_INSENSITIVE);
+	// 사용자 정보 형식의 비밀번호: //user:secret@host
+	private static final Pattern PASSWORD_USERINFO = Pattern.compile("(//[^/:@]+:)[^@/]*@");
+	private static final String MASK = "****";
+
+	/**
+	 * JDBC URL에 포함된 비밀번호를 가린 문자열을 반환한다.
+	 * <p>
+	 * 로그나 예외 메시지에 JDBC URL을 출력할 때 사용한다. {@code password=}·{@code passwd=}·{@code pwd=}
+	 * 파라미터(구분자 {@code ?}, {@code &}, {@code ;})와 {@code //user:password@host} 형식의 비밀번호를
+	 * {@value #MASK}로 바꾼다. 그 밖의 부분은 그대로 둔다.
+	 *
+	 * @param jdbcUrl	JDBC URL.
+	 * @return	비밀번호를 가린 URL. {@code jdbcUrl}이 {@code null}이면 {@code null}.
+	 */
+	public static String maskPassword(String jdbcUrl) {
+		if ( jdbcUrl == null ) {
+			return null;
+		}
+		String masked = PASSWORD_PARAM.matcher(jdbcUrl).replaceAll("$1" + MASK);
+		return PASSWORD_USERINFO.matcher(masked).replaceAll("$1" + MASK + "@");
+	}
+
 	/**
 	 * 주어진 Instant 객체를 Timestamp 객체로 변환한다.
 	 *
