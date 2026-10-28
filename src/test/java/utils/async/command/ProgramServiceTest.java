@@ -660,6 +660,67 @@ public class ProgramServiceTest {
 		Assertions.assertEquals(Service.State.FAILED, svc.state());
 	}
 
+	@Test
+	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
+	public void awaitCleanup_waits_for_start_cancelled_by_start_timeout() throws Exception {
+		// 시작 제한 시간 초과로 서비스가 먼저 FAILED가 되어도, 시작 중이던 실행의 정리가 끝나기 전에는
+		// awaitCleanup()이 정리 완료를 보고하지 않아야 한다. (awaitTerminated()는 FAILED에서 바로 반환한다.)
+		java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+		java.util.concurrent.Executor delaying = task -> new Thread(() -> {
+			try {
+				release.await();
+			}
+			catch ( InterruptedException e ) {
+				return;
+			}
+			task.run();
+		}).start();
+
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sleep", "31.8");
+		cfg.setStartTimeout(Duration.ofMillis(200));
+		ProgramService svc = ProgramService.create(cfg);
+		svc.setExecutor(delaying);
+
+		svc.startAsync();
+		Assertions.assertThrows(IllegalStateException.class, () -> svc.awaitRunning(5, TimeUnit.SECONDS));
+		Assertions.assertEquals(Service.State.FAILED, svc.state());
+		
+		// 서비스는 FAILED지만 시작 중인 실행은 아직 끝나지 않았다.
+		Assertions.assertFalse(svc.awaitCleanup(Duration.ofMillis(300)));
+
+		// 실행을 풀어 주면 취소·정리가 끝나고, 그 뒤에는 자식 프로세스가 남아 있지 않아야 한다.
+		release.countDown();
+		Assertions.assertTrue(svc.awaitCleanup(Duration.ofSeconds(10)));
+		Assertions.assertEquals(0, countSleepers("31.8"), "no child may remain once cleanup is reported");
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void awaitCleanup_after_stop_reports_cleanup() throws Exception {
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sleep", "31.9");
+		ProgramService svc = ProgramService.create(cfg);
+		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
+		
+		// 중지를 요청하지 않으면 종료 상태가 되지 않으므로 정리 완료가 아니다.
+		Assertions.assertFalse(svc.awaitCleanup(Duration.ofMillis(100)));
+		
+		svc.stopAsync();
+		Assertions.assertTrue(svc.awaitCleanup(Duration.ofSeconds(5)));
+		Assertions.assertEquals(Service.State.TERMINATED, svc.state());
+		Assertions.assertEquals(0, countSleepers("31.9"));
+	}
+
+	@Test
+	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+	public void awaitCleanup_after_start_failure_returns_true() throws Exception {
+		// 실행 파일이 없어 시작에 실패한 경우. 자식 프로세스가 없으므로 정리 완료로 본다.
+		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/nonexistent/program-service-test");
+		ProgramService svc = ProgramService.create(cfg);
+		svc.startAsync();
+		Assertions.assertTrue(svc.awaitCleanup(Duration.ofSeconds(5)));
+		Assertions.assertEquals(Service.State.FAILED, svc.state());
+	}
+
 	private static long countSleepers(String arg) {
 		return ProcessHandle.current().descendants()
 							.filter(ProcessHandle::isAlive)

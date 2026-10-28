@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -332,6 +333,37 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 			// 등록된 모든 변수를 close 시킨다.
 			FStream.from(m_variables.values())
 					.forEachOrIgnore(CommandVariable::close);
+		}
+	}
+	
+	/**
+	 * 실행이 종료 상태가 되고, 작업 쓰레드가 자식 프로세스 정리를 마칠 때까지 기다린다.
+	 * <p>
+	 * 종료 상태 전이는 대개 프로세스 정리를 마친 뒤에 일어나지만, 시작 중에 외부에서 종료가 통지된 경우(예: 취소,
+	 * {@code notifyFailed()})에는 종료 상태가 된 뒤에도 작업 쓰레드가 프로세스를 정리하고 있을 수 있다.
+	 * 본 메소드는 그 정리까지 기다리므로 자식 프로세스가 남지 않았음을 확인할 때 사용한다.
+	 * 취소는 요청하지 않으며, 아직 시작되지 않은 실행은 자식 프로세스가 없으므로 바로 {@code true}를 반환한다.
+	 *
+	 * @param timeout	최대 대기 시간.
+	 * @param unit		{@code timeout}의 단위.
+	 * @return	제한 시간 안에 정리가 끝났으면 {@code true}, 아니면 {@code false}.
+	 * @throws InterruptedException	대기 중 인터럽트된 경우.
+	 */
+	public boolean awaitCleanup(long timeout, TimeUnit unit) throws InterruptedException {
+		Preconditions.checkNotNullArgument(unit, "unit is null");
+		if ( isNotStarted() ) {
+			return true;
+		}
+		
+		long due = System.nanoTime() + unit.toNanos(timeout);
+		try {
+			waitForFinished(timeout, unit);
+			long remains = Math.max(due - System.nanoTime(), 0);
+			m_aopGuard.awaitCondition(() -> !m_workerActive, remains, TimeUnit.NANOSECONDS).andReturn();
+			return true;
+		}
+		catch ( TimeoutException e ) {
+			return false;
 		}
 	}
 	

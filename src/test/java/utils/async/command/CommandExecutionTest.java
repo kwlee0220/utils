@@ -988,6 +988,77 @@ public class CommandExecutionTest {
 	}
 
 	@Test
+	@org.junit.jupiter.api.Timeout(value = 20, unit = TimeUnit.SECONDS)
+	public void testAwaitCleanupWaitsForWorkerAfterExternalFailure() throws Exception {
+		// 초기화 도중 외부에서 notifyFailed()로 종료되면 실행은 이미 FAILED지만 작업 쓰레드는 아직 초기화 중이다.
+		// awaitCleanup()은 작업 쓰레드가 이후 시작된 프로세스를 정리할 때까지 정리 완료를 보고하지 않아야 한다.
+		File pidFile = new File(m_workDir, "pid");
+		java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
+		java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+		CommandVariable gate = new CommandVariable("gate", "ready", null, true) {
+			@Override
+			public synchronized String getValueByModifier(String modifier) {
+				entered.countDown();
+				try {
+					release.await(5, TimeUnit.SECONDS);
+				}
+				catch ( InterruptedException e ) {
+					Thread.currentThread().interrupt();
+				}
+				return "ready";
+			}
+		};
+		CommandExecution exec = CommandExecution.builder()
+												.addCommand("/bin/sh", "-c", "echo $$ > pid; exec sleep 30", "${gate:value}")
+												.workingDirectory(m_workDir)
+												.addVariable(gate)
+												.build();
+		exec.start();
+		Assertions.assertTrue(entered.await(5, TimeUnit.SECONDS));
+		exec.notifyFailed(new IllegalStateException("external failure during startup"));
+		Assertions.assertEquals(AsyncState.FAILED, exec.getState());
+		
+		// 종료 상태지만 작업 쓰레드가 아직 초기화 중이므로 정리 완료가 아니다.
+		Assertions.assertFalse(exec.awaitCleanup(200, TimeUnit.MILLISECONDS));
+		
+		release.countDown();
+		long due = System.currentTimeMillis() + 5_000;
+		while ( !(pidFile.exists() && pidFile.length() > 0) && System.currentTimeMillis() < due ) {
+			Thread.sleep(20);
+		}
+		long pid = Long.parseLong(Files.readString(pidFile.toPath()).trim());
+		try {
+			Assertions.assertTrue(exec.awaitCleanup(10, TimeUnit.SECONDS));
+			Assertions.assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false),
+									"the process must be cleaned up once awaitCleanup() reports cleanup");
+		}
+		finally {
+			ProcessHandle.of(pid).ifPresent(ProcessHandle::destroyForcibly);
+			exec.close();
+		}
+	}
+
+	@Test
+	public void testAwaitCleanupOfNotStartedExecution() throws Exception {
+		CommandExecution exec = CommandExecution.builder()
+												.addCommand("/bin/true")
+												.workingDirectory(m_workDir)
+												.build();
+		Assertions.assertTrue(exec.awaitCleanup(0, TimeUnit.MILLISECONDS));
+	}
+
+	@Test
+	public void testAwaitCleanupAfterCompletion() throws Exception {
+		CommandExecution exec = CommandExecution.builder()
+												.addCommand("/bin/true")
+												.workingDirectory(m_workDir)
+												.build();
+		exec.start();
+		Assertions.assertTrue(exec.awaitCleanup(5, TimeUnit.SECONDS));
+		Assertions.assertEquals(AsyncState.COMPLETED, exec.getState());
+	}
+
+	@Test
 	public void testVariableMapIsReadOnly() {
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/true")

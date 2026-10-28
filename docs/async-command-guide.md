@@ -469,6 +469,8 @@ try {
 
 서비스가 `FAILED`이면 `awaitRunning()`이나 `awaitTerminated()`는 `IllegalStateException`을 던질 수 있다. 대기 호출 자체의 시간 초과는 `TimeoutException`이며 서비스 중지를 뜻하지 않는다. 실패 원인은 `state()`를 확인한 뒤 `failureCause()`로 조회한다.
 
+`awaitTerminated()`는 서비스 상태만 기다린다. 시작 제한 시간 초과처럼 서비스가 먼저 `FAILED`가 되고 시작 중이던 실행의 취소·프로세스 정리는 그 뒤에 진행되는 경우가 있으므로, `FAILED`라고 해서 자식 프로세스가 정리됐다는 뜻은 아니다. 자식 프로세스가 남지 않았음을 확인해야 하는 종료 경로에서는 `awaitCleanup(Duration)`을 쓴다. 서비스가 종료 상태(`TERMINATED` 또는 `FAILED`)가 되고 마지막 실행의 프로세스 정리까지 끝나면 `true`, 제한 시간 안에 끝나지 않으면 `false`를 반환한다. 중지를 요청하지는 않으므로 먼저 `stopAsync()`를 호출한다. `CommandExecution`에도 같은 의미의 `awaitCleanup(long, TimeUnit)`이 있다. 실행이 종료 상태가 된 뒤에도 작업 쓰레드가 프로세스를 정리하는 중일 수 있기 때문이다.
+
 ### 7.2 JSON 설정 파일
 
 ```json
@@ -603,7 +605,7 @@ try (ServiceShutdownHook.Registration registration =
 }
 ```
 
-훅의 기본 종료 대기 시간은 3초다. 음수는 허용하지 않고 0은 허용한다. 이 시간은 `stopAsync()`를 호출한 뒤의 종료 대기에 적용된다. 지정 시간 안에 끝나지 않으면 훅은 경고를 기록하고 대기를 끝낸다. 등록 해제는 여러 번 호출해도 되며, JVM 종료가 이미 진행 중인 경우에는 해제를 시도하다 발생하는 `IllegalStateException`을 무시한다.
+훅의 기본 종료 대기 시간은 3초다. 음수는 허용하지 않고 0은 허용한다. 이 시간은 `stopAsync()`를 호출한 뒤의 종료 대기에 적용된다. 대상이 `ProgramService`이면 훅은 `awaitTerminated()` 대신 `awaitCleanup()`으로 자식 프로세스 정리 완료까지 기다리므로, 서비스가 이미 `FAILED`여도 진행 중인 정리를 기다린다. 지정 시간 안에 끝나지 않으면 훅은 경고를 기록하고 대기를 끝낸다. 등록 해제는 여러 번 호출해도 되며, JVM 종료가 이미 진행 중인 경우에는 해제를 시도하다 발생하는 `IllegalStateException`을 무시한다.
 
 훅은 `ProgramService` 외의 Guava `Service`에도 사용할 수 있다. JVM이 훅을 실행할 기회 없이 강제 종료되는 경우까지 정리를 보장하지는 않는다.
 

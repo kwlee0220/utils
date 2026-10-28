@@ -21,7 +21,8 @@ import utils.func.Optionals;
  * service에 다시 {@code stopAsync()}가 호출되어 잡음 로그가 출력된다.
  * <p>
  * Hook은 service에 {@code stopAsync()}를 호출한 뒤 종료 대기 시간(기본 {@link #DEFAULT_TERMINATION_TIMEOUT})
- * 동안 TERMINATED가 되기를 기다린다. 자식 프로세스 정리처럼 시간이 더 필요한 service는
+ * 동안 TERMINATED가 되기를 기다린다. {@link ProgramService}는 서비스가 FAILED여도 자식 프로세스 정리가 끝나지
+ * 않았을 수 있으므로 {@link ProgramService#awaitCleanup(Duration)}으로 정리 완료까지 기다린다. 자식 프로세스 정리처럼 시간이 더 필요한 service는
  * {@link #register(String, Service, Duration)}로 대기 시간을 지정한다.
  *
  * @author Kang-Woo Lee (ETRI)
@@ -81,6 +82,14 @@ public final class ServiceShutdownHook implements Runnable, LoggerSettable {
 
 		m_service.stopAsync();
 		try {
+			if ( m_service instanceof ProgramService program ) {
+				// FAILED 상태여도 자식 프로세스 정리가 진행 중일 수 있으므로 정리 완료까지 기다린다.
+				if ( !program.awaitCleanup(m_terminationTimeout) ) {
+					getLogger().warn("Failed to cleanly shutdown {} within {}", m_service, m_terminationTimeout);
+				}
+				return;
+			}
+			
 			// 정상적으로 종료될 때까지 잠시 대기
 			m_service.awaitTerminated(m_terminationTimeout.toNanos(), TimeUnit.NANOSECONDS);
 		}

@@ -105,6 +105,9 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	private final ArrayDeque<Long> m_restartNanos = new ArrayDeque<>();
 	// 현재 실행의 자식 프로세스가 시작된(RUNNING) 시각. 시작되지 못한 실행은 -1.
 	private volatile long m_runStartNanos = -1;
+	// 가장 최근에 구성한 명령 실행. 서비스가 종료 상태가 된 뒤 자식 프로세스 정리가 끝났는지 확인하는 데 쓴다
+	// (awaitCleanup). 다음 실행은 이전 실행이 종료된 뒤에 구성되므로 가장 최근 실행만 확인하면 된다.
+	@Nullable private volatile CommandExecution m_lastCmdExec = null;
 	// 운영 조회용 통계. 쓰기는 순차적인 실행 콜백에서만 일어난다.
 	private volatile int m_restartCount = 0;
 	private volatile OptionalInt m_lastExitCode = OptionalInt.empty();
@@ -225,6 +228,39 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	 */
 	public OptionalInt getLastExitCode() {
 		return m_lastExitCode;
+	}
+
+	/**
+	 * 서비스가 종료 상태(TERMINATED 또는 FAILED)가 되고, 서비스가 실행한 자식 프로세스의 정리까지 끝나기를 기다린다.
+	 * <p>
+	 * {@link #awaitTerminated(long, TimeUnit)}는 서비스 상태만 기다리며 FAILED이면 바로 예외를 던진다. 그런데
+	 * 시작 제한 시간 초과처럼 서비스가 먼저 FAILED가 되고 실행 취소와 자식 프로세스 정리는 그 뒤에 진행되는 경우가
+	 * 있다. 본 메소드는 그 정리가 끝날 때까지 기다리므로, 자식 프로세스가 남지 않았음을 확인해야 하는 종료 경로
+	 * (JVM 종료 hook 등)에서 사용한다. 중지를 요청하지는 않으므로 필요하면 먼저 {@link #stopAsync()}를 호출한다.
+	 *
+	 * @param timeout	최대 대기 시간.
+	 * @return	제한 시간 안에 종료 상태가 되고 정리가 끝났으면 {@code true}, 아니면 {@code false}.
+	 * @throws InterruptedException	대기 중 인터럽트된 경우.
+	 */
+	public boolean awaitCleanup(Duration timeout) throws InterruptedException {
+		Preconditions.checkNotNullArgument(timeout, "timeout is null");
+		
+		long due = System.nanoTime() + timeout.toNanos();
+		try {
+			awaitTerminated(timeout.toNanos(), TimeUnit.NANOSECONDS);
+		}
+		catch ( TimeoutException e ) {
+			return false;
+		}
+		catch ( IllegalStateException e ) {
+			// FAILED로 끝난 경우. 실행 정리가 아직 진행 중일 수 있으므로 아래에서 확인한다.
+		}
+		
+		CommandExecution last = m_lastCmdExec;
+		if ( last == null ) {
+			return true;
+		}
+		return last.awaitCleanup(Math.max(due - System.nanoTime(), 0), TimeUnit.NANOSECONDS);
 	}
 
 	void setExecutor(@Nullable Executor executor) {
@@ -350,6 +386,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	 */
 	private StartableExecution<Void> buildExecution(boolean firstExec, Duration restartDelay) {
 		CommandExecution cmdExec = buildCommandExecution();
+		m_lastCmdExec = cmdExec;
 		cmdExec.whenStarted(() -> m_runStartNanos = System.nanoTime());
 		// 종료 코드는 재시작 판단(onExecutionFinished)보다 먼저 기록되도록 먼저 등록한다.
 		cmdExec.whenFinished(r -> cmdExec.getExitCode().ifPresent(code -> m_lastExitCode = OptionalInt.of(code)));
