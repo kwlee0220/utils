@@ -15,9 +15,6 @@ java {
 // (예: Duration.isPositive())를 써도 컴파일되어, Java 17 기준인 Eclipse 빌드와 결과가 달라진다.
 [compileJava,compileTestJava]*.options*.release = 17
 
-// MDT 프로젝트와 겹치는 라이브러리(slf4j, logback, jackson, lombok, okhttp, beanutils, junit, mockito)는
-// mdt-client/gradle/libs.versions.toml과 같은 버전으로 맞춘다. utils는 MDT 밖의 프로젝트도 함께 빌드하므로
-// 카탈로그를 직접 쓰지 않는다.
 ext {
 	slf4j_version = '2.0.17'
 	logback_version = '1.5.20'
