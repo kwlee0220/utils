@@ -433,7 +433,8 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					m_asyncResult = AsyncResult.failed(cause);
 			    	m_aopState = AsyncState.FAILED;
 			    	m_aopGuard.signalAll();
-					getLogger().info("failed: {}, cause={}", this, cause.toString());
+					// cause가 null이어도 로그 때문에 아래의 종료 리스너 호출이 건너뛰어지지 않도록 한다.
+					getLogger().info("failed: {}, cause={}", this, "" + cause);
 					
 					notifyFinishListenersInGuard();
 			    	return true;

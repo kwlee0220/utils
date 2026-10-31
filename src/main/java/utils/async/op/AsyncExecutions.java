@@ -218,7 +218,9 @@ public final class AsyncExecutions {
 	/**
 	 * 주어진 실행들을 동시에 수행하는 합성 실행을 생성한다.
 	 * <p>
-	 * 모든 실행이 완료되면 전체가 완료되며, 어느 하나라도 실패하면 전체가 실패한다.
+	 * 모든 실행이 종료되면 전체가 완료({@code COMPLETED})된다. 개별 실행이 실패하거나 취소되어도 전체는
+	 * 실패하지 않는다. 성공한 실행 수로 완료 조건을 정하는 방법은
+	 * {@link ConcurrentAsyncExecution#setElementCompletionCountToComplete(int)}를 참고한다.
 	 *
 	 * @param elements 동시에 수행할 실행들
 	 * @return {@link ConcurrentAsyncExecution}
@@ -286,8 +288,9 @@ public final class AsyncExecutions {
 	/**
 	 * 주어진 실행에 타임아웃을 적용한 합성 실행을 생성한다.
 	 * <p>
-	 * 타임아웃 내에 완료되지 않으면 {@code target}이 cancel되고 합성 실행은
-	 * 타임아웃 실패로 종료된다.
+	 * 타임아웃 내에 완료되지 않으면 {@code target}을 {@code cancel(true)}로 취소하고, 합성 실행은
+	 * 실패가 아니라 취소({@code CANCELLED})로 종료된다. 시간 초과로 취소되었는지는
+	 * {@link TimedAsyncExecution#isTimedoutCancelled()}로 구분한다.
 	 *
 	 * @param <T>       결과 타입
 	 * @param target    타임아웃을 적용할 실행
@@ -302,7 +305,8 @@ public final class AsyncExecutions {
 
 	/**
 	 * 주어진 실행에 타임아웃을 적용한 합성 실행을 생성한다. 타임아웃 트리거에는 공용 스케줄러
-	 * ({@link Executions#getExecutor()})를 사용한다.
+	 * ({@link Executions#getExecutor()})를 사용한다. 시간이 초과되면 합성 실행은 취소({@code CANCELLED})로
+	 * 종료된다({@link #timed(StartableExecution, Duration, ScheduledExecutorService)} 참고).
 	 *
 	 * @param <T>     결과 타입
 	 * @param target  타임아웃을 적용할 실행

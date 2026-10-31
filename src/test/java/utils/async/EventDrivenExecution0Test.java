@@ -104,4 +104,17 @@ public class EventDrivenExecution0Test {
 			m_exec.notifyFailed(m_cause);
 			});
 	}
+
+	@Test
+	public void notifyFailed_null_cause_still_runs_finish_listener() {
+		// 로그에서 cause.toString()을 호출하여 NPE가 나면 종료 리스너가 건너뛰어지던 문제의 회귀 테스트.
+		java.util.concurrent.atomic.AtomicInteger finished = new java.util.concurrent.atomic.AtomicInteger();
+		m_exec.whenFinished(result -> finished.incrementAndGet());
+		m_exec.notifyStarting();
+		m_exec.notifyStarted();
+
+		Assertions.assertTrue(m_exec.notifyFailed(null));
+		Assertions.assertEquals(AsyncState.FAILED, m_exec.getState());
+		Assertions.assertEquals(1, finished.get());
+	}
 }

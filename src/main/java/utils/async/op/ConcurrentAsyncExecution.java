@@ -18,10 +18,15 @@ import utils.func.Try;
 /**
  * 주어진 복수의 {@link StartableExecution}을 동시에 수행시키는 합성 비동기 수행 클래스.
  * <p>
- * 본 연산이 시작되면 모든 원소가 동시에 시작된다. 기본적으로 모든 원소가 성공 완료되어야
- * 본 연산도 완료되며, {@link #setElementCompletionCountToComplete(int)}로 부분 완료 기준을
- * 지정할 수 있다 (예: N개만 성공해도 완료로 간주). 본 연산은 항상 결과 값으로 {@code null}을
- * 반환한다.
+ * 본 연산이 시작되면 모든 원소가 동시에 시작된다. 본 연산은 다음 중 먼저 만족하는 조건에서 완료
+ * ({@code COMPLETED})되며, 항상 결과 값으로 {@code null}을 반환한다.
+ * <ul>
+ *   <li>모든 원소가 종료되었다. 원소가 성공했는지, 실패·취소되었는지는 따지지 않는다.</li>
+ *   <li>성공 완료한 원소 수가 완료 기준에 도달했다. 기준의 기본값은 전체 원소 수이며,
+ *       {@link #setElementCompletionCountToComplete(int)}로 바꿀 수 있다(예: N개만 성공해도 완료).</li>
+ * </ul>
+ * 따라서 기본 설정에서는 원소 일부가 실패해도 본 연산은 실패하지 않고, 모든 원소가 끝나면 완료된다.
+ * 원소의 결과가 필요하면 각 원소를 직접 확인한다.
  * <ul>
  *   <li>원소의 실패/취소는 본 연산을 실패/취소시키지 않으나, 성공 완료 카운트에는 포함되지 않는다.</li>
  *   <li>완료 임계값에 도달하면 아직 수행 중인 원소들은 강제 취소된다.</li>
@@ -43,8 +48,8 @@ public class ConcurrentAsyncExecution extends AbstractAsyncExecution<Void>
 	/**
 	 * 동시 수행 비동기 수행 객체를 생성한다.
 	 * <p>
-	 * 기본적으로 모든 원소가 성공 완료되어야 본 연산이 완료된다. 부분 완료 기준은
-	 * {@link #setElementCompletionCountToComplete(int)}로 별도 지정한다.
+	 * 기본적으로 모든 원소가 종료되면(성공·실패·취소와 관계없이) 본 연산이 완료된다. 성공한 원소 수로
+	 * 완료하려면 {@link #setElementCompletionCountToComplete(int)}로 기준을 지정한다.
 	 *
 	 * @param elements	동시 수행될 비동기 수행 객체 배열.
 	 * @throws IllegalArgumentException	<code>elements</code>가 <code>null</code>인 경우.
