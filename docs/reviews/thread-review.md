@@ -27,11 +27,11 @@
 | 1 | 버그 | 높음 | `InterThreadShareSupplier`: 대기 제한을 정하지 않으면(기본값) 진행 중인 생성을 기다리지 않음 | 완료 |
 | 2 | 버그 | 높음 | `Timer`: 64개 상한에서 조용히 버리고, 끝난 실행이 자리를 계속 차지해 살아 있는 타임아웃이 사라짐 | 완료 |
 | 3 | 버그 | 중간 | `Timer`: 타이머 lock을 쥔 채 `cancel()`·`isDone()` 호출 → 모든 타이머 지연, lock 순서 역전 | 완료 |
-| 4 | 버그 | 높음 | `RecurringScheduleThread.waitForStopped(long)`: 작업 스레드에서 부르면 lock을 놓지 않고 예외 | 대기 |
-| 5 | 버그 | 중간 | `RecurringScheduleThread.setLogger()` 조건 반전 | 대기 |
-| 6 | 버그 | 중간 | `RecurringScheduleThread.getState()`가 `WORKING`을 돌려주지 않음 | 대기 |
-| 7 | 버그 | 중간 | `RecurringScheduleThread.start()`: `onStarted` 실패를 예외로 알리지 않음 | 대기 |
-| 8 | 버그 | 낮음 | `RecurringScheduleThread.stop()`: 시작 전에 부르면 NPE 또는 `STOPPING`에 영구 정지 | 대기 |
+| 4 | 버그 | 높음 | `RecurringScheduleThread.waitForStopped(long)`: 작업 스레드에서 부르면 lock을 놓지 않고 예외 | 완료 |
+| 5 | 버그 | 중간 | `RecurringScheduleThread.setLogger()` 조건 반전 | 완료 |
+| 6 | 버그 | 중간 | `RecurringScheduleThread.getState()`가 `WORKING`을 돌려주지 않음 | 완료 |
+| 7 | 버그 | 중간 | `RecurringScheduleThread.start()`: `onStarted` 실패를 예외로 알리지 않음 | 완료 |
+| 8 | 버그 | 낮음 | `RecurringScheduleThread.stop()`: 시작 전에 부르면 NPE 또는 `STOPPING`에 영구 정지 | 완료 |
 | 9 | 버그 | 높음(사용처 없음) | `CamusExecutorImpl` / `RecurringScheduleImpl`: 교착, 잘못된 대기, `ClassCastException` 등 다수 | 대기 |
 | 10 | 버그 | 중간 | `SingleWaiterExecutor`: `start()`가 예외를 던지면 이후 작업이 영원히 대기 | 대기 |
 | 11 | 버그 | 중간 | `Guard`: `InterruptedException`을 던지면서 인터럽트 플래그도 다시 설정 | 대기 |
@@ -48,6 +48,7 @@
 | 22 | 이름 | — | 클래스·메소드 이름 변경 | 대기 |
 | 23 | 테스트 | — | 테스트 공백 | 대기 |
 | 24 | 문서 | 낮음 | README·CLAUDE.md를 수정 결과에 맞추기 | 대기 |
+| 25 | 버그 | 높음 | `RecurringScheduleThread`(외부 검토): lock 안 `interrupt()`, 초기화 중 `stop()` 교착, 주기 값 검사·넘침, `performNow()`의 지연 보정 왜곡 | 완료 |
 
 권장 순서: 15(삭제 결정) → 2·3·19(`Timer`, 영향 범위가 가장 큼) → 11(`Guard`) → 4~8(marmot 사용) → 1·10·9(삭제하지 않기로 한 것만) → 나머지.
 삭제하기로 한 클래스는 그 클래스의 버그 항목을 `기각`(삭제로 해소)으로 바꾼다.
@@ -95,35 +96,53 @@
 - 위치: [RecurringScheduleThread.java:206-214](../../src/main/java/utils/thread/RecurringScheduleThread.java#L206-L214)
 - 문제: `m_lock.lock()`을 한 뒤 `try` 블록에 들어가기 **전에** "작업 스레드에서 호출" 검사로 `RuntimeException`을 던진다. 그래서 lock이 풀리지 않는다. 작업 스레드가 lock을 쥔 채 남으므로, 이후 `stop()`·`getState()`·다른 스레드의 `waitForStopped()`가 모두 멈춘다. 인자 없는 `waitForStopped()`는 검사가 `try` 안에 있어 문제가 없다.
 - 제안: 검사를 `try` 안으로 옮긴다(또는 lock을 잡기 전에 한다). marmot이 이 클래스를 쓰므로 우선 처리한다.
-- 결과:
+- 결과: 완료(미커밋). 작업 스레드 검사를 `try` 안으로 옮겼다. 테스트 `timed_wait_for_stopped_from_perform_releases_the_lock` — 옛 구현으로 돌리면 테스트가 끊을 수 없는 `lock()`에서 멈춰 끝나지 않는 것으로 재현을 확인했다.
 
 ### #5 `RecurringScheduleThread.setLogger()` 조건 반전 — 중간
 
 - 위치: [RecurringScheduleThread.java:85-87](../../src/main/java/utils/thread/RecurringScheduleThread.java#L85-L87)
 - 문제: `m_logger = logger == null ? logger : s_logger;`라서, 로거를 주면 무시하고 기본 로거를 쓰고, `null`을 주면 `null`을 넣어 이후 로그에서 NPE가 난다. `RecurringScheduleImpl.setLogger()`는 `null`을 그대로 넣는다([RecurringScheduleImpl.java:57](../../src/main/java/utils/thread/RecurringScheduleImpl.java#L57)).
 - 제안: `logger != null ? logger : s_logger`.
-- 결과:
+- 결과: 완료(미커밋). `logger != null ? logger : s_logger`. 테스트 `set_logger_uses_the_given_logger_and_null_restores_the_default`. (`RecurringScheduleImpl.setLogger`의 `null` 문제는 #9에서 함께 다룸.)
 
 ### #6 `RecurringScheduleThread.getState()`가 `WORKING`을 돌려주지 않음 — 중간
 
 - 위치: [RecurringScheduleThread.java:33-35](../../src/main/java/utils/thread/RecurringScheduleThread.java#L33-L35)
 - 문제: `STATE_MAPPING`이 내부 상태 `STATE_RUNNING_WORKING`(3)을 `State.IDLE`로 바꾼다. 인터페이스의 `WORKING`은 이 구현에서 나오지 않는다. `STATE_NOT_STARTED`(0)도 `STARTING`으로 보인다(시작 전인데 "시작 중").
 - 제안: 3 → `WORKING`. 시작 전 상태는 `State`에 `NOT_STARTED`를 추가하거나(인터페이스 변경, #20과 함께), 현재처럼 두되 Javadoc에 적는다.
-- 결과:
+- 결과: 완료(미커밋). 작업 중은 `WORKING`, 시작 전은 `STOPPED`로 보고한다(`RecurringScheduleImpl`과 같음; `NOT_STARTED` 추가는 #20). 테스트 `get_state_reports_working_while_performing`.
 
 ### #7 `RecurringScheduleThread.start()`: 시작 실패를 알리지 않음 — 중간
 
 - 위치: [RecurringScheduleThread.java:128-151](../../src/main/java/utils/thread/RecurringScheduleThread.java#L128-L151)
 - 문제: 인터페이스는 `onStarted()`가 실패하면 `ExecutionException`을 던진다고 정한다. 이 구현은 작업 스레드에서 `onStarted()`가 실패하면 상태를 `STOPPED`로 바꿀 뿐이고, `start()`는 정상 반환한다. 호출자는 `getFailureCause()`를 따로 확인하지 않으면 시작에 실패한 줄 모른다. `RecurringScheduleImpl.start()`는 계약대로 던진다.
 - 제안: 시작 대기에서 깨어난 뒤 상태가 `STOPPED`이고 실패 원인이 있으면 `ExecutionException`을 던진다.
-- 결과:
+- 결과: 완료(미커밋). `onStarted()` 실패 시 `start()`가 `ExecutionException`을 던진다. 첫 `perform()`이 곧바로 실패해 `start()`가 깨기 전에 `STOPPED`가 되는 경우와 구분하려고 `m_startFailed` 플래그를 둔다. 테스트 `start_throws_when_on_started_fails`, `start_does_not_throw_when_the_first_perform_fails_quickly`. marmot은 `onStarted()`가 실패하지 않는 코드라 영향 없음.
 
 ### #8 `RecurringScheduleThread.stop()`: 시작 전 호출 — 낮음
 
 - 위치: [RecurringScheduleThread.java:154-185](../../src/main/java/utils/thread/RecurringScheduleThread.java#L154-L185)
 - 문제: 시작 전(`STATE_NOT_STARTED`)에 부르면 상태를 `STOPPING`으로 바꾼다. 작업 스레드가 없으므로 `mayInterruptIfRunning=true`이면 `m_performThread.interrupt()`에서 NPE가 나고, 아니면 `STOPPING`에 영원히 머물러 `waitForStopped()`가 끝나지 않는다.
 - 제안: 시작 전이면 바로 `STOPPED`로 바꾸고 반환한다.
-- 결과:
+- 결과: 완료(미커밋). 시작 전 `stop()`은 바로 `STOPPED`로 바꾸고 반환한다(`onStarted()`를 부르지 않았으므로 `onStopped()`도 부르지 않음). 테스트 `stop_before_start_stops_immediately`.
+
+### #25 `RecurringScheduleThread`: 외부 검토 지적 — 높음
+
+#4~#8 수정본에 대한 외부 검토에서 나온 항목. 넷 다 원래 코드에 있던 문제다.
+
+- (1) `stop()`이 `m_lock`을 쥔 채 `InterruptableWork.interrupt()`를 부른다. 그 메소드가 `perform()`이 끝나기를 기다리는데 작업 스레드가 같은 lock(`getState()`, 종료 처리)을 기다리면 교착된다.
+- (2) `stop()`이 `STARTING`이 끝나기를 기다린다. `onStarted()` 안에서 `stop()`을 부르면 자기 자신을 기다려 교착되고 `start()` 호출자도 멈춘다.
+- (3) 생성자·`setInterval()`이 값을 검사하지 않고, `m_interval * 1000000`이 넘친다(넘치면 음수가 되어 기다리지 않고 계속 수행).
+- (4) 대기에서 깨어난 이유와 관계없이 `경과 - 주기`를 지연 보정 표본으로 기록해, `performNow()`로 일찍 깨우면 다음 대기가 약 두 배가 된다.
+- 문서: `waitForStopped(long)` Javadoc이 `TimeoutException`을 적고 있으나 실제로는 `false`를 반환한다.
+- 결과: 완료(미커밋).
+  - (1) lock 안에서는 `STOPPING` 표시와 대상 확보만 하고, `interrupt()`·쓰레드 인터럽트는 lock 밖에서 한 번만 요청한다(`m_interruptRequested`; `stop(false)` 뒤의 `stop(true)`는 인터럽트로 올릴 수 있다). 작업 쓰레드 자신이 부른 경우는 요청하지 않는다.
+  - (2) `STARTING` 중의 `stop()`은 기다리지 않고 `STOPPING`으로 표시한 뒤 반환한다. `start()`는 상태 대신 `m_startCompleted`를 기다리고, 초기화가 끝나면 `perform()` 없이 종료한다(성공했으면 `onStopped()` 호출, 실패했으면 호출하지 않음). 종료 처리의 `STARTING` 분기는 없앴다.
+  - (3) 생성 시 `work != null`, `interval > 0`, `initialDelay >= 0`, `setInterval()`도 `> 0`을 검사한다(`IllegalArgumentException`). 나노초 변환은 `TimeUnit.toNanos()`(포화)이고 시각 비교는 모두 차이로 한다.
+  - (4) 다음 수행 기한(`dueNano`)과 `m_runNowRequested`를 두고 조건 반복문으로 기다린다. 기한에 도달한 대기만 표본으로 쓰고, 다른 이유로 깨어나면 남은 시간을 다시 기다린다.
+  - 함께 결정: `performNow()`가 요청을 받았는지 `boolean`으로 돌려준다(인터페이스 변경; utils 밖 사용처 없음, `RecurringScheduleImpl`은 계속 `UnsupportedOperationException`). 팩토리 Javadoc에 fixed-rate가 밀린 수행을 따라잡지 않는다는 점, `setInterval()`은 다음 대기부터 적용된다는 점을 적었다.
+  - 적용하지 않음: `StopMode`/`requestStop`, `requestRunNow`, `Duration`·`NEW` 상태(#20), 클래스·멤버 이름 변경.
+  - 테스트: `stop_calls_interruptable_work_outside_the_lock`, `stop_from_on_started_stops_without_performing`, `stop_during_on_started_returns_without_waiting`, `invalid_intervals_are_rejected`, `a_huge_interval_does_not_overflow`, `perform_now_reports_whether_the_request_was_accepted`, `perform_now_does_not_lengthen_the_next_fixed_rate_interval`. 뒤의 셋(검사·넘침·보정)은 옛 구현으로 돌려 실패를 확인했다. 교착 테스트 둘은 옛 구현에서 끊을 수 없는 `lock()`에 걸리므로 돌리지 않았다.
 
 ### #9 `CamusExecutorImpl` / `RecurringScheduleImpl`: 다수의 결함 — 높음(단, 사용처 없음)
 

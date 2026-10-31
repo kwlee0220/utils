@@ -91,7 +91,7 @@ public class RecurringScheduleImpl implements RecurringSchedule, LoggerSettable 
 	}
 
 	@Override
-	public void performNow() {
+	public boolean performNow() {
 		throw new UnsupportedOperationException();
 	}
 

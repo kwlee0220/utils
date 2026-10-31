@@ -283,24 +283,26 @@ executor.stop(true);        // 스케줄 정리가 끝난 뒤 실행기 종료 �
 | 항목 | `RecurringScheduleThread` | `RecurringScheduleImpl` |
 |---|---|---|
 | `onStarted()` 실행 위치 | 전용 작업 스레드 | `start()`를 호출한 스레드 |
-| 초기화 실패 확인 | `getFailureCause()` 확인. 현재 구현은 `start()`에서 원인을 예외로 전달하지 않음 | `start()`가 `ExecutionException`을 던짐 |
+| 초기화 실패 확인 | `start()`가 `ExecutionException`을 던짐(2026-10-31 이전에는 정상 반환했음) | `start()`가 `ExecutionException`을 던짐 |
 | `perform()` 실행 위치 | 전용 작업 스레드 | 실행기 풀의 스레드 |
-| `performNow()` | `IDLE`일 때 대기를 깨움 | `UnsupportedOperationException` 발생 |
+| `performNow()` | `IDLE`일 때만 즉시 수행을 요청하고 `true` 반환. 수행 중·시작 전·종료 후에는 요청을 버리고 `false` 반환 | `UnsupportedOperationException` 발생 |
 | 시간 제한 종료 대기 | `waitForStopped(millis)` 제공 | 동일 API가 있으나 현재 시간 계산 오류가 있음(7.6) |
+| 초기화 중 `stop()` | 기다리지 않고 중지를 요청해 둔다. 초기화가 끝나면 `perform()` 없이 종료(초기화가 성공했으면 `onStopped()` 호출). `onStarted()` 안에서 자기 스케줄을 멈춰도 된다 | `onStarted()`가 끝날 때까지 기다림 |
+| 주기 값 검사 | 생성 시 `interval > 0`, `initialDelay >= 0`, `setInterval()`도 `> 0`이 아니면 `IllegalArgumentException` | 검사하지 않음 |
 
 ### 4.4 상태 확인과 종료
 
 | 메서드 | 설명 |
 |---|---|
-| `getState()` | `STARTING`(초기화), `WORKING`(작업 중), `IDLE`(다음 작업 대기), `STOPPING`(중지 중), `STOPPED`(중지됨) |
+| `getState()` | `STARTING`(초기화), `WORKING`(작업 중), `IDLE`(다음 작업 대기), `STOPPING`(중지 중), `STOPPED`(중지됨 또는 시작 전) |
 | `getFailureCause()` | 기록된 실패 원인 확인. 초기화 실패 전달 방식은 4.3 참고 |
-| `getInterval()` / `setInterval(millis)` | 반복 주기 조회·변경. 이미 시작한 대기 시간을 즉시 바꾼다는 의미는 아님 |
+| `getInterval()` / `setInterval(millis)` | 반복 주기 조회·변경. 전용 스레드 구현에서는 다음 대기부터 적용되며 이미 시작한 대기 시간은 바꾸지 않는다 |
 | `start()` | 초기화 후 반복 시작 |
-| `stop(mayInterruptIfRunning)` | 중지 요청. 정리가 끝나기 전에 반환할 수 있음 |
+| `stop(mayInterruptIfRunning)` | 중지 요청. 정리가 끝나기 전에 반환할 수 있음. 시작 전에 부르면 바로 `STOPPED`가 된다(`onStopped()`는 부르지 않음) |
 | `waitForStopped()` | `STOPPED`가 될 때까지 대기 |
 | `waitForStopped(millis)` | 시간 제한 종료 대기. 정상 종료 시 `true`, 시간 만료 시 `false` |
 
-`stop()`은 언제나 즉시 반환하는 메서드가 아니다. 초기화 중에는 초기화가 끝나기를 기다리고, 사용자 정의 `interrupt()`나 내부 취소 처리에도 시간이 걸릴 수 있다.
+`stop()`은 언제나 즉시 반환하는 메서드가 아니다. 사용자 정의 `interrupt()`나 내부 취소 처리에 시간이 걸릴 수 있고, `RecurringScheduleImpl`은 초기화 중이면 초기화가 끝나기를 기다린다. 전용 스레드 구현은 초기화를 기다리지 않으며, 사용자 정의 `interrupt()`와 스레드 인터럽트를 lock 밖에서 한 번만 요청한다(작업 스레드 자신이 `stop()`을 부른 경우에는 요청하지 않는다). 그래서 `interrupt()`가 `perform()`이 끝나기를 기다려도 교착되지 않는다.
 
 두 구현 모두 작업이 `InterruptableWork`이면 `stop(false)`에서도 사용자 정의 `interrupt()`를 호출한다. 전용 스레드 구현에서는 이 메서드가 있으면 `stop(true)`도 `Thread.interrupt()` 대신 해당 메서드를 사용한다. 따라서 인자만 보고 작업 스레드에 인터럽트가 전달됐다고 판단해서는 안 된다.
 
@@ -546,7 +548,6 @@ m_guard.awaitCondition(() -> m_state == State.READY)
 | 항목 | 현재 동작 | 사용 시 유의점 |
 |---|---|---|
 | `RecurringScheduleImpl.performNow()` | 지원하지 않으며 예외 발생 | 즉시 실행 기능이 필요하면 구현체를 확인 |
-| `RecurringScheduleThread.start()` 초기화 실패 | 실패 원인을 기록하지만 호출자에게 예외로 전달하지 않음 | `getFailureCause()`도 확인 |
 | `RecurringScheduleImpl.waitForStopped(millis)` | `awaitNanos()`에 남은 시간 대신 마감 계산값을 전달 | 지정한 시간보다 오래 기다릴 수 있으므로 엄격한 종료 제한으로 사용하지 않음 |
 
 이 표는 현재 소스에서 확인한 동작이다. 해당 구현이 수정되면 문서의 제약도 함께 갱신해야 한다.

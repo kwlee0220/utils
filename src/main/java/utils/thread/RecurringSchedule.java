@@ -1,7 +1,6 @@
 package utils.thread;
 
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 
 
 /**
@@ -35,7 +34,13 @@ public interface RecurringSchedule {
 	 */
 	public void setInterval(long millis);
 	
-	public void performNow();
+	/**
+	 * 다음 주기를 기다리지 않고 바로 {@link RecurringWork#perform()}을 수행하도록 요청한다.
+	 *
+	 * @return	요청을 받았으면 {@code true}, 받을 수 없는 상태(예: 수행 중)여서 버렸으면 {@code false}.
+	 * @throws UnsupportedOperationException	구현이 즉시 수행을 지원하지 않는 경우.
+	 */
+	public boolean performNow();
 
 	/**
 	 * 반복 수행 작업을 시작시킨다.
@@ -88,7 +93,7 @@ public interface RecurringSchedule {
 
 	/**
 	 * 반복 수행 작업이 완전히 종료될 때까지 주어진 시간 내에서 대기한다.
-	 * 만일 주어진 시간 내에 스케쥴이 완료되지 않으면 {@link TimeoutException} 예외가 발생된다.
+	 * 만일 주어진 시간 내에 스케쥴이 완료되지 않으면 {@code false}를 반환한다.
 	 * <p>
 	 * 만일 이 함수를 {@link RecurringWork#perform()} 수행 중 해당 쓰레드에서 호출하면
 	 * {@link RuntimeException} 예외가 발생된다.
