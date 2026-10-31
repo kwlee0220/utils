@@ -19,7 +19,7 @@
 | 마감 시각에 비동기 작업 취소 요청 | [`Timer`](Timer.java) | `Execution`의 타이머 취소 기능. 예약 개수 제한에 주의 |
 | 최신 값 하나만 전달 | [`LengthOneOverridingQueue`](LengthOneOverridingQueue.java) | 중간 값을 건너뛰어도 되는 상태·측정값 |
 | 여러 작업의 결과를 도착하는 대로 수집 | [`CompletionFStream`](CompletionFStream.java) | 제출 순서에 관계없이 완료 결과 처리 |
-| 동시에 요청된 값 생성을 하나로 합치기 | [`InterThreadShareSupplier`](InterThreadShareSupplier.java) | 진행 중인 생성 결과를 여러 호출자가 공유. 현재 제약은 6.3 참고 |
+| 동시에 요청된 값 생성을 하나로 합치기 | [`CoalescingSupplier`](CoalescingSupplier.java) | 진행 중인 생성 결과를 여러 호출자가 공유(캐시는 아님). 6.3 참고 |
 
 주기 실행의 결과·취소·오류 정책까지 관리해야 한다면 [`utils.async` 가이드](../async/README.md)의 `PeriodicLoopExecution`, `PeriodicPoller`, `PeriodicLoopService`도 함께 살펴본다.
 
@@ -455,26 +455,30 @@ try ( CompletionFStream<Report> results =
 
 스트림을 닫는다고 제출한 작업까지 자동 취소되지는 않는다. 수집을 중단할 때 실행 중인 작업도 멈춰야 한다면 작업 참조를 보관하고 별도로 취소한다. 상속한 `poll()`, `next(timeout, unit)`, `setSupplyListener(...)` 등의 버퍼 API도 사용할 수 있다.
 
-### 6.3 `InterThreadShareSupplier` — 겹치는 값 생성 요청 공유
+### 6.3 `CoalescingSupplier` — 겹치는 값 생성 요청 공유
 
 한 스레드가 값을 만드는 동안 다른 스레드에서도 같은 요청이 들어오면, 새로 생성하지 않고 진행 중인 결과를 함께 사용하도록 만든 클래스다. 호출이 겹치지 않으면 매번 새 값을 생성하므로 장기 캐시와는 용도가 다르다.
 
 ```java
-InterThreadShareSupplier<Token> supplier =
-        new InterThreadShareSupplier<>(() -> authServer.issueToken());
-supplier.setWaitTimeout(Duration.ofSeconds(5));
-
-Token token = supplier.get();
-// InterruptedException, TimeoutException, ExecutionException 처리 필요
+CoalescingSupplier<Token> supplier =
+        new CoalescingSupplier<>(() -> authServer.issueToken());
+Token token = supplier.get();                         // 진행 중인 생성이 있으면 끝날 때까지 기다림
+Token token2 = supplier.get(Duration.ofSeconds(5));   // 합류해 기다리는 시간만 5초로 제한
+// get(): InterruptedException, ExecutionException / get(Duration): 여기에 TimeoutException 추가
 ```
 
-대기 제한은 **다른 스레드가 생성 중인 결과를 기다리는 시간**에 적용된다. 직접 `issueToken()`을 수행하는 스레드의 호출 시간까지 제한하지는 않으므로, 통신 클라이언트에도 별도 제한 시간이 필요하다.
+대기 제한(`get(Duration joinTimeout)`)은 호출마다 따로 정하며, **다른 스레드가 생성 중인 결과를 기다리는 시간**에만 적용된다. 인자 없는 `get()`은 생성이 끝날 때까지 기다린다. 직접 `issueToken()`을 수행하는 호출의 실행 시간까지 제한하지는 않으므로, 통신 클라이언트에도 별도 제한 시간이 필요하다. 대기를 포기해도 진행 중인 생성은 취소되지 않는다. 나노초로 나타낼 수 없을 만큼 큰 값은 사실상 무제한(`Long.MAX_VALUE` 나노초)으로 처리한다.
 
-현재 구현에는 다음 제약이 있다. 위 예제는 대기 제한을 명시하고, 값 생성 함수가 `null`을 반환하지 않는 경우를 전제로 한다.
+생성 한 번마다 결과를 담는 future를 하나 만들고, 그동안 들어온 호출은 모두 그 future를 기다린다. 그래서 다음이 보장된다.
 
-- **대기 제한을 지정하지 않은 경로에 오류가 있다.** Javadoc에는 무제한 대기라고 되어 있지만, 실제 `get()`은 다른 스레드가 생성 중이어도 대기를 건너뛴다. 그 결과 이전 값이 반환되거나, 아직 실패 원인도 없으면 `NullPointerException`이 발생할 수 있다.
-- 생성 함수가 `null`을 반환하면 정상 값으로 처리하지 않고 `ExecutionException`을 던진다.
-- 대기자가 깨어나 결과를 읽기 전에 새 생성이 시작되면, 원래 기다리던 생성 대신 다음 생성까지 기다릴 수 있다. 요청별로 특정 생성 결과를 정확히 공유해야 한다면 현재 구현만으로 보장된다고 가정해서는 안 된다.
+- 기다리던 호출은 **자신이 합류한 바로 그 생성**의 결과(또는 예외)를 받는다. 그 사이에 다음 생성이 시작되어도 영향을 받지 않는다.
+- 생성이 끝난 뒤 들어온 호출은 그 결과에 합류하지 않고 새로 생성한다.
+- 생성 함수가 `null`을 반환하면 `null`을 정상 결과로 공유한다.
+- 생성 함수가 예외로 끝나면 생성한 호출과 기다린 호출 모두 원인이 같은 `ExecutionException`을 받는다. 생성 함수가 던진 `CancellationException`도 같다. 단, 생성하던 스레드 자신이 인터럽트되어 끝났으면 그 호출은 `InterruptedException`을 받고, 기다리던 호출은 그 예외를 원인으로 한 `ExecutionException`을 받는다.
+- 모든 호출자가 **같은 객체**를 받는다. 가변 객체를 돌려준다면 그 객체를 고치는 호출자가 다른 호출자에 대한 영향을 책임져야 한다.
+- **재진입은 지원하지 않는다.** 생성 함수 안에서 같은 supplier의 `get()`을 다시 부르면 자기 결과를 기다리게 되므로 `IllegalStateException`으로 즉시 거부한다.
+
+(2026-10-31 이전에는 이름이 `InterThreadShareSupplier`였고, 대기 제한을 공유 설정 `setWaitTimeout()`으로 정했다. 그 구현은 대기 제한을 지정하지 않으면 기다리지 않아 낡은 값을 돌려주거나 `NullPointerException`이 났고, `null` 결과를 실패로 처리했으며, 다음 생성까지 기다리는 경우가 있었다.)
 
 같은 값을 생성 후 계속 재사용하려는 경우에는 [`utils.func.Lazy`](../func/Lazy.java) 계열을 검토한다.
 
@@ -528,7 +532,6 @@ m_guard.awaitCondition(() -> m_state == State.READY)
 | `RecurringScheduleImpl.performNow()` | 지원하지 않으며 예외 발생 | 즉시 실행 기능이 필요하면 구현체를 확인 |
 | `RecurringScheduleThread.start()` 초기화 실패 | 실패 원인을 기록하지만 호출자에게 예외로 전달하지 않음 | `getFailureCause()`도 확인 |
 | `RecurringScheduleImpl.waitForStopped(millis)` | `awaitNanos()`에 남은 시간 대신 마감 계산값을 전달 | 지정한 시간보다 오래 기다릴 수 있으므로 엄격한 종료 제한으로 사용하지 않음 |
-| `InterThreadShareSupplier`의 대기 제한 미설정 | 무제한 대기가 실제로 수행되지 않음 | 대기 제한을 명시하고 6.3의 제약 확인 |
 
 이 표는 현재 소스에서 확인한 동작이다. 해당 구현이 수정되면 문서의 제약도 함께 갱신해야 한다.
 
@@ -551,7 +554,7 @@ m_guard.awaitCondition(() -> m_state == State.READY)
 | [`Timer`](Timer.java) | `setTimer`로 마감 시각의 취소 예약 |
 | [`LengthOneOverridingQueue`](LengthOneOverridingQueue.java) | `add`로 최신 값 저장, `poll`로 대기 후 꺼내기, `peek`로 확인 |
 | [`CompletionFStream`](CompletionFStream.java) | `submit`으로 결과 수집 등록, `next`로 완료 결과 소비 |
-| [`InterThreadShareSupplier`](InterThreadShareSupplier.java) | `get`으로 생성 결과 공유, `setWaitTimeout`으로 공유 대기 제한 설정 |
+| [`CoalescingSupplier`](CoalescingSupplier.java) | `get()`으로 생성 결과 공유(무제한 대기), `get(Duration)`으로 합류 대기만 제한 |
 
 ---
 
