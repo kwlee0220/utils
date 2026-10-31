@@ -8,13 +8,13 @@
 
 | 클래스 | 역할 | 주로 사용하는 상황 |
 |---|---|---|
-| [`CommandExecution`](../src/main/java/utils/async/command/CommandExecution.java) | 외부 명령을 한 번 실행하고 성공·실패·취소를 관리 | 파일 변환, 스크립트 실행, 배치 작업 |
-| [`CommandVariable`](../src/main/java/utils/async/command/CommandVariable.java) | 명령에 전달할 값과 파일 관리 | 문자열 인자 전달, 파일을 통한 입력·결과 교환 |
-| [`CommandFailedException`](../src/main/java/utils/async/command/CommandFailedException.java) | 허용되지 않은 종료 코드와 출력 끝부분 제공 | 명령 실패 원인 확인 |
-| [`ProgramService`](../src/main/java/utils/async/command/ProgramService.java) | 외부 프로그램을 Guava `Service`로 운영 | 서버나 작업 프로세스의 시작·중지·재시작 |
-| [`ProgramServiceConfig`](../src/main/java/utils/async/command/ProgramServiceConfig.java) | 명령, 환경 변수, 재시작 조건 설정 | Java 코드 또는 JSON으로 서비스 구성 |
-| [`RestartPolicy`](../src/main/java/utils/async/command/RestartPolicy.java) | 종료 결과에 따른 재시작 여부 결정 | 실패할 때만 재시작, 항상 재시작 등 |
-| [`ServiceShutdownHook`](../src/main/java/utils/async/command/ServiceShutdownHook.java) | JVM 종료 시 서비스 중지 요청 | 애플리케이션 종료 시 외부 프로그램 정리 |
+| [`CommandExecution`](CommandExecution.java) | 외부 명령을 한 번 실행하고 성공·실패·취소를 관리 | 파일 변환, 스크립트 실행, 배치 작업 |
+| [`CommandVariable`](CommandVariable.java) | 명령에 전달할 값과 파일 관리 | 문자열 인자 전달, 파일을 통한 입력·결과 교환 |
+| [`CommandFailedException`](CommandFailedException.java) | 허용되지 않은 종료 코드와 출력 끝부분 제공 | 명령 실패 원인 확인 |
+| [`ProgramService`](ProgramService.java) | 외부 프로그램을 Guava `Service`로 운영 | 서버나 작업 프로세스의 시작·중지·재시작 |
+| [`ProgramServiceConfig`](ProgramServiceConfig.java) | 명령, 환경 변수, 재시작 조건 설정 | Java 코드 또는 JSON으로 서비스 구성 |
+| [`RestartPolicy`](RestartPolicy.java) | 종료 결과에 따른 재시작 여부 결정 | 실패할 때만 재시작, 항상 재시작 등 |
+| [`ServiceShutdownHook`](ServiceShutdownHook.java) | JVM 종료 시 서비스 중지 요청 | 애플리케이션 종료 시 외부 프로그램 정리 |
 
 `CommandExecution`은 `AbstractThreadedExecution<Void>`를 상속하므로 `utils.async`의 실행·결과 조회 API를 사용한다. `ProgramService`는 Guava `Service`의 생명주기를 따른다. 두 클래스는 시작·대기 메서드가 서로 다르다.
 
@@ -382,7 +382,7 @@ switch (result.getState()) {
 }
 ```
 
-`AsyncResult`는 `utils.async.AsyncResult`다. 이 예제의 `exec`도 호출자가 `try-with-resources` 등으로 닫아야 한다. `waitForFinished()`는 실패·취소를 결과에 담지만, 기다리는 스레드의 `InterruptedException`까지 없애 주지는 않는다. 콜백·실행기 등 공통 기능은 [`utils.async` 가이드](async-threaded-guide.md)를 참고한다.
+`AsyncResult`는 `utils.async.AsyncResult`다. 이 예제의 `exec`도 호출자가 `try-with-resources` 등으로 닫아야 한다. `waitForFinished()`는 실패·취소를 결과에 담지만, 기다리는 스레드의 `InterruptedException`까지 없애 주지는 않는다. 콜백·실행기 등 공통 기능은 [`utils.async` 가이드](../README.md)를 참고한다.
 
 ## 6. 제한 시간, 취소, 정리
 
@@ -628,9 +628,9 @@ try (ServiceShutdownHook.Registration registration =
 
 ## 10. 관련 코드와 문서
 
-- [`utils.async` 가이드](async-threaded-guide.md) — 실행 상태, 결과 조회, 콜백, 취소의 공통 규칙
-- [`utils.thread` 가이드](thread-guide.md) — 실행기와 스레드 동기화 도구
-- [`ProcessTree`](../src/main/java/utils/ProcessTree.java) — 프로세스와 하위 프로세스의 종료 처리
-- [`EnvironmentFileLoader`](../src/main/java/utils/io/EnvironmentFileLoader.java), [`StrSubstitutor`](../src/main/java/utils/StrSubstitutor.java) — 환경 파일 읽기와 일반 변수 치환
-- [`CommandExecutionTest`](../src/test/java/utils/async/command/CommandExecutionTest.java), [`CommandVariableTest`](../src/test/java/utils/async/command/CommandVariableTest.java) — 명령 실행·변수 사용 예
-- [`ProgramServiceTest`](../src/test/java/utils/async/command/ProgramServiceTest.java), [`ProgramServiceConfigTest`](../src/test/java/utils/async/command/ProgramServiceConfigTest.java) — 재시작·중지·JSON 설정 사용 예
+- [`utils.async` 가이드](../README.md) — 실행 상태, 결과 조회, 콜백, 취소의 공통 규칙
+- [`utils.thread` 가이드](../../thread/README.md) — 실행기와 스레드 동기화 도구
+- [`ProcessTree`](../../ProcessTree.java) — 프로세스와 하위 프로세스의 종료 처리
+- [`EnvironmentFileLoader`](../../io/EnvironmentFileLoader.java), [`StrSubstitutor`](../../StrSubstitutor.java) — 환경 파일 읽기와 일반 변수 치환
+- [`CommandExecutionTest`](../../../../../test/java/utils/async/command/CommandExecutionTest.java), [`CommandVariableTest`](../../../../../test/java/utils/async/command/CommandVariableTest.java) — 명령 실행·변수 사용 예
+- [`ProgramServiceTest`](../../../../../test/java/utils/async/command/ProgramServiceTest.java), [`ProgramServiceConfigTest`](../../../../../test/java/utils/async/command/ProgramServiceConfigTest.java) — 재시작·중지·JSON 설정 사용 예

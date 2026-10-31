@@ -2,7 +2,7 @@
 
 `utils.http`는 OkHttp를 사용해 HTTP 요청을 보내고, 응답 본문을 문자열이나 Java 객체로 받아오는 유틸리티다. 서버의 오류 응답을 예외로 바꾸는 기능도 제공한다.
 
-중심 클래스인 [`HttpRESTfulClient`](../src/main/java/utils/http/HttpRESTfulClient.java)는 **동기 방식**으로 동작한다. 호출한 스레드에서 응답 수신과 본문 변환을 마친 뒤 반환하므로, 호출 시간이 길어질 수 있는 곳에서는 실행 스레드와 제한 시간을 함께 고려해야 한다.
+중심 클래스인 [`HttpRESTfulClient`](HttpRESTfulClient.java)는 **동기 방식**으로 동작한다. 호출한 스레드에서 응답 수신과 본문 변환을 마친 뒤 반환하므로, 호출 시간이 길어질 수 있는 곳에서는 실행 스레드와 제한 시간을 함께 고려해야 한다.
 
 이 가이드는 클라이언트 구성, 요청 작성, 응답 변환, 오류 처리 순서로 설명한다. 예제의 `Item`, `Payload` 등은 설명을 위한 업무용 타입이며, 별도로 표시한 경우를 제외하고 import와 보조 메서드는 생략했다.
 
@@ -135,7 +135,7 @@ HttpRESTfulClient client = HttpRESTfulClient.builder()
 
 ### 3.4 `HttpClientProxy`
 
-[`HttpClientProxy`](../src/main/java/utils/http/HttpClientProxy.java)는 `getHttpClient()`와 `getEndpoint()`를 제공하는 인터페이스다. 여러 컴포넌트에서 OkHttp 클라이언트와 대상 주소를 함께 다룰 때 사용한다.
+[`HttpClientProxy`](HttpClientProxy.java)는 `getHttpClient()`와 `getEndpoint()`를 제공하는 인터페이스다. 여러 컴포넌트에서 OkHttp 클라이언트와 대상 주소를 함께 다룰 때 사용한다.
 
 `HttpRESTfulClient` 자체는 이 인터페이스를 구현하지 않으며 기본 엔드포인트도 저장하지 않는다. 각 요청에 URL을 전달해야 한다.
 
@@ -273,7 +273,7 @@ public interface ErrorEntityDeserializer {
 }
 ```
 
-기본 구현은 [`JacksonErrorEntityDeserializer`](../src/main/java/utils/http/JacksonErrorEntityDeserializer.java)다. `RESTfulErrorEntity`는 `code`와 `message`를 읽고 그 밖의 부가 필드는 무시한다.
+기본 구현은 [`JacksonErrorEntityDeserializer`](JacksonErrorEntityDeserializer.java)다. `RESTfulErrorEntity`는 `code`와 `message`를 읽고 그 밖의 부가 필드는 무시한다.
 
 **사용자 정의 오류 파서가 모든 실패 응답을 처리하는 것은 아니다.** 클라이언트가 JSON 형식을 먼저 판별한 뒤, `code` 또는 `message`가 `null`이 아닌 경우에만 호출한다. `messageType`이나 `status`와 `path`가 있으면 해당 형식의 처리가 우선한다.
 
@@ -544,10 +544,10 @@ void getReturnsBody() throws Exception {
 
 | 확인할 동작 | 기존 테스트 |
 |---|---|
-| 오류 형식 판별, 중첩 `error`, 등록된 예외 변환 | [`HttpRESTfulClientTest`](../src/test/java/utils/http/HttpRESTfulClientTest.java) |
-| 실제 요청, 미디어 타입, 본문 없는 응답, 제한 시간, 응답 파싱 | [`HttpRESTfulClientCallTest`](../src/test/java/utils/http/HttpRESTfulClientCallTest.java) |
-| OkHttp 클라이언트 생성 | [`OkHttpClientUtilsTest`](../src/test/java/utils/http/OkHttpClientUtilsTest.java) |
-| 오류 객체의 생성·변환 | [`RESTfulErrorEntityTest`](../src/test/java/utils/http/RESTfulErrorEntityTest.java), [`SpringBootErrorResponseTest`](../src/test/java/utils/http/SpringBootErrorResponseTest.java), [`TypedServerErrorMessageTest`](../src/test/java/utils/http/TypedServerErrorMessageTest.java) |
+| 오류 형식 판별, 중첩 `error`, 등록된 예외 변환 | [`HttpRESTfulClientTest`](../../../../test/java/utils/http/HttpRESTfulClientTest.java) |
+| 실제 요청, 미디어 타입, 본문 없는 응답, 제한 시간, 응답 파싱 | [`HttpRESTfulClientCallTest`](../../../../test/java/utils/http/HttpRESTfulClientCallTest.java) |
+| OkHttp 클라이언트 생성 | [`OkHttpClientUtilsTest`](../../../../test/java/utils/http/OkHttpClientUtilsTest.java) |
+| 오류 객체의 생성·변환 | [`RESTfulErrorEntityTest`](../../../../test/java/utils/http/RESTfulErrorEntityTest.java), [`SpringBootErrorResponseTest`](../../../../test/java/utils/http/SpringBootErrorResponseTest.java), [`TypedServerErrorMessageTest`](../../../../test/java/utils/http/TypedServerErrorMessageTest.java) |
 
 오류 분기를 테스트할 때는 메시지에 원문 일부가 포함되는지만 확인하지 않는다. 인식하지 못한 응답도 원문을 메시지에 담으므로, 예외 타입과 엔티티 필드 또는 해당 형식의 고유한 변환 결과를 함께 확인한다.
 
@@ -561,24 +561,24 @@ gradle test --tests 'utils.http.*'
 
 | 타입 | 역할 |
 |---|---|
-| [`HttpRESTfulClient`](../src/main/java/utils/http/HttpRESTfulClient.java) | 동기 요청, 응답 변환, 기본 헤더와 오류 코드 등록 |
-| [`OkHttpClientUtils`](../src/main/java/utils/http/OkHttpClientUtils.java) | 기본 또는 TLS 검증 생략 클라이언트 생성 |
-| [`HttpClientProxy`](../src/main/java/utils/http/HttpClientProxy.java) | OkHttp 클라이언트와 대상 주소를 함께 제공하는 인터페이스 |
-| [`JacksonResponseBodyDeserializer`](../src/main/java/utils/http/JacksonResponseBodyDeserializer.java) | JSON 본문을 지정한 클래스의 객체로 변환 |
-| [`JacksonErrorEntityDeserializer`](../src/main/java/utils/http/JacksonErrorEntityDeserializer.java) | JSON 오류 본문을 `RESTfulErrorEntity`로 변환 |
-| [`RESTfulErrorEntity`](../src/main/java/utils/http/RESTfulErrorEntity.java) | `code`·`message` 오류 형식 |
-| [`SpringBootErrorResponse`](../src/main/java/utils/http/SpringBootErrorResponse.java) | `status`·`error`·`message`·`path` 등의 오류 형식 |
-| [`TypedServerErrorMessage`](../src/main/java/utils/http/TypedServerErrorMessage.java) | `messageType`·`code`·`text`·`timestamp` 오류 형식 |
-| [`RESTfulException`](../src/main/java/utils/http/RESTfulException.java) | 기본 HTTP 예외의 공통 부모. HTTP 상태 코드 조회 제공 |
-| [`RESTfulRemoteException`](../src/main/java/utils/http/RESTfulRemoteException.java) | 구조화된 서버 오류. 형식에 따라 오류 엔티티 보관 |
-| [`RESTfulIOException`](../src/main/java/utils/http/RESTfulIOException.java) | 통신·본문 읽기·파싱 실패와 일부 서버 오류 |
+| [`HttpRESTfulClient`](HttpRESTfulClient.java) | 동기 요청, 응답 변환, 기본 헤더와 오류 코드 등록 |
+| [`OkHttpClientUtils`](OkHttpClientUtils.java) | 기본 또는 TLS 검증 생략 클라이언트 생성 |
+| [`HttpClientProxy`](HttpClientProxy.java) | OkHttp 클라이언트와 대상 주소를 함께 제공하는 인터페이스 |
+| [`JacksonResponseBodyDeserializer`](JacksonResponseBodyDeserializer.java) | JSON 본문을 지정한 클래스의 객체로 변환 |
+| [`JacksonErrorEntityDeserializer`](JacksonErrorEntityDeserializer.java) | JSON 오류 본문을 `RESTfulErrorEntity`로 변환 |
+| [`RESTfulErrorEntity`](RESTfulErrorEntity.java) | `code`·`message` 오류 형식 |
+| [`SpringBootErrorResponse`](SpringBootErrorResponse.java) | `status`·`error`·`message`·`path` 등의 오류 형식 |
+| [`TypedServerErrorMessage`](TypedServerErrorMessage.java) | `messageType`·`code`·`text`·`timestamp` 오류 형식 |
+| [`RESTfulException`](RESTfulException.java) | 기본 HTTP 예외의 공통 부모. HTTP 상태 코드 조회 제공 |
+| [`RESTfulRemoteException`](RESTfulRemoteException.java) | 구조화된 서버 오류. 형식에 따라 오류 엔티티 보관 |
+| [`RESTfulIOException`](RESTfulIOException.java) | 통신·본문 읽기·파싱 실패와 일부 서버 오류 |
 
 ---
 
 ## 10. 관련 문서
 
-- [`utils.http` 개발 노트](../src/main/java/utils/http/CLAUDE.md) — 패키지 구현과 내부 동작
-- [`utils.rpc.restful` 개발 노트](../src/main/java/utils/rpc/restful/CLAUDE.md) — HTTP 기반 원격 작업 호출
-- [`JacksonUtils`](../src/main/java/utils/json/JacksonUtils.java) — JSON 매퍼 생성과 변환 도구
-- [비동기 실행 가이드](async-threaded-guide.md) — 별도 스레드 실행과 취소 처리
-- [라이브러리 전체 구조](../CLAUDE.md)
+- [`utils.http` 개발 노트](CLAUDE.md) — 패키지 구현과 내부 동작
+- [`utils.rpc.restful` 개발 노트](../rpc/restful/CLAUDE.md) — HTTP 기반 원격 작업 호출
+- [`JacksonUtils`](../json/JacksonUtils.java) — JSON 매퍼 생성과 변환 도구
+- [비동기 실행 가이드](../async/README.md) — 별도 스레드 실행과 취소 처리
+- [라이브러리 전체 구조](../../../../../CLAUDE.md)

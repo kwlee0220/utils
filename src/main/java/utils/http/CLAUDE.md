@@ -1,6 +1,6 @@
 # utils.http
 
-OkHttp-based **synchronous** REST client with pluggable body/error deserialization and a fixed error-response dispatch. Everything fails via unchecked exceptions. [utils.rpc.restful](../rpc/restful/) is built on top of it, and ~44 files in the downstream MDT projects use it. User-facing guide: [docs/http-guide.md](../../../../../docs/http-guide.md).
+OkHttp-based **synchronous** REST client with pluggable body/error deserialization and a fixed error-response dispatch. Everything fails via unchecked exceptions. [utils.rpc.restful](../rpc/restful/) is built on top of it, and ~44 files in the downstream MDT projects use it. User-facing guide: [README.md](README.md).
 
 ## Core types
 

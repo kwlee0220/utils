@@ -1,6 +1,6 @@
 # utils.async
 
-Async execution primitives. Built on `Execution<T> extends Future<T>` with explicit lifecycle state (`AsyncState`) and listener-based completion handling. Subpackages: [op/](op/) (combinators), [command/](command/) (sub-process orchestration). User guide for the thread-based Execution family (threaded/loop/periodic/poller) and Service family (`AbstractLoopService`/`PeriodicLoopService`): [docs/async-threaded-guide.md](../../../../../docs/async-threaded-guide.md). User guide for `command/` (`CommandExecution`, `CommandVariable`, `ProgramService`): [docs/async-command-guide.md](../../../../../docs/async-command-guide.md).
+Async execution primitives. Built on `Execution<T> extends Future<T>` with explicit lifecycle state (`AsyncState`) and listener-based completion handling. Subpackages: [op/](op/) (combinators), [command/](command/) (sub-process orchestration). User guide for the thread-based Execution family (threaded/loop/periodic/poller) and Service family (`AbstractLoopService`/`PeriodicLoopService`): [README.md](README.md). User guide for `command/` (`CommandExecution`, `CommandVariable`, `ProgramService`): [command/README.md](command/README.md).
 
 ## Core types
 
@@ -9,7 +9,7 @@ Async execution primitives. Built on `Execution<T> extends Future<T>` with expli
 - **`AsyncResult<T>`** — Snapshot of a finished/running execution. Returned by `poll()` and `waitForFinished()`.
 - **`Result<T>`** (in `utils.func`) — Sum type for completion outcome; used by `getResult()` and `whenFinished` callback (`ifSuccessful`/`ifFailed`/`ifNone`).
 - **`Startable`**, **`StartableExecution<T>`** — Marker interfaces for executions with explicit `start()`.
-- **`CancellableWork`** — Marker interface that opts in to forced cancel via `cancel(true)` (default `cancel(true)` only works on `NOT_STARTED`).
+- **`CancellableWork`** — Opt-in for *active* cancellation: `cancel(...)` on a `RUNNING` execution calls `cancelWork()` to stop the work. Without it, `cancel(true)` still moves a `RUNNING` execution to `CANCELLING` and returns `true` (cooperative cancel — the work must notice `isCancelRequested()`), while `cancel(false)` on `RUNNING` returns `false`. (This line used to say `cancel(true)` only works on `NOT_STARTED`, which was wrong.)
 - **`Cancellable`** — Older marker (kept for backward compatibility).
 
 ## Key implementations

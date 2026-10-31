@@ -2,7 +2,7 @@
 
 `utils.stream`은 소비자가 값을 요청할 때 원소를 하나씩 읽어 처리하는 스트림 라이브러리다. `map`, `filter`, `toList`처럼 Java Stream과 비슷한 연산 외에도 파일·연결 등의 자원 정리, 키별 집계, 비동기 매핑, 생산자와 소비자 사이의 버퍼를 제공한다.
 
-중심 인터페이스는 [`FStream<T>`](../src/main/java/utils/stream/FStream.java)다. `next()`는 원소가 있으면 `FOption<T>`, 끝에 도달하면 `FOption.empty()`를 반환한다. 대부분의 변환은 값을 읽을 때 수행하지만, 정렬처럼 호출 즉시 전체 입력을 소비하는 연산도 있다. 자원을 다룰 때는 처리 시점과 정리 책임을 함께 확인한다.
+중심 인터페이스는 [`FStream<T>`](FStream.java)다. `next()`는 원소가 있으면 `FOption<T>`, 끝에 도달하면 `FOption.empty()`를 반환한다. 대부분의 변환은 값을 읽을 때 수행하지만, 정렬처럼 호출 즉시 전체 입력을 소비하는 연산도 있다. 자원을 다룰 때는 처리 시점과 정리 책임을 함께 확인한다.
 
 예제는 Java 17 기준이다. `Person`, `Row` 같은 업무용 타입과 간단한 코드 조각의 import는 필요한 부분만 표시했다. API 목록의 각 줄은 개별 사용 형태이며 하나의 실행 가능한 코드 블록을 뜻하지는 않는다.
 
@@ -10,14 +10,14 @@
 
 | 타입 | 역할 |
 |---|---|
-| [`FStream<T>`](../src/main/java/utils/stream/FStream.java) | 원소 조회, 변환, 수집의 기본 인터페이스. `Iterable<T>`와 `AutoCloseable` 구현 |
-| [`KeyValueFStream<K,V>`](../src/main/java/utils/stream/KeyValueFStream.java) | 키와 값을 따로 변환·조회하는 스트림 |
-| [`KeyedGroups<K,V>`](../src/main/java/utils/stream/KeyedGroups.java) | 키별 값 목록을 보관하는 그룹 결과 |
+| [`FStream<T>`](FStream.java) | 원소 조회, 변환, 수집의 기본 인터페이스. `Iterable<T>`와 `AutoCloseable` 구현 |
+| [`KeyValueFStream<K,V>`](KeyValueFStream.java) | 키와 값을 따로 변환·조회하는 스트림 |
+| [`KeyedGroups<K,V>`](KeyedGroups.java) | 키별 값 목록을 보관하는 그룹 결과 |
 | `IntFStream` 등 숫자·논리값 스트림 | 타입별 합계, 평균, 배열 변환 등의 편의 기능 |
-| [`AsyncExecutionOptions`](../src/main/java/utils/stream/AsyncExecutionOptions.java) | 비동기 작업 수, 결과 순서, 실행기 설정 |
-| [`SuppliableFStream<T>`](../src/main/java/utils/stream/SuppliableFStream.java) | 생산자가 넣은 데이터를 소비자가 꺼내는 용량 제한 버퍼 |
-| [`Generator<T>`](../src/main/java/utils/stream/Generator.java) | 별도 스레드에서 데이터를 생성하는 함수 |
-| [`FStreams.AbstractFStream<T>`](../src/main/java/utils/stream/FStreams.java) | 초기화·소진·닫힘 상태를 관리하는 사용자 스트림의 기반 클래스 |
+| [`AsyncExecutionOptions`](AsyncExecutionOptions.java) | 비동기 작업 수, 결과 순서, 실행기 설정 |
+| [`SuppliableFStream<T>`](SuppliableFStream.java) | 생산자가 넣은 데이터를 소비자가 꺼내는 용량 제한 버퍼 |
+| [`Generator<T>`](Generator.java) | 별도 스레드에서 데이터를 생성하는 함수 |
+| [`FStreams.AbstractFStream<T>`](FStreams.java) | 초기화·소진·닫힘 상태를 관리하는 사용자 스트림의 기반 클래스 |
 
 ```mermaid
 flowchart LR
@@ -321,11 +321,11 @@ Map<String, Integer> countByDepartment = FStream.from(employees)
 
 | 타입 | 대표 생성 방법 | 전용 연산 |
 |---|---|---|
-| [`IntFStream`](../src/main/java/utils/stream/IntFStream.java) | `FStream.range`, `FStream.of(int[])`, `mapToInt` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
-| [`LongFStream`](../src/main/java/utils/stream/LongFStream.java) | `LongFStream.range`, `mapToLong` | `sum`, `average`, `toArray` |
-| [`FloatFStream`](../src/main/java/utils/stream/FloatFStream.java) | `FloatFStream.of(float[])`, `mapToFloat` | `sum`, `average`, `toArray` |
-| [`DoubleFStream`](../src/main/java/utils/stream/DoubleFStream.java) | `FStream.of(double[])`, `mapToDouble` | `sum`, `average`, `toArray` |
-| [`BooleanFStream`](../src/main/java/utils/stream/BooleanFStream.java) | `BooleanFStream.of(boolean[])`, `mapToBoolean` | `andAll`, `orAll`, `toArray` |
+| [`IntFStream`](IntFStream.java) | `FStream.range`, `FStream.of(int[])`, `mapToInt` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
+| [`LongFStream`](LongFStream.java) | `LongFStream.range`, `mapToLong` | `sum`, `average`, `toArray` |
+| [`FloatFStream`](FloatFStream.java) | `FloatFStream.of(float[])`, `mapToFloat` | `sum`, `average`, `toArray` |
+| [`DoubleFStream`](DoubleFStream.java) | `FStream.of(double[])`, `mapToDouble` | `sum`, `average`, `toArray` |
+| [`BooleanFStream`](BooleanFStream.java) | `BooleanFStream.of(boolean[])`, `mapToBoolean` | `andAll`, `orAll`, `toArray` |
 
 ```java
 double average = FStream.of(10, 20, 30)
@@ -483,7 +483,7 @@ try (channel) {
 
 ### 10.2 `onClose()`의 현재 제약
 
-현재 [`CloserAttachedStream`](../src/main/java/utils/stream/FStreams.java)의 `close()`는 등록한 작업만 실행하고 원본을 닫지 않는다. 따라서 다음 두 가지를 주의해야 한다.
+현재 [`CloserAttachedStream`](FStreams.java)의 `close()`는 등록한 작업만 실행하고 원본을 닫지 않는다. 따라서 다음 두 가지를 주의해야 한다.
 
 - `source.onClose(task)`를 닫아도 source의 정리는 별도로 필요하다.
 - `.onClose(first).onClose(second)`를 닫으면 가장 바깥의 second만 실행된다. 등록 순서대로 모두 실행하지 않는다.
@@ -570,11 +570,11 @@ class CounterStream extends FStreams.AbstractFStream<Integer> {
 
 ## 13. 추가 API와 관련 문서
 
-- [`PrependableFStream`](../src/main/java/utils/stream/PrependableFStream.java) — `toPrependable()`로 생성. `prepend()`로 값을 되돌리고 `peekNext()`·`hasNext()`로 미리 확인
-- [`TimedFStream`](../src/main/java/utils/stream/TimedFStream.java) — 제한 시간을 둔 원소 조회 인터페이스
-- [`FStreamable`](../src/main/java/utils/stream/FStreamable.java) — `fstream()`으로 스트림을 제공하는 객체의 인터페이스
-- [`FStreamException`](../src/main/java/utils/stream/FStreamException.java) — 스트림 처리용 예외 타입
-- [비동기 실행 가이드](async-threaded-guide.md) — 매핑 내부 실행이 사용하는 결과·콜백·취소 규칙
-- [스레드 유틸리티 가이드](thread-guide.md) — 실행기와 동기화 도구
-- [`utils.stream` 개발 노트](../src/main/java/utils/stream/CLAUDE.md) — 패키지 구조
-- [`스트림 테스트`](../src/test/java/utils/stream) — 연산별 입력·출력과 경계 조건 예제
+- [`PrependableFStream`](PrependableFStream.java) — `toPrependable()`로 생성. `prepend()`로 값을 되돌리고 `peekNext()`·`hasNext()`로 미리 확인
+- [`TimedFStream`](TimedFStream.java) — 제한 시간을 둔 원소 조회 인터페이스
+- [`FStreamable`](FStreamable.java) — `fstream()`으로 스트림을 제공하는 객체의 인터페이스
+- [`FStreamException`](FStreamException.java) — 스트림 처리용 예외 타입
+- [비동기 실행 가이드](../async/README.md) — 매핑 내부 실행이 사용하는 결과·콜백·취소 규칙
+- [스레드 유틸리티 가이드](../thread/README.md) — 실행기와 동기화 도구
+- [`utils.stream` 개발 노트](CLAUDE.md) — 패키지 구조
+- [`스트림 테스트`](../../../../test/java/utils/stream) — 연산별 입력·출력과 경계 조건 예제

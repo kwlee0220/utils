@@ -1,6 +1,6 @@
 # utils.stream
 
-Pull-based, resource-aware functional stream API. `FStream<T> extends Iterable<T>, AutoCloseable`. Parallels `java.util.stream` but is lazier, closes deterministically, integrates with `FOption`/`Tuple`/`KeyValue`, and adds async parallel mapping. User-facing guide: [docs/stream-guide.md](../../../../../docs/stream-guide.md).
+Pull-based, resource-aware functional stream API. `FStream<T> extends Iterable<T>, AutoCloseable`. Parallels `java.util.stream` but is lazier, closes deterministically, integrates with `FOption`/`Tuple`/`KeyValue`, and adds async parallel mapping. User-facing guide: [README.md](README.md).
 
 ## Core types
 

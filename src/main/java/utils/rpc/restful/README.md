@@ -271,5 +271,5 @@ var server = new RESTfulCommandExecutionServer(descriptorFile, new DefaultComman
 - **재시도·멱등성 지원이 없다.** 응답이 유실된 POST 를 재시도하면 연산이 중복 수행된다.
 
 자세한 내부 계약과 함정은 [CLAUDE.md](CLAUDE.md) 를, HTTP 계층의 에러 처리는
-[`utils.http`](../../http/CLAUDE.md) 및 [docs/http-guide.md](../../../../../../docs/http-guide.md) 를 참고한다.
-외부 명령 실행과 변수 치환은 [docs/async-command-guide.md](../../../../../../docs/async-command-guide.md) 를 참고한다.
+[`utils.http`](../../http/CLAUDE.md) 및 [../../http/README.md](../../http/README.md) 를 참고한다.
+외부 명령 실행과 변수 치환은 [../../async/command/README.md](../../async/command/README.md) 를 참고한다.
