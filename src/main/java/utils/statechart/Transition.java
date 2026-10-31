@@ -8,19 +8,17 @@ import java.util.Optional;
  * <p>
  * 전이는 목표 상태({@link #getTargetStatePath()})와 전이 시 수행할 액션
  * ({@link #execute(StateContext, Signal)})으로 구성된다. 일반적으로 사용자는 본 인터페이스를
- * 직접 구현하지 않고 {@link Transitions#create}, {@link Transitions#noop},
- * {@link Transitions#stay} 정적 팩토리를 통해 인스턴스를 생성한다.
+ * 직접 구현하지 않고 {@link Transitions#to(String)}, {@link Transitions#to(String, TransitionAction)},
+ * {@link Transitions#internal}, {@link Transitions#stay} 정적 팩토리를 통해 인스턴스를 생성한다.
  * <p>
- * <b>self-transition 컨벤션</b>: {@link #getTargetStatePath()}가 {@link Optional#empty()}을
- * 반환하면 상태 변경 없이 현 상태에 머무는 self-transition으로 취급된다. 이 경우
- * {@link StateChart}의 traverse 로직은 {@link #execute(StateContext, Signal)} 호출 없이
- * 즉시 반환한다.
+ * <b>내부 전이(internal transition) 컨벤션</b>: {@link #getTargetStatePath()}가 {@link Optional#empty()}을
+ * 반환하면 상태 변경 없이 현 상태에 머무는 내부 전이로 취급된다({@link #isInternal()}). 이 경우 {@link StateChart}는
+ * 진입해 있는 상태의 {@code exit()}/{@code enter()} 없이 {@link #execute(StateContext, Signal)}만 호출한다.
+ * {@link Transitions#internal}은 주어진 액션을, {@link Transitions#stay}는 빈 액션을 실행한다.
  * <p>
- * <b>설계 한계</b>: 현재 디자인에서는 "현재 상태에 머물면서 액션을 실행" 하는 경우를
- * 직접 표현할 수 없다. self-transition({@link Optional#empty()})은 액션을 실행하지 않으며,
- * 명시적으로 현재 상태 경로를 목표로 지정하면 액션은 실행되지만 현재 상태의 {@code exit()}와
- * 재진입({@code enter()})이 다시 일어난다. "부수 작업만 수행하고 머무르기"가 필요한 경우는
- * 신호를 받기 전에 컨텍스트를 갱신하는 등 다른 메커니즘을 사용해야 한다.
+ * 반면 현재 상태의 경로를 목표로 명시하면(UML의 자기 전이, self-transition) 액션은 실행되지만 현재 상태에서
+ * 진출({@code exit()})했다가 다시 진입({@code enter()})한다. (2026-10-31 이전에는 목표 경로가 없으면 액션도
+ * 실행하지 않아, "머물면서 액션만 실행"하는 전이를 표현할 수 없었다.)
  *
  * @param <C>	{@link StateContext}의 구체 타입
  *
@@ -30,19 +28,20 @@ public interface Transition<C extends StateContext<C>> {
 	/**
 	 * 본 전이가 도달할 목표 상태의 경로를 반환한다.
 	 *
-	 * @return	목표 상태의 경로. {@link Optional#empty()}이면 self-transition으로 취급되어
-	 *			상태 변경이 일어나지 않으며 {@link #execute(StateContext, Signal)}도 호출되지 않는다.
+	 * @return	목표 상태의 경로. {@link Optional#empty()}이면 내부 전이로 취급되어 상태 변경 없이
+	 *			{@link #execute(StateContext, Signal)}만 호출된다.
 	 */
 	public Optional<String> getTargetStatePath();
 
 	/**
-	 * 본 전이가 self-transition인지 여부를 반환한다.
+	 * 본 전이가 상태를 바꾸지 않는 내부 전이인지 여부를 반환한다.
 	 * <p>
-	 * 기본 구현은 {@link #getTargetStatePath()}가 비어있는지 검사한다.
+	 * 기본 구현은 {@link #getTargetStatePath()}가 비어있는지 검사한다. 현재 상태의 경로를 목표로 준 전이
+	 * (UML의 자기 전이)는 진출했다가 다시 진입하므로 내부 전이가 아니다.
 	 *
-	 * @return	self-transition이면 {@code true}
+	 * @return	내부 전이이면 {@code true}. (2026-10-31 이전 이름은 {@code isSelfTransition()}이었다.)
 	 */
-	public default boolean isSelfTransition() {
+	public default boolean isInternal() {
 		return getTargetStatePath().isEmpty();
 	}
 
@@ -50,7 +49,7 @@ public interface Transition<C extends StateContext<C>> {
 	 * 전이 액션을 실행한다.
 	 * <p>
 	 * 본 메소드는 {@link StateChart}가 보유한 lock을 획득한 상태에서 호출된다.
-	 * self-transition인 경우 본 메소드는 호출되지 않는다.
+	 * 목표 상태가 있으면 진출과 진입 사이에, 내부 전이이면 상태 변경 없이 호출된다.
 	 * <p>
 	 * <b>예외 처리</b>: 본 메소드가 예외(런타임/{@link Error})를 던지면 호출 중인
 	 * {@link StateChart}는 fail 상태로 전이되며 ({@code notifyFailed(cause)} 호출),

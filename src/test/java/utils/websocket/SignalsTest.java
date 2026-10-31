@@ -58,10 +58,9 @@ public class SignalsTest {
 	}
 
 	@Test
-	public void connectionFailed_accepts_null_cause() {
-		// ConnectionFailed는 WebSocketSignal이 아니므로 cause null을 막지 않음.
-		Signals.ConnectionFailed sig = new Signals.ConnectionFailed(null);
-		Assertions.assertNull(sig.getCause());
+	public void connectionFailed_rejects_null_cause() {
+		// WebSocketError와 같이 원인 없는 실패를 막는다(2026-10-31 이전에는 받아들였다).
+		Assertions.assertThrows(IllegalArgumentException.class, () -> new Signals.ConnectionFailed(null));
 	}
 
 	// ---- Signals.TextMessage ----
@@ -71,8 +70,18 @@ public class SignalsTest {
 		Signals.TextMessage sig = new Signals.TextMessage(m_ws, "hello");
 
 		Assertions.assertSame(m_ws, sig.getWebSocket());
-		Assertions.assertEquals("hello", sig.getMessage());
+		Assertions.assertEquals("hello", sig.getText());
 		Assertions.assertTrue(sig.toString().contains("hello"));
+	}
+
+	@Test
+	public void textMessage_toString_truncates_long_text() {
+		String text = "x".repeat(1000);
+		String str = new Signals.TextMessage(m_ws, text).toString();
+
+		Assertions.assertTrue(str.length() < 300, str);
+		Assertions.assertTrue(str.contains("length=1000"), str);
+		Assertions.assertEquals(text, new Signals.TextMessage(m_ws, text).getText());
 	}
 
 	// ---- Signals.BinaryMessage ----
@@ -95,16 +104,21 @@ public class SignalsTest {
 		Assertions.assertFalse(sig.isLast());
 	}
 
-	// ---- Signals.ErrorMessage ----
+	// ---- Signals.WebSocketError ----
 
 	@Test
 	public void errorMessage_carries_error() {
 		Throwable error = new RuntimeException("x");
-		Signals.ErrorMessage sig = new Signals.ErrorMessage(m_ws, error);
+		Signals.WebSocketError sig = new Signals.WebSocketError(m_ws, error);
 
 		Assertions.assertSame(m_ws, sig.getWebSocket());
 		Assertions.assertSame(error, sig.getError());
-		Assertions.assertTrue(sig.toString().contains("ErrorMessage"));
+		Assertions.assertTrue(sig.toString().contains("WebSocketError"));
+	}
+
+	@Test
+	public void errorMessage_null_error_rejected() {
+		Assertions.assertThrows(IllegalArgumentException.class, () -> new Signals.WebSocketError(m_ws, null));
 	}
 
 	// ---- Signals.ConnectionClosed ----
@@ -118,5 +132,19 @@ public class SignalsTest {
 		Assertions.assertEquals("normal", sig.getReason());
 		Assertions.assertTrue(sig.toString().contains("1000"));
 		Assertions.assertTrue(sig.toString().contains("normal"));
+	}
+
+	@Test
+	public void message_payloads_reject_null() {
+		Assertions.assertThrows(IllegalArgumentException.class, () -> new Signals.TextMessage(m_ws, null));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> new Signals.BinaryMessage(m_ws, null, true));
+	}
+
+	@Test
+	public void abbreviate_keeps_short_text_and_cuts_long_text() {
+		Assertions.assertEquals("short", Signals.TextMessage.abbreviate("short"));
+		String cut = Signals.TextMessage.abbreviate("y".repeat(500));
+		Assertions.assertTrue(cut.startsWith("y".repeat(200) + "..."), cut);
+		Assertions.assertTrue(cut.endsWith("length=500"), cut);
 	}
 }

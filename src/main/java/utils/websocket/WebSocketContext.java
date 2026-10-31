@@ -25,13 +25,13 @@ import utils.statechart.StateContext;
  */
 public class WebSocketContext<C extends WebSocketContext<C>> implements StateContext<C> {
 	@NotNull private final String m_serverUrl;
-	private @Nullable WebSocketStateChart<C> m_machine;
+	private volatile @Nullable WebSocketStateChart<C> m_chart;
 
 	/**
 	 * 주어진 서버 URL로 컨텍스트를 생성한다.
 	 * <p>
 	 * URL 문자열의 형식 검증은 수행하지 않으며, 잘못된 URL은 실제 연결을 시도하는
-	 * {@code OpenWebSocket.enter()}에서 {@link java.net.URI#create(String)} 호출 시점에
+	 * {@code WebSocketConnectingState.enter()}에서 {@link java.net.URI#create(String)} 호출 시점에
 	 * {@link IllegalArgumentException}으로 감지된다.
 	 *
 	 * @param serverUrl		연결할 WebSocket 서버 URL (non-null)
@@ -64,7 +64,7 @@ public class WebSocketContext<C extends WebSocketContext<C>> implements StateCon
 	 */
 	@Override
 	public @Nullable WebSocketStateChart<C> getStateChart() {
-		return m_machine;
+		return m_chart;
 	}
 
 	/**
@@ -76,21 +76,22 @@ public class WebSocketContext<C extends WebSocketContext<C>> implements StateCon
 	 * 인자가 {@link WebSocketStateChart}의 인스턴스가 아니거나 이미 다른 차트가
 	 * 등록된 컨텍스트에 다시 호출되는 경우 예외를 던져 거부한다.
 	 *
-	 * @param machine	등록할 {@link StateChart}. 실제 런타임 타입은 반드시
+	 * @param chart	등록할 {@link StateChart}. 실제 런타임 타입은 반드시
 	 *					{@link WebSocketStateChart}여야 한다.
-	 * @throws IllegalArgumentException {@code machine}이 {@code null}이거나
+	 * @throws IllegalArgumentException {@code chart}이 {@code null}이거나
 	 *					{@link WebSocketStateChart}의 인스턴스가 아닌 경우
 	 * @throws IllegalStateException	이미 {@link StateChart}가 등록된 경우
+	 * 		(확인과 등록을 원자적으로 하도록 {@code synchronized}다. {@code AbstractStateContext}와 같은 계약.)
 	 */
 	@Override
 	@SuppressWarnings("unchecked")
-	public void setStateChart(StateChart<C> machine) {
-		Preconditions.checkNotNullArgument(machine, "machine is null");
-		Preconditions.checkState(m_machine == null, "StateChart is already set on this context");
-		Preconditions.checkArgument(machine instanceof WebSocketStateChart<?>,
-								"machine is not a WebSocketStateChart: %s", machine);
+	public synchronized void setStateChart(StateChart<C> chart) {
+		Preconditions.checkNotNullArgument(chart, "chart is null");
+		Preconditions.checkState(m_chart == null, "StateChart is already set on this context");
+		Preconditions.checkArgument(chart instanceof WebSocketStateChart<?>,
+								"chart is not a WebSocketStateChart: %s", chart);
 
-		WebSocketStateChart<C> wsMachine = (WebSocketStateChart<C>)machine;
-		m_machine = wsMachine;
+		WebSocketStateChart<C> wsChart = (WebSocketStateChart<C>)chart;
+		m_chart = wsChart;
 	}
 }

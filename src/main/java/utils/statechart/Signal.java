@@ -8,7 +8,7 @@ package utils.statechart;
  * {@link State#selectTransition(Signal)}로 이 신호를 처리할 전이가 있는지 판단한다.
  * <p>
  * <b>신호의 식별 방식은 이를 소비하는 상태 구현에 달려 있다.</b> 예를 들어
- * {@link SingleOutState}는 등록된 trigger와 {@link Object#equals(Object)}로 비교하므로,
+ * {@link TriggeredState}는 등록된 trigger와 {@link Object#equals(Object)}로 비교하므로,
  * 값이 같으면 같은 신호로 취급되게 하려면 {@code equals}/{@code hashCode}를 재정의하거나
  * {@code record}로 정의해야 한다. 재정의하지 않으면 trigger로 등록한 것과
  * <b>동일한 인스턴스</b>만 전이를 유발한다.

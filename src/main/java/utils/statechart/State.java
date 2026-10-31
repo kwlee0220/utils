@@ -10,8 +10,8 @@ import org.jetbrains.annotations.NotNull;
  * <p>
  * 상태는 자신의 위치 경로로 차트에 등록되고, 진입/진출 시점의 부수 작업({@link #enter()} /
  * {@link #exit()})과 신호에 대한 전이 선택({@link #selectTransition(Signal)})을 담당한다.
- * 직접 구현하기보다는 {@link AbstractState}를 상속하거나 {@link SingleOutState},
- * {@link SinkState}, {@link ExceptionState}, {@link DefaultCompositeState} 같은 기성 구현을
+ * 직접 구현하기보다는 {@link AbstractState}를 상속하거나 {@link TriggeredState},
+ * {@link TerminalState}, {@link FailureState}, {@link DefaultCompositeState} 같은 기성 구현을
  * 사용하는 것이 일반적이다.
  *
  * @param <C>	상태 컨텍스트 타입. (CRTP self-bound)

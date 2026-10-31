@@ -1,6 +1,6 @@
 # `utils.thread` 사용자 가이드
 
-`utils.thread`는 여러 스레드가 공유 상태에 안전하게 접근하고, 작업을 예약하거나 결과를 주고받을 때 사용하는 유틸리티 모음이다. Java의 잠금·조건 대기·실행기를 사용하기 쉽게 묶었으며, [`utils.async`](async-threaded-guide.md)의 비동기 실행 클래스도 이 패키지를 사용한다.
+`utils.thread`는 여러 스레드가 공유 상태에 안전하게 접근하고, 작업을 예약하거나 결과를 주고받을 때 사용하는 유틸리티 모음이다. Java의 잠금·조건 대기·실행기를 사용하기 쉽게 묶었으며, [`utils.async`](../async/README.md)의 비동기 실행 클래스도 이 패키지를 사용한다.
 
 이 가이드는 가장 기본이 되는 `Guard`의 사용법부터 설명한다. 주기 작업은 4장, 실행기는 5장, 스레드 간 데이터 전달은 6장에서 다룬다. 7장에는 사용 시 주의할 점과 현재 구현의 제약을 정리했다. 예제의 `Event`, `Sample`, `Report` 등은 설명을 위한 업무용 타입이며, import와 보조 메서드는 생략했다.
 
@@ -10,18 +10,18 @@
 
 | 필요한 기능 | 사용할 클래스 | 선택 기준 |
 |---|---|---|
-| 공유 상태 보호와 조건 대기 | [`Guard`](../src/main/java/utils/thread/Guard.java) | 상태 확인·변경과 대기를 같은 잠금으로 처리 |
-| 기존 `Condition`에 대기 조건 연결 | [`ConditionVariable`](../src/main/java/utils/thread/ConditionVariable.java) | 이미 잠금과 `Condition`을 직접 관리하는 코드에 사용 |
-| 초기화·반복 작업·정리로 구성된 주기 실행 | [`RecurringSchedule`](../src/main/java/utils/thread/RecurringSchedule.java), [`RecurringWork`](../src/main/java/utils/thread/RecurringWork.java) | 전용 스레드 또는 공유 실행기에서 반복 |
-| 즉시 실행·지연 실행·주기 작업 예약 | [`CamusExecutor`](../src/main/java/utils/thread/CamusExecutor.java) | 여러 실행 방식을 하나의 인터페이스로 사용 |
-| 데이터 처리를 다른 스레드에 맡기기 | [`AsyncConsumer`](../src/main/java/utils/thread/AsyncConsumer.java) | `Consumer<T>`를 비동기로 호출 |
-| 실행 중인 작업 뒤에 최신 요청 하나만 남기기 | [`SingleWaiterExecutor`](../src/main/java/utils/thread/SingleWaiterExecutor.java) | 오래된 대기 요청은 취소해도 되는 작업 |
-| 마감 시각에 비동기 작업 취소 요청 | [`Timer`](../src/main/java/utils/thread/Timer.java) | `Execution`의 타이머 취소 기능. 예약 개수 제한에 주의 |
-| 최신 값 하나만 전달 | [`LengthOneOverridingQueue`](../src/main/java/utils/thread/LengthOneOverridingQueue.java) | 중간 값을 건너뛰어도 되는 상태·측정값 |
-| 여러 작업의 결과를 도착하는 대로 수집 | [`CompletionFStream`](../src/main/java/utils/thread/CompletionFStream.java) | 제출 순서에 관계없이 완료 결과 처리 |
-| 동시에 요청된 값 생성을 하나로 합치기 | [`InterThreadShareSupplier`](../src/main/java/utils/thread/InterThreadShareSupplier.java) | 진행 중인 생성 결과를 여러 호출자가 공유. 현재 제약은 6.3 참고 |
+| 공유 상태 보호와 조건 대기 | [`Guard`](Guard.java) | 상태 확인·변경과 대기를 같은 잠금으로 처리 |
+| 기존 `Condition`에 대기 조건 연결 | [`ConditionVariable`](ConditionVariable.java) | 이미 잠금과 `Condition`을 직접 관리하는 코드에 사용 |
+| 초기화·반복 작업·정리로 구성된 주기 실행 | [`RecurringSchedule`](RecurringSchedule.java), [`RecurringWork`](RecurringWork.java) | 전용 스레드 또는 공유 실행기에서 반복 |
+| 즉시 실행·지연 실행·주기 작업 예약 | [`CamusExecutor`](CamusExecutor.java) | 여러 실행 방식을 하나의 인터페이스로 사용 |
+| 데이터 처리를 다른 스레드에 맡기기 | [`AsyncConsumer`](AsyncConsumer.java) | `Consumer<T>`를 비동기로 호출 |
+| 실행 중인 작업 뒤에 최신 요청 하나만 남기기 | [`SingleWaiterExecutor`](SingleWaiterExecutor.java) | 오래된 대기 요청은 취소해도 되는 작업 |
+| 마감 시각에 비동기 작업 취소 요청 | [`Timer`](Timer.java) | `Execution`의 타이머 취소 기능. 예약 개수 제한에 주의 |
+| 최신 값 하나만 전달 | [`LengthOneOverridingQueue`](LengthOneOverridingQueue.java) | 중간 값을 건너뛰어도 되는 상태·측정값 |
+| 여러 작업의 결과를 도착하는 대로 수집 | [`CompletionFStream`](CompletionFStream.java) | 제출 순서에 관계없이 완료 결과 처리 |
+| 동시에 요청된 값 생성을 하나로 합치기 | [`InterThreadShareSupplier`](InterThreadShareSupplier.java) | 진행 중인 생성 결과를 여러 호출자가 공유. 현재 제약은 6.3 참고 |
 
-주기 실행의 결과·취소·오류 정책까지 관리해야 한다면 [`utils.async` 가이드](async-threaded-guide.md)의 `PeriodicLoopExecution`, `PeriodicPoller`, `PeriodicLoopService`도 함께 살펴본다.
+주기 실행의 결과·취소·오류 정책까지 관리해야 한다면 [`utils.async` 가이드](../async/README.md)의 `PeriodicLoopExecution`, `PeriodicPoller`, `PeriodicLoopService`도 함께 살펴본다.
 
 ---
 
@@ -231,7 +231,7 @@ public class HealthCheck implements RecurringWork {
 
 `onStarted()`가 성공하면 `perform()`을 반복하고, 중지하거나 작업이 실패하면 `onStopped()`로 정리한다. 초기화 자체가 실패한 경우에는 `onStopped()`를 호출하지 않으므로, 부분적으로 확보한 자원은 `onStarted()` 안에서 정리해야 한다.
 
-작업 자체에 중단 신호를 전달하려면 [`InterruptableWork`](../src/main/java/utils/thread/InterruptableWork.java)의 `interrupt()`도 구현한다. 이 메서드는 스레드 인터럽트와 별개인 사용자 정의 중단 처리다.
+작업 자체에 중단 신호를 전달하려면 [`InterruptableWork`](InterruptableWork.java)의 `interrupt()`도 구현한다. 이 메서드는 스레드 인터럽트와 별개인 사용자 정의 중단 처리다.
 
 ### 4.2 전용 스레드 사용 — `RecurringScheduleThread`
 
@@ -329,7 +329,7 @@ executor.stop(true);
 
 `stop(true)`는 지연 예약을 관리하는 스레드를 멈추고, 아직 제출하지 않은 예약을 비운 뒤 기반 실행기의 `shutdown()`도 호출한다. 실행 중인 모든 작업의 완료를 기다리지는 않는다. `stop(false)`는 기반 실행기를 종료하지 않으므로 다른 컴포넌트와 풀을 공유할 때 구분해서 사용한다. 예약 큐를 비우는 것이 각 작업의 `Future`를 정상 완료시키는 것은 아니므로, 실행기를 먼저 종료하고 예약 결과를 기다리는 흐름은 피한다.
 
-컴포넌트가 외부에서 실행기를 전달받도록 하려면 [`ExecutorAware`](../src/main/java/utils/thread/ExecutorAware.java)를 구현한다. 일반적인 순서는 속성 설정, `setExecutor(...)`, `Initializable.initialize()`다. 인터페이스를 구현하는 것만으로 실행기가 자동 설정되지는 않으며, 컴포넌트 관리자가 해당 메서드를 호출해야 한다.
+컴포넌트가 외부에서 실행기를 전달받도록 하려면 [`ExecutorAware`](ExecutorAware.java)를 구현한다. 일반적인 순서는 속성 설정, `setExecutor(...)`, `Initializable.initialize()`다. 인터페이스를 구현하는 것만으로 실행기가 자동 설정되지는 않으며, 컴포넌트 관리자가 해당 메서드를 호출해야 한다.
 
 ### 5.2 `AsyncConsumer` — 데이터 처리를 다른 스레드에 맡기기
 
@@ -381,7 +381,7 @@ executor.stop();
 Executions.getTimer().setTimer(execution, 30, TimeUnit.SECONDS);
 ```
 
-마감 시각이 되면 아직 끝나지 않은 작업에 `cancel(true)`를 호출한다. 작업을 강제로 끝내거나 `TimeoutException`으로 실패시키는 기능은 아니다. 최종 상태는 작업의 취소 처리에 따라 달라진다. `PeriodicLoopExecution.setTimeout(Duration)`과의 차이는 [`utils.async` 가이드](async-threaded-guide.md)의 제한 시간 설명을 참고한다.
+마감 시각이 되면 아직 끝나지 않은 작업에 `cancel(true)`를 호출한다. 작업을 강제로 끝내거나 `TimeoutException`으로 실패시키는 기능은 아니다. 최종 상태는 작업의 취소 처리에 따라 달라진다. `PeriodicLoopExecution.setTimeout(Duration)`과의 차이는 [`utils.async` 가이드](../async/README.md)의 제한 시간 설명을 참고한다.
 
 내부 예약 큐는 **최대 64개**를 보관한다. 이를 넘으면 마감이 가장 늦은 항목이 별도 통지 없이 제외되므로, 제외된 작업에는 타이머 취소가 전달되지 않는다. 여러 컴포넌트가 공용 타이머를 함께 사용한다는 점도 고려해야 한다.
 
@@ -476,7 +476,7 @@ Token token = supplier.get();
 - 생성 함수가 `null`을 반환하면 정상 값으로 처리하지 않고 `ExecutionException`을 던진다.
 - 대기자가 깨어나 결과를 읽기 전에 새 생성이 시작되면, 원래 기다리던 생성 대신 다음 생성까지 기다릴 수 있다. 요청별로 특정 생성 결과를 정확히 공유해야 한다면 현재 구현만으로 보장된다고 가정해서는 안 된다.
 
-같은 값을 생성 후 계속 재사용하려는 경우에는 [`utils.func.Lazy`](../src/main/java/utils/func/Lazy.java) 계열을 검토한다.
+같은 값을 생성 후 계속 재사용하려는 경우에는 [`utils.func.Lazy`](../func/Lazy.java) 계열을 검토한다.
 
 ---
 
@@ -538,27 +538,27 @@ m_guard.awaitCondition(() -> m_state == State.READY)
 
 | 타입 | 주요 API와 역할 |
 |---|---|
-| [`Guard`](../src/main/java/utils/thread/Guard.java) | `run`·`get`·`accept`로 잠금 안에서 실행, `awaitCondition`으로 조건 대기, `preAction`으로 사전 작업 지정 |
-| [`ConditionVariable`](../src/main/java/utils/thread/ConditionVariable.java) | `await`·`awaitUntil`로 대기 조건이 해제될 때까지 기다림 |
-| [`RecurringSchedule`](../src/main/java/utils/thread/RecurringSchedule.java) | `start`·`stop`·`waitForStopped`·`getState`로 주기 작업 제어 |
-| [`RecurringScheduleThread`](../src/main/java/utils/thread/RecurringScheduleThread.java) | `newFixedRateSchedule`·`newFixedDelaySchedule`로 전용 스레드 방식 생성 |
-| [`RecurringScheduleImpl`](../src/main/java/utils/thread/RecurringScheduleImpl.java) | `CamusExecutor`를 사용하는 주기 실행 구현 |
-| [`RecurringWork`](../src/main/java/utils/thread/RecurringWork.java) / [`InterruptableWork`](../src/main/java/utils/thread/InterruptableWork.java) | `onStarted`·`perform`·`onStopped`로 작업 정의 / `interrupt`로 중단 처리 |
-| [`CamusExecutor`](../src/main/java/utils/thread/CamusExecutor.java) / [`CamusExecutorImpl`](../src/main/java/utils/thread/CamusExecutorImpl.java) | `execute`·`submit`·`schedule`·주기 작업 팩토리 제공 |
-| [`ExecutorAware`](../src/main/java/utils/thread/ExecutorAware.java) | `getExecutor`·`setExecutor`로 외부 실행기 설정 |
-| [`AsyncConsumer`](../src/main/java/utils/thread/AsyncConsumer.java) | `accept`로 비동기 처리 요청, `schedule`로 완료 결과 추적 |
-| [`SingleWaiterExecutor`](../src/main/java/utils/thread/SingleWaiterExecutor.java) | `submit`으로 최신 대기 작업 유지, `stop`으로 취소 요청 |
-| [`Timer`](../src/main/java/utils/thread/Timer.java) | `setTimer`로 마감 시각의 취소 예약 |
-| [`LengthOneOverridingQueue`](../src/main/java/utils/thread/LengthOneOverridingQueue.java) | `add`로 최신 값 저장, `poll`로 대기 후 꺼내기, `peek`로 확인 |
-| [`CompletionFStream`](../src/main/java/utils/thread/CompletionFStream.java) | `submit`으로 결과 수집 등록, `next`로 완료 결과 소비 |
-| [`InterThreadShareSupplier`](../src/main/java/utils/thread/InterThreadShareSupplier.java) | `get`으로 생성 결과 공유, `setWaitTimeout`으로 공유 대기 제한 설정 |
+| [`Guard`](Guard.java) | `run`·`get`·`accept`로 잠금 안에서 실행, `awaitCondition`으로 조건 대기, `preAction`으로 사전 작업 지정 |
+| [`ConditionVariable`](ConditionVariable.java) | `await`·`awaitUntil`로 대기 조건이 해제될 때까지 기다림 |
+| [`RecurringSchedule`](RecurringSchedule.java) | `start`·`stop`·`waitForStopped`·`getState`로 주기 작업 제어 |
+| [`RecurringScheduleThread`](RecurringScheduleThread.java) | `newFixedRateSchedule`·`newFixedDelaySchedule`로 전용 스레드 방식 생성 |
+| [`RecurringScheduleImpl`](RecurringScheduleImpl.java) | `CamusExecutor`를 사용하는 주기 실행 구현 |
+| [`RecurringWork`](RecurringWork.java) / [`InterruptableWork`](InterruptableWork.java) | `onStarted`·`perform`·`onStopped`로 작업 정의 / `interrupt`로 중단 처리 |
+| [`CamusExecutor`](CamusExecutor.java) / [`CamusExecutorImpl`](CamusExecutorImpl.java) | `execute`·`submit`·`schedule`·주기 작업 팩토리 제공 |
+| [`ExecutorAware`](ExecutorAware.java) | `getExecutor`·`setExecutor`로 외부 실행기 설정 |
+| [`AsyncConsumer`](AsyncConsumer.java) | `accept`로 비동기 처리 요청, `schedule`로 완료 결과 추적 |
+| [`SingleWaiterExecutor`](SingleWaiterExecutor.java) | `submit`으로 최신 대기 작업 유지, `stop`으로 취소 요청 |
+| [`Timer`](Timer.java) | `setTimer`로 마감 시각의 취소 예약 |
+| [`LengthOneOverridingQueue`](LengthOneOverridingQueue.java) | `add`로 최신 값 저장, `poll`로 대기 후 꺼내기, `peek`로 확인 |
+| [`CompletionFStream`](CompletionFStream.java) | `submit`으로 결과 수집 등록, `next`로 완료 결과 소비 |
+| [`InterThreadShareSupplier`](InterThreadShareSupplier.java) | `get`으로 생성 결과 공유, `setWaitTimeout`으로 공유 대기 제한 설정 |
 
 ---
 
 ## 9. 관련 문서
 
-- [`utils.thread` 개발 노트](../src/main/java/utils/thread/CLAUDE.md) — 패키지 내부 구조
-- [`utils.async` 사용자 가이드](async-threaded-guide.md) — 실행 결과, 취소, 폴링, 주기 서비스 사용법
-- [`utils.async` 개발 노트](../src/main/java/utils/async/CLAUDE.md) — `Guard`, `Timer`, `SingleWaiterExecutor`를 사용하는 비동기 실행 구조
-- [스트림 가이드](stream-guide.md) — `SuppliableFStream`의 버퍼와 공급 종료 처리
-- [라이브러리 전체 구조](../CLAUDE.md)
+- [`utils.thread` 개발 노트](CLAUDE.md) — 패키지 내부 구조
+- [`utils.async` 사용자 가이드](../async/README.md) — 실행 결과, 취소, 폴링, 주기 서비스 사용법
+- [`utils.async` 개발 노트](../async/CLAUDE.md) — `Guard`, `Timer`, `SingleWaiterExecutor`를 사용하는 비동기 실행 구조
+- [스트림 가이드](../stream/README.md) — `SuppliableFStream`의 버퍼와 공급 종료 처리
+- [라이브러리 전체 구조](../../../../../CLAUDE.md)

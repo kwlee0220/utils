@@ -35,8 +35,8 @@ public interface StateContext<C extends StateContext<C>> {
 	 * 재설정을 거부해야 한다. 이는 {@link StateChart}와의 양방향 참조 일관성을
 	 * 유지하기 위함이다.
 	 *
-	 * @param machine	소속될 {@link StateChart}
+	 * @param chart	소속될 {@link StateChart}
 	 * @throws IllegalStateException	이미 다른 {@link StateChart}가 등록된 경우
 	 */
-	public void setStateChart(@NotNull StateChart<C> machine);
+	public void setStateChart(@NotNull StateChart<C> chart);
 }

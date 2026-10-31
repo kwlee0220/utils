@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * 상태 구현체들의 동작을 검증한다:
- * {@link AbstractState}, {@link SinkState}, {@link ExceptionState},
- * {@link SingleOutState}, {@link DefaultCompositeState}.
+ * {@link AbstractState}, {@link TerminalState}, {@link FailureState},
+ * {@link TriggeredState}, {@link DefaultCompositeState}.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -25,11 +25,11 @@ public class StatesTest {
 
 	private final TestCtx m_ctx = new TestCtx();
 
-	// ---- AbstractState (SinkState를 통해 검증) ----
+	// ---- AbstractState (TerminalState를 통해 검증) ----
 
 	@Test
 	public void abstractState_path_context_segments() {
-		SinkState<TestCtx> s = new SinkState<>("/a/b/c", m_ctx);
+		TerminalState<TestCtx> s = new TerminalState<>("/a/b/c", m_ctx);
 
 		Assertions.assertEquals("/a/b/c", s.getPath());
 		Assertions.assertSame(m_ctx, s.getContext());
@@ -40,48 +40,48 @@ public class StatesTest {
 	@Test
 	public void abstractState_null_path_rejected() {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
-			new SinkState<TestCtx>(null, m_ctx);
+			new TerminalState<TestCtx>(null, m_ctx);
 			});
 	}
 
 	@Test
 	public void abstractState_null_context_rejected() {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
-			new SinkState<TestCtx>("x", null);
+			new TerminalState<TestCtx>("x", null);
 			});
 	}
 
-	// ---- SinkState ----
+	// ---- TerminalState ----
 
 	@Test
-	public void sinkState_exit_throws() {
+	public void terminalState_exit_throws() {
 		Assertions.assertThrows(UnsupportedOperationException.class, () -> {
-			new SinkState<>("x", m_ctx).exit();
+			new TerminalState<>("x", m_ctx).exit();
 			});
 	}
 
 	@Test
-	public void sinkState_selectTransition_throws() {
+	public void terminalState_selectTransition_throws() {
 		Assertions.assertThrows(UnsupportedOperationException.class, () -> {
-			new SinkState<>("x", m_ctx).selectTransition(new Signal() {});
+			new TerminalState<>("x", m_ctx).selectTransition(new Signal() {});
 			});
 	}
 
 	@Test
-	public void sinkState_enter_is_noop() {
-		new SinkState<>("x", m_ctx).enter();   // 예외 발생 없이 통과해야 함
+	public void terminalState_enter_is_noop() {
+		new TerminalState<>("x", m_ctx).enter();   // 예외 발생 없이 통과해야 함
 	}
 
-	// ---- ExceptionState ----
+	// ---- FailureState ----
 
 	@Test
-	public void exceptionState_failureCause_default_null() {
-		Assertions.assertNull(new ExceptionState<>("err", m_ctx).getFailureCause());
+	public void failureState_failureCause_default_null() {
+		Assertions.assertNull(new FailureState<>("err", m_ctx).getFailureCause());
 	}
 
 	@Test
-	public void exceptionState_failureCause_set_get() {
-		ExceptionState<TestCtx> s = new ExceptionState<>("err", m_ctx);
+	public void failureState_failureCause_set_get() {
+		FailureState<TestCtx> s = new FailureState<>("err", m_ctx);
 		Throwable cause = new RuntimeException("boom");
 
 		s.setFailureCause(cause);
@@ -90,19 +90,19 @@ public class StatesTest {
 	}
 
 	@Test
-	public void exceptionState_inherits_sink_exit() {
+	public void failureState_inherits_sink_exit() {
 		Assertions.assertThrows(UnsupportedOperationException.class, () -> {
-			new ExceptionState<>("err", m_ctx).exit();
+			new FailureState<>("err", m_ctx).exit();
 			});
 	}
 
-	// ---- SingleOutState ----
+	// ---- TriggeredState ----
 
 	@Test
-	public void singleOutState_matching_signal_returns_transition() {
+	public void triggeredState_matching_signal_returns_transition() {
 		Signal trigger = new Signal() {};
-		Transition<TestCtx> t = Transitions.noop("next");
-		SingleOutState<TestCtx> s = new SingleOutState<>("x", m_ctx, trigger, t);
+		Transition<TestCtx> t = Transitions.to("next");
+		TriggeredState<TestCtx> s = new TriggeredState<>("x", m_ctx, trigger, t);
 
 		Optional<Transition<TestCtx>> result = s.selectTransition(trigger);
 		Assertions.assertTrue(result.isPresent());
@@ -110,44 +110,61 @@ public class StatesTest {
 	}
 
 	@Test
-	public void singleOutState_non_matching_signal_returns_empty() {
+	public void triggeredState_non_matching_signal_returns_empty() {
 		Signal trigger = new Signal() {};
 		Signal other = new Signal() {};
-		SingleOutState<TestCtx> s = new SingleOutState<>("x", m_ctx, trigger,
-									Transitions.<TestCtx>noop("next"));
+		TriggeredState<TestCtx> s = new TriggeredState<>("x", m_ctx, trigger,
+									Transitions.<TestCtx>to("next"));
 
 		Assertions.assertTrue(s.selectTransition(other).isEmpty());
 	}
 
 	@Test
-	public void singleOutState_null_signal_to_select_rejected() {
+	public void triggeredState_null_signal_to_select_rejected() {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
-			new SingleOutState<>("x", m_ctx, new Signal() {},
-								Transitions.<TestCtx>noop("y")).selectTransition(null);
+			new TriggeredState<>("x", m_ctx, new Signal() {},
+								Transitions.<TestCtx>to("y")).selectTransition(null);
 			});
 	}
 
 	@Test
-	public void singleOutState_null_trigger_rejected() {
+	public void triggeredState_null_trigger_rejected() {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
-			new SingleOutState<>("x", m_ctx, null, Transitions.<TestCtx>noop("y"));
+			new TriggeredState<>("x", m_ctx, null, Transitions.<TestCtx>to("y"));
 			});
 	}
 
 	@Test
-	public void singleOutState_null_supplier_rejected() {
+	public void triggeredState_null_static_transition_rejected() {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
-			new SingleOutState<>("x", m_ctx, new Signal() {},
+			new TriggeredState<>("x", m_ctx, new Signal() {}, (Transition<TestCtx>) null);
+			});
+	}
+
+	@Test
+	public void triggeredState_null_supplier_rejected() {
+		Assertions.assertThrows(IllegalArgumentException.class, () -> {
+			new TriggeredState<>("x", m_ctx, new Signal() {},
 								(Supplier<Transition<TestCtx>>) null);
 			});
 	}
 
 	@Test
-	public void singleOutState_supplier_invoked_each_match() {
+	public void triggeredState_supplier_returning_null_fails_with_state_path() {
+		Signal trigger = new Signal() {};
+		TriggeredState<TestCtx> s = new TriggeredState<>("/X", m_ctx, trigger, () -> null);
+
+		IllegalStateException e = Assertions.assertThrows(IllegalStateException.class,
+															() -> s.selectTransition(trigger));
+		Assertions.assertTrue(e.getMessage().contains("/X"), e.getMessage());
+	}
+
+	@Test
+	public void triggeredState_supplier_invoked_each_match() {
 		Signal trigger = new Signal() {};
 		AtomicInteger calls = new AtomicInteger();
-		Transition<TestCtx> t = Transitions.noop("next");
-		SingleOutState<TestCtx> s = new SingleOutState<>("x", m_ctx, trigger, () -> {
+		Transition<TestCtx> t = Transitions.to("next");
+		TriggeredState<TestCtx> s = new TriggeredState<>("x", m_ctx, trigger, () -> {
 			calls.incrementAndGet();
 			return t;
 		});
@@ -159,13 +176,13 @@ public class StatesTest {
 	}
 
 	@Test
-	public void singleOutState_non_matching_does_not_invoke_supplier() {
+	public void triggeredState_non_matching_does_not_invoke_supplier() {
 		Signal trigger = new Signal() {};
 		Signal other = new Signal() {};
 		AtomicInteger calls = new AtomicInteger();
-		SingleOutState<TestCtx> s = new SingleOutState<>("x", m_ctx, trigger, () -> {
+		TriggeredState<TestCtx> s = new TriggeredState<>("x", m_ctx, trigger, () -> {
 			calls.incrementAndGet();
-			return Transitions.<TestCtx>noop("next");
+			return Transitions.<TestCtx>to("next");
 		});
 
 		s.selectTransition(other);
@@ -174,64 +191,26 @@ public class StatesTest {
 	}
 
 	// ---- DefaultCompositeState ----
+	// 계층 전이 동작은 StateChartTest의 "복합 상태" 테스트에서 검증한다.
 
 	@Test
-	public void compositeState_enter_drives_initial_state_lifecycle() {
-		AtomicInteger childEnter = new AtomicInteger();
-		AtomicInteger childExit = new AtomicInteger();
-		State<TestCtx> child = new AbstractState<TestCtx>("child", m_ctx) {
-			@Override public void enter() { childEnter.incrementAndGet(); }
-			@Override public void exit() { childExit.incrementAndGet(); }
-			@Override public Optional<Transition<TestCtx>> selectTransition(Signal s) {
-				return Optional.empty();
-			}
-		};
-		DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("comp", m_ctx);
-		comp.setInitialState(child);
+	public void compositeState_holds_initial_state_path() {
+		DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("/comp", m_ctx, "/comp/child");
 
-		Assertions.assertSame(child, comp.getInitialState());
-		Assertions.assertNull(comp.getCurrentState());
-
-		comp.enter();
-		Assertions.assertEquals(1, childEnter.get());
-		Assertions.assertSame(child, comp.getCurrentState());
-
-		comp.exit();
-		Assertions.assertEquals(1, childExit.get());
-		Assertions.assertNull(comp.getCurrentState());
+		Assertions.assertEquals("/comp", comp.getPath());
+		Assertions.assertEquals("/comp/child", comp.getInitialStatePath());
 	}
 
 	@Test
-	public void compositeState_double_enter_rejected() {
-		Assertions.assertThrows(IllegalStateException.class, () -> {
-			DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("comp", m_ctx);
-			comp.setInitialState(new SinkState<>("child", m_ctx));   // SinkState.enter()는 no-op
-			comp.enter();
-			comp.enter();
-			});
+	public void compositeState_null_initial_state_path_rejected() {
+		Assertions.assertThrows(IllegalArgumentException.class,
+								() -> new DefaultCompositeState<>("/comp", m_ctx, null));
 	}
 
 	@Test
-	public void compositeState_exit_before_enter_rejected() {
-		Assertions.assertThrows(IllegalStateException.class, () -> {
-			DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("comp", m_ctx);
-			comp.setInitialState(new SinkState<>("child", m_ctx));
-			comp.exit();
-			});
-	}
+	public void compositeState_selects_no_transition_by_default() {
+		DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("/comp", m_ctx, "/comp/child");
 
-	@Test
-	public void compositeState_selectTransition_delegates_to_currentState() {
-		Signal trigger = new Signal() {};
-		Transition<TestCtx> tt = Transitions.noop("target");
-		State<TestCtx> child = new SingleOutState<>("child", m_ctx, trigger, tt);
-		DefaultCompositeState<TestCtx> comp = new DefaultCompositeState<>("comp", m_ctx);
-		comp.setInitialState(child);
-		comp.enter();
-
-		Optional<Transition<TestCtx>> sel = comp.selectTransition(trigger);
-
-		Assertions.assertTrue(sel.isPresent());
-		Assertions.assertSame(tt, sel.get());
+		Assertions.assertTrue(comp.selectTransition(new Signal() {}).isEmpty());
 	}
 }

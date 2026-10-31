@@ -48,7 +48,7 @@ import utils.func.CheckedSupplierX;
  * @author Kang-Woo Lee (ETRI)
  */
 public class Guard {
-	private final Lock m_lock;
+	private final ReentrantLock m_lock;
 	private final Condition m_cond;
 
 	/**
@@ -59,11 +59,11 @@ public class Guard {
 	 * @return	새 {@link Guard} 인스턴스
 	 */
 	public static Guard create() {
-		Lock lock = new ReentrantLock();
+		ReentrantLock lock = new ReentrantLock();
 		return new Guard(lock, lock.newCondition());
 	}
 	
-	private Guard(Lock lock, Condition cond) {
+	private Guard(ReentrantLock lock, Condition cond) {
 		Preconditions.checkNotNullArgument(lock, "lock is null");
 		Preconditions.checkNotNullArgument(cond, "Condition is null");
 		
@@ -90,6 +90,17 @@ public class Guard {
 	 */
 	public void unlock() {
 		m_lock.unlock();
+	}
+
+	/**
+	 * 호출 쓰레드가 본 Guard의 lock을 보유하고 있는지 여부를 반환한다.
+	 * <p>
+	 * 진단이나, lock을 보유한 채 다른 쓰레드를 기다리면 교착되는 경로를 피하기 위한 용도로 사용한다.
+	 *
+	 * @return	호출 쓰레드가 lock을 보유하고 있으면 {@code true}.
+	 */
+	public boolean isHeldByCurrentThread() {
+		return m_lock.isHeldByCurrentThread();
 	}
 
 	/**
