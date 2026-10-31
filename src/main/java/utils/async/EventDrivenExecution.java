@@ -694,13 +694,13 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		m_aopGuard.lock();
     	try {
 			Tuple<Consumer<Result<T>>, Boolean> listener = Tuple.of(handler, runAsync);
-			if ( !Funcs.exists(m_finishListeners, t -> t._1 == handler) ) {
+			if ( isDoneInGuard() ) {
+				// 이미 종료된 경우에는 목록에 넣지 않고 바로 수행시킨다. 종료 알림은 한 번뿐이므로 보관할 필요가 없다.
+				// (같은 핸들러를 다시 등록하면 그때마다 수행된다. 중복 검사는 종료 전에 등록한 핸들러에만 적용된다.)
+				notifyFinishListenersInGuard(List.of(listener));
+			}
+			else if ( !Funcs.exists(m_finishListeners, t -> t._1 == handler) ) {
 				m_finishListeners.add(listener);
-				
-				if ( isDoneInGuard() ) {
-					// 이미 종료된 경우에는 바로 수행시킨다.
-					notifyFinishListenersInGuard(List.of(listener));
-				}
 			}
 
 			return this;
@@ -837,8 +837,16 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		}
 	}
 	
+	/**
+	 * 등록된 종료 핸들러들에게 종료를 알리고 목록을 비운다.
+	 * <p>
+	 * 종료 알림은 실행마다 한 번뿐이고 종료 뒤의 등록은 목록을 거치지 않으므로, 알린 뒤에는 핸들러를 보관하지 않는다.
+	 * (보관하면 끝난 실행이 핸들러와 그것이 참조하는 객체를 계속 붙잡는다.)
+	 */
 	private void notifyFinishListenersInGuard() {
-		notifyFinishListenersInGuard(m_finishListeners);
+		List<Tuple<Consumer<Result<T>>,Boolean>> listeners = List.copyOf(m_finishListeners);
+		m_finishListeners.clear();
+		notifyFinishListenersInGuard(listeners);
 	}
 
 	private void invokeFinishListener(Consumer<Result<T>> handler, Result<T> result) {

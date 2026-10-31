@@ -44,7 +44,10 @@ import utils.thread.Timer;
 public class Executions {
 	private static final ScheduledExecutorService EXECUTOR = Executions.createDefaultExecutor();
 	
-	private static Timer s_timer = null;
+	/** 공용 {@link Timer}. 처음 쓸 때 만든다(holder 방식이라 동시에 처음 불러도 하나만 만든다). */
+	private static final class TimerHolder {
+		private static final Timer TIMER = new Timer();
+	}
 	
 	private Executions() {
 		throw new AssertionError("Should not be called: class=" + getClass());
@@ -54,15 +57,13 @@ public class Executions {
 	 * 라이브러리 공용 {@link Timer} 인스턴스를 반환한다.
 	 * <p>
 	 * 주로 {@link EventDrivenExecution#setTimeout(long, java.util.concurrent.TimeUnit)} 등
-	 * {@link Execution}에 타임아웃을 부착하는 데 사용된다. 최초 호출 시 lazy 생성된다.
+	 * {@link Execution}에 타임아웃을 부착하는 데 사용된다. 최초 호출 시 lazy 생성되며, 여러 스레드가 동시에
+	 * 처음 호출해도 하나만 만든다(이전 구현은 동기화 없이 만들어 타이머와 그 스레드가 둘 이상 생길 수 있었다).
 	 *
 	 * @return 공용 {@link Timer} 객체.
 	 */
 	public static Timer getTimer() {
-		if ( s_timer == null ) {
-			s_timer = new Timer();
-		}
-		return s_timer;
+		return TimerHolder.TIMER;
 	}
 
 	/**

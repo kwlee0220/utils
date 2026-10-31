@@ -1002,7 +1002,7 @@ class StatCollector extends PeriodicLoopService {
 | `setTimeout(long, TimeUnit)` | 모든 `Execution` | `Timer`가 `cancel(true)`로 취소 요청. 실제 결과는 취소 처리에 따라 달라짐 |
 | `setTimeout(Duration)` | `PeriodicLoopExecution` 이하 | **`TimeoutException`으로 `FAILED`** |
 
-반복 실행 계열에서 "시간 안에 목표에 도달하지 못함"을 실패로 다루려면 `setTimeout(Duration)`을 쓴다. 또 `Timer`는 동시에 64개까지만 보관하므로 대량의 실행에 `setTimeout(long, TimeUnit)`을 걸지 않는다.
+반복 실행 계열에서 "시간 안에 목표에 도달하지 못함"을 실패로 다루려면 `setTimeout(Duration)`을 쓴다. 예약 수에는 제한이 없고, 실행이 먼저 끝나면 예약도 해제된다(2026-10-31 이전의 `Timer`는 64개까지만 보관했다).
 
 ### 10.2 `cancel(true)`는 즉시 끝내지 않는다
 

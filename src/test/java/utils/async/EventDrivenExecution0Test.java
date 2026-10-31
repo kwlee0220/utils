@@ -117,4 +117,31 @@ public class EventDrivenExecution0Test {
 		Assertions.assertEquals(AsyncState.FAILED, m_exec.getState());
 		Assertions.assertEquals(1, finished.get());
 	}
+
+	private static int finishListenerCount(EventDrivenExecution<?> exec) throws Exception {
+		java.lang.reflect.Field field = EventDrivenExecution.class.getDeclaredField("m_finishListeners");
+		field.setAccessible(true);
+		return ((java.util.List<?>)field.get(exec)).size();
+	}
+
+	@Test
+	public void finish_listeners_are_not_retained_after_completion() throws Exception {
+		// 종료 알림은 한 번뿐이므로, 알린 뒤나 끝난 뒤에 등록한 리스너를 보관하지 않는다
+		// (Timer.setTimer가 실행마다 리스너를 등록하므로 끝난 실행이 리스너를 계속 붙잡던 문제).
+		java.util.concurrent.atomic.AtomicInteger finished = new java.util.concurrent.atomic.AtomicInteger();
+		m_exec.whenFinished(result -> finished.incrementAndGet());
+		m_exec.notifyStarting();
+		m_exec.notifyStarted();
+		Assertions.assertEquals(2, finishListenerCount(m_exec));	// setup()에서 등록한 것 포함
+
+		m_exec.notifyCompleted("done");
+		Assertions.assertEquals(1, finished.get());
+		Assertions.assertEquals(0, finishListenerCount(m_exec), "listeners must be released after notification");
+
+		for ( int i = 0; i < 200; ++i ) {
+			m_exec.whenFinished(result -> finished.incrementAndGet());	// 끝난 뒤의 등록은 바로 수행된다
+		}
+		Assertions.assertEquals(201, finished.get());
+		Assertions.assertEquals(0, finishListenerCount(m_exec), "late listeners must not be stored");
+	}
 }

@@ -25,8 +25,8 @@
 | # | 분류 | 심각도 | 제목 | 상태 |
 |---|------|--------|------|------|
 | 1 | 버그 | 높음 | `InterThreadShareSupplier`: 대기 제한을 정하지 않으면(기본값) 진행 중인 생성을 기다리지 않음 | 완료 |
-| 2 | 버그 | 높음 | `Timer`: 64개 상한에서 조용히 버리고, 끝난 실행이 자리를 계속 차지해 살아 있는 타임아웃이 사라짐 | 대기 |
-| 3 | 버그 | 중간 | `Timer`: 타이머 lock을 쥔 채 `cancel()`·`isDone()` 호출 → 모든 타이머 지연, lock 순서 역전 | 대기 |
+| 2 | 버그 | 높음 | `Timer`: 64개 상한에서 조용히 버리고, 끝난 실행이 자리를 계속 차지해 살아 있는 타임아웃이 사라짐 | 완료 |
+| 3 | 버그 | 중간 | `Timer`: 타이머 lock을 쥔 채 `cancel()`·`isDone()` 호출 → 모든 타이머 지연, lock 순서 역전 | 완료 |
 | 4 | 버그 | 높음 | `RecurringScheduleThread.waitForStopped(long)`: 작업 스레드에서 부르면 lock을 놓지 않고 예외 | 대기 |
 | 5 | 버그 | 중간 | `RecurringScheduleThread.setLogger()` 조건 반전 | 대기 |
 | 6 | 버그 | 중간 | `RecurringScheduleThread.getState()`가 `WORKING`을 돌려주지 않음 | 대기 |
@@ -42,7 +42,7 @@
 | 16 | 정리 | 낮음 | `Guard`: 두 대기 빌더의 중복 구현, 의미 없는 `protected`, 일부 인자 검사 누락 | 대기 |
 | 17 | 정리 | 낮음 | `ExecutorAware`의 위치(`utils.async`가 유일한 사용처) | 대기 |
 | 18 | 인터페이스 | — | `Guard` 조건을 `Supplier<Boolean>` → `BooleanSupplier` | 대기 |
-| 19 | 인터페이스 | — | `Timer`를 `ScheduledThreadPoolExecutor` 기반으로 다시 구현하고 실행이 끝나면 예약 취소 | 대기 |
+| 19 | 인터페이스 | — | `Timer`를 `ScheduledThreadPoolExecutor` 기반으로 다시 구현하고 실행이 끝나면 예약 취소 | 완료 |
 | 20 | 인터페이스 | — | `RecurringSchedule`: `long` 밀리초 → `Duration`, 예외 계약 정리 | 대기 |
 | 21 | 인터페이스 | — | `LengthOneOverridingQueue`: Java 관례와 다른 `poll()`(블록) | 대기 |
 | 22 | 이름 | — | 클래스·메소드 이름 변경 | 대기 |
@@ -79,7 +79,7 @@
   
   둘이 겹치면, 끝난 실행들이 64칸을 채운 상태에서 새로 건 타임아웃(또는 기한이 긴 살아 있는 타임아웃)이 버려진다. `Execution.setTimeout()` 사용처가 33곳이라 "시간 초과로 끝나야 할 작업이 끝나지 않는" 문제로 나타난다.
 - 제안: #19의 재구현으로 해결한다. 최소 수정이라면 크기 제한을 없애고, 실행이 끝날 때(`whenFinished`) 큐에서 지운다.
-- 결과:
+- 결과: 완료(미커밋). #19의 재구현으로 해결. 예약 수 제한이 없고, `exec.whenFinished(r -> future.cancel(false))`로 끝난 실행의 예약을 곧바로 해제한다(`setRemoveOnCancelPolicy(true)`라 큐에서도 바로 빠진다). 테스트 `more_than_64_pending_timers_all_fire`, `a_finished_execution_releases_its_timer`.
 
 ### #3 `Timer`: 타이머 lock 안에서 실행을 취소함 — 중간
 
@@ -88,7 +88,7 @@
   - `cancel()`은 오래 걸릴 수 있다. 예를 들어 `StateChart`는 차트 lock을 기다리고 상태 `exit()`를 실행하며, RCK 시뮬레이션은 중지 명령 전송을 최대 2초 기다린다. 그동안 모든 타이머의 `setTimer()`와 다른 타임아웃 처리가 멈춘다.
   - lock 순서가 뒤집힐 수 있다. 타이머 스레드는 타이머 lock → 실행 lock(`isDone`/`cancel`) 순서로 잡는다. 반대로 실행 lock을 쥔 스레드가 `setTimeout()`을 부르면(예: 동기 `whenStarted` 리스너 안) 실행 lock → 타이머 lock 순서가 되어 교착될 수 있다.
 - 제안: 만료된 항목은 lock 안에서 큐에서 빼기만 하고, `cancel(true)`는 lock 밖에서(가능하면 별도 스레드에서) 부른다. #19의 재구현에서는 구조적으로 해결된다.
-- 결과:
+- 결과: 완료(미커밋). #19의 재구현으로 해결. 스케줄러 스레드는 시간만 재고 만료를 취소 전용 스레드 풀에 넘기며, `cancel(true)`는 그 풀에서 lock 없이 부른다. 테스트 `a_slow_cancel_does_not_delay_other_timers`.
 
 ### #4 `RecurringScheduleThread.waitForStopped(long)`: lock을 놓지 않음 — 높음
 
@@ -233,7 +233,7 @@ final class ExecutionTimeouts {
 - 크기 제한이 없고, 끝난 실행은 바로 빠지며(#2), 취소는 lock 밖의 별도 스레드에서 한다(#3). 시간은 `System.nanoTime` 기반이라 시계 변경에 영향받지 않는다(현재는 `Date`/`currentTimeMillis`).
 - `Execution.setTimeout()`의 반환형을 바꾸지 않아도 된다(내부 구현만 교체). `Executions.getTimer()`와 `Timer` 클래스는 `TimerTest`만 직접 쓰므로 함께 정리한다.
 - RCK에서 만든 `RCKExecutors`(타이머 스레드 + 작업 풀)와 같은 구조다.
-- 결과:
+- 결과: 완료(미커밋). 이름은 `Timer`로 유지했다(#22의 `ExecutionTimeouts`는 별도 결정). 공개 메소드는 그대로이고 `setTimer`가 `void` 대신 `ScheduledFuture<?>`를 돌려준다(호출부 소스 호환). 내부는 데몬 1스레드 `ScheduledThreadPoolExecutor`(`setRemoveOnCancelPolicy(true)`) + 취소 전용 데몬 캐시 풀, 단조 시계 기반. `shutdown()` 뒤의 `setTimer`는 `IllegalStateException`. `Executions.getTimer()`의 비동기화 지연 생성(동시에 처음 부르면 타이머가 둘 이상 생길 수 있었음)도 holder 방식으로 고쳤다. `TimerTest`에 4개 추가(총 8개). `utils.async`·`utils.thread`(548개)·`utils.statechart`(114개) 테스트 통과. README 5.4·7절, 패키지 CLAUDE.md 갱신. 외부 검토 반영(미커밋): `shutdown()`이 남은 예약을 모두 해제(`shutdownNow()`는 future를 완료하지 않음), 취소 스레드를 최대 4개(`MAX_CANCELLATION_THREADS`, 대기열 무제한)로 제한, `Date` 기한 오버플로(`Long.MIN_VALUE`) 수정, 반환형을 좁은 `Timer.TimeoutHandle`(`cancel()`=예약 해제, `isPending`/`isCancelled`/`isExpired`)로 변경, 같은 실행에 다시 예약하면 추가된다는 점과 핸들의 세 상태 구분을 문서화, `cancel(true)` 거부는 상태와 함께 DEBUG 로그. 종료 리스너 누적은 `EventDrivenExecution`이 종료 알림 뒤 목록을 비우고 종료 후 등록은 보관하지 않도록 고쳐 해결(실행 중 반복 예약의 누적은 문서화로 대신). 이름 변경 제안은 반영하지 않음. 테스트: `TimerTest` 12개, `EventDrivenExecution0Test`에 1개 추가. async·thread·statechart·websocket 839개, rpc 69개 통과.
 
 ### #20 `RecurringSchedule`: `Duration`과 예외 계약
 
@@ -252,8 +252,8 @@ Java의 `Queue.poll()`은 블록하지 않고 비어 있으면 `null`을 돌려�
 
 | 현재 | 제안 | 이유 |
 |---|---|---|
-| `Timer` | `ExecutionTimeouts` (#19) | 실행 시간 제한 전용이다. `java.util.Timer`·`javax.swing.Timer`와 이름이 겹친다 |
-| `Timer.setTimer(exec, …)` | `schedule(exec, timeout)` | 타이머를 "설정"하는 것이 아니라 취소를 예약한다 |
+| `Timer` | `ExecutionTimeoutScheduler` (처음 제안은 `ExecutionTimeouts`) | 실행 시간 제한 전용이다. `java.util.Timer`·`javax.swing.Timer`와 이름이 겹친다 — **기각**: 적용했다가 사용자 요청으로 클래스 이름은 `Timer`로 되돌림(테스트 `TimerTest`, holder `TimerHolder`도 원래대로). 설명형 테스트 메소드 이름은 유지 |
+| `Timer.setTimer(exec, …)` | `scheduleTimeout(execution, …)` | 타이머를 "설정"하는 것이 아니라 취소를 예약한다 — **기각**: 적용했다가 사용자 요청으로 `setTimer`/`Executions.getTimer()`와 스레드 이름 `execution-timer(-cancel)`로 되돌림. 인자 이름 `execution`, 지역 변수 `handle`, 설명형 테스트 메소드 이름은 유지 |
 | `LengthOneOverridingQueue` | `LatestValueSlot` | 큐가 아니라 최신 값 하나를 담는 칸이다(`Queue`를 구현하지도 않는다) |
 | `SingleWaiterExecutor` | `LatestWinsExecutor` | 대기 슬롯 하나에 최신 작업만 남기는 것이 핵심이다 |
 | `InterThreadShareSupplier` | `CoalescingSupplier` | 동시 호출을 하나로 합치는(call coalescing) 역할이다 — **완료(미커밋)**: 필드 `m_srcSupplier`→`m_source`, `m_inflight`→`m_inFlight`, `finishProduction`→`clearInFlight`, 인자·지역 변수 `result`/`shared`/`producer`→`production`/`isProducer`도 함께 바꿈 |

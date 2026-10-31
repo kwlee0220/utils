@@ -16,7 +16,7 @@
 | 즉시 실행·지연 실행·주기 작업 예약 | [`CamusExecutor`](CamusExecutor.java) | 여러 실행 방식을 하나의 인터페이스로 사용 |
 | 데이터 처리를 다른 스레드에 맡기기 | [`AsyncConsumer`](AsyncConsumer.java) | `Consumer<T>`를 비동기로 호출 |
 | 실행 중인 작업 뒤에 최신 요청 하나만 남기기 | [`SingleWaiterExecutor`](SingleWaiterExecutor.java) | 오래된 대기 요청은 취소해도 되는 작업 |
-| 마감 시각에 비동기 작업 취소 요청 | [`Timer`](Timer.java) | `Execution`의 타이머 취소 기능. 예약 개수 제한에 주의 |
+| 마감 시각에 비동기 작업 취소 요청 | [`Timer`](Timer.java) | `Execution.setTimeout()`의 기반. 실행이 끝나면 예약도 해제 |
 | 최신 값 하나만 전달 | [`LengthOneOverridingQueue`](LengthOneOverridingQueue.java) | 중간 값을 건너뛰어도 되는 상태·측정값 |
 | 여러 작업의 결과를 도착하는 대로 수집 | [`CompletionFStream`](CompletionFStream.java) | 제출 순서에 관계없이 완료 결과 처리 |
 | 동시에 요청된 값 생성을 하나로 합치기 | [`CoalescingSupplier`](CoalescingSupplier.java) | 진행 중인 생성 결과를 여러 호출자가 공유(캐시는 아님). 6.3 참고 |
@@ -378,12 +378,29 @@ executor.stop();
 `Execution.setTimeout(long, TimeUnit)`에서 사용하는 데몬 스레드 기반 타이머다. 일반적으로 `Executions.getTimer()`로 공용 인스턴스를 얻는다.
 
 ```java
-Executions.getTimer().setTimer(execution, 30, TimeUnit.SECONDS);
+Timer.TimeoutHandle timeout = Executions.getTimer().setTimer(execution, 30, TimeUnit.SECONDS);
+// 제한 시간을 도중에 없애려면 timeout.cancel(). 실행이 먼저 끝나면 자동으로 해제된다.
 ```
 
 마감 시각이 되면 아직 끝나지 않은 작업에 `cancel(true)`를 호출한다. 작업을 강제로 끝내거나 `TimeoutException`으로 실패시키는 기능은 아니다. 최종 상태는 작업의 취소 처리에 따라 달라진다. `PeriodicLoopExecution.setTimeout(Duration)`과의 차이는 [`utils.async` 가이드](../async/README.md)의 제한 시간 설명을 참고한다.
 
-내부 예약 큐는 **최대 64개**를 보관한다. 이를 넘으면 마감이 가장 늦은 항목이 별도 통지 없이 제외되므로, 제외된 작업에는 타이머 취소가 전달되지 않는다. 여러 컴포넌트가 공용 타이머를 함께 사용한다는 점도 고려해야 한다.
+예약은 `ScheduledThreadPoolExecutor`(데몬 스레드 1개)로 관리한다.
+
+- **예약 수에 제한이 없다.** 실행이 먼저 끝나면 예약을 곧바로 해제하므로, 끝난 실행이 자리를 차지하지 않는다.
+- 같은 실행에 다시 예약하면 기존 예약을 바꾸지 않고 **새 예약을 더한다.** 기한을 늘리려면 기존 핸들을 `cancel()`로 해제한 뒤 다시 예약한다.
+- 시간은 단조 시계로 잰다. `setTimer(execution, Date)`는 기한을 등록 시점의 남은 시간으로 바꿔 예약한다(이미 지난 시각이면 곧바로 취소를 요청한다).
+- `cancel(true)`는 시간을 재는 스레드가 아니라 **별도의 취소 스레드**(최대 `Timer.MAX_CANCELLATION_THREADS` = 4개)에서 부른다. 취소 하나가 오래 걸려도(상태 정리, 원격 중지 명령 등) 시간 재기는 막히지 않고, 타이머 쪽 lock을 쥔 채 실행의 lock을 기다리는 일도 없다. 취소 4개가 동시에 막혀 있으면 그 뒤에 만료된 취소 요청은 대기열에서 기다린다(스레드를 무한히 늘리지 않는다).
+- `shutdown()`은 남은 예약을 모두 해제하고(핸들의 `isCancelled()`가 `true`), 이후의 `setTimer`는 `IllegalStateException`으로 거부한다. 공용 인스턴스(`Executions.getTimer()`)는 종료하지 않는다.
+
+반환되는 `Timer.TimeoutHandle`은 **예약**만 나타내며, 세 가지를 구분한다.
+
+| 구분 | 확인 방법 | 의미 |
+|---|---|---|
+| 예약 해제 | `handle.cancel()`, `handle.isCancelled()` | 기한 전에 해제하면 실행을 취소하지 않는다. 실행을 취소하는 기능이 아니다 |
+| 취소 요청 접수 | `handle.isExpired()` | 기한이 되어 `cancel(true)` 요청을 취소 스레드에 넘겼다. 이후에는 철회할 수 없고, 처리되었다는 뜻도 아니다 |
+| 대상 실행 종료 | `execution.waitForFinished()` 등 | 취소 요청이 정상 종료와 경합하면 실행이 취소되지 않고 정상 종료할 수 있다(이때 `cancel(true)`의 거부는 DEBUG로만 기록) |
+
+(2026-10-31 이전 구현은 예약을 64개까지만 보관해 넘치면 마감이 가장 늦은 항목을 알림 없이 버렸고, 끝난 실행을 기한까지 남겨 두었으며, 타이머 lock을 쥔 채 `cancel(true)`를 불렀다.)
 
 ---
 
@@ -521,9 +538,8 @@ m_guard.awaitCondition(() -> m_state == State.READY)
 | `SingleWaiterExecutor` | 새 요청으로 교체된 대기 작업 | 최신 화면 갱신 요청 |
 | `LengthOneOverridingQueue` | 아직 읽지 않은 이전 값 | 최신 측정값·진행률 |
 | `CompletionFStream` | 공급 종료·닫기 이후 도착한 결과 | 종료 시점을 조율하는 완료 결과 수집 |
-| `Timer` | 64개를 초과한 예약 중 마감이 가장 늦은 항목 | 제한된 수의 취소 예약 |
 
-타이머 예약이 많은 경우에는 별도 `ScheduledExecutorService` 등으로 예약을 관리한다. 완료 결과를 모두 받아야 한다면 `CompletionFStream`의 공급 종료를 작업 제출 완료와 혼동하지 않는다.
+완료 결과를 모두 받아야 한다면 `CompletionFStream`의 공급 종료를 작업 제출 완료와 혼동하지 않는다.
 
 ### 7.6 인터페이스와 현재 구현이 다른 부분
 
@@ -551,7 +567,7 @@ m_guard.awaitCondition(() -> m_state == State.READY)
 | [`ExecutorAware`](ExecutorAware.java) | `getExecutor`·`setExecutor`로 외부 실행기 설정 |
 | [`AsyncConsumer`](AsyncConsumer.java) | `accept`로 비동기 처리 요청, `schedule`로 완료 결과 추적 |
 | [`SingleWaiterExecutor`](SingleWaiterExecutor.java) | `submit`으로 최신 대기 작업 유지, `stop`으로 취소 요청 |
-| [`Timer`](Timer.java) | `setTimer`로 마감 시각의 취소 예약 |
+| [`Timer`](Timer.java) | `setTimer`로 마감 시각의 취소 예약(`TimeoutHandle` 반환), `shutdown` |
 | [`LengthOneOverridingQueue`](LengthOneOverridingQueue.java) | `add`로 최신 값 저장, `poll`로 대기 후 꺼내기, `peek`로 확인 |
 | [`CompletionFStream`](CompletionFStream.java) | `submit`으로 결과 수집 등록, `next`로 완료 결과 소비 |
 | [`CoalescingSupplier`](CoalescingSupplier.java) | `get()`으로 생성 결과 공유(무제한 대기), `get(Duration)`으로 합류 대기만 제한 |

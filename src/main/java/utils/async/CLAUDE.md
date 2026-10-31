@@ -40,12 +40,12 @@ Async execution primitives. Built on `Execution<T> extends Future<T>` with expli
 
 ## Concurrency primitives
 
-- **`AsyncUtils`**, **`Executions`** — Static factories and helpers (e.g. `Executions.getTimer()` exposes the shared timer used by `setTimeout`).
+- **`AsyncUtils`**, **`Executions`** — Static factories and helpers (e.g. `Executions.getTimer()` exposes the shared `Timer` used by `setTimeout`).
 
 Generic concurrency primitives previously living here have moved to `utils.thread`:
 
 - **`utils.thread.Guard`** — `ReentrantLock` + `Condition` wrapper. The `m_aopGuard` field on `EventDrivenExecution` (protected, reentrant) is the canonical state-protection lock. `awaitCondition(predicate).andReturn()` / `.andRunChecked(task)` is the standard wait pattern.
-- **`utils.thread.Timer`** — Schedules timeouts on `Execution` via `setTimeout`.
+- **`utils.thread.Timer`** — Schedules timeouts on `Execution` via `setTimeout`: `setTimer(...)` cancels the execution with `cancel(true)` on a separate canceller thread; the timer is released when the execution finishes; no size limit.
 - **`utils.thread.SingleWaiterExecutor`** — Latest-wins single-slot executor (one running + one pending; new submit replaces and cancels pending).
 - **`utils.thread.LengthOneOverridingQueue`** — Single-slot blocking queue where new offers overwrite the pending element.
 - **`utils.thread.AsyncConsumer`** — Async consumer helper.
@@ -70,7 +70,7 @@ Generic concurrency primitives previously living here have moved to `utils.threa
 
 - Subclasses access state via `m_aopGuard` (protected on `EventDrivenExecution`). State transitions are serialized through this lock; `getInAsyncExecutionGuard(Supplier)` / `runInAsyncExecutionGuard(Runnable)` for external state-coupled operations.
 - `whenStarted` listeners fire only when the execution actually reached RUNNING. `NOT_STARTED → CANCELLED` (cancel before start) skips them.
-- `whenFinished` always fires on terminal transition.
+- `whenFinished` always fires on terminal transition. `EventDrivenExecution` notifies finish listeners once and then **clears the list**; a listener added after completion is invoked immediately and not stored (so a finished execution does not retain listeners; registering the same handler again after completion runs it again — the duplicate check applies only before completion).
 - `Async`-suffixed variants run the listener via `CompletableFuture.runAsync`. Non-async variants run synchronously inside the lock.
 - Argument validation uses `utils.Preconditions.checkNotNullArgument` / `checkArgument`. Avoid Guava `Preconditions` in new code.
 - Korean Javadoc dominant; preserve language when modifying.
