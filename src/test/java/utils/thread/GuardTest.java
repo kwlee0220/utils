@@ -4,6 +4,7 @@ package utils.thread;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -12,9 +13,11 @@ import java.util.Date;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -307,8 +310,9 @@ public class GuardTest {
 			}
 		});
 		future.join();
-		assertTrue(interruptFlagPreserved.get(),
-					"InterruptedException 처리 시 인터럽트 플래그가 보존되어야 함");
+		// InterruptedException을 던지므로 플래그는 다시 켜지 않는다(2026-10-31 이전에는 켜서 이중으로 알렸다).
+		assertFalse(interruptFlagPreserved.get(),
+					"InterruptedException을 던질 때 인터럽트 플래그를 다시 켜지 않아야 함");
 	}
 
 	@Test
@@ -453,6 +457,34 @@ public class GuardTest {
 	}
 
 	@Test
+	public void preAction_successWakesOtherWaiters() throws Exception {
+		// 요청-응답 조율: 소비자는 요청을, 생산자는 preAction으로 요청을 등록한 뒤 응답을 기다린다.
+		// 이전에는 preAction이 정상 반환하면 알리지 않아, 소비자가 깨지 않고 양쪽 모두 시간 초과까지 기다렸다.
+		AtomicBoolean requested = new AtomicBoolean(false);
+		AtomicBoolean responded = new AtomicBoolean(false);
+		CompletableFuture<Void> consumer = CompletableFuture.runAsync(() -> {
+			try {
+				m_guard.awaitCondition(requested::get, Duration.ofSeconds(10))
+						.andRun(() -> responded.set(true));
+			}
+			catch ( Exception e ) {
+				throw new CompletionException(e);
+			}
+		});
+
+		// 소비자가 대기에 들어갈 때까지 잠시 대기
+		Thread.sleep(100);
+		assertFalse(consumer.isDone(), "consumer should still be waiting");
+
+		// 소비자가 시간 초과로 깨어나 조건을 다시 보기 전에 끝나야 한다(생산자 제한 1초 < 소비자 제한 10초).
+		m_guard.preAction(() -> requested.set(true))
+				.awaitCondition(responded::get, Duration.ofSeconds(1))
+				.andReturn();
+		consumer.join();
+		assertTrue(responded.get());
+	}
+
+	@Test
 	public void preAction_exceptionPropagatesUnwrapped() throws Exception {
 		CompletableFuture<Throwable> future = CompletableFuture.supplyAsync(() -> {
 			try {
@@ -541,5 +573,207 @@ public class GuardTest {
 	public void timedAwaitCondition_rejectsNegativeDuration() throws Exception {
 		assertThrows(IllegalArgumentException.class,
 						() -> m_guard.awaitCondition(() -> true, Duration.ofMillis(-100)));
+	}
+
+	@Test
+	public void timedWait_interrupted_throwsWithoutSettingTheFlagAgain() throws Exception {
+		// 이전에는 플래그를 다시 켠 뒤 던져, 예외를 잡아 정리하며 다시 기다리면 곧바로 또 인터럽트되었다.
+		CompletableFuture<Boolean> flagAfterCatch = CompletableFuture.supplyAsync(() -> {
+			Thread.currentThread().interrupt();
+			try {
+				m_guard.awaitCondition(() -> false, Duration.ofSeconds(5)).andReturn();
+				throw new AssertionError("expected InterruptedException");
+			}
+			catch ( InterruptedException expected ) {
+				return Thread.currentThread().isInterrupted();
+			}
+			catch ( TimeoutException e ) {
+				throw new CompletionException(e);
+			}
+		});
+		assertFalse(flagAfterCatch.join());
+	}
+
+	@Test
+	public void dueWait_rechecksConditionWhenTheDueIsReached() throws Exception {
+		// 조건이 기한에 맞춰 (신호 없이) 참이 된다. 이전에는 awaitSignal(due)가 false를 반환하면 조건을 다시 보지
+		// 않고 TimeoutException을 던졌다.
+		Date due = new Date(System.currentTimeMillis() + 100);
+		m_guard.awaitCondition(() -> System.currentTimeMillis() >= due.getTime(), due).andReturn();
+	}
+
+	@Test
+	public void dueWait_timesOutWhenTheConditionStaysFalse() throws Exception {
+		Date due = new Date(System.currentTimeMillis() + 50);
+		assertThrows(TimeoutException.class, () -> m_guard.awaitCondition(() -> false, due).andReturn());
+		Date past = new Date(System.currentTimeMillis() - 1000);
+		m_guard.awaitCondition(() -> true, past).andReturn();		// 조건이 이미 참이면 기한이 지나도 통과
+	}
+
+	@Test
+	public void checkedTerminals_rethrowVirtualMachineErrorUnwrapped() throws Exception {
+		// 이전에는 OutOfMemoryError·StackOverflowError도 ExecutionException으로 감쌌다.
+		StackOverflowError soe = new StackOverflowError("test");
+		StackOverflowError e1 = assertThrows(StackOverflowError.class,
+											() -> m_guard.awaitCondition(() -> true).andRunChecked(() -> { throw soe; }));
+		assertTrue(e1 == soe);
+
+		OutOfMemoryError oom = new OutOfMemoryError("test");
+		OutOfMemoryError e2 = assertThrows(OutOfMemoryError.class,
+				() -> m_guard.awaitCondition(() -> true, Duration.ofSeconds(1)).andGetChecked(() -> { throw oom; }));
+		assertTrue(e2 == oom);
+
+		// 그 밖의 Error는 지금처럼 ExecutionException으로 감싼다.
+		AssertionError ae = new AssertionError("test");
+		ExecutionException ee = assertThrows(ExecutionException.class,
+											() -> m_guard.awaitCondition(() -> true).andGetChecked(() -> { throw ae; }));
+		assertTrue(ee.getCause() == ae);
+	}
+
+	@Test
+	public void read_doesNotSignal() throws Exception {
+		CompletableFuture<Boolean> signalled = CompletableFuture.supplyAsync(() -> {
+			m_guard.lock();
+			try {
+				return m_guard.awaitSignal(Duration.ofMillis(500));
+			}
+			catch ( InterruptedException e ) {
+				throw new CompletionException(e);
+			}
+			finally {
+				m_guard.unlock();
+			}
+		});
+		Thread.sleep(100);
+		assertEquals(1, (int)m_guard.read(() -> 1));
+		assertFalse(signalled.join(), "read() must not wake waiters");
+	}
+
+	@Test
+	public void conditionsUsingRead_doNotWakeEachOtherRepeatedly() throws Exception {
+		// get()으로 조건을 읽으면 대기자들이 서로 깨우며 상태 변화 없이 계속 반복한다.
+		AtomicBoolean ready = new AtomicBoolean(false);
+		AtomicInteger checks = new AtomicInteger();
+		Runnable waiter = () -> {
+			try {
+				m_guard.awaitCondition(() -> {
+					checks.incrementAndGet();
+					return m_guard.read(ready::get);
+				}, Duration.ofSeconds(5)).andReturn();
+			}
+			catch ( Exception e ) {
+				throw new CompletionException(e);
+			}
+		};
+		CompletableFuture<Void> w1 = CompletableFuture.runAsync(waiter);
+		CompletableFuture<Void> w2 = CompletableFuture.runAsync(waiter);
+		Thread.sleep(300);
+		assertTrue(checks.get() <= 4, "conditions were re-evaluated without any state change: " + checks.get());
+
+		m_guard.run(() -> ready.set(true));
+		w1.join();
+		w2.join();
+	}
+
+	@Test
+	public void hugeDuration_doesNotOverflow() throws Exception {
+		// 이전에는 Duration.toNanos()가 넘쳐, 조건이 이미 참이어도 ArithmeticException이 났다.
+		m_guard.awaitCondition(() -> true, Duration.ofSeconds(Long.MAX_VALUE)).andReturn();
+
+		AtomicBoolean go = new AtomicBoolean(false);
+		CompletableFuture<Void> waiter = CompletableFuture.runAsync(() -> {
+			try {
+				m_guard.awaitCondition(go::get, Duration.ofSeconds(Long.MAX_VALUE)).andReturn();
+			}
+			catch ( Exception e ) {
+				throw new CompletionException(e);
+			}
+		});
+		Thread.sleep(100);
+		m_guard.run(() -> go.set(true));
+		waiter.get(5, TimeUnit.SECONDS);
+
+		// 저수준 awaitSignal(Duration)도 같다.
+		CompletableFuture<Boolean> signalled = CompletableFuture.supplyAsync(() -> {
+			m_guard.lock();
+			try {
+				return m_guard.awaitSignal(Duration.ofSeconds(Long.MAX_VALUE));
+			}
+			catch ( InterruptedException e ) {
+				throw new CompletionException(e);
+			}
+			finally {
+				m_guard.unlock();
+			}
+		});
+		Thread.sleep(100);
+		m_guard.run(() -> { });
+		assertTrue(signalled.get(5, TimeUnit.SECONDS));
+	}
+
+	@Test
+	public void extremePastDue_timesOutInsteadOfSpinning() {
+		// 이전에는 m_due.getTime() - now가 넘쳐 미래로 판정되어, 즉시 반환하는 awaitUntil과 조건 확인을 끝없이 반복했다.
+		Date due = new Date(Long.MIN_VALUE);
+		assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+			assertThrows(TimeoutException.class, () -> m_guard.awaitCondition(() -> false, due).andReturn());
+		});
+	}
+
+	@Test
+	public void dueWait_isNotAffectedByMutatingTheCallersDate() {
+		Date due = new Date(System.currentTimeMillis() + 100);
+		TimedAwaitCondition wait = m_guard.awaitCondition(() -> false, due);
+		due.setTime(Long.MAX_VALUE);		// 등록된 기한은 복사본이므로 바뀌지 않는다
+		assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+			assertThrows(TimeoutException.class, wait::andReturn);
+		});
+	}
+
+	@Test
+	public void waitingForTheLock_isInterruptible() throws Exception {
+		// 이전에는 lock()으로 기다려, 인터럽트해도 계속 기다리다가 조건이 참이면 이후 작업까지 실행했다.
+		AtomicBoolean ran = new AtomicBoolean(false);
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+		Thread worker = new Thread(() -> {
+			try {
+				m_guard.awaitCondition(() -> true).andRun(() -> ran.set(true));
+			}
+			catch ( Throwable e ) {
+				failure.set(e);
+			}
+		});
+		worker.setDaemon(true);
+
+		m_guard.lock();
+		try {
+			worker.start();
+			Thread.sleep(100);			// worker가 lock을 기다리게 한다
+			worker.interrupt();
+			worker.join(2000);
+			assertFalse(worker.isAlive(), "the worker should give up waiting for the lock");
+		}
+		finally {
+			m_guard.unlock();
+		}
+		assertTrue(failure.get() instanceof InterruptedException, "" + failure.get());
+		assertFalse(ran.get());
+	}
+
+	@Test
+	public void interruptedThread_stillProceedsWhenTheLockIsFreeAndTheConditionHolds() throws Exception {
+		// lock을 바로 얻을 수 있으면 인터럽트 플래그가 켜져 있어도 이전처럼 진행한다.
+		CompletableFuture<Boolean> result = CompletableFuture.supplyAsync(() -> {
+			Thread.currentThread().interrupt();
+			try {
+				AtomicBoolean ran = new AtomicBoolean(false);
+				m_guard.awaitCondition(() -> true).andRun(() -> ran.set(true));
+				return ran.get() && Thread.interrupted();
+			}
+			catch ( InterruptedException e ) {
+				throw new CompletionException(e);
+			}
+		});
+		assertTrue(result.join());
 	}
 }

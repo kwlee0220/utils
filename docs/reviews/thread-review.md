@@ -34,9 +34,9 @@
 | 8 | 버그 | 낮음 | `RecurringScheduleThread.stop()`: 시작 전에 부르면 NPE 또는 `STOPPING`에 영구 정지 | 완료 |
 | 9 | 버그 | 높음(사용처 없음) | `CamusExecutorImpl` / `RecurringScheduleImpl`: 교착, 잘못된 대기, `ClassCastException` 등 다수 | 대기 |
 | 10 | 버그 | 중간 | `SingleWaiterExecutor`: `start()`가 예외를 던지면 이후 작업이 영원히 대기 | 대기 |
-| 11 | 버그 | 중간 | `Guard`: `InterruptedException`을 던지면서 인터럽트 플래그도 다시 설정 | 대기 |
-| 12 | 버그 | 낮음 | `Guard`: `Date` 기한 대기가 시간 초과 직후 조건을 다시 확인하지 않음 | 대기 |
-| 13 | 버그 | 낮음 | `Guard`: `*Checked` 종결 메소드가 `Error`(VME 포함)까지 `ExecutionException`으로 감쌈 | 대기 |
+| 11 | 버그 | 중간 | `Guard`: `InterruptedException`을 던지면서 인터럽트 플래그도 다시 설정 | 완료 |
+| 12 | 버그 | 낮음 | `Guard`: `Date` 기한 대기가 시간 초과 직후 조건을 다시 확인하지 않음 | 완료 |
+| 13 | 버그 | 낮음 | `Guard`: `*Checked` 종결 메소드가 `Error`(VME 포함)까지 `ExecutionException`으로 감쌈 | 완료 |
 | 14 | 버그 | 낮음 | `CompletionFStream`: 실행 lock을 쥔 동기 종료 리스너 안에서 버퍼가 차면 블록 | 대기 |
 | 15 | 정리 | — | 쓰이지 않는 클래스 정리(삭제 또는 유지 결정) | 보류 (결정 필요) |
 | 16 | 정리 | 낮음 | `Guard`: 두 대기 빌더의 중복 구현, 의미 없는 `protected`, 일부 인자 검사 누락 | 대기 |
@@ -49,6 +49,7 @@
 | 23 | 테스트 | — | 테스트 공백 | 대기 |
 | 24 | 문서 | 낮음 | README·CLAUDE.md를 수정 결과에 맞추기 | 대기 |
 | 25 | 버그 | 높음 | `RecurringScheduleThread`(외부 검토): lock 안 `interrupt()`, 초기화 중 `stop()` 교착, 주기 값 검사·넘침, `performNow()`의 지연 보정 왜곡 | 완료 |
+| 26 | 버그 | 중간 | `Guard`(외부 검토): `preAction` 성공 후 알림 없음, 읽기 `get()`의 알림, 큰 `Duration`·과거 `Date` 넘침, 잠금 획득 중 인터럽트 | 완료 |
 
 권장 순서: 15(삭제 결정) → 2·3·19(`Timer`, 영향 범위가 가장 큼) → 11(`Guard`) → 4~8(marmot 사용) → 1·10·9(삭제하지 않기로 한 것만) → 나머지.
 삭제하기로 한 클래스는 그 클래스의 버그 항목을 `기각`(삭제로 해소)으로 바꾼다.
@@ -144,6 +145,23 @@
   - 적용하지 않음: `StopMode`/`requestStop`, `requestRunNow`, `Duration`·`NEW` 상태(#20), 클래스·멤버 이름 변경.
   - 테스트: `stop_calls_interruptable_work_outside_the_lock`, `stop_from_on_started_stops_without_performing`, `stop_during_on_started_returns_without_waiting`, `invalid_intervals_are_rejected`, `a_huge_interval_does_not_overflow`, `perform_now_reports_whether_the_request_was_accepted`, `perform_now_does_not_lengthen_the_next_fixed_rate_interval`. 뒤의 셋(검사·넘침·보정)은 옛 구현으로 돌려 실패를 확인했다. 교착 테스트 둘은 옛 구현에서 끊을 수 없는 `lock()`에 걸리므로 돌리지 않았다.
 
+### #26 `Guard`: 외부 검토 지적 — 중간
+
+#11~#13 수정본에 대한 외부 검토에서 나온 항목.
+
+- (1) `preAction`이 정상 반환하면 알리지 않는다(실패할 때만 `signalAll()`). 사전 작업으로 요청을 등록하고 응답을 기다리면, 요청을 기다리던 쪽이 깨지 않아 양쪽이 함께 멈춘다.
+- (2) `get()`은 읽기에도 알린다. 조건 함수 안에서 `guard.get()`을 쓰면 대기자들이 서로 깨우며 상태 변화 없이 계속 돈다.
+- (3) `Duration.toNanos()`가 넘친다. 시간 제한 빌더는 조건 확인 전에 변환하므로 조건이 참이어도 `ArithmeticException`. `(long, TimeUnit)`은 포화해 정책이 다르다. `awaitSignal(Duration)`도 같다.
+- (4) **#12의 회귀**: `m_due.getTime() - now <= 0`이 `new Date(Long.MIN_VALUE)`에서 넘쳐 미래로 판정되고, `awaitUntil`은 즉시 반환해 무한 반복한다. 원본 `Date`를 복사하지 않아 호출자가 바꾸면 기한도 바뀐다.
+- (5) 대기 종결 메소드의 첫 잠금 획득이 `lock()`이라, 잠금을 기다리는 중의 인터럽트를 무시하고 이후 작업까지 실행한다.
+- 결과:
+  - (1) 완료(미커밋). 사전 작업 뒤 `finally`에서 성공·실패와 관계없이 알린다(두 빌더). 테스트 `preAction_successWakesOtherWaiters` — 옛 구현에서 `TimeoutException`으로 실패함을 확인.
+  - (2) 완료(미커밋). (가) 방식: 알리지 않는 `read(Supplier)`를 추가하고, `get()`·조건 인자 Javadoc과 README에 "읽기·조건 함수에는 `read()`"를 적었다. `get()`은 그대로. 테스트 `read_doesNotSignal`, `conditionsUsingRead_doNotWakeEachOtherRepeatedly`.
+  - (3) 완료(미커밋). `toNanosSaturated()`로 시간 제한 빌더와 `awaitSignal(Duration)` 모두 `Long.MAX_VALUE`로 포화(`TimeUnit` 오버로드와 같은 정책). 테스트 `hugeDuration_doesNotOverflow`.
+  - (4) 완료(미커밋). `m_due.getTime() <= now`로 직접 비교하고, 생성자에서 `Date`를 복사한다. 테스트 `extremePastDue_timesOutInsteadOfSpinning`, `dueWait_isNotAffectedByMutatingTheCallersDate`.
+  - (5) 완료(미커밋). 종결 메소드 10곳이 `lockForWait()`로 lock을 얻는다: `tryLock()`이 되면 그대로(이미 인터럽트된 쓰레드도 lock이 비어 있고 조건이 참이면 이전처럼 진행), 아니면 `lockInterruptibly()`. 전체 시간 예산(`tryLock(남은 시간)`)은 별도 기능이라 하지 않았다. 테스트 `waitingForTheLock_isInterruptible`, `interruptedThread_stillProceedsWhenTheLockIsFreeAndTheConditionHolds`.
+  - 회귀 확인: 새 테스트 6개가 이전 구현(이번 변경 직전, `read()`는 `get()` 위임으로 임시 추가)에서 실패함을 확인했다. 마지막 테스트는 기존 동작 유지 확인용이라 이전 구현에서도 통과한다.
+
 ### #9 `CamusExecutorImpl` / `RecurringScheduleImpl`: 다수의 결함 — 높음(단, 사용처 없음)
 
 - 위치: [CamusExecutorImpl.java](../../src/main/java/utils/thread/CamusExecutorImpl.java), [RecurringScheduleImpl.java](../../src/main/java/utils/thread/RecurringScheduleImpl.java)
@@ -170,21 +188,21 @@
 - 위치: [Guard.java:547-549](../../src/main/java/utils/thread/Guard.java#L547-L549), 607-609, 769-771, 834-836, 892-895
 - 문제: `TimedAwaitCondition`의 대기와 `*Checked` 종결 메소드는 `InterruptedException`을 잡아 `Thread.currentThread().interrupt()`로 플래그를 다시 켠 뒤 **같은 예외를 다시 던진다.** 관례상 `InterruptedException`을 던지면 플래그는 지워진 상태여야 한다. 이렇게 하면 예외를 잡아 정리하는 호출자가 그 안에서 다시 대기할 때(`finally`의 정리 대기 등) 곧바로 또 인터럽트된다. 무제한 `AwaitCondition.andReturn()/andRun()/andGet()`은 플래그를 다시 켜지 않아 동작이 일관되지 않다.
 - 제안: 다시 던지는 곳에서는 플래그를 켜지 않는다(5곳). `Guard`는 사용처가 많으므로, 플래그에 기대는 호출자가 있는지 확인한 뒤 바꾼다(예외를 잡아 삼키면서 플래그를 확인하는 코드).
-- 결과:
+- 결과: 완료(미커밋). 다시 던지는 5곳에서 플래그를 켜지 않는다(`TimedAwaitCondition`의 대기와 `*Checked` 종결 메소드 4개). 플래그에 기대는 호출자를 찾아봤으나 utils·MDT·marmot에 없었다(`EventDrivenExecution`·`PipedRecordSet` 등 인터럽트를 삼키는 곳은 `Guard` 대기 빌더가 아니라 저수준 `awaitSignal(Date)`를 직접 쓴다). 이전 동작을 고정하던 `andRunChecked_propagatesInterruptedExceptionFromTask_unwrapped`의 기대값을 반대로 바꾸고, `timedWait_interrupted_throwsWithoutSettingTheFlagAgain`을 추가했다.
 
 ### #12 `Guard`: `Date` 기한 대기의 재확인 누락 — 낮음
 
 - 위치: [Guard.java:873-879](../../src/main/java/utils/thread/Guard.java#L873-L879)
 - 문제: `awaitSignal(due)`가 `false`(기한 경과)를 반환하면 조건을 다시 확인하지 않고 곧바로 `TimeoutException`을 던진다. 기한 직전에 신호와 조건 충족이 겹친 경우 조건이 참인데도 시간 초과가 된다. `Duration` 기반 대기는 반복문 맨 위에서 조건을 다시 확인하므로 이 문제가 없다.
 - 제안: `Duration` 쪽처럼 "조건 확인 → 남은 시간 확인 → 대기" 순서로 맞춘다.
-- 결과:
+- 결과: 완료(미커밋). 기한 방식도 "조건 확인 → 남은 시간 확인 → 대기" 순서로 바꿨다(`awaitSignal(due)`의 반환값은 보지 않고, 반복문 맨 위에서 조건을 다시 본다). 테스트 `dueWait_rechecksConditionWhenTheDueIsReached`(신호 없이 기한에 맞춰 조건이 참이 됨), `dueWait_timesOutWhenTheConditionStaysFalse`.
 
 ### #13 `Guard`: `Error`까지 `ExecutionException`으로 감쌈 — 낮음
 
 - 위치: [Guard.java:551-554](../../src/main/java/utils/thread/Guard.java#L551-L554) 외 3곳
 - 문제: `andRunChecked`/`andGetChecked`가 `catch ( Throwable e )`로 `OutOfMemoryError`·`StackOverflowError`도 `ExecutionException`으로 감싼다. 호출자가 `ExecutionException`을 일반 실패로 처리하면 치명적 오류가 묻힌다.
 - 제안: `Error`(최소한 `VirtualMachineError`)는 감싸지 않고 다시 던진다. utils 다른 곳(`StateChart`)의 `throwIfFatal` 정책과 맞춘다.
-- 결과:
+- 결과: 완료(미커밋). `toExecutionException()`으로 모아 `VirtualMachineError`는 감싸지 않고 다시 던진다(`CoalescingSupplier`와 같은 정책). 그 밖의 `Error`(`AssertionError` 등)는 지금처럼 감싼다. 테스트 `checkedTerminals_rethrowVirtualMachineErrorUnwrapped`.
 
 ### #14 `CompletionFStream`: 실행 lock 안에서 블록 — 낮음
 

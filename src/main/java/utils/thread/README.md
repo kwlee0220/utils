@@ -42,7 +42,7 @@ private final Guard m_guard = Guard.create();
 
 ```java
 m_guard.run(() -> m_state = State.READY);          // 상태 변경 후 대기 중인 스레드에 알림
-State state = m_guard.get(() -> m_state);         // 잠금을 획득한 상태에서 읽기
+State state = m_guard.read(() -> m_state);        // 잠금을 획득한 상태에서 읽기(알리지 않음)
 m_guard.accept(this::setStateInGuard, State.DONE); // 함수에 값을 전달해 실행
 
 // 검사 예외(checked exception)를 던지는 함수도 사용할 수 있다.
@@ -52,7 +52,7 @@ int count = m_guard.getChecked(() -> readCount());
 
 `signalAll()`은 대기 중인 스레드들이 조건을 다시 확인할 수 있게 한다. 신호를 보냈다고 모든 스레드가 바로 작업을 시작하는 것은 아니다. 각 스레드는 잠금을 다시 획득하고 자신의 조건이 만족되는지 확인해야 한다.
 
-> 읽기만 하는 `get()`도 `signalAll()`을 호출한다. 매우 자주 실행되는 읽기 경로에서 불필요한 알림이 부담된다면 `lock()`·`unlock()`으로 직접 보호할 수 있다.
+> `get()`은 읽기만 해도 `signalAll()`을 호출한다. 상태를 읽기만 할 때는 알리지 않는 `read()`를 쓴다. 특히 조건 함수 안에서 `get()`을 부르면(예: `isReady()` 안에 숨은 `m_guard.get(...)`) 대기자들이 조건을 확인할 때마다 서로를 깨워 상태 변화 없이 계속 반복한다. 반대로 함수 안에서 상태를 바꾼다면 `read()`가 아니라 `get()`을 써야 대기자가 깨어난다.
 
 ### 2.2 조건이 만족될 때까지 기다리기 — `awaitCondition`
 
@@ -112,9 +112,11 @@ m_guard.awaitCondition(() -> m_done, Duration.ofSeconds(5))
        .andReturn();
 ```
 
-제한 시간 안에 조건이 충족되지 않으면 `TimeoutException`, 대기 중 인터럽트되면 `InterruptedException`이 발생한다. 기간이 0일 때는 조건을 먼저 확인하고, 만족되지 않으면 바로 `TimeoutException`을 던진다. 음수 기간은 허용하지 않는다.
+제한 시간 안에 조건이 충족되지 않으면 `TimeoutException`, 대기 중 인터럽트되면 `InterruptedException`이 발생한다. `InterruptedException`을 던질 때 인터럽트 플래그는 다시 켜지 않는다(Java 관례; 2026-10-31 이전에는 켜 두어, 예외를 잡아 정리하며 다시 기다리면 곧바로 또 인터럽트되었다). 기간·기한 모두 시간이 다 되어 깨어나도 조건을 한 번 더 확인하므로, 기한에 맞춰 조건이 충족되면 시간 초과가 아니다. 기간이 0일 때는 조건을 먼저 확인하고, 만족되지 않으면 바로 `TimeoutException`을 던진다. 음수 기간은 허용하지 않는다.
 
-`Duration`과 `TimeUnit` 방식은 남은 대기 시간을 나노초 단위로 계산한다. 이 제한은 **메서드 호출 전체의 실행 시간 제한이 아니다.** 잠금 획득, 사전 작업, 조건 충족 후의 작업을 강제로 중단하지 않는다. `Date` 방식은 지정한 절대 시각을 기준으로 판단한다.
+`Duration`과 `TimeUnit` 방식은 남은 대기 시간을 나노초 단위로 계산하며, 나노초 범위(약 292년)를 넘는 값은 최댓값으로 제한한다. 이 제한은 **메서드 호출 전체의 실행 시간 제한이 아니다.** 잠금 획득, 사전 작업, 조건 충족 후의 작업을 강제로 중단하지 않는다. `Date` 방식은 지정한 절대 시각을 기준으로 판단하며, 빌더를 만들 때 기한을 복사하므로 이후 원본 `Date`를 바꿔도 영향이 없다.
+
+종결 메서드는 잠금을 바로 얻을 수 있으면 그대로 얻고, 다른 스레드가 잠금을 쥐고 있으면 인터럽트 가능하게 기다린다. 잠금을 기다리는 동안 인터럽트되면 `InterruptedException`을 던지고 후속 작업은 실행하지 않는다(2026-10-31 이전에는 인터럽트를 무시하고 계속 기다렸다). 인터럽트 플래그가 이미 켜져 있어도 잠금이 비어 있고 조건이 참이면 기다리지 않으므로 그대로 진행한다.
 
 ### 2.4 대기 전에 한 번 실행하기 — `preAction`
 
@@ -126,7 +128,7 @@ m_guard.preAction(() -> sendRequest())
        .andGet(() -> m_response);
 ```
 
-`preAction`이 예외를 던지면 `signalAll()`을 호출하고 잠금을 해제한 뒤 원래 예외를 전파한다.
+`preAction`이 끝나면 성공·실패와 관계없이 `signalAll()`을 호출한다. 따라서 사전 작업이 바꾼 상태(예: 등록한 요청)를 기다리는 다른 스레드가 깨어나며, 사전 작업 안에서 직접 알릴 필요가 없다(2026-10-31 이전에는 실패할 때만 알려, 요청을 기다리던 쪽과 응답을 기다리는 쪽이 함께 멈출 수 있었다). 예외를 던진 경우에는 잠금을 해제한 뒤 원래 예외를 전파한다.
 
 위 예제의 `sendRequest()`는 요청만 보내고 반환해야 한다. 같은 `Guard`가 필요한 다른 스레드의 응답 처리까지 여기서 기다리면 서로 잠금을 기다리게 될 수 있다. 응답을 받는 쪽에서는 `m_guard.run(() -> m_response = response)`처럼 상태를 갱신하고 대기자에게 알려야 한다.
 
@@ -137,7 +139,7 @@ m_guard.preAction(() -> sendRequest())
 | 메서드 | 전달한 작업에서 발생한 예외 처리 |
 |---|---|
 | `runChecked`, `getChecked`, `acceptChecked` | 선언된 예외를 감싸지 않고 그대로 전파 |
-| `andRunChecked`, `andGetChecked` | `InterruptedException`은 인터럽트 상태를 복원하고 그대로 전파. 그 밖의 예외·오류는 원인을 풀어 `ExecutionException`으로 전달 |
+| `andRunChecked`, `andGetChecked` | `InterruptedException`은 그대로 전파(인터럽트 플래그는 다시 켜지 않음). `VirtualMachineError`(`OutOfMemoryError`·`StackOverflowError` 등)는 감싸지 않고 다시 던짐. 그 밖의 예외·오류는 원인을 풀어 `ExecutionException`으로 전달 |
 | `preAction` | 실행 시 예외와 `Error`를 그대로 전파 |
 
 조건 대기에서 발생하는 `InterruptedException`과 `TimeoutException`은 후속 작업의 실패와 별도로 처리한다.
@@ -167,7 +169,7 @@ finally {
 | `lock()` / `unlock()` | 잠금 획득·해제. 같은 스레드가 여러 번 획득하는 재진입 허용 |
 | `signalAll()` | 대기 중인 모든 스레드에 알림 |
 | `awaitSignal()` | 신호 등을 기다리며 잠금을 놓았다가, 다시 획득한 뒤 반환 |
-| `awaitSignal(Date)` / `awaitSignal(Duration)` | 제한 시간 동안 대기. 시간 만료 시 `false` 반환 |
+| `awaitSignal(Date)` / `awaitSignal(Duration)` | 제한 시간 동안 대기. 시간 만료 시 `false` 반환. 나노초 범위를 넘는 `Duration`은 최댓값으로 제한 |
 | `awaitSignalNanos(long)` | 대기 후 남은 시간을 나노초 단위로 반환. 0 이하면 만료 |
 
 `signalAll()`과 모든 `awaitSignal...()` 메서드는 **현재 스레드가 잠금을 획득한 상태에서** 호출해야 한다. 반환값이 `true`여도 업무상의 조건이 만족됐다는 뜻은 아니므로 조건을 다시 확인한다. 또한 저수준 `awaitSignal(Duration)`은 양수 기간만 받으므로, 0을 허용하는 `awaitCondition(..., Duration)`과 구분한다.

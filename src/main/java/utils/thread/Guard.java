@@ -84,6 +84,21 @@ public class Guard {
 	}
 
 	/**
+	 * 조건 대기 종결 메소드가 처음 lock을 획득할 때 사용한다.
+	 * <p>
+	 * lock을 바로 얻을 수 있으면 인터럽트 여부와 관계없이 얻는다(이미 인터럽트 플래그가 켜진 쓰레드라도 조건이 참이면
+	 * 기다리지 않고 진행하던 기존 동작을 유지한다). 다른 쓰레드가 lock을 보유하고 있으면 인터럽트 가능하게 기다린다.
+	 * 2026-10-31 이전에는 {@link #lock()}으로 기다려, lock을 기다리는 동안의 인터럽트를 무시하고 이후 작업까지 실행했다.
+	 *
+	 * @throws InterruptedException	lock을 기다리는 동안 인터럽트된 경우
+	 */
+	private void lockForWait() throws InterruptedException {
+		if ( !m_lock.tryLock() ) {
+			m_lock.lockInterruptibly();
+		}
+	}
+
+	/**
 	 * 본 Guard의 내부 lock을 해제한다.
 	 * <p>
 	 * 반드시 lock을 획득한 쓰레드에서만 호출되어야 한다.
@@ -154,7 +169,7 @@ public class Guard {
 		Preconditions.checkArgument(!dur.isZero() && !dur.isNegative(),
 									"duration must be positive: %s", dur);
 
-		return m_cond.awaitNanos(dur.toNanos()) > 0;
+		return m_cond.awaitNanos(toNanosSaturated(dur)) > 0;
 	}
 
 	/**
@@ -175,7 +190,9 @@ public class Guard {
 	 * 사전 작업을 등록한 빌더를 반환한다.
 	 * <p>
 	 * 등록된 {@code action}은 lock을 획득한 직후 — 사전 조건을 검사하기 직전에 — 정확히
-	 * 한 번 실행된다. {@code action}에서 발생한 예외(런타임/{@link Error})는 wrapping 없이
+	 * 한 번 실행된다. 실행 직후에는 성공·실패와 관계없이 {@link #signalAll()}을 호출하므로, 사전 작업이 바꾼 상태를
+	 * 기다리는 다른 쓰레드가 깨어난다(사전 작업에서 직접 알릴 필요가 없다).
+	 * {@code action}에서 발생한 예외(런타임/{@link Error})는 wrapping 없이
 	 * 그대로 호출자에게 전파되며, lock은 정상적으로 해제된다. 즉 후속 {@code andRunChecked} /
 	 * {@code andGetChecked}의 {@link ExecutionException} 래핑 정책은 사전 작업에는 적용되지 않는다.
 	 *
@@ -196,7 +213,8 @@ public class Guard {
 	 *                     .andGet(() -> consume());
 	 * }</pre>
 	 *
-	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다.
+	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다. 알림을 보내는 {@link #get(Supplier)}가 아니라
+	 * 					필드를 직접 읽거나 {@link #read(Supplier)}를 쓴다.
 	 * @return	{@link AwaitCondition} 빌더
 	 */
 	public AwaitCondition awaitCondition(Supplier<Boolean> condition) {
@@ -210,7 +228,8 @@ public class Guard {
 	 * 만일 {@code due}가 이미 과거 시각인 경우에는 condition이 만족하지 않으면
 	 * 즉시 {@link TimeoutException}을 발생시킨다.
 	 *
-	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다.
+	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다. 알림을 보내는 {@link #get(Supplier)}가 아니라
+	 * 					필드를 직접 읽거나 {@link #read(Supplier)}를 쓴다.
 	 * @param due		대기 제한 시각 (non-null)
 	 * @return	{@link TimedAwaitCondition} 빌더
 	 */
@@ -227,7 +246,8 @@ public class Guard {
 	 * 즉시 {@link TimeoutException}을 발생시킨다.
 	 * timeout이 음수인 경우에는 {@link IllegalArgumentException}이 발생한다.
 	 *
-	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다.
+	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다. 알림을 보내는 {@link #get(Supplier)}가 아니라
+	 * 					필드를 직접 읽거나 {@link #read(Supplier)}를 쓴다.
 	 * @param timeout	대기 제한 기간 ({@code 0} 이상)
 	 * @return	{@link TimedAwaitCondition} 빌더
 	 * @throws IllegalArgumentException	{@code timeout}이 {@code null}이거나 음수인 경우
@@ -244,7 +264,8 @@ public class Guard {
 	 * 만일 timeout이 0인 경우에는 condition이 만족하지 않으면 즉시 {@link TimeoutException}을 발생시킨다.
 	 * timeout이 음수인 경우에는 {@link IllegalArgumentException}이 발생한다.
 	 *
-	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다.
+	 * @param condition	대기 조건. lock을 획득한 상태에서 평가된다. 알림을 보내는 {@link #get(Supplier)}가 아니라
+	 * 					필드를 직접 읽거나 {@link #read(Supplier)}를 쓴다.
 	 * @param timeout	대기 제한 기간 ({@code 0} 이상)
 	 * @param unit		{@code timeout}의 시간 단위 (non-null)
 	 * @return	{@link TimedAwaitCondition} 빌더
@@ -301,9 +322,31 @@ public class Guard {
 	}
 
 	/**
+	 * lock을 획득한 상태에서 주어진 supplier를 실행하고 그 결과를 반환한다. {@link #signalAll()}은 호출하지 않는다.
+	 * <p>
+	 * 공유 상태를 읽기만 하는 경우에 사용한다. 특히 조건 대기의 조건 함수 안에서는 {@link #get(Supplier)} 대신
+	 * 이 메소드를 써야 한다. {@code get()}은 읽을 때마다 알리므로, 여러 대기자가 조건을 확인하며 서로를 깨워 상태
+	 * 변화 없이 계속 반복하게 된다. supplier 안에서 상태를 바꾸면 대기자가 깨지 않으므로 그때는 {@code get()}을 쓴다.
+	 *
+	 * @param <T>	반환 값의 타입
+	 * @param suppl	값을 읽을 supplier
+	 * @return		supplier가 반환한 값
+	 */
+	public <T> T read(Supplier<T> suppl) {
+		m_lock.lock();
+		try {
+			return suppl.get();
+		}
+		finally {
+			m_lock.unlock();
+		}
+	}
+
+	/**
 	 * lock을 획득한 상태에서 주어진 supplier를 실행하고 그 결과를 반환한다.
 	 * <p>
-	 * 정상/예외 종료 모두 finally에서 signal과 lock 해제가 보장된다.
+	 * 정상/예외 종료 모두 finally에서 signal과 lock 해제가 보장된다. 상태를 바꾸지 않는 단순 조회, 특히 조건 대기의
+	 * 조건 함수 안에서는 알리지 않는 {@link #read(Supplier)}를 쓴다.
 	 *
 	 * @param <T>	반환 값의 타입
 	 * @param suppl	값을 공급할 supplier
@@ -468,8 +511,8 @@ public class Guard {
 	 * <p>
 	 * 종결 메소드 공통 동작:
 	 * <ol>
-	 *   <li>lock 획득.</li>
-	 *   <li>사전 작업이 있으면 정확히 한 번 실행. 실패 시 signal 후 예외 전파.</li>
+	 *   <li>lock 획득. 다른 쓰레드가 보유하고 있으면 인터럽트 가능하게 기다린다({@link InterruptedException}).</li>
+	 *   <li>사전 작업이 있으면 정확히 한 번 실행. 성공·실패와 관계없이 signal하고, 실패 시 예외 전파.</li>
 	 *   <li>{@code precondition}이 {@code true}가 될 때까지 {@code awaitSignal()}로 대기.</li>
 	 *   <li>지정된 작업 수행. 정상/예외 종료 모두 finally에서 signal과 lock 해제.</li>
 	 * </ol>
@@ -494,7 +537,7 @@ public class Guard {
 		 * @throws InterruptedException	대기 중에 쓰레드가 인터럽트된 경우
 		 */
 		public void andReturn() throws InterruptedException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitConditionSatisfied();
 			}
@@ -510,7 +553,7 @@ public class Guard {
 		 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
 		 */
 		public void andRun(Runnable task) throws InterruptedException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitConditionSatisfied();
 
@@ -531,13 +574,14 @@ public class Guard {
 		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
 		 * <p>
 		 * 주어진 작업은 내부 lock을 획득한 상태에서 실행되고, 작업 수행 중 예외가 발생한 경우
-		 * {@link ExecutionException}을 발생시킨다.
+		 * {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지 않고
+		 * 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
 		 *
 		 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
 		 * @throws ExecutionException 작업 ({@code work}) 수행 중 예외가 발생한 경우.
 		 */
 		public void andRunChecked(CheckedRunnable task) throws InterruptedException, ExecutionException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitConditionSatisfied();
 
@@ -545,12 +589,11 @@ public class Guard {
 					task.run();
 				}
 				catch ( InterruptedException e ) {
-					Thread.currentThread().interrupt();
+					// 감싸지 않고 그대로 던진다. 예외로 알리므로 인터럽트 플래그는 다시 켜지 않는다.
 					throw e;
 				}
 				catch ( Throwable e ) {
-					Throwable cause = Throwables.unwrapThrowable(e);
-					throw new ExecutionException(cause);
+					throw toExecutionException(e);
 				}
 				finally {
 					m_guard.signalAll();
@@ -569,7 +612,7 @@ public class Guard {
 		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우.
 		 */
 		public <T> T andGet(Supplier<T> supplier) throws InterruptedException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitConditionSatisfied();
 				
@@ -590,14 +633,15 @@ public class Guard {
 		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
 		 * <p>
 		 * 주어진 작업은 내부 lock을 획득한 상태에서 실행되고, 작업 수행 중 예외가 발생한 경우
-		 * {@link ExecutionException}을 발생시킨다.
+		 * {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지 않고
+		 * 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
 		 *
 		 * @return 작업의 결과 값.
 		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우.
 		 * @throws ExecutionException 작업 ({@code supplier}) 수행 중 예외가 발생한 경우.
 		 */
 		public <T> T andGetChecked(CheckedSupplier<T> supplier) throws InterruptedException, ExecutionException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitConditionSatisfied();
 
@@ -605,12 +649,11 @@ public class Guard {
 					return supplier.get();
 				}
 				catch ( InterruptedException e ) {
-					Thread.currentThread().interrupt();
+					// 감싸지 않고 그대로 던진다. 예외로 알리므로 인터럽트 플래그는 다시 켜지 않는다.
 					throw e;
 				}
 				catch ( Throwable e ) {
-					Throwable cause = Throwables.unwrapThrowable(e);
-					throw new ExecutionException(cause);
+					throw toExecutionException(e);
 				}
 				finally {
 					m_guard.signalAll();
@@ -634,10 +677,10 @@ public class Guard {
 				try {
 					m_preAction.run();
 				}
-				catch ( RuntimeException | Error t ) {
-					// preAction 실패 시 다른 대기 쓰레드들에게 상태 변경을 통보한 뒤 예외를 그대로 전파.
+				finally {
+					// 사전 작업이 바꾼 상태를 기다리는 대기자가 있을 수 있으므로 성공·실패와 관계없이 알린다(실패 시 예외는
+					// 그대로 전파). 2026-10-31 이전에는 실패할 때만 알려, 사전 작업으로 등록한 요청을 기다리던 쪽이 깨지 않았다.
 					m_guard.signalAll();
-					throw t;
 				}
 			}
 			
@@ -653,6 +696,8 @@ public class Guard {
 	 * {@link Guard#awaitCondition(Supplier, Date)}, {@link Guard#awaitCondition(Supplier, Duration)},
 	 * {@link Guard#awaitCondition(Supplier, long, TimeUnit)} 또는 {@link PreAction}의 동등한 메소드로
 	 * 생성된다. 종결 메소드를 호출해야 실제 lock 획득과 대기가 시작된다.
+	 * lock 획득·사전 작업·조건 충족 후 작업 등 공통 동작은 {@link AwaitCondition}과 같다. 제한 시간은 조건 대기에만
+	 * 적용되며 lock 획득 대기에는 적용되지 않는다(lock 획득 대기는 인터럽트로만 끊을 수 있다).
 	 * <p>
 	 * {@link AwaitCondition}과의 차이점은 시각/기간 만료 시 모든 종결 메소드
 	 * ({@link #andReturn()} 포함)가 {@link TimeoutException}을 발생시킨다는 점이다.
@@ -672,7 +717,7 @@ public class Guard {
 	        m_guard = guard;
 	        m_preAction = preAction;
 	        m_precondition = precondition;
-	        m_due = due;
+	        m_due = new Date(due.getTime());	// 호출자가 원본을 바꿔도 등록된 기한이 바뀌지 않도록 복사한다
 	        m_timeout = null;
 		}
 		
@@ -711,7 +756,7 @@ public class Guard {
 		 * @throws TimeoutException		대기 제한 시각이 경과한 경우
 		 */
 		public void andReturn() throws InterruptedException, TimeoutException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitPreconditionSatisfied();
 			}
@@ -730,7 +775,7 @@ public class Guard {
 		 * @throws TimeoutException 대기 제한 시각을 경과한 경우.
 		 */
 		public void andRun(Runnable task) throws InterruptedException, TimeoutException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitPreconditionSatisfied();
 	
@@ -751,7 +796,8 @@ public class Guard {
 		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
 		 * <p>
 		 * 주어진 작업은 내부 lock을 획득한 상태에서 실행되고, 작업 수행 중 예외가 발생한 경우
-		 * {@link ExecutionException}을 발생시킨다.
+		 * {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지 않고
+		 * 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
 		 * 대기 제한 시간이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
 		 *
 		 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
@@ -759,7 +805,7 @@ public class Guard {
 		 * @throws ExecutionException 작업 ({@code work}) 수행 중 예외가 발생한 경우.
 		 */
 		public void andRunChecked(CheckedRunnable task) throws InterruptedException, TimeoutException, ExecutionException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitPreconditionSatisfied();
 
@@ -767,12 +813,11 @@ public class Guard {
 					task.run();
 				}
 				catch ( InterruptedException e ) {
-					Thread.currentThread().interrupt();
+					// 감싸지 않고 그대로 던진다. 예외로 알리므로 인터럽트 플래그는 다시 켜지 않는다.
 					throw e;
 				}
 				catch ( Throwable e ) {
-					Throwable cause = Throwables.unwrapThrowable(e);
-					throw new ExecutionException(cause);
+					throw toExecutionException(e);
 				}
 				finally {
 					m_guard.signalAll();
@@ -794,7 +839,7 @@ public class Guard {
 		 * @throws TimeoutException 대기 제한 시각을 경과한 경우.
 		 */
 		public <T> T andGet(Supplier<T> supplier) throws InterruptedException, TimeoutException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitPreconditionSatisfied();
 				
@@ -815,7 +860,8 @@ public class Guard {
 		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
 		 * <p>
 		 * 주어진 작업은 내부 lock을 획득한 상태에서 실행되고, 작업 수행 중 예외가 발생한 경우
-		 * {@link ExecutionException}을 발생시킨다.
+		 * {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지 않고
+		 * 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
 		 * 대기 제한 시간이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
 		 *
 		 * @return 작업의 결과 값.
@@ -824,7 +870,7 @@ public class Guard {
 		 * @throws ExecutionException 작업 ({@code supplier}) 수행 중 예외가 발생한 경우.
 		 */
 		public <T> T andGetChecked(CheckedSupplier<T> supplier) throws InterruptedException, TimeoutException, ExecutionException {
-			m_guard.lock();
+			m_guard.lockForWait();
 			try {
 				awaitPreconditionSatisfied();
 
@@ -832,12 +878,11 @@ public class Guard {
 					return supplier.get();
 				}
 				catch ( InterruptedException e ) {
-					Thread.currentThread().interrupt();
+					// 감싸지 않고 그대로 던진다. 예외로 알리므로 인터럽트 플래그는 다시 켜지 않는다.
 					throw e;
 				}
 				catch ( Throwable e ) {
-					Throwable cause = Throwables.unwrapThrowable(e);
-					throw new ExecutionException(cause);
+					throw toExecutionException(e);
 				}
 				finally {
 					m_guard.signalAll();
@@ -862,38 +907,62 @@ public class Guard {
 				try {
 					m_preAction.run();
 				}
-				catch ( RuntimeException | Error t ) {
-					// preAction 실패 시 다른 대기 쓰레드들에게 상태 변경을 통보한 뒤 예외를 그대로 전파.
+				finally {
+					// 사전 작업이 바꾼 상태를 기다리는 대기자가 있을 수 있으므로 성공·실패와 관계없이 알린다(실패 시 예외는
+					// 그대로 전파). 2026-10-31 이전에는 실패할 때만 알려, 사전 작업으로 등록한 요청을 기다리던 쪽이 깨지 않았다.
 					m_guard.signalAll();
-					throw t;
 				}
 			}
 
-			try {
-				if ( m_due != null ) {
-					// 절대 시각 기반 대기.
-					while ( !m_precondition.get() ) {
-						if ( !m_guard.awaitSignal(m_due) ) {
-							throw new TimeoutException(String.format("due=%s", m_due));
-						}
+			// 두 방식 모두 "조건 확인 → 남은 시간 확인 → 대기" 순서로, 시간이 다 되어 깨어나도 조건을 한 번 더 확인한다.
+			// 인터럽트는 InterruptedException으로만 알린다(플래그는 다시 켜지 않는다).
+			if ( m_due != null ) {
+				// 절대 시각 기반 대기. 2026-10-31 이전에는 awaitSignal(due)가 false를 반환하면 조건을 다시 보지 않고
+				// 시간 초과로 처리해, 기한 직전에 조건이 충족되어도 TimeoutException이 났다.
+				while ( !m_precondition.get() ) {
+					// 차이를 계산하지 않고 직접 비교한다(new Date(Long.MIN_VALUE) 등에서 뺄셈이 넘쳐 미래로 판정되면,
+					// 즉시 반환하는 awaitUntil과 조건 확인을 끝없이 반복한다).
+					if ( m_due.getTime() <= System.currentTimeMillis() ) {
+						throw new TimeoutException(String.format("due=%s", m_due));
 					}
-				}
-				else {
-					// 상대 기간 기반 대기. nanos 단위로 카운트다운.
-					long remainingNanos = m_timeout.toNanos();
-					while ( !m_precondition.get() ) {
-						if ( remainingNanos <= 0 ) {
-							throw new TimeoutException(String.format("timeout=%s", m_timeout));
-						}
-						remainingNanos = m_guard.awaitSignalNanos(remainingNanos);
-					}
+					m_guard.awaitSignal(m_due);
 				}
 			}
-			catch ( InterruptedException e ) {
-				Thread.currentThread().interrupt();
-				throw e;
+			else {
+				// 상대 기간 기반 대기. nanos 단위로 카운트다운.
+				long remainingNanos = toNanosSaturated(m_timeout);
+				while ( !m_precondition.get() ) {
+					if ( remainingNanos <= 0 ) {
+						throw new TimeoutException(String.format("timeout=%s", m_timeout));
+					}
+					remainingNanos = m_guard.awaitSignalNanos(remainingNanos);
+				}
 			}
 		}
 	}
 	
+	/**
+	 * {@code *Checked} 종결 메소드에서 작업이 던진 예외를 {@link ExecutionException}으로 감싼다.
+	 * <p>
+	 * {@link VirtualMachineError}({@link OutOfMemoryError}, {@link StackOverflowError} 등)는 감싸지 않고 그대로
+	 * 던진다. 호출자가 {@link ExecutionException}을 일반 실패로 처리해 치명적 오류가 묻히지 않도록 하기 위함이다.
+	 */
+	private static ExecutionException toExecutionException(Throwable e) {
+		Throwable cause = Throwables.unwrapThrowable(e);
+		Throwables.throwIfInstanceOf(cause, VirtualMachineError.class);
+		return new ExecutionException(cause);
+	}
+	
+	/**
+	 * {@link Duration}을 nanosecond로 바꾼다. {@link Long#MAX_VALUE} 나노초(약 292년)를 넘으면 그 값으로 제한한다
+	 * ({@link TimeUnit#toNanos(long)}와 같은 정책). {@link Duration#toNanos()}는 넘치면 {@link ArithmeticException}을 던진다.
+	 */
+	private static long toNanosSaturated(Duration duration) {
+		try {
+			return duration.toNanos();
+		}
+		catch ( ArithmeticException e ) {
+			return Long.MAX_VALUE;
+		}
+	}
 }
