@@ -6,7 +6,7 @@ WebSocket connection wrapped as a `StateChart`. Built on top of `utils.statechar
 
 | Old | New | Why |
 |---|---|---|
-| `States.OpenWebSocket` | `States.WebSocketConnectingState` | it connects and waits; RCK already has its own `Connecting` state, hence the prefix |
+| `States.OpenWebSocket` | `States.WebSocketConnectingState` | it connects and waits; the prefix avoids a clash with application states (RCK had its own `Connecting`, since renamed `Registering`) |
 | `States.CancelledState` | `States.StoppedState` | reaching it ends the chart **`COMPLETED`**, not `CANCELLED` — the old name misled |
 | `States.ErrorState` | `States.FailedState` | matches `CompletedState` / `StoppedState` |
 | `Signals.ErrorMessage` | `Signals.WebSocketError` | it is an error (JDK error, pong timeout, text too long), not a received message |
