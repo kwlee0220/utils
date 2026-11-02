@@ -108,8 +108,7 @@ public class SingleWaiterExecutor implements LoggerSettable {
 
 	/**
 	 * 본 실행기를 중단한다. 대기 슬롯에 보관된 작업과 실행 중인 작업 모두에 {@code cancel(true)}을 호출한다(내부 lock
-	 * 밖에서). (2026-10-31 이전 이름은 {@code stop()}이었다. 재시작할 수 없는 즉시 중단이라
-	 * {@link java.util.concurrent.ExecutorService#shutdownNow()}와 이름을 맞췄다.)
+	 * 밖에서).
 	 * <p>
 	 * 본 메소드 호출 후 {@link #submit}은 {@link IllegalStateException}을 던진다 — 재시작은 지원하지 않는다.
 	 * cancel은 요청만 하므로 실제 취소 완료 여부를 보장하지 않는다. 동기 대기가 필요하면 호출자가
@@ -117,8 +116,7 @@ public class SingleWaiterExecutor implements LoggerSettable {
 	 * <p>
 	 * 각 작업의 취소는 따로 시도한다. 한 작업의 {@code cancel(true)}가 예외를 던져도 다른 작업의 취소를 시도한 뒤, 첫
 	 * 예외에 나머지를 {@link Throwable#addSuppressed(Throwable) suppressed}로 붙여 던진다. 실행기는 이미 중단된 상태다.
-	 * (2026-10-31 이전에는 대기 작업의 취소가 던지면 실행 중인 작업을 취소하지 못했고, 슬롯이 이미 비어 다시 불러도
-	 * 회복되지 않았다.) 이미 중단된 실행기에 다시 호출하면 아무 일도 하지 않는다.
+	 * 이미 중단된 실행기에 다시 호출하면 아무 일도 하지 않는다.
 	 *
 	 * @throws RuntimeException	작업의 {@code cancel(true)}가 던진 예외(모든 작업의 취소를 시도한 뒤)
 	 */
@@ -188,7 +186,7 @@ public class SingleWaiterExecutor implements LoggerSettable {
 	 * {@code start()}가 예외를 던지면 다음을 한다.
 	 * <ol>
 	 *   <li>작업이 아직 끝나지 않았으면 {@code cancel(true)}로 종료 상태로 만든다. 그러지 않으면 작업의 종료 콜백이 오지
-	 *       않아 호출자가 결과를 추적할 수 없다(검토 #10의 외부 검토).</li>
+	 *       않아 호출자가 결과를 추적할 수 없다.</li>
 	 *   <li>그 작업을 실행 슬롯에서 내리고 다음 대기 작업으로 넘어간다. 작업이 끝나지 않으면 종료 콜백으로는 슬롯이
 	 *       비지 않기 때문이다.</li>
 	 * </ol>
@@ -232,8 +230,7 @@ public class SingleWaiterExecutor implements LoggerSettable {
 	 * {@link StartableExecution#whenFinishedAsync} 콜백과 시작 실패 처리에서 호출된다. 호출된 시점에
 	 * {@code m_running}이 더 이상 {@code exec}이 아닌 경우 (예: {@link #shutdownNow()}가 먼저 진행되어
 	 * 실행 슬롯을 비웠거나, 이미 정리된 경우) 아무 동작도 하지 않는다. 다음 작업의 시작은 lock 밖에서 하며, 그 시작이
-	 * 실패하면 로그를 남기고 다시 다음 작업으로 넘어간다(2026-10-31 이전에는 그 예외가 비동기 리스너 안에서 사라지고
-	 * 실행 슬롯이 남았다).
+	 * 실패하면 로그를 남기고 다시 다음 작업으로 넘어간다.
 	 *
 	 * @param exec	종료된 실행
 	 */

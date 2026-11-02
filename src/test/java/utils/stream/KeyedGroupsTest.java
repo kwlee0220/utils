@@ -15,9 +15,6 @@ import utils.KeyValue;
 
 /**
  * {@link KeyedGroups}가 내부 상태를 읽기 전용 뷰로만 노출하고, 처음 나온 순서를 유지하는지 검증한다.
- * <p>
- * 2026-11-02 이전에는 {@code asMap()}이 내부 {@code HashMap}을, {@code get()}이 가변 목록을 그대로 돌려주었다
- * ({@code asMap().put("z", null)} 뒤 {@code size()}가 NPE, {@code asMap().put("e", [])}로 빈 그룹 생성).
  *
  * @author Kang-Woo Lee (ETRI)
  */

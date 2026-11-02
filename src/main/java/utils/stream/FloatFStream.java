@@ -19,8 +19,6 @@ import utils.func.FOption;
  * <p>
  * 생성: {@link #of(float...)}(기본형 값), {@link #from(Float[])}(박싱 배열), {@link #from(Iterable)},
  * {@link #downcast(FStream)}(기존 스트림 감싸기).
- * 2026-11-02 이전에는 박싱 배열용 생성 메소드도 {@code of(Float...)}여서, {@code of(1, 2)} 같은 리터럴 호출이
- * "ambiguous" 컴파일 오류가 났다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -39,9 +37,6 @@ public interface FloatFStream extends FStream<Float> {
 
 	/**
 	 * 박싱된 {@link Float} 배열로부터 {@link FloatFStream}을 생성한다.
-	 * <p>
-	 * 2026-11-02 이전의 이름은 {@code of(Float...)}였다(기본형 {@link #of(float...)}와 모호해 리터럴로 호출할 수
-	 * 없었으므로 이름을 바꿨다, 별칭 없음).
 	 *
 	 * @param values	스트림에 포함될 원소들.
 	 * @return	{@link FloatFStream} 객체.
@@ -126,8 +121,7 @@ public interface FloatFStream extends FStream<Float> {
 	/**
 	 * 스트림 원소들의 합을 반환한다. 스트림을 끝까지 소비한다.
 	 * <p>
-	 * 빈 스트림이면 {@code 0}을 반환한다. 누적은 {@code double}로 한다. 2026-11-02 이전에는 {@code float}로
-	 * 누적해 정밀도를 잃었다(0.1f 10개의 합이 1.0000001192).
+	 * 빈 스트림이면 {@code 0}을 반환한다. 누적은 {@code double}로 한다.
 	 *
 	 * @return	모든 원소의 합. 빈 스트림이면 {@code 0}.
 	 * @throws NullPointerException	원소에 {@code null}이 있는 경우.

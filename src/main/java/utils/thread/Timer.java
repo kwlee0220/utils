@@ -25,17 +25,14 @@ import utils.async.Execution;
  * {@link Execution#cancel(boolean) cancel(true)}을 부른다. {@link Execution#setTimeout(long, TimeUnit)}이
  * {@code utils.async.Executions.getTimer()}로 얻은 공용 인스턴스를 통해 이 클래스를 쓴다.
  * <ul>
- *   <li>예약 수에 제한이 없다. (2026-10-31 이전 구현은 64개까지만 보관하고, 넘치면 가장 늦은 기한의 예약을
- *       알림 없이 버렸다.)</li>
- *   <li>실행이 먼저 끝나면 예약을 곧바로 해제하므로, 끝난 실행이 자리를 차지하지 않는다. (이전 구현은 끝난
- *       실행을 기한이 될 때까지 큐에 남겨 두었다.)</li>
+ *   <li>예약 수에 제한이 없다.</li>
+ *   <li>실행이 먼저 끝나면 예약을 곧바로 해제하므로, 끝난 실행이 자리를 차지하지 않는다.</li>
  *   <li>같은 실행에 다시 예약하면 기존 예약을 바꾸지 않고 <b>새 예약을 더한다</b>. 기한을 늘리려면 기존 예약을
  *       {@link TimeoutHandle#cancel()}로 해제한 뒤 다시 예약한다.</li>
  *   <li>시간은 시계 변경의 영향을 받지 않는 단조 시계로 잰다. 단, {@link #setTimer(Execution, Date)}는 기한을
  *       등록 시점의 남은 시간으로 바꿔 예약한다.</li>
  *   <li>{@code cancel(true)}는 시간만 재는 스케줄러 스레드가 아니라 별도의 취소 스레드에서 부른다. 취소가 오래
- *       걸리거나(상태 정리, 원격 중지 명령 등) 실행의 lock을 기다려도 타이머 쪽 lock을 쥔 채 기다리는 일은 없다.
- *       (이전 구현은 타이머 lock을 쥔 채 {@code cancel(true)}를 불렀다.)</li>
+ *       걸리거나(상태 정리, 원격 중지 명령 등) 실행의 lock을 기다려도 타이머 쪽 lock을 쥔 채 기다리는 일은 없다.</li>
  *   <li>취소 스레드는 최대 {@value #MAX_CANCELLATION_THREADS}개다. 그만큼의 {@code cancel(true)}가 동시에 막혀
  *       있으면, 그 뒤에 만료된 예약의 취소 요청은 앞의 것이 끝날 때까지 대기열에서 기다린다(스레드를 무한히 늘리지
  *       않는다). 쉬는 스레드는 일정 시간 뒤 정리된다.</li>

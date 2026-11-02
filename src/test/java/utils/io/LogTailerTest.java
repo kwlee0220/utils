@@ -116,7 +116,7 @@ public class LogTailerTest {
 		Assertions.assertNull(err.get());
 	}
 
-	// ----- 미완성 줄 처리 (#2) -----
+	// ----- 미완성 줄 처리 -----
 
 	@Test
 	@Timeout(10)

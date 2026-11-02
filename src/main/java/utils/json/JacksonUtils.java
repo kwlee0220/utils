@@ -47,7 +47,6 @@ public class JacksonUtils {
 	 *       함께 둔다(같은 모듈의 중복 등록은 Jackson이 무시한다).</li>
 	 *   <li>날짜·시각({@code Instant}, {@code LocalDateTime} 등)은 숫자 timestamp가 아니라 ISO-8601 문자열로 쓴다
 	 *       ({@link SerializationFeature#WRITE_DATES_AS_TIMESTAMPS} 끔). 읽을 때는 두 형식을 모두 받는다.
-	 *       2026-11-01 이전에는 {@code Instant}를 {@code 1767225600.000000000}처럼 숫자로 썼다.
 	 *       {@code Duration}은 여전히 숫자(초)로 쓴다.</li>
 	 * </ul>
 	 *
@@ -76,7 +75,7 @@ public class JacksonUtils {
 	 * 예외는 모두 JacksonDeserializationException(IOException의 하위 타입)이다.
 	 *
 	 * 필드를 가진 노드(부모)가 JSON 객체가 아니면(JSON null 포함) 세 형태 모두 예외를 던진다. 잘못된 구조를
-	 * 기본값으로 조용히 받아들이지 않기 위해서다(2026-11-01 이전에는 필드 없음으로 처리했다).
+	 * 기본값으로 조용히 받아들이지 않기 위해서다.
 	 * 단, getFieldOrNull은 이 검사를 하지 않는 저수준 조회로 남긴다.
 	 */
 
@@ -108,8 +107,6 @@ public class JacksonUtils {
 	 * <p>
 	 * 필드가 없거나 JSON {@code null}이면 예외를 던진다. 예외 메시지에는 필드 이름과, 노드에 있는
 	 * 필드 이름들(최대 {@value #MAX_FIELD_NAMES_IN_MESSAGE}개)만 넣고 값은 넣지 않는다.
-	 * 2026-11-01 이전에는 노드 전체를 직렬화해 넣어서 비밀번호 같은 설정 값이 로그에 남을 수 있었다.
-	 * 또 이전에는 일반 {@code IOException}을 던졌다.
 	 *
 	 * @param node		필드를 가진 노드.
 	 * @param fieldName	필드 이름.
@@ -160,7 +157,7 @@ public class JacksonUtils {
 	 * 필수 문자열 필드 값을 읽는다.
 	 * <p>
 	 * 문자열뿐 아니라 숫자·불리언 같은 스칼라 값도 그 텍스트 표현으로 읽는다(예: {@code 19051} → {@code "19051"}).
-	 * 객체나 배열이면 예외를 던진다. 2026-11-01 이전에는 객체·배열도 예외 없이 빈 문자열({@code ""})로 읽었다.
+	 * 객체나 배열이면 예외를 던진다.
 	 *
 	 * @param node		필드를 가진 노드.
 	 * @param fieldName	필드 이름.
@@ -251,7 +248,7 @@ public class JacksonUtils {
 	 * 필수 불리언 필드 값을 읽는다.
 	 * <p>
 	 * JSON 불리언과, 대소문자를 구분하지 않는 문자열 {@code "true"}/{@code "false"}를 받는다. 그 밖의 값이면
-	 * 예외를 던진다. 2026-11-01 이전에는 {@code "yes"}나 숫자처럼 불리언이 아닌 값도 예외 없이 {@code false}로 읽었다.
+	 * 예외를 던진다.
 	 *
 	 * @param node		필드를 가진 노드.
 	 * @param fieldName	필드 이름.
@@ -297,7 +294,6 @@ public class JacksonUtils {
 	 * 필수 정수 필드 값을 읽는다.
 	 * <p>
 	 * {@code int} 범위의 JSON 정수만 받는다. 문자열, 소수, 범위를 넘는 정수이면 예외를 던진다.
-	 * 2026-11-01 이전에는 {@code "abc"}를 {@code 0}으로, {@code 3.9}를 {@code 3}으로 예외 없이 읽었다.
 	 *
 	 * @param node		필드를 가진 노드.
 	 * @param fieldName	필드 이름.
@@ -439,9 +435,6 @@ public class JacksonUtils {
 
 	/**
 	 * 배열 필드의 원소들을 읽는다. 필드가 없거나 JSON {@code null}이면 {@code null}을 돌려준다.
-	 * <p>
-	 * 2026-11-01 이전에는 {@code Iterator}를 돌려줬고, 배열인지 확인하지 않아 객체이면 그 필드 값들을,
-	 * 스칼라이면 빈 반복자를 돌려줬다.
 	 *
 	 * @param node		필드를 가진 노드.
 	 * @param fieldName	필드 이름.
@@ -486,7 +479,6 @@ public class JacksonUtils {
 	}
 
 	// 수치·불리언 변환은 JsonScalars에 맡긴다(STRICT: JSON 타입 그대로, 불리언은 "true"/"false" 문자열도 받음).
-	// 2026-11-01 이전에는 같은 규칙을 이 클래스가 따로 구현했다.
 
 	private static boolean asBoolean(JsonNode field, String fieldName) throws JacksonDeserializationException {
 		try {

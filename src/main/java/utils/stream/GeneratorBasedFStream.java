@@ -101,9 +101,9 @@ class GeneratorBasedFStream<T> extends AbstractFStream<T> {
 	 */
 	private static class DataGeneratingWorker<T> implements Runnable {
 		private final Generator<T> m_dataGenerator;
-		private final Suppliable<T> m_outChannel;
+		private final SuppliableFStream<T> m_outChannel;
 
-		DataGeneratingWorker(Generator<T> dataGenerator, Suppliable<T> channel) {
+		DataGeneratingWorker(Generator<T> dataGenerator, SuppliableFStream<T> channel) {
 			m_dataGenerator = dataGenerator;
 			m_outChannel = channel;
 		}
@@ -116,12 +116,13 @@ class GeneratorBasedFStream<T> extends AbstractFStream<T> {
 		 *   <li>generator가 정상 종료된 경우: {@link Suppliable#endOfSupply()}로 정상 종료시킨다.</li>
 		 *   <li>generator가 인터럽트({@link InterruptedException}) 또는 취소({@link CancellationException})된 경우:
 		 *       정상 종료로 처리한다.</li>
-		 *   <li>채널이 consumer 측에서 이미 닫혀({@link IllegalStateException}) supply가 실패한 경우:
-		 *       정상 종료로 처리한다.</li>
+		 *   <li>{@link IllegalStateException}이고 채널이 consumer 측에서 이미 닫힌 경우(닫힌 채널로의 supply 실패):
+		 *       정상 종료로 처리한다. 채널이 닫히지 않았으면 generator 자체의 오류로 보고 아래처럼 에러 종료한다.</li>
 		 *   <li>그 외 {@link Exception}이 발생한 경우: {@link Suppliable#endOfSupply(Throwable)}로 에러 종료시킨다.
 		 *       소비자가 후속 {@code next()}를 호출하면 등록된 에러가 RuntimeException으로 래핑되어 던져진다.</li>
+		 *   <li>{@link Error}가 발생한 경우: 소비자가 기다리지 않도록 채널을 그 {@code Error}로 종료한 뒤 다시 던진다.
+		 *       소비자는 후속 {@code next()}에서 그 {@code Error}를 그대로 받는다.</li>
 		 * </ul>
-		 * {@link Error}는 catch하지 않고 JVM에 전파된다.
 		 */
 		@Override
 		public void run() {
@@ -132,12 +133,21 @@ class GeneratorBasedFStream<T> extends AbstractFStream<T> {
 			catch ( InterruptedException | CancellationException expected ) {
 				m_outChannel.endOfSupply();
 			}
-			catch ( IllegalStateException expected ) {
-				// 채널이 이미 닫힌 경우, 데이터 생성 중단
-				m_outChannel.endOfSupply();
+			catch ( IllegalStateException e ) {
+				if ( m_outChannel.isClosed() ) {
+					// 소비자가 채널을 닫아 supply가 실패한 경우. 데이터 생성을 정상적으로 중단한다.
+					m_outChannel.endOfSupply();
+				}
+				else {
+					m_outChannel.endOfSupply(e);
+				}
 			}
 			catch ( Exception e ) {
 				m_outChannel.endOfSupply(e);
+			}
+			catch ( Error e ) {
+				m_outChannel.endOfSupply(e);
+				throw e;
 			}
 		}
 	}

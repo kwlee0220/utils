@@ -40,7 +40,7 @@ import utils.websocket.Signals.WebSocketError;
  * <b>수신 시작</b>: {@link #onOpen}은 수신을 요청하지 않는다. 접속 상태가 연결을 차트에 등록하고
  * {@link Signals.Connected}의 처리를 마친 뒤 {@link #startReceiving(WebSocket)}을 호출해야 첫 수신을 요청한다.
  * {@code onOpen}에서 바로 요청하면 서버가 접속 직후 보낸 메시지가 {@code Connected}보다 먼저 차트에 도착해
- * 접속 상태에서 버려지기 때문이다(2026-10-31 이전 동작). 또 {@code onOpen}은 차트에 등록되지 않을 연결
+ * 접속 상태에서 버려지기 때문이다. 또 {@code onOpen}은 차트에 등록되지 않을 연결
  * (차트가 끝난 뒤나 접속 상태를 떠난 뒤 완료된 연결)에서도 호출되므로, ping 예약도 {@code startReceiving}에서 시작한다.
  * <p>
  * 차트에 등록된 연결이 있으면 다른 연결에서 온 콜백은 무시한다. 접속 상태는 본 listener 대신 접속 시도마다
@@ -77,7 +77,6 @@ class WebSocketListener<C extends WebSocketContext<C>> implements WebSocket.List
 	private volatile Duration m_pongTimeout;
 	/**
 	 * 주기적인 ping 송신 작업. 패키지가 함께 쓰는 스케줄러({@link SharedResources#scheduler()})에 예약한다.
-	 * (2026-10-31 이전에는 차트마다 {@code java.util.Timer} 스레드를 하나씩 만들었다.)
 	 */
 	private volatile ScheduledFuture<?> m_pingTask;
 	/**

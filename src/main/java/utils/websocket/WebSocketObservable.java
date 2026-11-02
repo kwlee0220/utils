@@ -110,7 +110,6 @@ public final class WebSocketObservable extends Observable<Message> {
 		}
 		catch ( Throwable e ) {
 			// onSubscribe 뒤에 던지면 구독자에게 전달되지 않고 RxJava 전역 오류 처리기로 빠져 구독이 끝나지 않는다.
-			// (2026-10-31 이전 동작. 예: 빌더 설정에서 header(null, ...))
 			disposable.onError(e);
 			return;
 		}
@@ -169,7 +168,6 @@ public final class WebSocketObservable extends Observable<Message> {
 		/**
 		 * 사용할 {@link HttpClient}을 설정한다. 지정하지 않으면 패키지가 함께 쓰는 클라이언트 하나를 쓴다
 		 * ({@link WebSocketStateChart}의 기본 클라이언트와 같다). 지정한 클라이언트의 수명은 호출자가 관리한다.
-		 * (2026-10-31 이전에는 빌더마다 새 클라이언트를 만들어, 지정해도 기본 클라이언트가 먼저 만들어졌다.)
 		 *
 		 * @param client	HTTP 클라이언트 (non-null)
 		 * @return			this

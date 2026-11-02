@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import com.google.common.collect.Sets;
 
 import utils.Preconditions;
+import utils.Throwables;
 import utils.Tuple;
 import utils.async.AsyncResult;
 import utils.async.Executions;
@@ -42,20 +43,24 @@ import utils.thread.Guard;
  * <p>
  * <b>close 의미론</b>: {@link #close()} 호출 시 출력 채널과 입력 스트림을 닫는다. 이미 시작되어 진행
  * 중인 매핑 작업에는 {@code cancel}을 전파하지 않으므로 작업은 끝까지 실행되지만, 그 결과는 닫힌
- * 채널에 enqueue되거나 소비자에 의해 더 이상 소비되지 않아 silent drop된다. close 이후 새로 호출되는
- * {@link #startNext()}는 {@link IllegalStateException}으로 즉시 빠져나온다.
+ * 채널에 enqueue되거나 소비자에 의해 더 이상 소비되지 않아 silent drop된다. close 이후에는 새 작업을
+ * 시작하지 않는다.
+ * <p>
+ * <b>입력 실패</b>: 입력 스트림에서 다음 원소를 꺼내다 예외가 나면 스트림 전체의 실패로 전파한다. 출력 채널을 그
+ * 예외로 종료하고 새 작업을 시작하지 않는다. 소비자는 이미 채널에 들어온 결과를 모두 입력 순서대로 받은 뒤 다음
+ * {@link #next()}에서 그 예외를 <b>감싸지 않은 원래 형태</b>로 받는다(검사 예외도 선언 없이 던져진다).
  * <p>
  * <b>버린 결과의 정리</b>: 생성 시 {@code onDiscarded}를 주면, 소비자에게 넘기지 못하고 버린 <em>성공</em>
  * 결과마다 그것을 한 번 호출한다. 닫을 때 출력 채널에 쌓여 있던 결과와, 닫을 때 진행 중이어서 닫은 뒤에
  * 끝난 결과가 대상이다(후자는 작업이 끝날 때 비동기로 호출된다). 결과가 자원을 쥐는 경우(예: keepOrder인
- * {@code flatMapAsync}의 하위 스트림)에 쓴다. 2026-11-02 이전에는 이 훅이 없어 그런 자원이 샜다(review #26).
+ * {@code flatMapAsync}의 하위 스트림)에 쓴다.
  *
  * @param <S> 입력 스트림 원소 타입.
  * @param <T> 매핑 결과 타입.
  *
  * @author Kang-Woo Lee (ETRI)
  */
-class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
+class OrderedMapAsyncStream<S,T> extends AbstractFStream<MappingResult<S,T>> {
 	/** 입력 스트림에 매핑 함수를 적용해 {@code (input, exec)} 튜플로 변환한 lazy 스트림. */
 	private final FStream<Tuple<S,StartableExecution<T>>> m_jobStream;
 
@@ -80,6 +85,8 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	@GuardedBy("m_guard") private final Set<StartableExecution<T>> m_undelivered = Sets.newIdentityHashSet();
 	/** {@link #closeInGuard()}가 시작되었는지 여부. 이후에는 새 작업을 시작하지 않고 결과를 넘기지 않는다. */
 	@GuardedBy("m_guard") private boolean m_discarding = false;
+	/** 입력 스트림에서 처음 발생한 실패. 기록되면 새 작업을 시작하지 않는다. */
+	@GuardedBy("m_guard") private @Nullable Throwable m_failure = null;
 
 	/**
 	 * @param src     입력 스트림. {@code null} 여부는 별도 검증하지 않으므로 호출자가 non-null임을
@@ -122,9 +129,8 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 * <p>
 	 * {@code m_outChannel.close()}는 {@code m_guard} 안에서 호출해 동시 진행 중인
 	 * {@link #startNext()}와 직렬화한다. 반면 {@code m_jobStream.close()}는 외부 스트림이라
-	 * close가 길어질 수 있어 lock 밖에서 호출한다 — {@code m_jobStream}은 close될 시점에는
-	 * 더 이상 {@code startNext()}에서 접근되지 않는다 (위의 {@code m_outChannel.close()}로
-	 * 종료 상태 도달 후 새 startNext 호출은 즉시 IllegalStateException으로 종료).
+	 * close가 길어질 수 있어 lock 밖에서 호출한다 — {@code m_discarding}을 lock 안에서 먼저 켜므로,
+	 * {@code m_jobStream}은 close될 시점에는 더 이상 {@code startNext()}에서 접근되지 않는다.
 	 */
 	@Override
 	protected void closeInGuard() throws Exception {
@@ -166,18 +172,36 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 * 결과 매핑/예외 처리 규칙은 {@link #awaitResult(Tuple)}을 참고한다.
 	 */
 	@Override
-	protected FOption<Tuple<S,Try<T>>> nextInGuard() {
-		FOption<Tuple<S,StartableExecution<T>>> ojob = m_outChannel.next();
+	protected FOption<MappingResult<S,T>> nextInGuard() {
+		FOption<Tuple<S,StartableExecution<T>>> ojob;
+		try {
+			ojob = m_outChannel.next();
+		}
+		catch ( RuntimeException e ) {
+			// 출력 채널은 등록된 오류를 RuntimeException으로 감싸 던진다. 입력 실패이면 원래 예외로 바꿔 던진다.
+			Throwable failure = m_guard.get(() -> m_failure);
+			if ( failure != null && (e == failure || e.getCause() == failure) ) {
+				return Throwables.sneakyThrow(failure);
+			}
+			throw e;
+		}
 		if ( ojob.isAbsent() ) {
 			return FOption.empty();
 		}
 		
-		Tuple<S,Try<T>> result = awaitResult(ojob.get());
+		MappingResult<S,T> result = awaitResult(ojob.get());
 		// 기다리는 동안 다른 쓰레드가 닫았다면 closeInGuard()가 이 작업을 정리하므로 넘기지 않는다.
 		boolean delivered = m_guard.get(() -> m_undelivered.remove(ojob.get()._2()));
 		if ( !delivered ) {
 			return FOption.empty();
 		}
+		if ( m_onDiscarded != null && result.isFailed()
+				&& result.result().getCause() instanceof InterruptedException ) {
+			// 소비자의 대기만 인터럽트되었을 수 있다(작업은 계속 실행된다). 작업의 실제 결과는 넘기지 못하므로,
+			// 작업이 끝나면 폐기 훅으로 정리한다. 매핑 함수 자체가 실패한 경우라면 훅은 아무것도 하지 않는다.
+			ojob.get()._2().whenFinishedAsync(r -> r.ifSuccessful(this::discard));
+		}
+		// startNext()는 입력 실패를 채널로 넘기고 던지지 않으므로, 넘기기로 한 결과를 잃지 않는다.
 		startNext();
 		
 		return FOption.of(result);
@@ -219,28 +243,28 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 * </ul>
 	 *
 	 * @param job 입력 원소와 시작된 매핑 실행 객체의 튜플.
-	 * @return 입력 원소와 {@link Try}로 감싼 매핑 결과의 튜플.
+	 * @return 입력 원소와 {@link Try}로 감싼 매핑 결과.
 	 */
-	private Tuple<S,Try<T>> awaitResult(Tuple<S,StartableExecution<T>> job) {
+	private MappingResult<S,T> awaitResult(Tuple<S,StartableExecution<T>> job) {
 		S input = job._1();
 		StartableExecution<T> exec = job._2();
 		
 		try {
 			AsyncResult<T> ret = exec.waitForFinished();
 			if ( ret.isCompleted() ) {
-				return Tuple.of(input, Try.success(ret.getUnchecked()));
+				return MappingResult.of(input, Try.success(ret.getUnchecked()));
 			}
 			if ( ret.isFailed() ) {
 				// 원본 cause를 그대로 노출 — MapUnorderedAsyncStream의 Result.asTry()와 일관.
 				// {@code ret.get()} 을 호출하면 ExecutionException으로 한 번 래핑되므로 사용하지 않는다.
-				return Tuple.of(input, Try.<T>failure(ret.getFailureCause()));
+				return MappingResult.of(input, Try.<T>failure(ret.getFailureCause()));
 			}
 			// cancelled 또는 예상치 못한 상태.
-			return Tuple.of(input, Try.<T>failure(new CancellationException()));
+			return MappingResult.of(input, Try.<T>failure(new CancellationException()));
 		}
 		catch ( InterruptedException e ) {
 			Thread.currentThread().interrupt();
-			return Tuple.of(input, Try.<T>failure(e));
+			return MappingResult.of(input, Try.<T>failure(e));
 		}
 	}
 
@@ -256,6 +280,8 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 * <p>
 	 * <b>예외 처리</b>:
 	 * <ul>
+	 *   <li>입력 스트림이 던진 예외 → {@link #m_failure}에 기록하고 채널을 {@code endOfSupply(e)}로 종료한다.
+	 *       본 메소드는 예외를 던지지 않는다.</li>
 	 *   <li>채널 supply 도중 {@link InterruptedException} → 인터럽트 플래그를 복원하고 조용히
 	 *       종료한다. exec은 이미 시작되어 자체 실행을 계속한다.</li>
 	 *   <li>채널이 동시에 close/endOfSupply된 경우의 {@link IllegalStateException} → 무시한다.
@@ -268,47 +294,56 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	private void startNext() {
 		m_guard.lock();
 		try {
-			if ( m_discarding ) {
+			if ( m_discarding || m_failure != null ) {
 				return;
 			}
-			m_jobStream.next()
-						.ifPresent(job -> {
-							try {
-								S input = job._1();
-								StartableExecution<T> exec = job._2();
-								// exec을 먼저 시작한 후 채널에 enqueue한다 — 반대 순서로 하면
-								// consumer가 unstarted exec을 꺼내 waitForFinished()에서 블록되는
-								// race가 생길 수 있다.
-								exec.start();
-								// supply가 실패해도 닫을 때 정리되도록 먼저 등록한다.
-								m_undelivered.add(exec);
-								m_outChannel.supply(Tuple.of(input, exec));
-							}
-							catch ( InterruptedException e ) {
-								getLogger().warn("interrupted while supplying worker's result", e);
-								Thread.currentThread().interrupt();
-							}
-							catch ( IllegalStateException ignored ) {
-								// 동시에 close되었거나 endOfSupply된 경우. exec은 이미 시작되어
-								// 자체적으로 완료되지만 결과는 폐기된다.
-							}
-							catch ( RuntimeException e ) {
-								// Defensive — exec.start()가 동기적으로 RuntimeException을 던지는 이론적
-								// 케이스의 안전망. utils.async.CompletableFutureAsyncExecution#start()
-								// 은 내부에서 Throwable을 catch하여 exec를 FAILED 상태로 전이시키므로
-								// 보통은 여기에 도달하지 않으며, RejectedExecutionException 등은 element-wise
-								// Try.failure로 노출된다. 그래도 custom Execution 구현이나 state-machine 이상
-								// 으로 예외가 흘러나오는 경우를 대비해 fatal로 처리한다 — 이미 채널에 적재된
-								// 결과는 consumer가 정상 소비하고, 그 후 본 에러가 RuntimeException으로
-								// 래핑되어 next()에서 전파된다.
-								m_outChannel.endOfSupply(e);
-							}
-						})
-						.ifAbsent(() -> {
-							if ( --m_runningWorkerCount == 0 ) {
-								m_outChannel.endOfSupply();
-							}
-						});
+			FOption<Tuple<S,StartableExecution<T>>> ojob;
+			try {
+				ojob = m_jobStream.next();
+			}
+			catch ( Throwable e ) {
+				// closeInGuard()는 m_discarding을 먼저 켜므로, 여기서 난 예외는 닫힘이 아니라 입력 실패다.
+				m_failure = e;
+				m_outChannel.endOfSupply(e);
+				return;
+			}
+			ojob.ifPresent(job -> {
+				try {
+					S input = job._1();
+					StartableExecution<T> exec = job._2();
+					// exec을 먼저 시작한 후 채널에 enqueue한다 — 반대 순서로 하면
+					// consumer가 unstarted exec을 꺼내 waitForFinished()에서 블록되는
+					// race가 생길 수 있다.
+					exec.start();
+					// supply가 실패해도 닫을 때 정리되도록 먼저 등록한다.
+					m_undelivered.add(exec);
+					m_outChannel.supply(Tuple.of(input, exec));
+				}
+				catch ( InterruptedException e ) {
+					getLogger().warn("interrupted while supplying worker's result", e);
+					Thread.currentThread().interrupt();
+				}
+				catch ( IllegalStateException ignored ) {
+					// 동시에 close되었거나 endOfSupply된 경우. exec은 이미 시작되어
+					// 자체적으로 완료되지만 결과는 폐기된다.
+				}
+				catch ( RuntimeException e ) {
+					// Defensive — exec.start()가 동기적으로 RuntimeException을 던지는 이론적
+					// 케이스의 안전망. utils.async.CompletableFutureAsyncExecution#start()
+					// 은 내부에서 Throwable을 catch하여 exec를 FAILED 상태로 전이시키므로
+					// 보통은 여기에 도달하지 않으며, RejectedExecutionException 등은 element-wise
+					// Try.failure로 노출된다. 그래도 custom Execution 구현이나 state-machine 이상
+					// 으로 예외가 흘러나오는 경우를 대비해 fatal로 처리한다 — 이미 채널에 적재된
+					// 결과는 consumer가 정상 소비하고, 그 후 본 에러가 RuntimeException으로
+					// 래핑되어 next()에서 전파된다.
+					m_outChannel.endOfSupply(e);
+				}
+			})
+			.ifAbsent(() -> {
+				if ( --m_runningWorkerCount == 0 ) {
+					m_outChannel.endOfSupply();
+				}
+			});
 		}
 		finally {
 			m_guard.unlock();

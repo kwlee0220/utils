@@ -26,7 +26,7 @@ public class MinMaxTest {
 	@Test
 	public void test2X() throws Exception {
 		FStream<Integer> stream = FStream.of();
-		Assertions.assertEquals(true, stream.max().isEmpty());
+		Assertions.assertEquals(true, stream.max().isAbsent());
 	}
 	
 	@Test
@@ -63,7 +63,7 @@ public class MinMaxTest {
 	@Test
 	public void test2N() throws Exception {
 		FStream<Integer> stream = FStream.of();
-		Assertions.assertEquals(true, stream.min().isEmpty());
+		Assertions.assertEquals(true, stream.min().isAbsent());
 	}
 	
 	@Test

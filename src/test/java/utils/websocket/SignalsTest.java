@@ -59,7 +59,7 @@ public class SignalsTest {
 
 	@Test
 	public void connectionFailed_rejects_null_cause() {
-		// WebSocketError와 같이 원인 없는 실패를 막는다(2026-10-31 이전에는 받아들였다).
+		// WebSocketError와 같이 원인 없는 실패를 막는다.
 		Assertions.assertThrows(IllegalArgumentException.class, () -> new Signals.ConnectionFailed(null));
 	}
 

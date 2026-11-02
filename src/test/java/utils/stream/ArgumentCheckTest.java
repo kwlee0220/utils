@@ -14,19 +14,15 @@ import utils.KeyValue;
 
 /**
  * 인자 검증 시점과 오류 메시지를 검증한다.
- * <p>
- * 2026-11-02 이전에는 {@code buffer(0, 1)}이 내부 클래스의 메시지로 실패했고, {@code take(-1)} 등의 메시지가
- * {@code "count >= 0, but {} [-1]"}처럼 깨졌으며, {@code match(null)}·{@code foldByKey}·{@code collectByKey}의
- * {@code null} 인자는 첫 원소를 처리할 때에야(빈 스트림이면 아예) 드러났다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
 public class ArgumentCheckTest {
 	@Test
-	public void buffer_rejects_a_non_positive_count_at_the_call() {
+	public void window_rejects_a_non_positive_size_at_the_call() {
 		IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
-													() -> FStream.of(1).buffer(0, 1));
-		assertEquals("count > 0, but: 0", e.getMessage());
+													() -> FStream.of(1).window(0, 1));
+		assertEquals("size > 0, but: 0", e.getMessage());
 	}
 
 	@Test
@@ -71,7 +67,7 @@ public class ArgumentCheckTest {
 	public void valid_arguments_still_work() {
 		// 마지막에는 길이가 모자란 윈도우도 낸다.
 		assertEquals(List.of(List.of(1, 2), List.of(2, 3), List.of(3)),
-					FStream.of(1, 2, 3).buffer(2, 1).toList());
+					FStream.of(1, 2, 3).window(2, 1).toList());
 		assertTrue(FStream.of(1).take(0).next().isAbsent());
 		assertFalse(KeyValueFStream.of(KeyValue.of("a", 1)).match(java.util.Map.of("a", 2))
 								.toList().isEmpty());

@@ -49,10 +49,6 @@ import utils.stream.TimedFStream;
  *   <li>{@link #close()} — 수집을 중단한다. 아직 꺼내지 않은 결과와 이후 도착하는 결과를 버린다. 등록한 작업을
  *       취소하지는 않는다. 작업도 멈춰야 하면 호출자가 따로 취소한다.</li>
  * </ul>
- * <p>
- * (2026-10-31에 다시 설계했다. 이전에는 {@code SuppliableFStream}을 상속해 {@code supply()}가 공개되어 있었고,
- * {@code submit(Execution)}이 {@code isStarted()}로 시작 여부를 잘못 판단했으며, 미완료 결과를 버리는
- * {@code endOfSupply()}만 있었다. 완료 콜백이 작업의 lock을 쥔 채 가득 찬 buffer를 기다리기도 했다. 검토 #14.)
  *
  * @param <T>	작업 결과 값의 타입. 스트림 원소는 {@code Result<T>}다.
  *

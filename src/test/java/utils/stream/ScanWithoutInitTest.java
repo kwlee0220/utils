@@ -7,16 +7,17 @@ import org.junit.jupiter.api.Test;
 import utils.func.FOption;
 
 /**
- * 
+ * {@link FStream#scan(java.util.function.BiFunction)}(초기값 없는 scan, 옛 이름 {@code reduceLeak})을 검증한다.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
-public class ReduceLeakTest {
+public class ScanWithoutInitTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<String> stream = FStream.range(65, 70)
 										.map(c -> Character.toString((char)(int)c))
 										.take(5);
-		stream = stream.reduceLeak((a,n) -> a+n);
+		stream = stream.scan((a,n) -> a+n);
 		
 		FOption<String> r;
 		
@@ -45,7 +46,7 @@ public class ReduceLeakTest {
 	@Test
 	public void test1() throws Exception {
 		FStream<Integer> stream = FStream.empty();
-		stream = stream.reduceLeak((a,n) -> a+n);
+		stream = stream.scan((a,n) -> a+n);
 		
 		FOption<Integer> r;
 		
@@ -60,7 +61,7 @@ public class ReduceLeakTest {
 	public void test2() throws Exception {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
 			FStream<Integer> stream = FStream.empty();
-			stream = stream.reduceLeak(null);
+			stream = stream.scan(null);
 			});
 	}
 }

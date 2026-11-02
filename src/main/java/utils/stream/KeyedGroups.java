@@ -21,8 +21,8 @@ import utils.func.MultipleCases;
  * <p>
  * <b>읽기 전용 뷰</b>: {@link #asMap()}, {@link #keySet()}, {@link #get(Object)},
  * {@link #getOrDefault(Object, List)}는 수정할 수 없는 뷰를 돌려준다. 내부 상태는 {@link #add(Object, Object)}와
- * {@link #remove(Object)}로만 바뀐다. 2026-11-02 이전에는 내부 맵과 목록을 그대로 돌려주어, 호출자가
- * {@code null} 그룹이나 빈 그룹을 넣을 수 있었다(그 뒤 {@link #size()}가 NPE). 단 {@link #fstream()}의 값 목록은
+ * {@link #remove(Object)}로만 바뀐다.
+ * 단 {@link #fstream()}의 값 목록은
  * 내부 목록 그대로다(아래 참조).
  *
  * @param <K>	키 타입.
@@ -44,7 +44,7 @@ public class KeyedGroups<K,V> implements FStreamable<KeyValue<K,List<V>>> {
 	}
 
 	private KeyedGroups() {
-		// 처음 나온 순서를 유지한다(2026-11-02 이전에는 HashMap 순서였다).
+		// 처음 나온 순서를 유지한다.
 		m_groups = Maps.newLinkedHashMap();
 	}
 
@@ -117,8 +117,7 @@ public class KeyedGroups<K,V> implements FStreamable<KeyValue<K,List<V>>> {
 	/**
 	 * 키의 값 목록 끝에 값을 더한다. 키의 목록이 없으면 새로 만든다.
 	 * <p>
-	 * {@code null} 값도 허용한다({@link KeyValueFStream#toListMap()}과 같은 정책). 2026-11-02 이전에는
-	 * {@code null} 값을 {@link IllegalArgumentException}으로 거부했다.
+	 * {@code null} 값도 허용한다({@link KeyValueFStream#groupByKey()}와 같은 정책).
 	 *
 	 * @param key	키.
 	 * @param value	더할 값. {@code null}이어도 된다.

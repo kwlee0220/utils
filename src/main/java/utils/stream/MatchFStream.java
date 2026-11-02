@@ -20,9 +20,6 @@ import utils.stream.KeyValueFStreams.AbstractKeyValueFStream;
  * 일치하지 않은 원소는 버리고, {@code keepUnmatched}가 {@code true}이면 {@code (키, null)}로 유지한다. 그래서
  * {@code keepUnmatched}일 때 {@link Map}에서 값이 {@code null}인 키와 맵에 없는 키는 결과에서 구별되지 않는다.
  * <p>
- * 2026-11-02 이전(같은 날 한때)에는 {@link Map}도 {@code lut.get(key) != null}로 판단해, 값이 {@code null}인 키를
- * 맵에 없는 키처럼 처리했다.
- * <p>
  * 원본 스트림은 이 스트림을 닫을 때 함께 닫힌다.
  *
  * @param <K>	키(원본 스트림의 원소) 타입.

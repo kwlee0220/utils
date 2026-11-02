@@ -127,7 +127,6 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 
 	/**
 	 * WebSocket 연결을 정상 종료 코드({@link WebSocket#NORMAL_CLOSURE})로 닫는다.
-	 * (2026-10-31 이전 이름은 {@code close()}였다. 차트(실행)를 끝내는 것으로 읽히기 쉬워 바꾸었다.)
 	 *
 	 * @see #closeConnection(int, String)
 	 */
@@ -152,7 +151,6 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 * ({@link #setCloseTimeout(Duration)}) 안에 끝나지 않으면 {@link WebSocket#abort()}로 연결을 끊고, 전송이 실패해도
 	 * 끊는다. 따라서 반환된 future는 늦어도 시간 제한 뒤에 <b>정상 완료</b>되며 예외로 끝나지 않는다. 등록된 연결이
 	 * 없으면 이미 완료된 future를 반환한다. 이 호출이 차트에 미치는 영향은 {@link #closeConnection(int, String)}와 같다.
-	 * (2026-10-31 이전 이름은 {@code closeAsync}였다.)
 	 *
 	 * @param statusCode	close 상태 코드
 	 * @param reason		close 사유 문자열
@@ -177,7 +175,7 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 * <p>
 	 * 상대의 close 응답은 반환 뒤에도 백그라운드에서 기다린다. 전송 후 시간 제한 안에 응답이 없으면 그때
 	 * {@code abort()}한다. {@code sendClose()}는 출력만 닫으므로, 응답하지 않는 상대에게서 연결이 남지 않게 하기
-	 * 위해서다(2026-10-31 이전에는 응답을 기다리지 않아 연결이 남을 수 있었다). 종료 결과가 필요하면
+	 * 위해서다. 종료 결과가 필요하면
 	 * {@link #closeConnectionAsync(int, String)}를 쓴다.
 	 * <p>
 	 * 차트가 종료되면 이 메소드가 자동으로 호출되므로, 정상적인 시나리오에서 외부 코드가 직접
@@ -240,9 +238,6 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 
 	/**
 	 * 패키지 내부(접속 상태, 테스트)에서 쓰는 listener 구현을 반환한다.
-	 * <p>
-	 * (2026-10-31까지 있던 공개 메소드 {@code getWebSocketListener()}는 지웠다. 접속 상태는 접속 시도마다 별도의
-	 * listener({@link WebSocketListener#forAttempt})를 쓰고, 패키지 밖에서는 연결을 차트에 등록할 수 없어 쓸 곳이 없었다.)
 	 *
 	 * @return	listener 구현
 	 */
@@ -290,7 +285,7 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 * <p>
 	 * 예약은 {@link Duration#toMillis()}로 하므로 1ms 미만은 0ms가 된다. 그러면 pong 감시는 즉시 만료되어 매번 시간
 	 * 초과가 되고, ping 주기는 예약 자체가 실패하며, close는 응답을 기다리지 않고 끊는다. 밀리초로 바꿀 수 없을 만큼 큰
-	 * 값도 거부한다. (2026-10-31 이전에는 양수인지만 확인했다.)
+	 * 값도 거부한다.
 	 *
 	 * @param duration	검증할 값
 	 * @param name		인자 이름(예외 메시지용)
@@ -310,7 +305,7 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 
 	/**
 	 * 접속 설정 메소드가 차트 시작 전에 호출되었는지 확인한다. 접속 설정은 접속 상태에 진입할 때 읽으므로 시작 뒤의
-	 * 변경은 반영되지 않거나 일부만 반영된다. (2026-10-31 이전에는 거부하지 않았다.)
+	 * 변경은 반영되지 않거나 일부만 반영된다.
 	 */
 	private void checkNotStarted() {
 		Preconditions.checkState(isNotStarted(), "connection settings must be set before the chart starts: %s", this);
@@ -604,8 +599,7 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 *   <li>{@link Signals.WebSocketError} → 차트를 그 오류로 실패시킨다.</li>
 	 *   <li>{@link Signals.ConnectionClosed} → 정상 종료 코드({@link WebSocketClosedException#isNormalClosure(int)}:
 	 *       1000, 1001, 1005)이면 차트를 취소하고, 그 밖의 코드(예: 1006, 1011)이면 {@link WebSocketClosedException}으로
-	 *       실패시킨다. 서버 장애로 끊긴 것과 정상 종료·취소를 호출자가 구분할 수 있게 하기 위해서다.
-	 *       (2026-10-31 이전에는 상태 코드와 관계없이 취소했다.)</li>
+	 *       실패시킨다. 서버 장애로 끊긴 것과 정상 종료·취소를 호출자가 구분할 수 있게 하기 위해서다.</li>
 	 * </ul>
 	 * 종료는 {@code StateChart}의 경로({@code super.fail}/{@code super.cancel})로 요청한다. 하위 클래스가
 	 * {@link #fail(Throwable)}이나 {@code cancel(boolean)}을 다른 동작(예: 중지 신호 전송)으로 재정의했더라도
@@ -613,9 +607,7 @@ public class WebSocketStateChart<C extends WebSocketContext<C>> extends StateCha
 	 * 이 fall-back은 사용자가 WebSocketError / ConnectionClosed 처리 transition을 정의하지 않았더라도
 	 * WebSocket이 비정상 종료되었을 때 차트가 dangling 상태에 머무르지 않도록 보장한다.
 	 * <p>
-	 * 차트가 실행 중일 때 신호를 처리하는 스레드에서 차트 lock을 보유한 채 호출된다. 이전에는
-	 * {@code handleSignal()}을 재정의해 반환값이 비어 있으면 fall-back을 수행했으나, 신호가 큐에 들어가
-	 * 나중에 처리되는 경우와 구분할 수 없어 이 hook으로 옮겼다.
+	 * 차트가 실행 중일 때 신호를 처리하는 스레드에서 차트 lock을 보유한 채 호출된다.
 	 *
 	 * @param signal	처리되지 않은 신호
 	 */

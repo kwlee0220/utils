@@ -8,17 +8,13 @@ import java.util.function.Predicate;
 /**
  * 한 번 진입하면 빠져나올 수 없는 종료 상태의 기반 클래스.
  * <p>
- * (2026-10-31 이전 이름은 {@code SinkState}였다. 등록하면 자동으로 최종 상태가 되어, 차트를 끝내는 상태라는
- * 역할이 이름에 드러나도록 바꿨다.)
- * <p>
  * {@link #exit()}와 {@link #selectTransition(Signal)}, 전이 등록({@link #on(Signal, Transition)} 등)이 모두
  * {@link UnsupportedOperationException}을 던지도록 막아, 이 상태에서 다른 상태로 이동하는 경로가 존재하지 않음을 타입 차원에서 보장한다.
  * 진입 시 자원 정리 등 마무리 작업이 필요하면 {@link #enter()}를 재정의한다.
  * <p>
  * <b>{@link StateChart#addState(State)}로 등록하면 자동으로 최종 상태가 된다.</b>
  * {@link StateChart#addFinalState(String)}를 따로 호출하지 않아도 된다. 이 상태에 도달하는 순간 차트가
- * {@code complete()}되어 더 이상 신호가 전달되지 않는다. (2026-10-31 이전에는 {@code addFinalState()}를
- * 직접 호출해야 했고, 빠뜨리면 {@link StateChart#start()}가 거부했다.)
+ * {@code complete()}되어 더 이상 신호가 전달되지 않는다.
  * 실패로 끝나야 하는 종료 상태는 본 클래스 대신 {@link FailureState}를 사용한다.
  *
  * @param <C>	상태 컨텍스트 타입

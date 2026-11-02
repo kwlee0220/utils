@@ -26,9 +26,6 @@ import utils.Preconditions;
  * <p>
  * {@link #fail(String, Function) fail}은 {@link FailureState}로 이동하면서 그 상태에 실패 원인을 설정하는
  * {@code to(path, action)}의 특수형이다.
- * <p>
- * (2026-10-31 이전 이름은 {@code create(path, action)}과 {@code noop(path)}였다. 특히 {@code noop}은
- * "아무것도 하지 않는다"로 읽히지만 실제로는 상태를 이동해서 이름을 바꿨다.)
  *
  * @author Kang-Woo Lee (ETRI)
  */

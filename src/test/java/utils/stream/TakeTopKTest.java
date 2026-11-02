@@ -16,8 +16,6 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@link FStream#takeTopK} 오버로드를 검증한다.
- * <p>
- * 2026-11-02 이전에는 {@code takeTopK(k)}가 큰 값이 아니라 작은 값 {@code k}개를 골랐다(Javadoc과 반대).
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -101,5 +99,13 @@ public class TakeTopKTest {
 		assertThrows(IllegalArgumentException.class, () -> FStream.of(1).takeTopK(-1));
 		assertThrows(IllegalArgumentException.class, () -> FStream.of(1).takeTopK(1, (SortOrder)null));
 		assertThrows(IllegalArgumentException.class, () -> FStream.of(1).takeTopK(1, (Comparator<Integer>)null));
+	}
+
+	@Test
+	public void next_after_close_throws_like_any_other_stream() throws Exception {
+		FStream<Integer> stream = FStream.of(1, 2, 3).takeTopK(3);
+		assertEquals(3, (int)stream.next().get());
+		stream.close();
+		assertThrows(IllegalStateException.class, stream::next);
 	}
 }

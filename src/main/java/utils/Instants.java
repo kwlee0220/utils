@@ -34,9 +34,6 @@ import utils.func.FOption;
  *   <li><b>{@code null}</b>: 인자가 {@code null}이면 {@link IllegalArgumentException}을 던진다. JDBC {@code NULL}을
  *       다루는 {@link #fromTimestamp(Timestamp)}·{@link #toTimestamp(Instant)}만 {@code null}을 그대로 돌려준다.</li>
  * </ul>
- * <p>
- * 2026-11-01에 {@code fromString} → {@code parse}, {@code toZonedString} → {@code toString},
- * {@code toUTCString} → {@code toUtcString}으로 이름을 바꿨다(별칭 없음).
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -45,10 +42,9 @@ public class Instants {
 	 * 출력 형식: {@code yyyy-MM-dd'T'HH:mm:ss.SSS[SSSSSS]XXX}(오프셋에 초가 있으면 {@code ±hh:mm:ss}).
 	 * 소수점 이하는 최소 3자리(밀리초)이고, 값에 밀리초 미만이 있으면 필요한 만큼(최대 9자리) 더 쓴다.
 	 * 따라서 밀리초 정밀도 값은 이전 형식과 같고, 그보다 정밀한 값도
-	 * {@link #parse(String)}으로 손실 없이 복원된다(2026-11-01 이전에는 {@code .SSS}로 고정되어 밀리초 미만을 버렸다).
+	 * {@link #parse(String)}으로 손실 없이 복원된다.
 	 * <p>
-	 * 시간대는 포매터에 고정하지 않고 변환할 때 정한다. 2026-11-01 이전에는 시스템 시간대용 포매터가 클래스를 로딩할
-	 * 때의 {@link ZoneId#systemDefault()}를 고정해, 이후 기본 시간대가 바뀌어도 이전 시간대로 출력했다.
+	 * 시간대는 포매터에 고정하지 않고 변환할 때 정한다.
 	 */
 	private static final DateTimeFormatter LOSSLESS_FORMATTER = new DateTimeFormatterBuilder()
 																.append(DateTimeFormatter.ISO_LOCAL_DATE)
@@ -76,10 +72,6 @@ public class Instants {
 	/**
 	 * 오프셋이 명시된 ISO-8601 일시의 파서. 오프셋은 {@code Z}, {@code ±hh:mm}, {@code ±hh:mm:ss} 하나만 받는다
 	 * ({@code ±hhmm}은 {@link #COMPACT_OFFSET_SUFFIX}로 미리 바꾼다). {@link ResolverStyle#STRICT}로 날짜를 검증한다.
-	 * <p>
-	 * 2026-11-01에 고쳤다. 그 전의 파서는 기본(SMART) 해석이라 {@code 2023-02-29T12:00Z}를 {@code 02-28}로,
-	 * {@code T24:00Z}를 다음 날 00:00으로 조용히 바꿨고, 두 오프셋 표기를 선택 구간 두 개로 이어 붙여
-	 * {@code …ZZ}나 {@code …+09:00+0900}처럼 오프셋이 두 번 붙은 문자열도 받았다.
 	 */
 	private static final DateTimeFormatter OFFSET_DATE_TIME_PARSER = new DateTimeFormatterBuilder()
 																	.parseCaseInsensitive()
@@ -126,13 +118,12 @@ public class Instants {
 	 * <p>
 	 * 소수점 이하는 최소 3자리이며, 밀리초 미만이 있으면 손실 없이 최대 9자리까지 쓴다.
 	 * 오프셋은 {@code ±hh:mm}이고, 0이면 {@code Z}, 초 단위가 있으면 {@code ±hh:mm:ss}로 쓴다(예: 1908년 이전
-	 * {@code Asia/Seoul}의 지방 평균시 {@code +08:27:52}). 2026-11-01 이전에는 오프셋의 초를 버려 복원한 시각이 어긋났다.
+	 * {@code Asia/Seoul}의 지방 평균시 {@code +08:27:52}).
 	 *
 	 * @param instant	변환할 시각.
 	 * @param zone		변환할 시간대.
 	 * @return	변환된 문자열.
-	 * @throws IllegalArgumentException	인자가 {@code null}인 경우(2026-11-01 이전에는 {@code instant}가
-	 * 									{@code null}이면 {@code null}을 반환했다).
+	 * @throws IllegalArgumentException	인자가 {@code null}인 경우.
 	 * @throws java.time.DateTimeException	{@link LocalDateTime}으로 나타낼 수 없는 극단의 시각인 경우
 	 * 									(예: {@link Instant#MAX}, {@link Instant#MIN}).
 	 * @see #toString(Instant, ZoneId, ChronoUnit)	소수점 이하 자릿수를 고정하려는 경우.
@@ -247,7 +238,6 @@ public class Instants {
 		}
 		if ( SPACE_SEPARATED_PATTERN.matcher(str).matches() ) {
 			// "2024-07-10 14:40:37" 형태는 'T' 표기로 바꿔 아래의 같은 규칙으로 해석한다.
-			// 2026-11-01 이전에는 "yyyy-MM-dd HH:mm:ss" 하나만 받았다.
 			str = str.substring(0, 10) + 'T' + str.substring(11);
 		}
 		

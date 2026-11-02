@@ -31,7 +31,7 @@ public class OnCloseTest {
 	}
 
 	/**
-	 * 닫으면 원본을 먼저 닫고 작업을 실행한다(2026-11-02 이전에는 원본을 닫지 않았다).
+	 * 닫으면 원본을 먼저 닫고 작업을 실행한다.
 	 */
 	@Test
 	public void closesSourceBeforeTask() throws Exception {
@@ -44,7 +44,7 @@ public class OnCloseTest {
 	}
 
 	/**
-	 * 연달아 등록한 작업은 등록 순서대로 모두 실행된다(이전에는 가장 바깥 작업만 실행됐다).
+	 * 연달아 등록한 작업은 등록 순서대로 모두 실행된다.
 	 */
 	@Test
 	public void chainedTasksRunInRegistrationOrder() throws Exception {

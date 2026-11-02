@@ -297,7 +297,7 @@ public class WebSocketStateChartTest {
 	@Test
 	@org.junit.jupiter.api.Timeout(value = 10, unit = java.util.concurrent.TimeUnit.SECONDS)
 	public void connection_completed_after_chart_finished_is_closed() throws Exception {
-		// 업그레이드 응답을 늦춰, 접속이 끝나기 전에 차트를 취소한다(검토 websocket #1).
+		// 업그레이드 응답을 늦춰, 접속이 끝나기 전에 차트를 취소한다.
 		java.util.concurrent.CountDownLatch closing = new java.util.concurrent.CountDownLatch(1);
 		java.util.concurrent.atomic.AtomicInteger closeCode = new java.util.concurrent.atomic.AtomicInteger();
 		java.util.concurrent.atomic.AtomicReference<String> closeReason = new java.util.concurrent.atomic.AtomicReference<>();
@@ -380,7 +380,7 @@ public class WebSocketStateChartTest {
 		Assertions.assertFalse(cause instanceof java.util.concurrent.CompletionException, "cause=" + cause);
 	}
 
-	// ---- 대체 종료: close 상태 코드 구분 (검토 websocket #2) ----
+	// ---- 대체 종료: close 상태 코드 구분 ----
 
 	private WebSocketStateChart<TestCtx> startWaitingChart(WebSocketStateChart<TestCtx> chart) {
 		TestCtx ctx = chart.getContext();
@@ -430,7 +430,7 @@ public class WebSocketStateChartTest {
 		Assertions.assertFalse(WebSocketClosedException.isNormalClosure(1011));
 	}
 
-	// ---- 대체 종료는 하위 클래스의 cancel/fail 재정의를 거치지 않는다 (검토 websocket #6) ----
+	// ---- 대체 종료는 하위 클래스의 cancel/fail 재정의를 거치지 않는다 ----
 
 	@Test
 	public void fallback_bypasses_overridden_cancel_and_fail() throws Exception {
@@ -465,7 +465,7 @@ public class WebSocketStateChartTest {
 		Assertions.assertEquals(0, overridden.get());
 	}
 
-	// ---- close 시간 제한 (검토 websocket #7) ----
+	// ---- close 시간 제한 ----
 
 	@Test
 	@org.junit.jupiter.api.Timeout(value = 5, unit = java.util.concurrent.TimeUnit.SECONDS)
@@ -494,7 +494,7 @@ public class WebSocketStateChartTest {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> chart.setCloseTimeout(Duration.ofSeconds(-1)));
 	}
 
-	// ---- HttpClient 공유와 접속 시간 제한 (검토 websocket #8) ----
+	// ---- HttpClient 공유와 접속 시간 제한 ----
 
 	@Test
 	public void charts_share_default_http_client() {
@@ -537,13 +537,12 @@ public class WebSocketStateChartTest {
 		chart.cancel(true);
 	}
 
-	// ---- 재연결 거부 (검토 websocket #4) ----
+	// ---- 재연결 거부 ----
 
 	@Test
 	@org.junit.jupiter.api.Timeout(value = 10, unit = java.util.concurrent.TimeUnit.SECONDS)
 	public void second_connection_is_closed_and_fails_chart() throws Exception {
-		// 이미 연결이 등록된 차트가 접속 상태로 다시 접속한 경우. 이전에는 콜백 안의 setWebSocket()
-		// 예외가 사라져 새 연결은 열린 채 남고 차트는 접속 상태에 머물렀다.
+		// 이미 연결이 등록된 차트가 접속 상태로 다시 접속한 경우.
 		java.util.concurrent.CountDownLatch closing = new java.util.concurrent.CountDownLatch(1);
 		java.util.concurrent.atomic.AtomicReference<String> closeReason = new java.util.concurrent.atomic.AtomicReference<>();
 		try ( okhttp3.mockwebserver.MockWebServer server = new okhttp3.mockwebserver.MockWebServer() ) {
@@ -577,7 +576,7 @@ public class WebSocketStateChartTest {
 		}
 	}
 
-	// ---- 접속 성공 전이 (검토 websocket #14) ----
+	// ---- 접속 성공 전이 ----
 
 	@Test
 	@org.junit.jupiter.api.Timeout(value = 10, unit = java.util.concurrent.TimeUnit.SECONDS)
@@ -631,7 +630,7 @@ public class WebSocketStateChartTest {
 		}
 	}
 
-	// ---- 접속 상태는 컨텍스트의 차트를 쓴다 (검토 websocket #12) ----
+	// ---- 접속 상태는 컨텍스트의 차트를 쓴다 ----
 
 	@Test
 	public void openWebSocket_rejects_null_target_paths() {
@@ -651,7 +650,7 @@ public class WebSocketStateChartTest {
 		Assertions.assertTrue(e.getMessage().contains("/Open"), e.getMessage());
 	}
 
-	// ---- 텍스트 메시지 길이 상한 (검토 websocket #10) ----
+	// ---- 텍스트 메시지 길이 상한 ----
 
 	@Test
 	public void setMaxTextMessageLength_validates() {

@@ -24,7 +24,6 @@ public class CommandVariableTest {
 
 	@Test
 	public void value_only_variable_close_without_path_does_not_fail() throws Exception {
-		// 예전에는 m_file이 null이라 close()가 NullPointerException으로 실패했다.
 		CommandVariable var = CommandVariable.input("x", "hello");
 		var.close();
 
@@ -34,7 +33,6 @@ public class CommandVariableTest {
 
 	@Test
 	public void value_only_variable_path_creates_temp_file_with_value() throws Exception {
-		// 예전에는 m_file이 null이라 ${x:path}가 NullPointerException으로 실패했다.
 		CommandVariable var = CommandVariable.input("x", "hello 한글");
 
 		String path = var.getValueByModifier("path");
@@ -85,7 +83,7 @@ public class CommandVariableTest {
 
 	@Test
 	public void input_file_is_read_and_not_deleted_on_close() throws Exception {
-		// inputFile()의 파일은 호출자 소유이므로 close()가 지우지 않아야 한다. (예전 생성자는 사용자 파일도 지웠다.)
+		// inputFile()의 파일은 호출자 소유이므로 close()가 지우지 않아야 한다.
 		File file = new File(m_tempDir, "y.txt");
 		Files.writeString(file.toPath(), "from-file", StandardCharsets.UTF_8);
 		CommandVariable var = CommandVariable.inputFile("y", file);
@@ -110,7 +108,6 @@ public class CommandVariableTest {
 
 	@Test
 	public void input_value_overwrites_existing_file_on_path() throws Exception {
-		// 예전에는 파일이 이미 있으면 주어진 값이 조용히 무시되고 기존 파일 내용이 값이 되었다.
 		File file = new File(m_tempDir, "v.txt");
 		Files.writeString(file.toPath(), "stale", StandardCharsets.UTF_8);
 		CommandVariable var = CommandVariable.input("v", "fresh", file);
@@ -176,7 +173,6 @@ public class CommandVariableTest {
 
 	@Test
 	public void file_variable_value_is_reread_until_closed() throws Exception {
-		// 예전에는 처음 읽은 값이 고정되어, 명령이 끝나기 전에 출력 변수를 읽으면 빈 값이 남았다.
 		File file = new File(m_tempDir, "out.txt");
 		CommandVariable var = CommandVariable.input("out", "", file);
 		var.getValueByModifier("path");			// 파일 모드로 전환 (빈 파일 생성)

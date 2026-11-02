@@ -12,14 +12,14 @@ import utils.func.Try;
  * 
  * @author Kang-Woo Lee (ETRI)
  */
-public class TryMapTest {
+public class MapToTryTest {
 	@BeforeEach
 	public void setUp() { }
 	
 	@Test
 	public void test0() throws Exception {
 		FStream<Try<Integer>> stream = FStream.range(0, 5)
-												.tryMap(v -> {
+												.mapToTry(v -> {
 													if ( v % 2 == 0 ) {
 														throw new Exception();
 		                                            }
@@ -57,7 +57,7 @@ public class TryMapTest {
 	@Test
 	public void test1() throws Exception {
 		FStream<Integer> ostream = FStream.empty();
-		FStream<Try<Integer>> stream = ostream.tryMap(v -> {
+		FStream<Try<Integer>> stream = ostream.mapToTry(v -> {
 													if ( v % 2 == 0 ) {
 														throw new Exception();
 										            }

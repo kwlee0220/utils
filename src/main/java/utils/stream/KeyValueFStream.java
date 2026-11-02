@@ -2,17 +2,18 @@ package utils.stream;
 
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import utils.KeyValue;
@@ -32,7 +33,7 @@ import utils.stream.FStreams.PeekedStream;
  * 함수의 인자로 따로 받는 변환·조회({@link #map(BiFunction)}, {@link #forEach(BiConsumer)} 등), 키 또는 값만
  * 바꾸는 변환({@link #mapKey(Function)}, {@link #mapValue(Function)}), 키 기준의 그룹화·정렬·대응
  * ({@link #groupByKey()}, {@link #sortByKey()}, {@link #match(Map)}), {@link Map}으로의 수집
- * ({@link #toMap()}, {@link #toListMap()})을 제공한다.
+ * ({@link #toMap()})을 제공한다.
  * <p>
  * {@link FStream}과 마찬가지로 지연 평가되며, 결과를 모으는 연산이나 {@code forEach} 계열은 스트림을 끝까지 소비한다.
  * 같은 키가 여러 번 나올 수 있으며 키의 유일성은 보장하지 않는다.
@@ -169,6 +170,135 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return map(kv -> kv.value());
 	}
 
+	//
+	// 원소 타입이 그대로인 중간 연산: KeyValueFStream을 반환하도록 재정의한다.
+	// 동작은 FStream의 같은 연산과 같다.
+	//
+
+	/**
+	 * 조건을 만족하는 원소만 반환하는 스트림을 생성한다. {@link FStream#filter(Predicate)}와 같고 반환 타입만
+	 * {@link KeyValueFStream}이다.
+	 *
+	 * @param pred	원소({@link KeyValue})에 대한 조건.
+	 * @return	걸러진 스트림.
+	 * @throws IllegalArgumentException	{@code pred}가 {@code null}인 경우.
+	 */
+	@Override
+	public default KeyValueFStream<K,V> filter(Predicate<? super KeyValue<K,V>> pred) {
+		return from(FStream.super.filter(pred));
+	}
+
+	/**
+	 * 키와 값이 주어진 조건을 만족하는 원소만 반환하는 스트림을 생성한다.
+	 * <p>
+	 * {@link #filter(Predicate)}와 오버로드되어 있다. 인자 수가 분명한 람다({@code (k,v) -> ...})는 문제가 없지만,
+	 * 오버로드가 있는 메소드 참조는 모호해 컴파일되지 않을 수 있다. 그때는 람다로 쓴다.
+	 *
+	 * @param pred	키와 값에 대한 조건.
+	 * @return	걸러진 스트림.
+	 * @throws IllegalArgumentException	{@code pred}가 {@code null}인 경우.
+	 */
+	public default KeyValueFStream<K,V> filter(BiPredicate<? super K,? super V> pred) {
+		Preconditions.checkNotNullArgument(pred, "predicate is null");
+
+		return filter(kv -> pred.test(kv.key(), kv.value()));
+	}
+
+	/**
+	 * 조건을 만족하지 않는 원소만 반환하는 스트림을 생성한다. {@link FStream#filterNot(Predicate)}와 같고 반환
+	 * 타입만 {@link KeyValueFStream}이다.
+	 *
+	 * @param pred	원소에 대한 조건.
+	 * @return	걸러진 스트림.
+	 */
+	@Override
+	public default KeyValueFStream<K,V> filterNot(Predicate<? super KeyValue<K,V>> pred) {
+		return from(FStream.super.filterNot(pred));
+	}
+
+	/**
+	 * 앞의 {@code count}개 원소만 반환하는 스트림을 생성한다. {@link FStream#take(long)}과 같고 반환 타입만
+	 * {@link KeyValueFStream}이다.
+	 *
+	 * @param count	원소 수.
+	 * @return	최대 {@code count}개 원소의 스트림.
+	 */
+	@Override
+	public default KeyValueFStream<K,V> take(long count) {
+		return from(FStream.super.take(count));
+	}
+
+	/**
+	 * 앞의 {@code count}개 원소를 건너뛴 스트림을 생성한다. {@link FStream#drop(long)}과 같고 반환 타입만
+	 * {@link KeyValueFStream}이다.
+	 *
+	 * @param count	건너뛸 원소 수.
+	 * @return	나머지 원소의 스트림.
+	 */
+	@Override
+	public default KeyValueFStream<K,V> drop(long count) {
+		return from(FStream.super.drop(count));
+	}
+
+	/**
+	 * 조건을 만족하는 동안의 원소만 반환하는 스트림을 생성한다. {@link FStream#takeWhile(Predicate)}와 같고 반환
+	 * 타입만 {@link KeyValueFStream}이다.
+	 *
+	 * @param pred	원소에 대한 조건.
+	 * @return	걸러진 스트림.
+	 */
+	@Override
+	public default KeyValueFStream<K,V> takeWhile(Predicate<? super KeyValue<K,V>> pred) {
+		return from(FStream.super.takeWhile(pred));
+	}
+
+	/**
+	 * 조건을 만족하는 동안의 원소를 건너뛴 스트림을 생성한다. {@link FStream#dropWhile(Predicate)}와 같고 반환
+	 * 타입만 {@link KeyValueFStream}이다.
+	 *
+	 * @param pred	원소에 대한 조건.
+	 * @return	나머지 원소의 스트림.
+	 */
+	@Override
+	public default KeyValueFStream<K,V> dropWhile(Predicate<? super KeyValue<K,V>> pred) {
+		return from(FStream.super.dropWhile(pred));
+	}
+
+	/**
+	 * 원소들을 비교자 순서로 정렬한 스트림을 생성한다. {@link FStream#sort(Comparator)}와 같고(호출 시점에 원본을
+	 * 끝까지 읽는다) 반환 타입만 {@link KeyValueFStream}이다. 키로 정렬하려면 {@link #sortByKey(Comparator)}를 쓴다.
+	 *
+	 * @param cmp	원소({@link KeyValue}) 비교자.
+	 * @return	정렬된 스트림.
+	 */
+	@Override
+	public default KeyValueFStream<K,V> sort(Comparator<? super KeyValue<K,V>> cmp) {
+		return from(FStream.super.sort(cmp));
+	}
+
+	/**
+	 * 중복 원소를 제거한 스트림을 생성한다. {@link FStream#distinct()}와 같고 반환 타입만 {@link KeyValueFStream}이다.
+	 * 원소는 {@link KeyValue#equals(Object)}(키와 값이 모두 같음)로 비교한다.
+	 *
+	 * @return	중복이 제거된 스트림.
+	 */
+	@Override
+	public default KeyValueFStream<K,V> distinct() {
+		return from(FStream.super.distinct());
+	}
+
+	/**
+	 * 스트림이 닫힐 때 수행할 작업을 붙인 스트림을 생성한다. {@link FStream#onClose(Runnable)}과 같고 반환 타입만
+	 * {@link KeyValueFStream}이다.
+	 *
+	 * @param closingTask	닫힐 때 수행할 작업.
+	 * @return	작업이 붙은 스트림.
+	 */
+	@Override
+	public default KeyValueFStream<K,V> onClose(Runnable closingTask) {
+		return from(FStream.super.onClose(closingTask));
+	}
+
 	/**
 	 * 키가 주어진 조건을 만족하는 원소만 반환하는 스트림을 생성한다.
 	 *
@@ -239,8 +369,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @param <S>		새 키 타입.
 	 * @param mapper	기존 키로 새 키를 만드는 함수.
 	 * @return	키가 바뀐 스트림. {@code mapper}가 {@code null} 키를 내면 그 원소를 꺼낼 때
-	 * 			{@link NullPointerException}이 난다({@link KeyValue#mapKey(Function)}와 같다; 2026-11-02 이전에는
-	 * 			{@link IllegalArgumentException}이었다).
+	 * 			{@link NullPointerException}이 난다({@link KeyValue#mapKey(Function)}와 같다).
 	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
 	 */
 	public default <S> KeyValueFStream<S,V> mapKey(Function<? super K,? extends S> mapper) {
@@ -251,16 +380,11 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 
 	/**
 	 * 값은 그대로 두고, 키와 값으로 새 키를 만들어 키만 바꾼 스트림을 생성한다.
-	 * <p>
-	 * 2026-11-02 이전의 이름은 {@code mapKey(BiFunction)}이었다. {@link #mapKey(Function)}와 오버로드되어
-	 * {@code mapKey(Objects::toString)}처럼 오버로드가 있는 메소드 참조가 모호해 컴파일되지 않았으므로 이름을
-	 * 바꿨다(별칭 없음).
 	 *
 	 * @param <S>		새 키 타입.
 	 * @param mapper	기존 키와 값으로 새 키를 만드는 함수.
 	 * @return	키가 바뀐 스트림. {@code mapper}가 {@code null} 키를 내면 그 원소를 꺼낼 때
-	 * 			{@link NullPointerException}이 난다({@link KeyValue#mapKey(Function)}와 같다; 2026-11-02 이전에는
-	 * 			{@link IllegalArgumentException}이었다).
+	 * 			{@link NullPointerException}이 난다({@link KeyValue#mapKey(Function)}와 같다).
 	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
 	 */
 	public default <S> KeyValueFStream<S,V>
@@ -286,10 +410,6 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 
 	/**
 	 * 키는 그대로 두고, 키와 값으로 새 값을 만들어 값만 바꾼 스트림을 생성한다.
-	 * <p>
-	 * 2026-11-02 이전의 이름은 {@code mapValue(BiFunction)}이었다. {@link #mapValue(Function)}와 오버로드되어
-	 * {@code mapValue(Objects::toString)}처럼 오버로드가 있는 메소드 참조가 모호해 컴파일되지 않았으므로 이름을
-	 * 바꿨다(별칭 없음).
 	 *
 	 * @param <U>		새 값 타입.
 	 * @param mapper	기존 키와 값으로 새 값을 만드는 함수.
@@ -388,10 +508,9 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * 원소들을 키별로 모아 값 목록으로 묶는다. 스트림을 끝까지 소비한다.
 	 * <p>
 	 * 그룹(키)은 처음 나온 순서를, 각 키의 값 목록은 스트림에 나온 순서를 따른다. {@code null} 값도 목록에 그대로 들어간다({@link KeyValue}가
-	 * {@code null} 값을 허용하므로). 결과를 맵으로 받으려면 {@link #toListMap()}을 쓴다(키·값 목록이 같다).
+	 * {@code null} 값을 허용하므로). 맵으로 보려면 {@link KeyedGroups#asMap()}(읽기 전용 뷰)을 쓴다.
 	 * <p>
 	 * 종단 연산이므로 정상 종료든 예외든 본 스트림을 닫는다.
-	 * 2026-11-02 이전에는 {@code null} 값을 {@link IllegalArgumentException}으로 거부했다.
 	 *
 	 * @return	키별 값 목록을 담은 {@link KeyedGroups}.
 	 */
@@ -415,9 +534,20 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 		return from(sorted);
 	}
 
-//	public default <R> KeyValueFStream<K,Tuple<List<V>,List<R>>> outerJoin(KeyValueFStream<K,R> right) {
-//		return new OuterJoinedFStream<>(this, right);
-//	}
+	/**
+	 * 키를 주어진 비교자 순서로 정렬한 스트림을 생성한다.
+	 * <p>
+	 * {@link #sortByKey()}와 같이 지연 평가되지 않는다: 호출하는 시점에 원본을 끝까지 읽어 정렬하고 원본을 닫는다.
+	 *
+	 * @param cmp	키 비교자.
+	 * @return	정렬된 스트림.
+	 * @throws IllegalArgumentException	{@code cmp}가 {@code null}인 경우.
+	 */
+	public default KeyValueFStream<K,V> sortByKey(Comparator<? super K> cmp) {
+		Preconditions.checkNotNullArgument(cmp, "comparator is null");
+
+		return sort((kv1,kv2) -> cmp.compare(kv1.key(), kv2.key()));
+	}
 
 	/**
 	 * 각 원소의 키로 참조 맵을 찾아, 원래 값과 참조 맵의 값을 묶은 스트림을 생성한다.
@@ -532,35 +662,73 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	}
 
 	/**
-	 * 모든 원소를 새 {@link HashMap}에 넣어 반환한다. 같은 키는 나중 값이 이긴다({@link #toMap(Map)} 참조).
+	 * 모든 원소를 주어진 맵에 넣어 반환하되, 같은 키가 다시 나오면 {@code merger}로 값을 합친다. 스트림을 끝까지
+	 * 소비한다.
+	 * <p>
+	 * 키가 처음 나오면 그 값을 그대로 넣고, 다시 나오면 {@code merger.apply(지금까지의 값, 새 값)}으로 바꾼다. 맵에 이미
+	 * 들어 있던 키도 같은 규칙을 따른다. {@code null} 값도 넣을 수 있으며 {@code merger}에 그대로 전달된다. 단
+	 * {@code merger}가 {@code null}을 반환하면 {@link IllegalArgumentException}이 발생한다
+	 * ({@link Map#merge}처럼 키를 지우지 않는다; {@link FStream#reduceByKey}와 같은 규칙).
 	 *
-	 * @return	원소를 담은 {@link HashMap}.
+	 * @param <M>		맵 타입.
+	 * @param map		원소를 넣을 맵.
+	 * @param merger	같은 키의 두 값을 합치는 함수. {@code null}을 반환하지 않아야 한다.
+	 * @return	{@code map}.
+	 * @throws IllegalArgumentException	인자 중 하나가 {@code null}이거나(호출 즉시 검사한다), {@code merger}가
+	 * 									{@code null}을 반환한 경우.
 	 */
-	public default HashMap<K,V> toMap() {
-		return toMap(Maps.newHashMap());
+	public default <M extends Map<K,V>> M toMap(M map, BiFunction<? super V,? super V,? extends V> merger) {
+		Preconditions.checkNotNullArgument(map, "map is null");
+		Preconditions.checkNotNullArgument(merger, "merger is null");
+
+		return collect(map, (accum,kv) -> {
+			K key = kv.key();
+			if ( accum.containsKey(key) ) {
+				V merged = merger.apply(accum.get(key), kv.value());
+				Preconditions.checkArgument(merged != null, "merger returned null for key: %s", key);
+				accum.put(key, merged);
+			}
+			else {
+				accum.put(key, kv.value());
+			}
+		});
 	}
 
 	/**
-	 * 모든 원소를 키별 값 목록으로 모은 {@link HashMap}을 반환한다. 스트림을 끝까지 소비한다.
+	 * 키별로 값을 {@code reducer}로 합쳐 맵으로 반환한다. 스트림을 끝까지 소비한다.
 	 * <p>
-	 * 같은 키의 값들은 스트림에 나온 순서대로 목록에 들어가며, {@code null} 값도 그대로 들어간다.
-	 * {@link #groupByKey()}와 같은 결과를 {@link KeyedGroups} 대신 맵으로 받는 것이다.
-	 * <p>
-	 * 종단 연산이므로 정상 종료든 예외든 본 스트림을 닫는다.
+	 * {@link FStream#reduceByKey(Function, BiFunction)}의 key-value 버전으로, 키를 뽑는 함수 없이 원소의 키를 쓴다.
+	 * 결과 맵의 키 순서는 처음 나온 순서다({@link java.util.LinkedHashMap}). 값을 합치는 규칙({@code null} 값 허용,
+	 * {@code null} 결과는 {@link IllegalArgumentException})은 {@link #toMap(Map, BiFunction)}과 같다. 다른 맵 타입이 필요하면
+	 * {@code toMap(맵, reducer)}를 쓴다. 인자 하나짜리 {@code toMap(merger)}는 두지 않았다: {@link #toMap(Map)}과
+	 * 오버로드되면 람다 인자가 모호해 컴파일되지 않는다.
 	 *
-	 * @return	키별 값 목록을 담은 {@link HashMap}.
+	 * @param reducer	같은 키의 두 값을 합치는 함수. {@code null}을 반환하지 않아야 한다.
+	 * @return	키별로 합친 값을 담은 맵.
+	 * @throws IllegalArgumentException	{@code reducer}가 {@code null}이거나 {@code null}을 반환한 경우.
 	 */
-	public default HashMap<K,List<V>> toListMap() {
-		return collect(Maps.newHashMap(),
-						(groups, kv) -> groups.computeIfAbsent(kv.key(), k -> Lists.newArrayList())
-											.add(kv.value()));
+	public default Map<K,V> reduceByKey(BiFunction<? super V,? super V,? extends V> reducer) {
+		return toMap(Maps.newLinkedHashMap(), reducer);
+	}
+
+	/**
+	 * 모든 원소를 새 {@link HashMap}에 넣어 반환한다. 같은 키는 나중 값이 이긴다({@link #toMap(Map)} 참조).
+	 * <p>
+	 * 반환 타입은 {@link Map}이다. 특정 구현이 필요하면
+	 * {@link #toMap(Map)}에 맵을 넘긴다.
+	 *
+	 * @return	원소를 담은 맵(지금 구현은 수정할 수 있는 {@link HashMap}).
+	 */
+	public default Map<K,V> toMap() {
+		return toMap(Maps.newHashMap());
 	}
 
 	/**
 	 * 이 스트림에 주어진 스트림 변환 함수를 적용한 결과를 반환한다.
 	 * <p>
 	 * 여러 연산을 묶은 함수를 메소드 체인 안에서 그대로 쓰기 위한 것이다
-	 * (예: {@code stream.liftKeyValues(MyOps::normalize).toMap()}).
+	 * (예: {@code stream.transformKeyValues(MyOps::normalize).toMap()}).
+	 * {@link FStream#transform(Function)}의 key-value 판으로, 함수가 {@link KeyValueFStream}을 받고 돌려준다.
 	 *
 	 * @param <K2>			결과 스트림의 키 타입.
 	 * @param <V2>			결과 스트림의 값 타입.
@@ -568,7 +736,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @return	{@code streamFunc}가 만든 스트림.
 	 */
 	public default <K2,V2>
-	KeyValueFStream<K2,V2> liftKeyValues(Function<? super KeyValueFStream<K,V>,
+	KeyValueFStream<K2,V2> transformKeyValues(Function<? super KeyValueFStream<K,V>,
 														? extends KeyValueFStream<K2,V2>> streamFunc) {
         return streamFunc.apply(this);
     }

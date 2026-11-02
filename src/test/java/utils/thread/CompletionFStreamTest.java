@@ -108,7 +108,6 @@ public class CompletionFStreamTest {
 
 	@Test
 	public void register_collects_an_execution_cancelled_before_start() throws Exception {
-		// 이전에는 isStarted()로 판단해, 시작 전에 취소된(시작할 수 없는) 작업을 IllegalArgumentException으로 거부했다.
 		CompletableFutureAsyncExecution<Integer> exec = Executions.supplyCheckedAsync(() -> 42, m_executor);
 		exec.cancel(true);
 

@@ -3,9 +3,6 @@ package utils.statechart;
 /**
  * 실패로 끝나는 종료 상태.
  * <p>
- * (2026-10-31 이전 이름은 {@code ExceptionState}였다. 예외 객체가 아니라 "실패로 끝나는 상태"라는 뜻이 드러나도록
- * 이름을 바꿨다.)
- * <p>
  * {@link TerminalState}에 실패 원인 하나를 얹은 것으로, 진출도 신호 처리도 불가능한 점은 동일하다.
  * 차이는 차트의 종료 방식이다. 최종 상태로 등록된 {@code FailureState}에 도달하면
  * {@link StateChart}는 {@code complete()} 대신 {@code fail(getFailureCause())}를 호출하여

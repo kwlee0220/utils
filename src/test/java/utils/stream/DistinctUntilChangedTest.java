@@ -8,14 +8,15 @@ import org.junit.jupiter.api.Test;
 
 
 /**
- * 
+ * {@link FStream#distinctUntilChanged()}·{@link FStream#distinct()}를 검증한다.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
-public class UniqueTest {
+public class DistinctUntilChangedTest {
 	@Test
 	public void test0() throws Exception {
 		List<Integer> ret = FStream.of(1, 2, 2, 2, 1, 1, 1, 3, 3)
-										.unique()
+										.distinctUntilChanged()
 										.toList();
 		List<Integer> answer = Arrays.asList(1, 2, 1, 3);
 		Assertions.assertEquals(answer, ret);
@@ -38,7 +39,7 @@ public class UniqueTest {
 	@Test
 	public void test10() throws Exception {
 		List<String> ret = FStream.of("a", "be", "ca", "the", "an")
-										.unique(String::length)
+										.distinctUntilChanged(String::length)
 										.toList();
 		List<String> answer = Arrays.asList("a", "be", "the", "an");
 		Assertions.assertEquals(answer, ret);

@@ -20,8 +20,6 @@ import utils.stream.FStreams.AbstractFStream;
  * <p>
  * 생성: {@link #of(int...)}(기본형 값), {@link #from(Integer[])}(박싱 배열), {@link #from(Iterable)},
  * {@link #downcast(FStream)}(기존 스트림 감싸기), {@link #range(int, int)}.
- * 2026-11-02 이전에는 박싱 배열용 생성 메소드도 {@code of(Integer...)}여서, {@code of(1, 2)} 같은 리터럴 호출이
- * "ambiguous" 컴파일 오류가 났다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -40,9 +38,6 @@ public interface IntFStream extends FStream<Integer> {
 
 	/**
 	 * 박싱된 {@link Integer} 배열로부터 {@link IntFStream}을 생성한다.
-	 * <p>
-	 * 2026-11-02 이전의 이름은 {@code of(Integer...)}였다(기본형 {@link #of(int...)}와 모호해 리터럴로 호출할 수
-	 * 없었으므로 이름을 바꿨다, 별칭 없음).
 	 *
 	 * @param values	스트림에 포함될 원소들.
 	 * @return	{@link IntFStream} 객체.

@@ -102,7 +102,6 @@ public class TimerTest {
 	
 	@Test
 	public void more_than_64_pending_timers_all_fire() throws Exception {
-		// 이전 구현은 64개까지만 보관하고 넘치면 가장 늦은 기한의 예약을 알림 없이 버렸다.
 		List<Execution<?>> execs = new ArrayList<>();
 		for ( int i = 0; i < 100; ++i ) {
 			Execution<?> exec = mock(Execution.class);
@@ -116,7 +115,6 @@ public class TimerTest {
 
 	@Test
 	public void a_finished_execution_releases_its_timer() throws Exception {
-		// 이전 구현은 끝난 실행을 기한이 될 때까지 큐에 남겨 두어, 기한이 긴 예약이 자리를 차지했다.
 		StartableExecution<String> done = create("a", 0, true);
 		done.waitForFinished();
 		Timer.TimeoutHandle releasedAtOnce = m_timer.setTimer(done, 1, TimeUnit.HOURS);
@@ -132,7 +130,6 @@ public class TimerTest {
 
 	@Test
 	public void a_slow_cancel_does_not_delay_other_timers() throws Exception {
-		// 이전 구현은 타이머 lock을 쥔 채 cancel(true)를 불러, 취소 하나가 오래 걸리면 모든 타이머가 멈췄다.
 		Execution<?> slow = mock(Execution.class);
 		AtomicLong slowCancelReturnedAt = new AtomicLong(Long.MAX_VALUE);
 		when(slow.cancel(true)).thenAnswer(inv -> {

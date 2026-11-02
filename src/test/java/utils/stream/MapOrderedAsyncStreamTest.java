@@ -11,14 +11,13 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import utils.StopWatch;
-import utils.Tuple;
+import utils.func.CheckedFunction;
 import utils.func.FOption;
 import utils.func.Try;
 import utils.func.Unchecked;
@@ -51,15 +50,15 @@ public class MapOrderedAsyncStreamTest {
 	@Test
 	public void orderPreserved_despiteOutOfOrderCompletion() throws Exception {
 		// 첫 원소가 가장 느리게 끝나도 결과는 입력 순서 그대로 방출되어야 한다.
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			// 0 → 200ms, 1 → 150ms, 2 → 100ms, ...
 			Unchecked.runOrRTE(() -> Thread.sleep(Math.max(0, 200 - i * 50)));
 			return i * 10;
 		};
 
 		List<Try<Integer>> results = FStream.range(0, 5)
-				.mapAsync(mapper, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(3))
-				.map(Tuple::_2)
+				.mapAsyncToTry(mapper, AsyncExecutionOptions.KEEP_ORDER().withWorkerCount(3))
+				.map(MappingResult::result)
 				.toList();
 
 		Assertions.assertEquals(5, results.size());
@@ -75,8 +74,8 @@ public class MapOrderedAsyncStreamTest {
 	@Test
 	public void emptyInput_terminatesCleanly() throws Exception {
 		List<Try<Integer>> results = FStream.<Integer>of()
-				.mapAsync(i -> i * 2, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(4))
-				.map(Tuple::_2)
+				.mapAsyncToTry(i -> i * 2, AsyncExecutionOptions.KEEP_ORDER().withWorkerCount(4))
+				.map(MappingResult::result)
 				.toList();
 
 		Assertions.assertTrue(results.isEmpty());
@@ -86,8 +85,8 @@ public class MapOrderedAsyncStreamTest {
 	public void inputShorterThanWorkerCount_terminatesCleanly() throws Exception {
 		// workerCount=4, input=2. counter 로직이 K < N 시 deadlock 없이 endOfSupply 호출해야.
 		List<Try<Integer>> results = FStream.of(1, 2)
-				.mapAsync(i -> i * 10, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(4))
-				.map(Tuple::_2)
+				.mapAsyncToTry(i -> i * 10, AsyncExecutionOptions.KEEP_ORDER().withWorkerCount(4))
+				.map(MappingResult::result)
 				.toList();
 
 		Assertions.assertEquals(2, results.size());
@@ -98,8 +97,8 @@ public class MapOrderedAsyncStreamTest {
 	@Test
 	public void inputEqualsWorkerCount_terminatesCleanly() throws Exception {
 		List<Try<Integer>> results = FStream.of(1, 2, 3)
-				.mapAsync(i -> i * 10, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(3))
-				.map(Tuple::_2)
+				.mapAsyncToTry(i -> i * 10, AsyncExecutionOptions.KEEP_ORDER().withWorkerCount(3))
+				.map(MappingResult::result)
 				.toList();
 
 		Assertions.assertEquals(3, results.size());
@@ -111,7 +110,7 @@ public class MapOrderedAsyncStreamTest {
 
 	@Test
 	public void mapperException_yieldsTryFailure_butContinues() throws Exception {
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			if ( i == 2 ) {
 				throw new IllegalStateException("boom at " + i);
 			}
@@ -119,8 +118,8 @@ public class MapOrderedAsyncStreamTest {
 		};
 
 		List<Try<Integer>> results = FStream.range(0, 5)
-				.mapAsync(mapper, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(2))
-				.map(Tuple::_2)
+				.mapAsyncToTry(mapper, AsyncExecutionOptions.KEEP_ORDER().withWorkerCount(2))
+				.map(MappingResult::result)
 				.toList();
 
 		Assertions.assertEquals(5, results.size());
@@ -138,14 +137,14 @@ public class MapOrderedAsyncStreamTest {
 
 	@Test
 	public void closeMidStream_doesNotHang() throws Exception {
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			Unchecked.runOrRTE(() -> Thread.sleep(50));
 			return i;
 		};
 
 		FStream<Try<Integer>> stream = FStream.range(0, 100)
-				.mapAsync(mapper, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(3))
-				.map(Tuple::_2);
+				.mapAsyncToTry(mapper, AsyncExecutionOptions.KEEP_ORDER().withWorkerCount(3))
+				.map(MappingResult::result);
 
 		// 일부만 소비하고 close.
 		stream.next();
@@ -172,14 +171,14 @@ public class MapOrderedAsyncStreamTest {
 	public void interruptedDuringWait_returnsTryFailure_andRestoresFlag() throws Exception {
 		// mapper가 충분히 길게 sleep하는 동안 consumer thread를 interrupt.
 		// awaitResult가 InterruptedException을 잡아 Try.failure로 반환하고 인터럽트 플래그를 복원해야.
-		Function<Integer, Integer> slowMapper = i -> {
+		CheckedFunction<Integer, Integer> slowMapper = i -> {
 			Unchecked.runOrRTE(() -> Thread.sleep(5000));
 			return i;
 		};
 
 		FStream<Try<Integer>> stream = FStream.range(0, 5)
-				.mapAsync(slowMapper, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(2))
-				.map(Tuple::_2);
+				.mapAsyncToTry(slowMapper, AsyncExecutionOptions.KEEP_ORDER().withWorkerCount(2))
+				.map(MappingResult::result);
 
 		AtomicReference<Try<Integer>> result = new AtomicReference<>();
 		AtomicReference<Boolean> flagAfterReturn = new AtomicReference<>(false);
@@ -233,7 +232,7 @@ public class MapOrderedAsyncStreamTest {
 		ExecutorService exec = track(Executors.newFixedThreadPool(1));
 		AtomicInteger callIndex = new AtomicInteger();
 
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			int idx = callIndex.getAndIncrement();
 			if ( idx == 0 ) {
 				exec.shutdown();
@@ -242,10 +241,10 @@ public class MapOrderedAsyncStreamTest {
 		};
 
 		List<Try<Integer>> results = FStream.range(0, 5)
-				.mapAsync(mapper, AsyncExecutionOptions.KEEP_ORDER()
-													.setWorkerCount(1)
-													.setExecutor(exec))
-				.map(Tuple::_2)
+				.mapAsyncToTry(mapper, AsyncExecutionOptions.KEEP_ORDER()
+													.withWorkerCount(1)
+													.withExecutor(exec))
+				.map(MappingResult::result)
 				.toList();
 
 		Assertions.assertEquals(5, results.size());
@@ -277,14 +276,14 @@ public class MapOrderedAsyncStreamTest {
 		final int n = 4;
 		CyclicBarrier barrier = new CyclicBarrier(n);
 
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			Unchecked.runOrRTE(() -> barrier.await(5, TimeUnit.SECONDS));
 			return i;
 		};
 
 		List<Try<Integer>> results = FStream.range(0, n)
-				.mapAsync(mapper, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(n))
-				.map(Tuple::_2)
+				.mapAsyncToTry(mapper, AsyncExecutionOptions.KEEP_ORDER().withWorkerCount(n))
+				.map(MappingResult::result)
 				.toList();
 
 		Assertions.assertEquals(n, results.size());
@@ -304,7 +303,7 @@ public class MapOrderedAsyncStreamTest {
 		AtomicInteger inFlight = new AtomicInteger();
 		AtomicInteger peak = new AtomicInteger();
 
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			int cur = inFlight.incrementAndGet();
 			peak.accumulateAndGet(cur, Math::max);
 			Unchecked.runOrRTE(() -> Thread.sleep(50));
@@ -313,8 +312,8 @@ public class MapOrderedAsyncStreamTest {
 		};
 
 		List<Try<Integer>> results = FStream.range(0, total)
-				.mapAsync(mapper, AsyncExecutionOptions.KEEP_ORDER().setWorkerCount(workers))
-				.map(Tuple::_2)
+				.mapAsyncToTry(mapper, AsyncExecutionOptions.KEEP_ORDER().withWorkerCount(workers))
+				.map(MappingResult::result)
 				.toList();
 
 		Assertions.assertEquals(total, results.size());

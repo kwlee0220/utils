@@ -546,7 +546,6 @@ public class StateChartTest {
 
 		m_chart.start();
 
-		// 이전에는 RUNNING 전이라 이 신호가 무시되었다.
 		Assertions.assertEquals(List.of("enter:/A", "sent:QUEUED", "exit:/A", "enter:/B"), m_log);
 		Assertions.assertTrue(m_chart.isRunning());
 		Assertions.assertEquals("/B", m_chart.getCurrentState().getPath());

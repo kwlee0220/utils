@@ -40,7 +40,7 @@ public class IteratorTest {
 	}
 
 	/**
-	 * null 원소도 그대로 순회한다(2026-11-02 이전에는 null에서 순회가 끝났다). stream()도 같다.
+	 * null 원소도 그대로 순회한다. stream()도 같다.
 	 */
 	@Test
 	public void nullElementIsNotEndOfStream() throws Exception {
@@ -53,7 +53,7 @@ public class IteratorTest {
 	}
 
 	/**
-	 * 끝까지 순회하면 원본을 닫는다. 처음부터 빈 스트림도 같다(이전에는 닫지 않았다).
+	 * 끝까지 순회하면 원본을 닫는다. 처음부터 빈 스트림도 같다.
 	 */
 	@Test
 	public void closesSourceAtEnd() throws Exception {

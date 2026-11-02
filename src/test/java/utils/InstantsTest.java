@@ -57,7 +57,7 @@ public class InstantsTest {
 
 	@Test
 	public void parse_compactOffset() {
-		// 콜론 없는 '±hhmm' 오프셋. 2026-11-01 이전에는 DateTimeParseException이 났다.
+		// 콜론 없는 '±hhmm' 오프셋.
 		assertEquals(Instant.parse("2024-07-10T05:40:37Z"), Instants.parse("2024-07-10T14:40:37+0900"));
 		assertEquals(Instant.parse("2024-07-10T19:40:37.123Z"), Instants.parse("2024-07-10T14:40:37.123-0500"));
 		assertEquals(Instant.parse("2024-07-10T05:40:00Z"), Instants.parse("2024-07-10T14:40+0900"));
@@ -91,7 +91,6 @@ public class InstantsTest {
 
 	@Test
 	public void parse_spaceSeparatedVariants() {
-		// 2026-11-01 이전에는 "yyyy-MM-dd HH:mm:ss" 외의 공백 구분 표기가 모두 예외였다.
 		assertEquals(Instant.parse("2024-07-10T14:40:37Z"), Instants.parse("2024-07-10 14:40:37Z"));
 		assertEquals(Instant.parse("2024-07-10T05:40:37Z"), Instants.parse("2024-07-10 14:40:37+0900"));
 		assertEquals(Instant.parse("2024-07-10T14:40:37.5Z"), Instants.parse("2024-07-10 14:40:37.5Z"));
@@ -138,7 +137,6 @@ public class InstantsTest {
 
 	@Test
 	public void toUtcString_keepsSubMillisecondDigits() {
-		// 2026-11-01 이전에는 ".SSS"로 고정되어 ".123"으로 잘렸다.
 		assertEquals("2024-07-10T05:40:37.123456Z", Instants.toUtcString(Instant.parse("2024-07-10T05:40:37.123456Z")));
 		assertEquals("2024-07-10T05:40:37.123456789Z",
 					Instants.toUtcString(Instant.parse("2024-07-10T05:40:37.123456789Z")));
@@ -154,7 +152,7 @@ public class InstantsTest {
 		}
 	}
 
-	// --- 시간대 인자와 기본 시간대(#4) ---
+	// --- 시간대 인자와 기본 시간대 ---
 
 	@Test
 	public void toString_withExplicitZone() {
@@ -179,7 +177,6 @@ public class InstantsTest {
 
 	@Test
 	public void systemZoneMethods_followDefaultZoneChanges() {
-		// 2026-11-01 이전에는 toZonedString이 클래스 로딩 때의 기본 시간대를 고정해 썼다.
 		TimeZone saved = TimeZone.getDefault();
 		Instant instant = Instant.parse("2024-07-10T05:40:37Z");
 		try {
@@ -207,8 +204,7 @@ public class InstantsTest {
 
 	@Test
 	public void nullArguments() {
-		// fromTimestamp만 null을 통과시킨다(JDBC NULL 컬럼). 2026-11-01 이전에는 toUtcString·toZonedString도
-		// null을 반환했고, fromString은 NullPointerException을 던졌다.
+		// fromTimestamp만 null을 통과시킨다(JDBC NULL 컬럼).
 		assertEquals(null, Instants.fromTimestamp(null));
 		assertThrows(IllegalArgumentException.class, () -> Instants.toUtcString(null));
 		assertThrows(IllegalArgumentException.class, () -> Instants.toString(null));
@@ -220,7 +216,6 @@ public class InstantsTest {
 
 	@Test
 	public void parse_rejectsInvalidDatesWithOffset() {
-		// 이전에는 오프셋이 있으면 SMART 해석으로 조용히 보정했다(02-29 → 02-28, 24:00 → 다음 날).
 		for ( String text: new String[] {"2023-02-29T12:00Z", "2024-02-30T12:00+0900", "2024-01-01T24:00Z",
 										"2024-02-30 12:00Z", "2024-04-31T00:00+09:00"} ) {
 			assertThrows(DateTimeParseException.class, () -> Instants.parse(text), text);
@@ -247,7 +242,6 @@ public class InstantsTest {
 
 	@Test
 	public void toString_keepsSecondsOfOffsetAndRoundTrips() {
-		// 이전에는 오프셋을 ±hh:mm으로만 써서, 초 단위 오프셋이면 복원한 시각이 그만큼 어긋났다.
 		ZoneOffset plus30s = ZoneOffset.ofHoursMinutesSeconds(0, 0, 30);
 		assertEquals("1970-01-01T00:00:30.000+00:00:30", Instants.toString(Instant.EPOCH, plus30s));
 		assertEquals(Instant.EPOCH, Instants.parse(Instants.toString(Instant.EPOCH, plus30s)));
@@ -264,7 +258,7 @@ public class InstantsTest {
 		assertEquals("2024-07-10T14:40:37.000+09:00", Instants.toString(Instant.parse("2024-07-10T05:40:37Z"), seoul));
 	}
 
-	// --- 정밀도 지정 format, toTimestamp(#10) ---
+	// --- 정밀도 지정 format, toTimestamp ---
 
 	@Test
 	public void toString_withFixedPrecision_truncates() {

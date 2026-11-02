@@ -1,19 +1,26 @@
 package utils.stream;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
 import utils.func.FOption;
+import utils.stream.FStreams.AbstractFStream;
 
 
 /**
- * 
+ * 입력 원소를 무작위 순서로 내보내는 스트림.
+ * <p>
+ * 첫 {@link #next()} 때 입력을 끝까지 읽어 목록으로 만든 뒤 한 번 섞고, 그 순서대로 내보낸다. {@code null} 원소도
+ * 그대로 내보낸다.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
-class ShuffledFStream<T> implements FStream<T> {
+class ShuffledFStream<T> extends AbstractFStream<T> {
 	private final FStream<T> m_src;
 	private final Random m_rand;
 	private List<T> m_list = null;
+	private int m_index = 0;
 	
 	ShuffledFStream(FStream<T> src) {
 		m_src = src;
@@ -21,46 +28,22 @@ class ShuffledFStream<T> implements FStream<T> {
 	}
 
 	@Override
-	public void close() throws Exception {
-		if ( m_list != null ) {
-			m_list.clear();
-		}
+	protected void initialize() {
+		m_list = m_src.toList();
+		Collections.shuffle(m_list, m_rand);
+	}
+
+	@Override
+	protected void closeInGuard() throws Exception {
+		m_list = null;
 		m_src.close();
 	}
 
 	@Override
-	public FOption<T> next() {
-		if ( m_list == null ) {
-			m_list = m_src.toList();
+	protected FOption<T> nextInGuard() {
+		if ( m_index >= m_list.size() ) {
+			return FOption.empty();
 		}
-		
-		while ( true ) {
-			if ( m_list.isEmpty() ) {
-				return FOption.empty();
-			}
-			
-			T selected = selectOne();
-			if ( selected != null ) {
-				return FOption.of(selected);
-			}
-			
-			m_list = FStream.from(m_list)
-							.filter(v -> v != null)
-							.toList();
-		}
-	}
-
-	private T selectOne() {
-		for ( int i =0; i < 5; ++i ) {
-			int idx = m_rand.nextInt(m_list.size());
-			T selected = m_list.get(idx);
-			if ( selected != null ) {
-				m_list.set(idx, null);
-				
-				return selected;
-			}
-		}
-		
-		return null;
+		return FOption.of(m_list.get(m_index++));
 	}
 }

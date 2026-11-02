@@ -79,7 +79,7 @@ public class FlatMapTest {
 	@Test
 	public void test4() throws Exception {
 		FStream<Integer> strm = FStream.of(0, 1, 2, 3);
-		FStream<Integer> stream = strm.flatMapNullable(i -> i % 2 == 0 ? i : null);
+		FStream<Integer> stream = strm.mapNotNull(i -> i % 2 == 0 ? i : null);
 		
 		FOption<Integer> r;
 		

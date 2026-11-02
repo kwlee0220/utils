@@ -2,6 +2,7 @@ package utils.stream;
 
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -368,7 +369,7 @@ public class FStreams {
 		}
 
 		// 원본을 먼저 닫고, 원본 닫기가 실패해도 등록한 작업은 실행한다. 둘 다 실패하면 작업의 예외를
-		// 원본 예외의 suppressed로 붙여 원본 예외를 던진다. 2026-11-02 이전에는 원본을 닫지 않았다.
+		// 원본 예외의 suppressed로 붙여 원본 예외를 던진다.
 		@Override
 		public void close() throws Exception {
 			if ( !m_closed ) {
@@ -411,10 +412,11 @@ public class FStreams {
 		}
 	}
 	
-	static class UniqueFStream<T> extends SingleSourceStream<T,T> {
+	static class DistinctUntilChangedFStream<T> extends SingleSourceStream<T,T> {
 		private T m_last = null;
+		private boolean m_first = true;	// m_last가 아직 없음(null 원소와 구분한다)
 		
-		UniqueFStream(FStream<T> base) {
+		DistinctUntilChangedFStream(FStream<T> base) {
 			super(base);
 		}
 
@@ -423,7 +425,8 @@ public class FStreams {
 			FOption<T> onext;
 			while ( (onext = src.next()).isPresent() ) {
 				T next = onext.get();
-				if ( m_last == null || !m_last.equals(next) ) {
+				if ( m_first || !Objects.equals(m_last, next) ) {
+					m_first = false;
 					m_last = next;
 					return FOption.of(m_last);
 				}
@@ -433,11 +436,12 @@ public class FStreams {
 		}
 	}
 	
-	static class UniqueKeyFStream<T,K> extends SingleSourceStream<T,T> {
+	static class DistinctKeyUntilChangedFStream<T,K> extends SingleSourceStream<T,T> {
 		private final Function<? super T, ? extends K> m_keyer;
 		private K m_last = null;
+		private boolean m_first = true;	// m_last가 아직 없음(null 키와 구분한다)
 		
-		UniqueKeyFStream(FStream<T> base, Function<? super T, ? extends K> keyer) {
+		DistinctKeyUntilChangedFStream(FStream<T> base, Function<? super T, ? extends K> keyer) {
 			super(base);
 			
 			m_keyer = keyer;
@@ -449,7 +453,8 @@ public class FStreams {
 			while ( (onext = src.next()).isPresent() ) {
 				T next = onext.get();
 				K key = m_keyer.apply(next);
-				if ( m_last == null || !m_last.equals(key) ) {
+				if ( m_first || !Objects.equals(m_last, key) ) {
+					m_first = false;
 					m_last = key;
 					return FOption.of(next);
 				}

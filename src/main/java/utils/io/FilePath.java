@@ -144,7 +144,7 @@ public interface FilePath {
 	
 	public default long getTotalLength() throws IOException {
 		return walkRegularFileTree()
-					.tryMap(FilePath::getLength)
+					.mapToTry(FilePath::getLength)
 					.flatMapTry(v -> v)
 					.mapToLong(v -> v)
 					.sum();

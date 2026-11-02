@@ -7,8 +7,6 @@ import java.util.concurrent.TimeUnit;
  * {@link java.time.LocalTime}과 하루 중 밀리초·문자열 사이의 변환을 제공한다. 시간대와는 무관하다.
  * <p>
  * 객체 인자가 {@code null}이면 {@link IllegalArgumentException}을 던진다.
- * <p>
- * 2026-11-01에 {@code fromString} → {@code parse}로 이름을 바꿨다(별칭 없음).
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -52,8 +50,7 @@ public class LocalTimes {
 	 *
 	 * @param millis	자정부터의 밀리초. {@code 0} 이상 {@code 86_400_000} 미만이어야 한다.
 	 * @return	변환된 시각.
-	 * @throws IllegalArgumentException	범위를 벗어난 경우(2026-11-01 이전에는 나노초 값을 담은
-	 * 									{@link java.time.DateTimeException}이었다).
+	 * @throws IllegalArgumentException	범위를 벗어난 경우.
 	 */
 	public static LocalTime fromMillisOfDay(long millis) {
 		Preconditions.checkArgument(millis >= 0 && millis < MILLIS_PER_DAY,

@@ -653,7 +653,7 @@ public class Funcs {
 	 */
 	public static <T, K extends Comparable<K>>
 	T min(Iterable<? extends T> list, Function<? super T,? extends K> keyer) {
-		return FStream.from(list).min(keyer).orElse(null);
+		return FStream.from(list).min(keyer).getOrNull();
 	}
 	
 	/**
@@ -667,7 +667,7 @@ public class Funcs {
 	 */
 	public static <T, K extends Comparable<K>>
 	T max(Iterable<? extends T> list, Function<? super T,? extends K> keyer) {
-		return FStream.from(list).max(keyer).orElse(null);
+		return FStream.from(list).max(keyer).getOrNull();
 	}
 	
 	/**

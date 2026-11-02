@@ -34,7 +34,7 @@ public class LocalDateTimesTest {
 		TimeZone.setDefault(m_savedZone);
 	}
 
-	// --- 문자열 형식(#5) ---
+	// --- 문자열 형식 ---
 
 	@Test
 	public void toString_precisionDependsOnValue() {
@@ -53,7 +53,7 @@ public class LocalDateTimesTest {
 					LocalDateTimes.parse("2024-07-10T14:40:37.123456"));
 	}
 
-	// --- null 거부(#6) ---
+	// --- null 거부 ---
 
 	@Test
 	public void nullArguments_areRejected() {
@@ -71,7 +71,7 @@ public class LocalDateTimesTest {
 		assertThrows(IllegalArgumentException.class, () -> LocalTimes.toString(null));
 	}
 
-	// --- 시간대를 명시하는 변환(#9) ---
+	// --- 시간대를 명시하는 변환 ---
 
 	@Test
 	public void localDateTime_zoneExplicitConversions() {
@@ -149,7 +149,7 @@ public class LocalDateTimesTest {
 		assertThrows(ArithmeticException.class, () -> LocalDates.toEpochMilli(LocalDate.MAX, ZoneOffset.UTC));
 	}
 
-	// --- LocalTimes(#12) ---
+	// --- LocalTimes ---
 
 	@Test
 	public void localTimes_millisOfDay() {
@@ -157,7 +157,7 @@ public class LocalDateTimesTest {
 		assertEquals(86_399_999L, LocalTimes.toMillisOfDay(LocalTime.MAX));		// 밀리초 미만은 버린다
 		assertEquals(LocalTime.of(9, 0, 30, 500_000_000), LocalTimes.fromMillisOfDay(32_430_500L));
 		assertEquals(LocalTime.of(23, 59, 59, 999_000_000), LocalTimes.fromMillisOfDay(86_399_999L));
-		// 범위 밖은 밀리초 기준 메시지의 IllegalArgumentException. 이전에는 나노초 값을 담은 DateTimeException이었다.
+		// 범위 밖은 밀리초 기준 메시지의 IllegalArgumentException.
 		IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
 													() -> LocalTimes.fromMillisOfDay(86_400_000L));
 		assertEquals("millis-of-day out of range [0, 86400000): 86400000", e.getMessage());
@@ -174,7 +174,7 @@ public class LocalDateTimesTest {
 		assertEquals("09:00:30.500", LocalTimes.toString(LocalTime.of(9, 0, 30, 500_000_000)));
 	}
 
-	// --- 서머타임 전환(#7) ---
+	// --- 서머타임 전환 ---
 
 	@Test
 	public void toInstant_dstGapMovesForward_overlapTakesEarlierOffset() {

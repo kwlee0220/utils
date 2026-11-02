@@ -65,8 +65,7 @@ public class WebSocketListenerTest {
 
 	@Test
 	public void pongTimeout_fires_when_longer_than_pingInterval() throws Exception {
-		// 회귀 방지: pongTimeout > pingInterval인 설정에서 예전 구현은 감시 태스크가 매번 다음 ping에
-		// 의해 발동 전에 취소되어 pong이 끊겨도 영원히 감지되지 않았다.
+		// pongTimeout > pingInterval인 설정에서도 pong이 끊기면 감지해야 한다.
 		m_chart = new RecordingChart();
 		WebSocketListener<TestCtx> listener = m_chart.listener();
 		listener.setPingInterval(Duration.ofMillis(50));
@@ -117,7 +116,7 @@ public class WebSocketListenerTest {
 							"pong이 정상 도착하는 동안에는 어떤 신호도 발송되지 않아야 함");
 	}
 
-	// ---- 수신 조각 처리 (검토 websocket #10, #14) ----
+	// ---- 수신 조각 처리 ----
 
 	@Test
 	public void text_fragments_are_joined_into_one_message() throws Exception {

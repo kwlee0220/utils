@@ -11,10 +11,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
  * 그래서 Jackson deserializer 안에서 던져도 {@code ObjectMapper.readValue}·{@code treeToValue}가 다른 예외로
  * 감싸지 않고 그대로 전달한다(일반 {@code IOException}은 {@code treeToValue}가 {@code IllegalArgumentException}으로
  * 감싼다). 원인 예외가 있으면 {@link #getCause()}로 얻는다.
- * <p>
- * 2026-11-01 이전에는 {@code RuntimeException}을 상속한 비검사 예외였고, 필수 필드 누락은 일반
- * {@code IOException}으로 따로 보고했다. 또 {@link #getMessage()}를 재정의해 원인을 메시지에 다시 붙였으므로,
- * 원인만 받는 생성자에서는 원인이 메시지에 두 번 나왔다.
  *
  * @author Kang-Woo Lee (ETRI)
  */

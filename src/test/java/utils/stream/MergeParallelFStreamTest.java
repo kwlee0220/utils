@@ -88,7 +88,7 @@ public class MergeParallelFStreamTest {
 	@Test
 	public void test10() throws Exception {
 		// 스트림 A가 a2 공급 후 예외로 종료되면 병합 스트림은 그 실패를 전파한다. 실패 전에 공급된 a1, a2는 먼저
-		// 전달된다. 2026-11-02 이전에는 실패를 흔적 없이 건너뛰고 나머지 스트림을 계속 처리해 8개를 냈다.
+		// 전달된다.
 		FStream<FStream<String>> fact = FStream.of(
 											FStream.generate(this::generateStreamAX, 2),
 											FStream.generate(this::generateStreamB, 2),

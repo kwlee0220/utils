@@ -75,7 +75,6 @@ public class JsonNodeStdDeserializerTest {
 	@Test
 	public void worksWithTrailingTokenCheck() throws IOException {
 		// FAIL_ON_TRAILING_TOKENS를 켜도 배열 원소와 객체 필드 안에서 읽을 수 있어야 한다.
-		// (이전에는 parser.getCodec().readTree(parser)가 다음 원소·필드를 후행 토큰으로 보고 실패했다.)
 		ObjectMapper strict = JacksonUtils.newJsonMapper(false).rebuild()
 										.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
 										.build();

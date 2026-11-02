@@ -295,7 +295,7 @@ public class CommandVariable implements Keyed<String>, AutoCloseable {
 					m_file = Files.createTempFile("cmdvar-", ".txt").toFile();
 					m_deleteOnClose = true;
 				}
-				// 파일이 이미 있어도 값으로 덮어쓴다. (예전에는 기존 파일 내용이 값 대신 쓰여 값이 조용히 무시되었다.)
+				// 파일이 이미 있어도 값으로 덮어쓴다.
 				IOUtils.toFile(m_value, StandardCharsets.UTF_8, m_file);
 				m_value = null;
 			}

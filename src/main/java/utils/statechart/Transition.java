@@ -17,8 +17,7 @@ import java.util.Optional;
  * {@link Transitions#internal}은 주어진 액션을, {@link Transitions#stay}는 빈 액션을 실행한다.
  * <p>
  * 반면 현재 상태의 경로를 목표로 명시하면(UML의 자기 전이, self-transition) 액션은 실행되지만 현재 상태에서
- * 진출({@code exit()})했다가 다시 진입({@code enter()})한다. (2026-10-31 이전에는 목표 경로가 없으면 액션도
- * 실행하지 않아, "머물면서 액션만 실행"하는 전이를 표현할 수 없었다.)
+ * 진출({@code exit()})했다가 다시 진입({@code enter()})한다.
  *
  * @param <C>	{@link StateContext}의 구체 타입
  *
@@ -39,7 +38,7 @@ public interface Transition<C extends StateContext<C>> {
 	 * 기본 구현은 {@link #getTargetStatePath()}가 비어있는지 검사한다. 현재 상태의 경로를 목표로 준 전이
 	 * (UML의 자기 전이)는 진출했다가 다시 진입하므로 내부 전이가 아니다.
 	 *
-	 * @return	내부 전이이면 {@code true}. (2026-10-31 이전 이름은 {@code isSelfTransition()}이었다.)
+	 * @return	내부 전이이면 {@code true}.
 	 */
 	public default boolean isInternal() {
 		return getTargetStatePath().isEmpty();

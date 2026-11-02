@@ -19,7 +19,6 @@ import utils.KeyValue;
 public class SplitJoinTest {
 	@Test
 	public void splitEmptyInputIsEmptyStream() throws Exception {
-		// 2026-11-02 이전에는 '[[]]'를 냈다.
 		Assertions.assertEquals(List.of(), FStream.<String>of().split("|"::equals).toList());
 	}
 
@@ -34,7 +33,6 @@ public class SplitJoinTest {
 
 	@Test
 	public void joinCsvWritesNullLikeJoinString() throws Exception {
-		// 2026-11-02 이전에는 null 원소에서 NullPointerException이 났다.
 		Assertions.assertEquals("a,null,1", FStream.of("a", null, 1).join(CSV.get()));
 		Assertions.assertEquals("a,null,1", FStream.of("a", null, 1).join(","));
 	}

@@ -37,7 +37,6 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	private static final int STATE_STOPPED = 5;
 
 	// 내부 상태 → 인터페이스 상태. 시작 전은 STOPPED로 보고한다(State에 시작 전 상태가 없다).
-	// 2026-10-31 이전에는 시작 전을 STARTING, 작업 중(RUNNING_WORKING)을 IDLE로 보고해 WORKING이 나오지 않았다.
 	private static final State[] STATE_MAPPING = new State[] {
 		State.STOPPED, State.STARTING, State.IDLE, State.WORKING, State.STOPPING, State.STOPPED,
 	};
@@ -267,8 +266,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 				m_cond.await();
 			}
 
-			// onStarted()가 실패하면 작업 스레드가 곧바로 STOPPED로 바꾼다. 인터페이스 계약대로 예외로 알린다
-			// (2026-10-31 이전에는 정상 반환해 호출자가 getFailureCause()를 따로 확인해야 했다).
+			// onStarted()가 실패하면 작업 스레드가 곧바로 STOPPED로 바꾼다. 인터페이스 계약대로 예외로 알린다.
 			// m_failureCause만 보면, 첫 perform()이 곧바로 실패해 start()가 깨기 전에 STOPPED가 된 경우를 시작 실패로
 			// 잘못 볼 수 있다. onStarted() 실패는 m_startFailed로 따로 구분한다.
 			if ( m_startFailed ) {
@@ -301,14 +299,13 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 				return;
 			}
 			// 시작 전이면 작업 스레드가 없으므로 바로 종료 상태로 만든다(onStarted()를 부르지 않았으므로 onStopped()도
-			// 부르지 않는다). 2026-10-31 이전에는 STOPPING에 영원히 머물거나 m_performThread가 null이라 NPE가 났다.
+			// 부르지 않는다).
 			if ( m_state == STATE_NOT_STARTED ) {
 				_setState(STATE_STOPPED);
 				return;
 			}
 
 			// STARTING 상태에서도 기다리지 않고 중지를 표시만 한다. 초기화가 끝나면 작업 쓰레드가 이 표시를 보고 종료한다.
-			// 2026-10-31 이전에는 onStarted()가 끝날 때까지 기다려, onStarted() 안에서 stop()을 부르면 교착되었다.
 			if ( m_state != STATE_STOPPING ) {
 				_setState(STATE_STOPPING);
 			}
@@ -328,7 +325,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 		}
 
 		// 작업 중단은 lock 밖에서 요청한다. InterruptibleWork.interrupt()가 작업이 끝나기를 기다리는 동안 작업 쓰레드가
-		// 이 lock을 기다리면 교착되기 때문이다(2026-10-31 이전에는 lock을 쥔 채 호출했다).
+		// 이 lock을 기다리면 교착되기 때문이다.
 		if ( interruptWork ) {
 			((InterruptibleWork)m_work).interrupt();
 		}
@@ -363,8 +360,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 
 		m_lock.lock();
 		try {
-			// 검사는 try 안에서 한다. 2026-10-31 이전에는 lock을 잡은 뒤 try 밖에서 던져 lock이 풀리지 않았고,
-			// 작업 스레드가 lock을 쥔 채 남아 stop()·getState() 등이 모두 멈췄다.
+			// 검사는 try 안에서 한다.
 			if ( Thread.currentThread().equals(m_performThread) ) {
 				throw new IllegalStateException("may cause deadlock!: "
 										+ "don't call waitForStopped while perform");
@@ -530,8 +526,6 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 							m_runNowRequested = false;
 						}
 						else if ( sampleOverhead && waited ) {
-							// 2026-10-31 이전에는 깨어난 이유와 관계없이 표본을 기록해, performNow()로 일찍 깨우면 큰 음수가
-							// 쌓이고 다음 대기가 그만큼 길어졌다.
 							m_overhead.observe(System.nanoTime() - targetNano);
 						}
 						_setState(STATE_RUNNING_WORKING);

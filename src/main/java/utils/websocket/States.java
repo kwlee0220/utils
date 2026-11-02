@@ -33,8 +33,6 @@ import utils.statechart.Transitions;
  *   <li>{@link CompletedState} / {@link StoppedState} / {@link FailedState} - 각각 정상 완료, 중지, 실패로 끝나는
  *       종료 상태. 모두 진입 시 WebSocket 연결을 닫는다.</li>
  * </ul>
- * (2026-10-31에 이름을 바꾸었다: {@code OpenWebSocket} → {@link WebSocketConnectingState},
- * {@code CancelledState} → {@link StoppedState}, {@code ErrorState} → {@link FailedState}.)
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -59,7 +57,7 @@ public class States {
 	}
 
 	/**
-	 * WebSocket 연결을 수립하는 상태. ({@code OpenWebSocket}이었다가 2026-10-31에 이름을 바꾸었다.)
+	 * WebSocket 연결을 수립하는 상태.
 	 * <p>
 	 * 상태 차트의 초기 상태로 사용하며, 접속할 서버 URL은 컨텍스트
 	 * ({@link WebSocketContext#getServerUrl()})에서 얻는다. {@link #enter()}는 접속을 <b>비동기로</b>
@@ -383,8 +381,7 @@ public class States {
 	 * <p>
 	 * <b>차트의 실행 결과는 {@code COMPLETED}다</b>({@link TerminalState}이므로). "중지"는 시나리오(도메인) 차원의
 	 * 결과이고, 차트 실행 자체는 계획한 종료 상태에 도달해 정상 완료된 것이다. 실행 결과를 {@code CANCELLED}로
-	 * 남기려면 이 상태로 전이하지 말고 차트의 {@code cancel(true)}를 쓴다. (2026-10-31 이전 이름은
-	 * {@code CancelledState}였는데, 이름과 달리 결과가 {@code CANCELLED}가 아니어서 바꾸었다.)
+	 * 남기려면 이 상태로 전이하지 말고 차트의 {@code cancel(true)}를 쓴다.
 	 * <p>
 	 * 연결 정리 동작은 {@link CompletedState}와 동일하다. 중지 역시 프로토콜 상으로는 정상적인 연결 종료이기 때문에
 	 * normal closure로 닫는다.
@@ -413,7 +410,6 @@ public class States {
 
 	/**
 	 * 오류로 인해 시나리오가 중단되어 도달하는 종료 상태. 차트는 실패로 끝난다.
-	 * ({@code ErrorState}였다가 2026-10-31에 이름을 바꾸었다.)
 	 * <p>
 	 * {@link FailureState}를 확장하여 실패 원인을 보유하며, 진입 시 WebSocket 연결을 닫는다.
 	 * 연결 자체는 정상 종료 코드로 닫고 사유 문자열로만 오류였음을 알린다.

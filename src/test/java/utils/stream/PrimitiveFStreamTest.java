@@ -16,10 +16,6 @@ import utils.func.FOption;
 /**
  * 기본형 스트림({@link IntFStream}·{@link LongFStream}·{@link FloatFStream}·{@link DoubleFStream})의 생성과 수치
  * 연산을 검증한다.
- * <p>
- * 2026-11-02 이전에는 {@code LongFStream.of(1L, 2L)} 등이 박싱 버전 {@code of(Long...)}와 모호해 컴파일되지 않았고,
- * {@code FloatFStream.sum()}이 {@code float}로 누적했으며, {@code maxValue}/{@code minValue}는 Int에만,
- * {@code from}/{@code downcast}는 Float·Double에만 있었다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -103,5 +99,13 @@ public class PrimitiveFStreamTest {
 	public void null_elements_make_numeric_operations_throw_npe() {
 		assertThrows(NullPointerException.class, () -> IntFStream.from(new Integer[] { 1, null }).sum());
 		assertThrows(NullPointerException.class, () -> DoubleFStream.from(Arrays.asList(1d, null)).maxValue());
+	}
+
+	@Test
+	public void long_average_does_not_overflow() {
+		assertEquals(FOption.of((double)Long.MAX_VALUE),
+					LongFStream.of(Long.MAX_VALUE, Long.MAX_VALUE).average());
+		assertEquals(FOption.of(0d), LongFStream.of(Long.MAX_VALUE, Long.MIN_VALUE + 1).average());
+		assertEquals(FOption.of(-1.5), LongFStream.of(-1L, -2L).average());
 	}
 }

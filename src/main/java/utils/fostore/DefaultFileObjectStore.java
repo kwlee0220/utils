@@ -192,7 +192,7 @@ public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {
     @Override
     public List<T> getFileObjectAll() throws IOException, ExecutionException {
     	return streamFileObjectAll()
-		    		.flatMapNullable(file -> {
+		    		.mapNotNull(file -> {
 		    			try {
 		    				return m_handler.readFileObject(file);
 		    			}

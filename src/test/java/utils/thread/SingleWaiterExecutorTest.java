@@ -60,7 +60,6 @@ public class SingleWaiterExecutorTest {
 
 	@Test
 	public void start_failure_does_not_stall_the_executor() throws Exception {
-		// 이전에는 start()가 던지면 실행 슬롯이 남아, 이후 제출한 작업이 영원히 대기했다.
 		SingleWaiterExecutor executor = new SingleWaiterExecutor();
 
 		IllegalStateException e = Assertions.assertThrows(IllegalStateException.class,
@@ -86,8 +85,7 @@ public class SingleWaiterExecutorTest {
 
 		Thread.sleep(300);			// 종료 콜백(비동기)이 대기 작업의 시작을 시도하고 실패를 정리할 시간
 
-		// 실행 슬롯이 비었으므로 새 작업은 대기 없이 곧바로 시작되어야 한다. 이전에는 시작에 실패한 작업이 실행 슬롯과
-		// 대기 슬롯에 남아, 새 작업이 대기 슬롯에 들어갔다(그 작업을 교체·취소하면서 우연히 회복되었다).
+		// 실행 슬롯이 비었으므로 새 작업은 대기 없이 곧바로 시작되어야 한다.
 		StartableExecution<Void> next = blockingJob(new CountDownLatch(1));
 		executor.submit(next);
 		Assertions.assertTrue(next.isStarted(), "the executor is still occupied by the job that failed to start");
@@ -96,8 +94,7 @@ public class SingleWaiterExecutorTest {
 
 	@Test
 	public void start_is_called_outside_the_executor_lock() throws Exception {
-		// start() 안에서 다른 쓰레드가 실행기를 쓸 수 있어야 한다. 이전에는 내부 lock을 쥔 채 start()를 불러,
-		// 그 쓰레드를 기다리면 교착했다.
+		// start() 안에서 다른 쓰레드가 실행기를 쓸 수 있어야 한다.
 		SingleWaiterExecutor executor = new SingleWaiterExecutor();
 		CompletableFuture<Boolean> otherThreadDone = new CompletableFuture<>();
 		StartableExecution<Void> job = new CompletableFutureAsyncExecution<Void>() {
@@ -189,7 +186,6 @@ public class SingleWaiterExecutorTest {
 
 	@Test
 	public void resubmitting_the_same_job_is_rejected() throws Exception {
-		// 이전에는 대기 중인 작업을 다시 제출하면 교체 과정에서 그 작업 자체가 취소되었다.
 		SingleWaiterExecutor executor = new SingleWaiterExecutor();
 		CountDownLatch release = new CountDownLatch(1);
 		StartableExecution<Void> running = blockingJob(release);

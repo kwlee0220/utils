@@ -65,14 +65,12 @@ public class TakeLastTest {
 
 	@Test
 	public void hugeCountDoesNotOverflow() throws Exception {
-		// 2026-11-02 이전에는 'new ArrayList<>(count + 1)'이 넘쳐 IllegalArgumentException이 났다.
 		Assertions.assertEquals(Lists.newArrayList(0, 1, 2), FStream.range(0, 3).takeLast(Integer.MAX_VALUE));
 	}
 
 	@Test
 	public void ofExactClassSkipsNulls() throws Exception {
-		// 2026-11-02 이전에는 null 원소에서 NullPointerException이 났다.
 		FStream<Number> stream = FStream.of(1, null, 2L, 3);
-		Assertions.assertEquals(Lists.newArrayList(1, 3), stream.ofExactClass(Integer.class).toList());
+		Assertions.assertEquals(Lists.newArrayList(1, 3), stream.ofExactType(Integer.class).toList());
 	}
 }

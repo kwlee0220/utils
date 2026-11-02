@@ -12,10 +12,6 @@ import java.time.ZoneId;
  * 다르다(예: {@code Pacific/Apia}의 {@code 2011-12-30}은 되돌리면 {@code 2011-12-31}).
  * <p>
  * 객체 인자가 {@code null}이면 {@link IllegalArgumentException}을 던진다.
- * <p>
- * 2026-11-01에 {@code toEpochMillis}/{@code fromEpochMillis} → {@code toEpochMilli}/{@code fromEpochMilli}로
- * 이름을 바꾸고(별칭 없음), {@code toUtcMillis}/{@code fromUtcMillis}는 지웠다
- * ({@code toEpochMilli(date, ZoneOffset.UTC)}/{@code fromEpochMilli(ms, ZoneOffset.UTC)}를 쓴다).
  *
  * @author Kang-Woo Lee (ETRI)
  */

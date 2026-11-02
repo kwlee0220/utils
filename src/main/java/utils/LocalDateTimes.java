@@ -10,12 +10,6 @@ import java.time.ZoneId;
  * 서머타임 전환으로 없는 시각은 전환 폭만큼 뒤로 밀리고, 두 번 있는 시각은 앞쪽 오프셋으로 해석한다.
  * <p>
  * 객체 인자가 {@code null}이면 {@link IllegalArgumentException}을 던진다.
- * <p>
- * 2026-11-01에 {@code fromString} → {@code parse}, {@code toEpochMillis}/{@code fromEpochMillis} →
- * {@code toEpochMilli}/{@code fromEpochMilli}로 이름을 바꿨다(별칭 없음). {@code toInstantWithoutTimeZone(ldt)}는
- * 이름과 달리 UTC로 해석했으므로 지웠다({@code toInstant(ldt, ZoneOffset.UTC)}를 쓴다). {@code toUtcMillis}/
- * {@code fromUtcMillis}도 지웠다({@code toEpochMilli(ldt, ZoneOffset.UTC)}/{@code fromEpochMilli(ms, ZoneOffset.UTC)}를
- * 쓴다).
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -160,7 +154,6 @@ public class LocalDateTimes {
 	 * {@code yyyy-MM-ddTHH:mm}, 소수점 이하만 0이면 {@code yyyy-MM-ddTHH:mm:ss}, 그 밖에는 소수점 이하를
 	 * 3·6·9자리 중 값을 담을 수 있는 가장 짧은 길이로 붙인다.
 	 * (예: {@code 2024-07-10T14:40}, {@code 2024-07-10T14:40:37}, {@code 2024-07-10T14:40:37.120})
-	 * 2026-11-01 이전의 문서는 항상 {@code yyyy-MM-ddTHH:mm:ss} 형식이라고 잘못 적고 있었다.
 	 *
 	 * @param ldt 변환할 시간.
 	 * @return 변환된 문자열.

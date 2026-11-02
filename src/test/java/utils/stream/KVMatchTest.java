@@ -125,8 +125,6 @@ public class KVMatchTest {
 	/**
 	 * {@code flatMatch}는 참조 값이 하나도 없는 원소(빈 목록, {@code null} 목록, 없는 키)를 모두 "일치하지 않음"으로
 	 * 다룬다. inner join({@code keepUnmatched=false})은 0행, left outer join({@code true})은 {@code (v, null)} 1행.
-	 * 2026-11-02 이전에는 {@code null} 목록이 inner join에서도 {@code (v, null)}을 냈고, 빈 목록은 outer join에서도
-	 * 사라졌다.
 	 */
 	@Test
 	public void flatMatchTreatsEmptyAndNullListsAsUnmatched() {
@@ -188,7 +186,6 @@ public class KVMatchTest {
 
 	/**
 	 * {@code match}·{@code flatMatch}·{@code lookup}의 결과 스트림은 끝까지 읽거나 닫으면 원본도 닫아야 한다.
-	 * 2026-11-02 이전에는 원본이 닫히지 않았다.
 	 */
 	@Test
 	public void matchClosesSource() throws Exception {

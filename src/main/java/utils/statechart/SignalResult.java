@@ -33,7 +33,6 @@ public record SignalResult<C extends StateContext<C>>(Status status, @Nullable T
 		/**
 		 * 진입해 있는 상태가 전이를 선택했지만, 전이를 수행하는 중({@code exit()}, 전이 액션, {@code enter()})
 		 * 예외가 발생해 차트가 실패했다. 실패 원인은 차트의 결과({@code poll()}, {@code waitForFinished()})로 얻는다.
-		 * (2026-10-31 이전에는 이 경우도 {@link #TRANSITIONED}였다.)
 		 */
 		FAILED,
 		/** 차트는 실행 중이었지만 진입해 있는 어떤 상태도 전이를 선택하지 않았다. */

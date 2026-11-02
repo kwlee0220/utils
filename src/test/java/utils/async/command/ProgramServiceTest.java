@@ -473,7 +473,6 @@ public class ProgramServiceTest {
 	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
 	public void start_failure_fails_service_regardless_of_restart_policy() {
 		// 실행 파일이 없어 첫 실행이 RUNNING에 이르지 못하면, 재시작 정책과 무관하게 서비스가 FAILED가 되어야 한다.
-		// (이전에는 ALWAYS/ON_FAILED에서 재시작만 반복하며 STARTING에 갇혔다.)
 		for ( RestartPolicy policy: RestartPolicy.values() ) {
 			ProgramService svc = ProgramService.create(config(policy, "/nonexistent/program-for-start-failure"));
 			svc.startAsync();
@@ -556,8 +555,7 @@ public class ProgramServiceTest {
 	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
 	public void stop_during_restart_decision_does_not_block() throws Exception {
 		// 실행이 종료되어 다음 실행을 만드는 도중(재시작 판단 중)에 stopAsync()가 호출되어도, stopAsync()는
-		// 판단이 끝나기를 기다리지 않고 곧바로 반환해야 한다. (예전에는 Guava의 lock을 쥔 doStop()이 판단 종료를
-		// 기다려, 판단 쪽의 notifyStopped()/notifyFailed()와 서로를 기다리는 deadlock이 생길 수 있었다.)
+		// 판단이 끝나기를 기다리지 않고 곧바로 반환해야 한다.
 		// 판단이 끝나면 다음 실행은 시작되지 않고 서비스는 TERMINATED가 되어야 한다.
 		ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger)
 				LoggerFactory.getLogger(ProgramServiceTest.class.getName() + ".restartDecision");
@@ -594,7 +592,7 @@ public class ProgramServiceTest {
 	@Test
 	@Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
 	public void application_log_is_appended_across_restarts() throws Exception {
-		// 재시작해도 이전 실행의 출력(종료 원인 등)이 지워지지 않아야 한다. (예전에는 실행마다 덮어썼다.)
+		// 재시작해도 이전 실행의 출력(종료 원인 등)이 지워지지 않아야 한다.
 		ProgramService svc = ProgramService.create(config(RestartPolicy.ALWAYS, "/bin/echo", "run-line"));
 		File log = new File(m_workDir, "application.log");
 		svc.startAsync().awaitRunning(5, TimeUnit.SECONDS);
@@ -928,8 +926,6 @@ public class ProgramServiceTest {
 	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
 	public void stop_while_execution_is_finishing_does_not_deadlock() throws Exception {
 		// 실행이 자신의 lock을 쥔 채 종료 처리 중일 때 stopAsync()가 들어와도 교착되지 않아야 한다.
-		// (예전에는 Guava의 lock을 쥔 doStop()이 실행의 cancel()에서 실행의 lock을, 실행의 종료 콜백은 실행의 lock을
-		// 쥔 채 notifyStopped()에서 Guava의 lock을 기다려 교착되었다.)
 		ProgramServiceConfig cfg = config(RestartPolicy.NO, "/bin/sh", "-c",
 										"while [ ! -e done ]; do sleep 0.02; done");
 		ProgramService svc = ProgramService.create(cfg);
@@ -974,7 +970,6 @@ public class ProgramServiceTest {
 	@Timeout(value = 20_000, unit = TimeUnit.MILLISECONDS)
 	public void stop_after_delayed_restart_terminates_after_process_cleanup() throws Exception {
 		// 지연 재시작으로 시작된 실행을 중지하면, 프로세스가 정리된 뒤에 서비스가 TERMINATED가 되어야 한다.
-		// (예전에는 지연 래퍼가 먼저 CANCELLED가 되어, SIGTERM을 무시하는 프로세스가 살아 있는 채 서비스가 종료되었다.)
 		File pidFile = new File(m_workDir, "pid");
 		ProgramServiceConfig cfg = config(RestartPolicy.ALWAYS, "/bin/sh", "-c",
 								"if [ ! -e first ]; then touch first; exit 0; fi; "

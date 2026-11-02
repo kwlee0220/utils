@@ -8,14 +8,15 @@ import com.google.common.collect.Lists;
 import utils.func.FOption;
 
 /**
- * 
+ * {@link FStream#window(int, int)}를 검증한다.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
-public class BufferStreamTest {
+public class WindowTest {
 	@Test
 	public void test0() throws Exception {
 		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
-		FStream<String> stream = base.map(v -> ""+v).buffer(2, 1).map(b -> String.join("", b));
+		FStream<String> stream = base.map(v -> ""+v).window(2, 1).map(b -> String.join("", b));
 		
 		FOption<String> r;
 		
@@ -47,7 +48,7 @@ public class BufferStreamTest {
 	@Test
 	public void test1() throws Exception {
 		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
-		FStream<String> stream = base.map(v -> ""+v).buffer(3, 2).map(b -> String.join("", b));
+		FStream<String> stream = base.map(v -> ""+v).window(3, 2).map(b -> String.join("", b));
 
 		FOption<String> r;
 		
@@ -73,7 +74,7 @@ public class BufferStreamTest {
 	@Test
 	public void test2() throws Exception {
 		FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
-		FStream<String> stream = base.map(v -> ""+v).buffer(1, 5).map(b -> String.join("", b));
+		FStream<String> stream = base.map(v -> ""+v).window(1, 5).map(b -> String.join("", b));
 
 		FOption<String> r;
 		
@@ -91,7 +92,7 @@ public class BufferStreamTest {
 	public void test3() throws Exception {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
 			FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
-			base.buffer(0, 3);
+			base.window(0, 3);
 			});
 	}
 
@@ -99,7 +100,7 @@ public class BufferStreamTest {
 	public void test4() throws Exception {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
 			FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
-			base.buffer(-1, 3);
+			base.window(-1, 3);
 			});
 	}
 
@@ -107,7 +108,7 @@ public class BufferStreamTest {
 	public void test5() throws Exception {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> {
 			FStream<Integer> base = FStream.from(Lists.newArrayList(1, 2, 4, 1, 3, 5, 2, 7, 6));
-			base.buffer(3, -1);
+			base.window(3, -1);
 			});
 	}
 }

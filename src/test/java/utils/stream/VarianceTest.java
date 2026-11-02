@@ -16,9 +16,9 @@ import utils.func.Try;
 
 
 /**
- * 제네릭 변성({@code ? super}/{@code ? extends})을 넓힌 연산들이 이전에는 컴파일되지 않던 호출을 받는지 검증한다.
+ * 제네릭 변성({@code ? super}/{@code ? extends})을 넓힌 연산들이 하위·상위 타입 인자를 받는지 검증한다.
  * <p>
- * 이 파일이 컴파일된다는 것이 검증의 핵심이다(2026-11-02 이전에는 각 호출이 컴파일 오류였다). 결과 값도 함께 확인한다.
+ * 이 파일이 컴파일된다는 것이 검증의 핵심이다. 결과 값도 함께 확인한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -63,7 +63,7 @@ public class VarianceTest {
 	@Test
 	public void lift_and_lookup_accept_wildcard_functions() {
 		Function<FStream<? extends Number>, FStream<String>> f = s -> s.map(Object::toString);
-		assertEquals(List.of("1", "2"), ints().lift(f).toList());
+		assertEquals(List.of("1", "2"), ints().transform(f).toList());
 
 		Function<Object,String> lookup = o -> "v" + o;
 		assertEquals(List.of(KeyValue.of(1, "v1"), KeyValue.of(2, "v2")),
@@ -96,6 +96,7 @@ public class VarianceTest {
 
 		Function<KeyValueFStream<? extends String,? extends Number>, KeyValueFStream<String,String>> f
 			= s -> KeyValueFStream.from(s.map(kv -> KeyValue.of(kv.key(), kv.value().toString())));
-		assertEquals(List.of(KeyValue.of("a", "1")), KeyValueFStream.from(list).liftKeyValues(f).toList());
+		assertEquals(List.of(KeyValue.of("a", "1")),
+					KeyValueFStream.from(list).transformKeyValues(f).toList());
 	}
 }

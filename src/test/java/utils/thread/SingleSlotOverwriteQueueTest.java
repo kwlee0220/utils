@@ -34,7 +34,7 @@ public class SingleSlotOverwriteQueueTest {
 
 	@Test
 	public void poll_does_not_block() {
-		// Queue.poll()과 같이 비어 있으면 기다리지 않고 null을 돌려준다(2026-10-31 이전에는 블록했다).
+		// Queue.poll()과 같이 비어 있으면 기다리지 않고 null을 돌려준다.
 		SingleSlotOverwriteQueue<String> queue = new SingleSlotOverwriteQueue<>();
 		Assertions.assertNull(queue.poll());
 
@@ -45,7 +45,7 @@ public class SingleSlotOverwriteQueueTest {
 
 	@Test
 	public void timed_poll_returns_null_on_timeout() throws Exception {
-		// BlockingQueue.poll(timeout)과 같이 시간 초과 시 null을 돌려준다(2026-10-31 이전에는 TimeoutException).
+		// BlockingQueue.poll(timeout)과 같이 시간 초과 시 null을 돌려준다.
 		SingleSlotOverwriteQueue<String> queue = new SingleSlotOverwriteQueue<>();
 
 		long started = System.nanoTime();
@@ -108,7 +108,7 @@ public class SingleSlotOverwriteQueueTest {
 	@Test
 	public void interrupted_thread_does_not_consume_item() throws Exception {
 		// 이미 인터럽트된 쓰레드의 take()/poll(Duration)은 항목이 있어도 꺼내지 않고 InterruptedException을 던진다
-		// (JDK BlockingQueue와 같은 정책). 2026-10-31 이전에는 인터럽트를 무시하고 꺼냈다.
+		// (JDK BlockingQueue와 같은 정책).
 		SingleSlotOverwriteQueue<String> queue = new SingleSlotOverwriteQueue<>();
 		queue.add("A");
 

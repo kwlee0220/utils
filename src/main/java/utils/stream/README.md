@@ -87,7 +87,7 @@ try (FStream<Integer> stream = FStream.of(1, 2, 3)) {
 | `FStream.of(new int[] {1, 2, 3})` | `IntFStream` |
 | `KeyValueFStream.from(map)` | 맵의 키·값 스트림 |
 
-`FOption`은 값의 존재 여부를 나타낸다. `FOption.of(null)`도 표현할 수 있지만, 모든 스트림 연산이 null 원소를 동일하게 지원하지는 않는다. 특히 버퍼의 `ArrayDeque`는 null을 받지 않는다(반복자는 2026-11-02부터 null 원소도 그대로 반환한다). 일반적인 처리에서는 null 원소를 피하고 `flatMapNullable()` 등으로 제거한다.
+`FOption`은 값의 존재 여부를 나타낸다. `FOption.of(null)`도 표현할 수 있지만, 모든 스트림 연산이 null 원소를 동일하게 지원하지는 않는다. 특히 버퍼의 `ArrayDeque`는 null을 받지 않는다(반복자는 2026-11-02부터 null 원소도 그대로 반환한다). 일반적인 처리에서는 null 원소를 피하고 `mapNotNull()` 등으로 제거한다.
 
 ### 3.2 값 생성
 
@@ -115,9 +115,9 @@ try (FStream<Integer> numbers = FStream.generate(channel -> {
 }
 ```
 
-생성기는 첫 `next()` 호출 때 별도의 데몬 스레드에서 시작한다. 버퍼가 가득 차면 `supply()`가 빈자리가 생길 때까지 기다린다. 생성 함수가 정상 반환하면 내부 실행기가 `endOfSupply()`를 호출하므로 위 예제처럼 직접 종료를 알리지 않아도 된다.
+생성기는 첫 `next()` 호출 때 별도의 데몬 스레드에서 시작한다. 스레드 이름을 정하려면 `generate(generator, bufLength, threadName)`을 쓴다(2026-11-02 이전 이름 `asynchronouslyFrom`). 버퍼가 가득 차면 `supply()`가 빈자리가 생길 때까지 기다린다. 생성 함수가 정상 반환하면 내부 실행기가 `endOfSupply()`를 호출하므로 위 예제처럼 직접 종료를 알리지 않아도 된다.
 
-일반 예외는 소비자에게 오류로 전달된다. 다만 현재 실행기는 `InterruptedException`, `CancellationException`, `IllegalStateException`을 정상 종료로 처리한다. 업무상 `IllegalStateException`도 소비자가 오류로 받아야 한다면 생성 함수에서 직접 잡아 `channel.endOfSupply(error)`로 전달한다.
+생성 함수의 예외는 소비자에게 오류로 전달된다. `InterruptedException`·`CancellationException`과, 소비자가 스트림을 닫아 `supply()`가 실패한 `IllegalStateException`만 정상 종료로 처리한다. 채널이 닫히지 않았는데 난 `IllegalStateException`은 생성 오류다. 생성 함수가 `Error`를 던지면 소비자에게 그 `Error`를 전달한 뒤 생성 스레드에서도 다시 던진다.
 
 스트림을 닫으면 생성 스레드에 인터럽트를 보내고 채널을 닫지만, 스레드가 완전히 끝날 때까지 기다리지는 않는다. 파일이나 DB 연결은 생성 함수 안의 `try-with-resources`로 정리한다. 이 생성기 스트림은 단일 소비자용이며 `next()`와 `close()`의 동시 호출을 지원하지 않는다.
 
@@ -131,7 +131,7 @@ FStream.zip(listA, listB, true)                  // 긴 쪽까지, 부족한 값
 FStream.mergeParallel(streamOfStreams, 4, pool) // 여러 하위 스트림을 동시에 소비
 ```
 
-`concat`을 중간에 닫으면 현재 읽는 하위 스트림과 바깥 스트림을 닫는다. 아직 꺼내지 않은 모든 하위 스트림까지 순회하며 닫지는 않는다. 이미 열린 파일 스트림을 목록에 미리 많이 담기보다, 필요할 때 생성하는 구조를 사용하거나 원래 소유자가 각각 닫도록 한다.
+이미 만든 스트림들을 받는 `concat(first, second, ...)`과 `concatWith(other)`는 결과를 닫으면 받은 스트림을 모두 닫는다(아직 읽지 않은 것과 첫 원소를 꺼내기 전에 닫은 경우 포함). 하위 스트림을 공급하는 스트림을 받는 `concat(streamOfStreams)`는 읽던 하위 스트림과 바깥 스트림만 닫는다. 아직 꺼내지 않은 하위 스트림은 만들어지지 않았으므로 닫을 것이 없고, 정리하려고 바깥 스트림을 끝까지 소비하면 무한 스트림에서 멈추기 때문이다. 그러므로 이미 열린 스트림을 담은 스트림을 넘기지 말고, 필요할 때 생성하는 구조를 쓰거나 `concat(FStream...)`을 쓴다.
 
 ## 4. 원소 변환과 선택
 
@@ -141,13 +141,13 @@ FStream.mergeParallel(streamOfStreams, 4, pool) // 여러 하위 스트림을 �
 |---|---|
 | `map(f)`, `filter(p)`, `filterNot(p)` | 변환, 조건 선택, 반대 조건 선택 |
 | `mapOrIgnore(f)` | 검사 예외를 허용하는 함수를 적용하고 실패한 원소 제외 |
-| `tryMap(f)` | 각 결과를 `Try<S>`로 감싸 성공과 실패를 함께 전달 |
+| `mapToTry(f)` | 각 결과를 `Try<S>`로 감싸 성공과 실패를 함께 전달(2026-11-02 이전 이름 `tryMap`) |
 | `mapOrThrow(f)` | 검사 예외를 허용하는 함수를 적용하고 실패하면 예외를 그대로 던짐(아래 설명) |
 | `mapSelectively(p, f)` | 조건에 맞는 원소만 변환하고 나머지는 그대로 전달 |
 | `peek(effect)` | 통과하는 원소에 추가 작업 수행 |
 | `cast(type)` | 지정 타입으로 변환. 맞지 않으면 예외 |
 | `castSafely(type)` | 해당 타입의 원소만 선택 |
-| `ofExactClass(type)` | 하위 타입을 제외하고 정확히 같은 클래스만 선택 |
+| `ofExactType(type)` | 하위 타입을 제외하고 정확히 같은 클래스만 선택(2026-11-02 이전 이름 `ofExactClass`) |
 | `mapToInt`, `mapToLong`, `mapToFloat`, `mapToDouble`, `mapToBoolean` | 타입별 편의 스트림으로 변환 |
 
 `mapOrThrow(f)`와 `mapToKeyValueOrThrow(f)`가 던지는 검사 예외는 컴파일러가 추적하지 못한다. 지연 연산이므로 예외는 원소를 꺼낼 때(`next()`나 `toList()`·`toMap()` 같은 종단 연산) 감싸지 않은 원래 형태로 던져지는데, 종단 연산은 `throws`를 선언하지 않는다. 종단 연산은 `finally`에서 스트림을 닫으므로 원본은 닫힌다.
@@ -168,7 +168,7 @@ catch ( Exception e ) {
 }
 ```
 
-선언된 예외가 필요하면 원소마다 부수 효과만 수행하는 `forEachOrThrow(effect)`(`throws X` 선언)를 쓰고, 실패를 값으로 다루려면 `tryMap(f)`를 쓴다. 이름은 같은 "OrThrow"지만 `mapOrThrow`는 `throws` 선언을 뜻하지 않는다.
+선언된 예외가 필요하면 원소마다 부수 효과만 수행하는 `forEachOrThrow(effect)`(`throws X` 선언)를 쓰고, 실패를 값으로 다루려면 `mapToTry(f)`를 쓴다. 이름은 같은 "OrThrow"지만 `mapOrThrow`는 `throws` 선언을 뜻하지 않는다.
 
 ### 4.2 한 원소에서 여러 결과 만들기
 
@@ -177,7 +177,7 @@ catch ( Exception e ) {
 | `flatMap(f)` | `FStream<V>` | 하위 스트림의 원소를 순서대로 펼침 |
 | `flatMapIterable(f)` | `Iterable<V>` | 반복 가능한 결과를 펼침 |
 | `flatMapArray(f)` | `V[]` | 배열을 펼침 |
-| `flatMapNullable(f)` | `V` | null이면 제외, 아니면 한 원소로 전달 |
+| `mapNotNull(f)` | `V` | null이면 제외, 아니면 한 원소로 전달(2026-11-02 이전 이름 `flatMapNullable`) |
 | `flatMapFOption(f)` | `FOption<V>` | 값이 있는 경우만 전달 |
 | `flatMapTry(f)` | `Try<V>` | 성공한 결과만 전달 |
 
@@ -194,13 +194,13 @@ stream.dropWhile(predicate)            // 처음 조건이 깨진 원소부터
 stream.slice(Slice.builder().start(2).end(8).step(2).build())
 stream.distinct()                      // 전체 중복 제거
 stream.distinct(keyer)                 // 키 기준 전체 중복 제거
-stream.unique()                        // 연속해서 나온 중복만 제거
-stream.unique(keyer)                   // 키 기준 인접 중복 제거
+stream.distinctUntilChanged()          // 연속해서 나온 중복만 제거
+stream.distinctUntilChanged(keyer)     // 키 기준 인접 중복 제거
 ```
 
-`distinct()`는 이미 본 키를 보관하므로 서로 다른 값이 많을수록 메모리를 더 사용한다. `unique()`는 직전 값과 비교한다.
+`distinct()`는 이미 본 키를 보관하므로 서로 다른 값이 많을수록 메모리를 더 사용한다. `distinctUntilChanged()`는 직전 값과 비교한다(`null`도 값으로 비교). 2026-11-02에 `unique()`에서 이름을 바꿨다(별칭 없음).
 
-| 입력 | `distinct()` | `unique()` |
+| 입력 | `distinct()` | `distinctUntilChanged()` |
 |---|---|---|
 | `a, a, b, a` | `a, b` | `a, b, a` |
 
@@ -213,12 +213,12 @@ stream.zipWith(other, zipper)             // 묶은 값을 함수로 변환
 stream.zipWith(other, true)               // 긴 쪽 기준, 부족분은 null
 stream.zipWithIndex()                     // 0부터 시작하는 Indexed<T>
 stream.zipWithIndex(1)                    // 1부터 시작
-stream.buffer(3, 1)                       // 크기 3, 시작 위치는 1씩 이동
-stream.buffer(3, 3)                       // 겹치지 않게 세 개씩 묶기
+stream.window(3, 1)                       // 크기 3, 시작 위치는 1씩 이동
+stream.window(3, 3)                       // 겹치지 않게 세 개씩 묶기
 stream.split(predicate)                   // 조건에 맞는 원소를 구분자로 사용
 ```
 
-`buffer(count, skip)`은 끝에 남은 작은 묶음도 반환한다. 예를 들어 `[0,1,2,3]`에 `buffer(3,1)`을 적용하면 `[[0,1,2], [1,2,3], [2,3], [3]]`이다. `count`와 `skip`은 모두 양수로 사용한다. 현재 구현은 `skip <= 0`을 충분히 검증하지 않아 같은 묶음을 계속 반환할 수 있다.
+`window(size, step)`은 끝에 남은 작은 묶음도 반환한다. 예를 들어 `[0,1,2,3]`에 `window(3,1)`을 적용하면 `[[0,1,2], [1,2,3], [2,3], [3]]`이다. `size`와 `step`은 모두 양수여야 한다(아니면 `IllegalArgumentException`). 2026-11-02에 `buffer(count, skip)`에서 이름을 바꿨다(별칭 없음).
 
 `split()`은 구분자를 결과에서 제외하지만 빈 구간은 유지한다. `["a", ",", ","]`를 쉼표 기준으로 나누면 `[["a"], [], []]`이다. 단 빈 입력은 빈 스트림이다(2026-11-02 이전에는 `[[]]`). 빈 구간이 필요 없으면 `.filter(group -> !group.isEmpty())`를 이어 붙인다.
 
@@ -252,19 +252,20 @@ stream.split(predicate)                   // 조건에 맞는 원소를 구분�
 |---|---|
 | `sample(ratio)` | 각 원소를 독립적인 확률로 선택. 0이면 선택하지 않고 1 이상이면 모두 선택 |
 | `sample(total, ratio)` | 실제 개수가 total일 때 목표 표본 수에 맞춰 선택 확률 조정 |
+| `sample(total, ratio, minSamples)` | 위와 같되 최소 `minSamples`개(최대 total개)를 고름 |
 | `shuffle()` | 첫 조회 시 전체 입력을 읽은 뒤 순서를 섞음 |
 
-`sample(total, ratio)`의 목표 개수는 현재 `max(1, round(total * ratio))`다. 따라서 비율이 0이어도 total이 양수이면 한 개를 선택하고, total이 0이면 생성 시 예외가 발생한다. 목표 개수가 total을 넘는 설정도 거부된다. 정확한 개수를 기대하려면 실제 입력 개수와 total이 같아야 한다.
+`sample(total, ratio)`의 목표 개수는 `round(total * ratio)`다. 비율은 0 이상 1 이하여야 하고, 비율이 0이면(또는 `total * ratio`가 0.5 미만이면) 아무것도 고르지 않는다. 적어도 몇 개는 골라야 하면 `sample(total, ratio, minSamples)`를 쓴다. 목표 개수만큼 고르면 남은 입력은 읽지 않는다. 정확한 개수를 기대하려면 실제 입력 개수와 total이 같아야 한다.
 
 ### 4.7 중간 누적값과 외부 변환 함수
 
 ```java
 List<Integer> sums = FStream.of(1, 2, 3)
-        .reduceLeak(Integer::sum)
+        .scan(Integer::sum)
         .toList();  // [1, 3, 6]
 ```
 
-`reduceLeak()`은 첫 원소부터 중간 누적값을 차례로 반환한다. 초기값이 필요하거나 누적값의 타입이 원소와 다르면 `scan(init, folder)`를 쓴다. `fold()`의 lazy 판으로, 매 단계의 누적값을 차례로 반환한다.
+`scan(combiner)`는 `reduce()`의 lazy 판으로, 첫 원소부터 중간 누적값을 차례로 반환한다(Kotlin `runningReduce`). 2026-11-02에 `reduceLeak()`에서 이름을 바꿨다(검토 #24-1, 별칭 없음). 초기값이 필요하거나 누적값의 타입이 원소와 다르면 `scan(init, folder)`를 쓴다. 이쪽은 `fold()`의 lazy 판이다.
 
 ```java
 List<String> joined = FStream.of(1, 2, 3)
@@ -274,11 +275,11 @@ List<String> joined = FStream.of(1, 2, 3)
 
 결과의 길이는 입력과 같고 초기값 자체는 반환하지 않는다. 첫 원소는 `folder(init, 첫 원소)`다(Scala `scanLeft`·Kotlin `runningFold`는 초기값을 먼저 반환하므로 하나 더 길다). 누적값이 `null`이 되어도 그대로 다음 단계에 전달된다. `scan`은 2026-11-02에 결과가 틀리던 `foldLeak()`(입력값 대신 직전 출력값을 결합해 `[1,2,3,4]`에서 `[1,1,2,4]`를 냄)을 대체했다. `foldLeak()`은 사용처가 없어 별칭 없이 삭제했다.
 
-기존 스트림 변환 함수를 처리 과정에 넣을 때는 `lift()`를 사용한다. `stream.lift(f)`는 `f.apply(stream)`과 같다.
+기존 스트림 변환 함수를 처리 과정에 넣을 때는 `transform()`을 사용한다. `stream.transform(f)`는 `f.apply(stream)`과 같다. `KeyValueFStream`을 받고 돌려주는 함수에는 `transformKeyValues()`를 쓴다. 두 메소드는 2026-11-02에 `lift()`·`liftKeyValues()`에서 이름을 바꿨다(검토 #24, 별칭 없음).
 
 ```java
 FStream<Report> reports = FStream.from(rows)
-        .lift(Normalizers::dropOutliers)
+        .transform(Normalizers::dropOutliers)
         .map(Report::from);
 ```
 
@@ -298,9 +299,9 @@ FStream<Report> reports = FStream.from(rows)
 | 검색 | `findFirst`, `findFirst(predicate)`, `findLast` | `FOption<T>` |
 | 조건 확인 | `exists`, `allMatch`, `noneMatch` | `boolean` |
 | 접두 구간 비교 | `startsWith(prefixStream)` | 두 스트림 모두 정리 |
-| 최댓값·최솟값 | `max`, `min` | **`java.util.Optional<T>`** |
+| 최댓값·최솟값 | `max`, `min` | `FOption<T>`(2026-11-02 이전에는 `java.util.Optional<T>`). `FOption.orElse(x)`는 값이 아니라 `FOption`을 반환하므로 값은 `getOrElse(x)`·`getOrNull()`로 꺼낸다 |
 | 동률까지 선택 | `maxMultiple`, `minMultiple` | `List<T>` |
-| 컬렉션 수집 | `toList`, `toSet`, `toCollection` | 리스트·집합·지정 컬렉션 |
+| 컬렉션 수집 | `toList`, `toSet`, `toCollection` | `List`·`Set`(2026-11-02 이전 선언 타입은 `ArrayList`·`HashSet`; 실제 객체는 지금도 수정 가능한 `ArrayList`·`HashSet`)·지정 컬렉션. 구체 타입이 필요하면 `toCollection(new ArrayList<>())` |
 | 배열 수집 | `toArray(String.class)` | 지정 원소 타입 배열 |
 | 뒤쪽 원소 | `takeLast(n)` | 마지막 n개의 `List<T>`. 전체 입력 소비 |
 | 문자열 결합 | `join(", ")`, `join(", ", "[", "]")`, `join(csv)` | 문자열. `null` 원소는 `"null"` |
@@ -321,27 +322,28 @@ try (java.util.stream.Stream<Integer> javaStream = FStream.range(0, 100).stream(
 ```java
 KeyValueFStream.from(map)
 FStream.from(persons).tagKey(Person::getId)
-FStream.from(rows).mapToKeyValue(Row::getId, Row::getValue)
 FStream.from(rows).mapToKeyValue(row -> KeyValue.of(row.getId(), row.getValue()))
 KeyValueFStream.fromKeyed(keyedObjects)
 ```
 
 원소를 `KeyValue`로 바꿀 때는 `mapToKeyValue`를 쓴다. 값이 원소 자신이면 `tagKey(keyer)`를 쓴다. 같은 일을 하던
-`toKeyValueStream(mapper)`·`toKeyValueStream(keyer, valuer)`는 2026-11-02에 삭제했다(검토 #19, 별칭 없음). 이름만 `mapToKeyValue`로 바꾸면 된다.
+`toKeyValueStream(mapper)`·`toKeyValueStream(keyer, valuer)`는 2026-11-02에 삭제했다(검토 #19, 별칭 없음). 키와 값을 따로 뽑던 호출은
+`mapToKeyValue(t -> KeyValue.of(keyer(t), valuer(t)))`로 바꾼다.
 
 | API | 동작 |
 |---|---|
 | `keys()`, `values()` | 키 또는 값만 추출 |
 | `filterKey`, `filterValue` | 키 또는 값 조건으로 선택 |
+| `filter(Predicate)`, `filter(BiPredicate)`, `filterNot`, `take`, `drop`, `takeWhile`, `dropWhile`, `sort(Comparator)`, `distinct`, `onClose` | `FStream`의 같은 연산과 같고 `KeyValueFStream`을 반환한다(2026-11-02부터, 그 전에는 `KeyValueFStream.from(...)`으로 다시 감싸야 했다). `filter(BiPredicate)`는 키와 값을 따로 받는다 |
 | `mapKey`, `mapValue`, `mapKeyValue` | 키·값 변환. `mapKey`/`mapValue`는 키 또는 값 하나만 받는다 |
 | `mapKeyWithValue`, `mapValueWithKey` | 키와 값을 함께 받아 키 또는 값을 바꿈(2026-11-02 이전 이름: `mapKey`/`mapValue`의 `BiFunction` 오버로드) |
 | `map(BiFunction)`, `flatMap(BiFunction)`, `forEach(BiConsumer)` | 키와 값을 별도 인자로 처리 |
 | `mapOrThrow(CheckedBiFunctionX)` | `map(BiFunction)`의 검사 예외 버전. 예외는 `FStream.mapOrThrow`처럼 선언 없이 원래 예외로 던져짐 |
-| `groupByKey()` | 키별 목록을 가진 `KeyedGroups` 생성. 그룹은 처음 나온 순서, null 값도 목록에 포함. `asMap()`·`get()` 등은 읽기 전용 뷰 |
-| `sortByKey()` | 키의 자연 순서로 정렬 |
+| `groupByKey()` | 키별 목록을 가진 `KeyedGroups` 생성. 그룹은 처음 나온 순서, null 값도 목록에 포함. `asMap()`·`get()` 등은 읽기 전용 뷰. 같은 일을 하던 `toListMap()`은 2026-11-02에 삭제했다(검토 #24). `groupByKey().asMap()`으로 바꾼다 |
+| `sortByKey()`, `sortByKey(Comparator)` | 키의 자연 순서 또는 주어진 비교자 순서로 정렬 |
 | `match(map)`, `flatMatch(map)` | 참조 맵과 키로 연결 |
 | `toMap()`, `toMap(targetMap)` | 키별 값 수집. 중복 키는 나중 값이 덮어씀 |
-| `toListMap()` | 같은 키의 값을 목록으로 수집(`groupByKey()`와 같은 결과를 `HashMap`으로). null 값도 포함 |
+| `reduceByKey(reducer)`, `toMap(targetMap, merger)` | 중복 키의 값을 함수로 합침(2026-11-02 추가). `reduceByKey`는 처음 나온 키 순서의 맵. 합친 결과가 `null`이면 IAE |
 
 ```java
 Map<String, Integer> countByDepartment = FStream.from(employees)
@@ -351,6 +353,8 @@ Map<String, Integer> countByDepartment = FStream.from(employees)
         .mapValue(List::size)
         .toMap();
 ```
+
+`KeyedGroups`는 키별 값 목록이다. `fstream()`은 `(키, 값 목록)` 스트림을, `ungroup()`은 다시 `(키, 값)` 스트림을 낸다. `size()`는 전체 값의 수, `groupCount()`는 키의 수다. `asMap()`·`keySet()`·`get()`·`getOrDefault()`는 읽기 전용이고, 내용을 바꾸는 것은 `add()`·`remove()`뿐이다. 다만 `fstream()`이 내는 목록은 내부 목록 그대로라서 고치면 그룹에 반영된다.
 
 `match()`의 값은 원래 값과 참조 맵의 값을 묶은 `Tuple<V,R>`이다. 일치 여부는 참조 맵에 키가 있는지(`containsKey`)로 판단하므로, 참조 맵에 값이 null로 들어 있는 키도 일치한 것으로 전달된다(튜플의 두 번째 값이 null). 2026-11-01 이전에는 이런 항목을 일치하지 않은 것으로 보아 버렸다. `keepUnmatched=true`이면 일치하지 않은 항목도 유지하며, 튜플의 두 번째 값이 null이다. 따라서 이때는 두 경우를 튜플만으로 구분할 수 없다. `flatMatch()`는 값 목록을 담은 참조 맵과 일대다로 연결하여, 목록의 값마다 `(키, (원래 값, 참조 값))` 한 행을 낸다. 참조 값이 하나도 없는 원소(빈 목록, null 목록, 맵에 없는 키)는 모두 "일치하지 않음"으로 같게 다룬다. `keepUnmatched=false`(inner join)이면 이런 원소는 나오지 않고, `true`(left outer join)이면 `(원래 값, null)` 한 행으로 남는다.
 
@@ -362,9 +366,7 @@ Map<String, Integer> countByDepartment = FStream.from(employees)
 
 키의 존재만 보는 `match()`와 달리 null 목록을 일치로 보지 않는다. 2026-11-02 이전에는 null 목록이 inner join에서도 `(v, null)`을 냈고, 빈 목록은 outer join에서도 원소가 사라졌다.
 
-일반 `FStream`에는 `lookup(map[, keepUnmatched])`과 `lookup(function, keepUnmatched)`도 있다. 각 원소를 키로 보고 조회한 값을 붙인 `(원소, 값)` 쌍을 낸다. 맵을 받는 버전은 `match()`와 같이 키의 존재(`containsKey`)로 판단하므로 값이 null인 키도 `(원소, null)`로 일치한다. 조회 함수를 받는 버전은 키의 존재를 알 수 없으므로 함수가 null을 반환하면 일치하지 않은 것으로 본다. 2026-11-02 이전에는 맵 버전도 `get()` 결과가 null이면 일치하지 않은 것으로 보았다. 패키지 내부에 조인 구현 클래스가 있지만 `outerJoin()` 공개 진입점은 주석 처리되어 있으므로 실제 사용에는 `match`, `flatMatch`, `lookup`을 이용한다.
-
-현재 `toListMap()`은 일반 반복문으로 구현되어 예외·빈 입력에서의 자동 정리가 주요 종단 연산과 같지 않다. 자원이 있는 스트림은 `try-with-resources`로 감싼다.
+일반 `FStream`에는 `lookup(map[, keepUnmatched])`과 `lookup(function, keepUnmatched)`도 있다. 각 원소를 키로 보고 조회한 값을 붙인 `(원소, 값)` 쌍을 낸다. 맵을 받는 버전은 `match()`와 같이 키의 존재(`containsKey`)로 판단하므로 값이 null인 키도 `(원소, null)`로 일치한다. 조회 함수를 받는 버전은 키의 존재를 알 수 없으므로 함수가 null을 반환하면 일치하지 않은 것으로 본다. 2026-11-02 이전에는 맵 버전도 `get()` 결과가 null이면 일치하지 않은 것으로 보았다. 조인이 필요하면 `match`, `flatMatch`, `lookup`을 이용한다.
 
 ## 7. 숫자·논리값용 스트림
 
@@ -372,13 +374,13 @@ Map<String, Integer> countByDepartment = FStream.from(employees)
 
 | 타입 | 대표 생성 방법 | 전용 연산 |
 |---|---|---|
-| [`IntFStream`](IntFStream.java) | `IntFStream.range`·`FStream.range`, `of(int...)`, `mapToInt` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
+| [`IntFStream`](IntFStream.java) | `IntFStream.range`·`FStream.range`, `of(int...)`, `mapToInt`, `toIntFStream()`(원소가 이미 `Integer`일 때) | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
 | [`LongFStream`](LongFStream.java) | `LongFStream.range`, `of(long...)`, `mapToLong` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
 | [`FloatFStream`](FloatFStream.java) | `of(float...)`, `mapToFloat` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
 | [`DoubleFStream`](DoubleFStream.java) | `of(double...)`, `FStream.of(double[])`, `mapToDouble` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
+| [`BooleanFStream`](BooleanFStream.java) | `BooleanFStream.of(boolean[])`, `mapToBoolean` | `andAll`, `orAll`, `toArray` |
 
 Int·Long·Float·Double 스트림은 생성 방법도 같다. 기본형 값은 `of(...)`, 박싱 배열은 `from(Integer[])` 등, 컬렉션은 `from(Iterable)`, 기존 `FStream<Integer>` 등은 `downcast(stream)`으로 감싼다. 2026-11-02 이전에는 박싱 배열용도 `of(Long...)` 같은 이름이어서 `LongFStream.of(1L, 2L)` 같은 리터럴 호출이 모호성 컴파일 오류가 났다.
-| [`BooleanFStream`](BooleanFStream.java) | `BooleanFStream.of(boolean[])`, `mapToBoolean` | `andAll`, `orAll`, `toArray` |
 
 ```java
 double average = FStream.of(10, 20, 30)
@@ -397,38 +399,49 @@ List<String> labels = FStream.range(0, 3)
 
 ### 8.1 실행 옵션
 
-`AsyncExecutionOptions`의 변경 메서드는 새 객체를 반환한다. 반환값을 사용해야 설정이 반영된다.
+`AsyncExecutionOptions`는 불변 객체다. `withXxx()`는 값을 바꾼 새 객체를 반환하므로 반환값을 사용해야 설정이 반영된다. 2026-11-02에 `setXxx()`에서 이름을 바꿨고(별칭 없음), 실행에 쓰이지 않던 timeout 설정(`setTimeout`·`TIMEOUT`·`getTimeoutMillis`)은 지웠다.
 
 | 항목 | 기본값 | 현재 동작 |
 |---|---|---|
 | `keepOrder` | false | true이면 결과를 입력 순서대로 반환 |
 | `workerCount` | `max(1, CPU 수 - 2)` | 동시에 진행할 작업 수. 1 이상 |
 | `executor` | null | 매핑에서는 기본 비동기 실행기 사용 |
-| `timeoutMillis` | -1 | 값은 보관하지만 현재 스트림 구현에서는 실행 제한에 사용하지 않음 |
 
 ```java
 AsyncExecutionOptions options = AsyncExecutionOptions.WORKER_COUNT(4)
-        .setKeepOrder(true)
-        .setExecutor(pool);
+        .withKeepOrder(true)
+        .withExecutor(pool);
 ```
 
-`setTimeout()`이나 `TIMEOUT()`만으로 느린 매핑 작업을 중단할 수는 없다. 실제 호출하는 I/O 작업이나 별도의 실행 제어 계층에 제한 시간을 설정한다. 직접 제공한 실행기는 호출자가 종료한다.
+느린 매핑 작업에 제한 시간이 필요하면 실제 호출하는 I/O 작업이나 별도의 실행 제어 계층에 설정한다. 직접 제공한 실행기는 호출자가 종료한다.
 
 ### 8.2 결과와 실패 처리
 
-`mapAsync()`와 `mapCheckedAsync()`의 결과 원소는 모두 **입력과 결과를 묶은 `Tuple<T, Try<R>>`**다. 두 메서드는 받는 함수 타입(비검사 `Function` / 검사 예외를 허용하는 `CheckedFunction`)만 다르고 동작은 같다.
+비동기 연산의 이름은 실패 처리 방식을 따른다. 접미사가 없으면 실패를 결과 스트림의 오류로 전파하고, `ToTry`가 붙으면 실패를 결과에 담는다(동기 연산의 `mapToTry`와 같은 규칙).
+
+| 연산 | 결과 원소 | 매핑 함수의 실패 |
+|---|---|---|
+| `mapAsync(mapper[, options])` | 매핑 값 | 그 원소를 꺼낼 때 원래 예외로 던짐 |
+| `mapAsyncToTry(mapper[, options])` | `MappingResult<T,R>`(입력과 `Try`) | 그 원소의 `result()`에 `Try.failure`로 담고 계속 |
+| `flatMapAsync(mapper[, options])` | 하위 스트림의 원소 | 원래 예외로 던짐(8.4) |
+
+세 연산 모두 검사 예외를 던질 수 있는 `CheckedFunction`을 받는다. 예외를 던지지 않는 람다나 메서드 참조도 그대로 넘길 수 있다. `Function` 타입 변수는 `f::apply`로 넘긴다. 매핑 함수가 던진 검사 예외는 결과를 읽는 쪽에 선언 없이 전달된다(`mapOrThrow`와 같다, 4.1 참고).
 
 ```java
-FStream.of("10", "bad", "30")
+List<Integer> values = FStream.of("10", "20", "30")
         .mapAsync(Integer::parseInt, AsyncExecutionOptions.WORKER_COUNT(2))
-        .forEach(pair -> pair._2()
-                .ifSuccessful(value -> System.out.println(pair._1() + " → " + value))
-                .ifFailed(error -> System.err.println(pair._1() + " 변환 실패: " + error)));
+        .toList();     // 하나라도 실패하면 그 NumberFormatException이 던져짐
+
+FStream.of("10", "bad", "30")
+        .mapAsyncToTry(Integer::parseInt, AsyncExecutionOptions.WORKER_COUNT(2))
+        .forEach(r -> r.result()
+                .ifSuccessful(value -> System.out.println(r.input() + " → " + value))
+                .ifFailed(error -> System.err.println(r.input() + " 변환 실패: " + error)));
 ```
 
-매핑 함수의 예외는 해당 원소의 `Try.failure`로 전달한다. 검사 예외를 던지는 함수와 옵션을 함께 전달하려면 `mapCheckedAsync(mapper, options)`를 쓴다. 옵션 없이 호출하는 `mapAsync(mapper)`도 검사 예외를 허용한다.
+`MappingResult`는 `input()`, `result()`(`Try`), `isSuccessful()`, `isFailed()`, `get()`(실패면 원래 예외를 던짐)을 제공한다. 입력 스트림에서 다음 원소를 꺼내다 난 예외는 특정 원소에 묶을 수 없으므로 두 연산 모두에서 스트림 전체의 실패가 된다. 이미 나온 결과를 모두 받은 뒤 다음 `next()`에서 원래 예외로 던져진다.
 
-입력 스트림 자체에서 값을 읽는 중 발생하는 오류까지 모두 `Try`에 담긴다는 뜻은 아니다. 실패를 무시하면 안 되는 작업에서는 각 `Try`를 검사하고, 필요하면 원인을 기록하거나 처리 전체를 중단한다.
+2026-11-02에 이름을 정리했다(별칭 없음). 예전의 `mapAsync`·`mapCheckedAsync`(결과가 `Tuple<T, Try<R>>`)는 `mapAsyncToTry`가 되었고, 결과 원소는 `MappingResult`가 되었다(`_1()` → `input()`, `_2()` → `result()`). `flatMapCheckedAsync`는 `flatMapAsync`로 합쳤다. `mapAsync`는 실패를 전파하는 새 연산이다.
 
 ### 8.3 결과 순서
 
@@ -452,13 +465,11 @@ FStream<Record> records = FStream.from(files)
 
 `keepOrder=true`이면 매핑 함수 호출(하위 스트림 생성)만 병렬로 하고, 하위 스트림은 결과를 소비하는 스레드가 입력 순서대로 하나씩 끝까지 읽는다. 생성이 비싸고 읽기가 싼 경우에 맞다. `false`이면 `mergeParallel()`로 워커가 하위 스트림 읽기까지 맡으므로 원소가 서로 섞일 수 있다.
 
-`flatMapAsync()`와 `flatMapCheckedAsync()`는 받는 함수 타입만 다르다. `flatMapCheckedAsync()`는 검사 예외를 던질 수 있는 `CheckedFunction`을 받고, 그 예외는 결과를 읽는 쪽에 선언 없이 전달된다. 순서·병렬성·실패 전파·닫기 동작은 같다.
-
 `keepOrder=true`에서 결과 스트림을 중간에 닫으면 읽던 하위 스트림과, 미리 만들어 두었지만 아직 읽지 않은 하위 스트림을 닫는다. 닫을 때 진행 중이던 매핑 함수가 나중에 만든 하위 스트림도 만들어지는 즉시 비동기로 닫는다. 따라서 `close()`가 돌아온 직후에는 일부가 아직 닫히지 않았을 수 있다. 2026-11-02 이전에는 읽지 않은 하위 스트림이 닫히지 않았다.
 
-`flatMapAsync()`·`flatMapCheckedAsync()`·`mergeParallel()`은 실패를 결과 스트림의 오류로 전파한다. 매핑 함수가 예외를 던지거나 하위 스트림을 읽는 중 예외가 나면, 그때까지 나온 원소를 받은 뒤 다음 원소를 꺼낼 때 감싸지 않은 원래 예외가 던져진다(검사 예외는 `mapOrThrow`처럼 선언 없이 전달된다, 4.1 참고). 순서를 보존하지 않는 경우(`keepOrder=false`, `mergeParallel`)는 처음 실패 뒤로 새 입력을 처리하지 않고, 진행 중인 다른 워커도 다음 출력에서 멈춘다. 여러 워커가 실패해도 처음 예외만 전달한다. 워커가 인터럽트되면 `InterruptedException`으로 실패한다.
+`flatMapAsync()`·`mergeParallel()`은 실패를 결과 스트림의 오류로 전파한다. 매핑 함수가 예외를 던지거나 하위 스트림을 읽는 중 예외가 나면, 그때까지 나온 원소를 받은 뒤 다음 원소를 꺼낼 때 감싸지 않은 원래 예외가 던져진다(검사 예외는 `mapOrThrow`처럼 선언 없이 전달된다, 4.1 참고). 순서를 보존하지 않는 경우(`keepOrder=false`, `mergeParallel`)는 처음 실패 뒤로 새 입력을 처리하지 않고, 진행 중인 다른 워커도 다음 출력에서 멈춘다. 여러 워커가 실패해도 처음 예외만 전달한다. 워커가 인터럽트되면 `InterruptedException`으로 실패한다.
 
-일부 입력의 실패를 허용하려면 매핑 함수 안에서 처리한다. 예를 들어 실패하면 `FStream.empty()`를 반환하게 한다. 입력별 성공·실패를 모두 알아야 하면 `mapAsync()`로 `Try`를 받아 처리한다. 2026-11-02 이전에는 실패한 입력을 흔적 없이 건너뛰어 결과 일부가 조용히 빠졌다.
+일부 입력의 실패를 허용하려면 매핑 함수 안에서 처리한다. 예를 들어 실패하면 `FStream.empty()`를 반환하게 한다. 입력별 성공·실패를 모두 알아야 하면 `mapAsyncToTry()`로 받아 처리한다. 2026-11-02 이전에는 실패한 입력을 흔적 없이 건너뛰어 결과 일부가 조용히 빠졌다.
 
 `mergeParallel(streams, workerCount, executor)`는 각 워커가 하위 스트림 하나를 끝까지 읽은 뒤 다음 스트림을 맡는 방식이다. executor가 null이면 비동기 매핑과 같이 `CompletableFuture`의 기본 풀(공용 `ForkJoinPool`)에서 실행된다. 하위 스트림을 읽는 작업이 오래 막히면 공용 풀을 점유하므로, 블로킹 I/O가 많으면 전용 executor를 지정한다.
 
@@ -604,14 +615,14 @@ class CounterStream extends FStreams.AbstractFStream<Integer> {
 |---|---|---|
 | `map`, `filter`, `take`, `drop`, `zipWith` | 결과 조회 시 | 조건에 따라 결과 하나를 위해 여러 입력을 읽을 수 있음 |
 | `distinct` | 결과 조회 시 | 이미 본 키를 계속 보관 |
-| `buffer`, `split` | 다음 묶음 요청 시 | `split`에 구분자가 없으면 큰 묶음이 만들어짐 |
+| `window`, `split` | 다음 묶음 요청 시 | `split`에 구분자가 없으면 큰 묶음이 만들어짐 |
 | `quasiSort(n)` | 조회 시 최대 n+1개 정도 선행 읽기 | 전체 정렬 보장 없음 |
 | `dropLast(n)` | 처음 n개를 보관하고 이후 한 개씩 읽기 | 전체 입력을 미리 읽지 않음 |
 | `takeLast(n)` | 호출 시 끝까지 읽기 | 마지막 n개만 보관하는 종단 연산 |
 | `sort` | 호출 즉시 끝까지 읽기 | 반환값이 스트림이어도 입력은 이미 소비됨 |
 | 양수 k의 `takeTopK` | 첫 조회 시 끝까지 읽기 | k개만 보관 |
 | `shuffle` | 첫 조회 시 끝까지 읽기 | 전체 입력을 메모리에 보관 |
-| `mapAsync`, `flatMapAsync`, `mergeParallel` | 첫 조회 때 시작, 이후 선행 실행 | 소비한 결과보다 더 많은 작업이 이미 시작될 수 있음 |
+| `mapAsync`, `mapAsyncToTry`, `flatMapAsync`, `mergeParallel` | 첫 조회 때 시작, 이후 선행 실행 | 소비한 결과보다 더 많은 작업이 이미 시작될 수 있음 |
 
 ## 12. 문제 상황별 확인 사항
 
@@ -620,8 +631,7 @@ class CounterStream extends FStreams.AbstractFStream<Integer> {
 | 두 번째 수집에서 값이 없거나 예외가 남 | 스트림은 일회성. 원본 컬렉션에서 새로 생성 |
 | `mapOrThrow()` 뒤 `catch (IOException e)`가 "never thrown" 컴파일 오류 | 종단 연산이 `throws`를 선언하지 않음. 메서드에 `throws` 선언, `catch (Exception)` 후 구분, 또는 `forEachOrThrow`·`tryMap` 사용(4.1) |
 | `takeTopK(k, comparator)`에서 작은 값이 나옴 | 비교자 순서의 앞쪽 k개를 고름. 큰 값은 내림차순 비교자를 넘기거나 `takeTopK(k)` 사용 |
-| 비동기 매핑 일부 결과가 빠진 것처럼 보임 | `mapAsync`의 `Try.failure` 처리 여부 확인(`flatMapAsync`는 실패를 예외로 전파) |
-| 설정한 매핑 제한 시간이 적용되지 않음 | `timeoutMillis`는 현재 실행에 사용되지 않음 |
+| 비동기 매핑 일부 결과가 빠진 것처럼 보임 | `mapAsyncToTry`의 `isFailed()` 결과를 처리했는지 확인(`mapAsync`·`flatMapAsync`는 실패를 예외로 전파) |
 | `close()` 뒤에도 외부 작업이 계속됨 | 생성기·매핑·병합의 종료 대기와 취소 범위 확인 |
 | 종료된 공유 채널에서 `supply()` 예외가 남 | 소비자의 `close()`나 생산 종료 이후에는 추가 적재 불가 |
 | 무한 입력에서 정렬·수집이 끝나지 않음 | 전체 소비 연산 전에 `take()` 등으로 제한 |

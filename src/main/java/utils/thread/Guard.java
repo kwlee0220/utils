@@ -89,7 +89,6 @@ public class Guard {
 	 * <p>
 	 * lock을 바로 얻을 수 있으면 인터럽트 여부와 관계없이 얻는다(이미 인터럽트 플래그가 켜진 쓰레드라도 조건이 참이면
 	 * 기다리지 않고 진행하던 기존 동작을 유지한다). 다른 쓰레드가 lock을 보유하고 있으면 인터럽트 가능하게 기다린다.
-	 * 2026-10-31 이전에는 {@link #lock()}으로 기다려, lock을 기다리는 동안의 인터럽트를 무시하고 이후 작업까지 실행했다.
 	 *
 	 * @throws InterruptedException	lock을 기다리는 동안 인터럽트된 경우
 	 */
@@ -533,9 +532,6 @@ public class Guard {
 	 * {@code *Checked} 종결 메소드는 작업의 실패를 {@link ExecutionException}으로 감싼다. 단, {@link InterruptedException}은
 	 * 감싸지 않고 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다. 인터럽트는 예외로만 알리고
 	 * 인터럽트 플래그는 다시 켜지 않는다.
-	 * <p>
-	 * (2026-10-31 이전에는 {@link AwaitCondition}과 {@link TimedAwaitCondition}이 종결 메소드 5개를 각자 거의 똑같이
-	 * 구현했다. 검토 #16.)
 	 *
 	 * @param <X>	조건 대기가 실패할 때 던지는 예외 타입. 무한 대기는 {@link RuntimeException}(호출자가 따로 처리할
 	 * 				필요가 없음), 시간 제한 대기는 {@link TimeoutException}.
@@ -718,7 +714,7 @@ public class Guard {
 				}
 				finally {
 					// 사전 작업이 바꾼 상태를 기다리는 대기자가 있을 수 있으므로 성공·실패와 관계없이 알린다(실패 시 예외는
-					// 그대로 전파). 2026-10-31 이전에는 실패할 때만 알려, 사전 작업으로 등록한 요청을 기다리던 쪽이 깨지 않았다.
+					// 그대로 전파).
 					m_guard.signalAll();
 				}
 			}
@@ -805,8 +801,7 @@ public class Guard {
 		void awaitPrecondition(Guard guard, BooleanSupplier precondition) throws InterruptedException, TimeoutException {
 			// 두 방식 모두 "조건 확인 → 남은 시간 확인 → 대기" 순서로, 시간이 다 되어 깨어나도 조건을 한 번 더 확인한다.
 			if ( m_due != null ) {
-				// 절대 시각 기반 대기. 2026-10-31 이전에는 awaitSignalUntil(due)(당시 awaitSignal(Date))가 false를 반환하면 조건을 다시 보지 않고
-				// 시간 초과로 처리해, 기한 직전에 조건이 충족되어도 TimeoutException이 났다.
+				// 절대 시각 기반 대기.
 				while ( !precondition.getAsBoolean() ) {
 					// 차이를 계산하지 않고 직접 비교한다(new Date(Long.MIN_VALUE) 등에서 뺄셈이 넘쳐 미래로 판정되면,
 					// 즉시 반환하는 awaitUntil과 조건 확인을 끝없이 반복한다).

@@ -14,8 +14,7 @@ import utils.KeyValue;
  * {@link KeyValueFStream#mapKey}·{@link KeyValueFStream#mapValue}가 오버로드가 있는 메소드 참조를 받는지,
  * 키와 값을 함께 쓰는 변형({@code mapKeyWithValue}·{@code mapValueWithKey})이 동작하는지 검증한다.
  * <p>
- * 2026-11-02 이전에는 {@code BiFunction} 버전도 이름이 {@code mapKey}/{@code mapValue}여서
- * {@code mapKey(Objects::toString)}이 모호성 컴파일 오류였다. 이 파일이 컴파일되는 것이 검증의 일부다.
+ * 이 파일이 컴파일되는 것이 검증의 일부다.
  *
  * @author Kang-Woo Lee (ETRI)
  */

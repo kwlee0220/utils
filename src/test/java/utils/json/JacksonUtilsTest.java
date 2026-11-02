@@ -43,7 +43,6 @@ public class JacksonUtilsTest {
 
 	@Test
 	public void stringField_rejectsContainers() throws IOException {
-		// 이전에는 객체·배열을 예외 없이 ""로 읽었다.
 		JsonNode node = json("{\"obj\":{\"x\":1},\"arr\":[1,2]}");
 		JacksonDeserializationException e = assertThrows(JacksonDeserializationException.class,
 												() -> JacksonUtils.getStringFieldOrNull(node, "obj"));
@@ -89,7 +88,6 @@ public class JacksonUtilsTest {
 
 	@Test
 	public void booleanField_rejectsOtherValues() throws IOException {
-		// 이전에는 "yes"·숫자·객체를 예외 없이 false로 읽었다.
 		JsonNode node = json("{\"yes\":\"yes\",\"one\":1,\"obj\":{}}");
 		JacksonDeserializationException e = assertThrows(JacksonDeserializationException.class,
 												() -> JacksonUtils.getBooleanFieldOrNull(node, "yes"));
@@ -106,7 +104,6 @@ public class JacksonUtilsTest {
 		assertEquals(42, JacksonUtils.getIntFieldOrDefault(node, "i", -1));
 		assertEquals(-7, JacksonUtils.getIntFieldOrDefault(node, "neg", -1));
 		assertEquals(-1, JacksonUtils.getIntFieldOrDefault(node, "none", -1));
-		// 이전에는 "abc" → 0, 3.9 → 3으로 예외 없이 읽었다.
 		assertThrows(JacksonDeserializationException.class, () -> JacksonUtils.getIntFieldOrDefault(node, "s", -1));
 		assertThrows(JacksonDeserializationException.class, () -> JacksonUtils.getIntFieldOrDefault(node, "f", -1));
 		assertThrows(JacksonDeserializationException.class, () -> JacksonUtils.getIntFieldOrDefault(node, "big", -1));
@@ -116,7 +113,7 @@ public class JacksonUtilsTest {
 		assertThrows(JacksonDeserializationException.class, () -> JacksonUtils.getIntField(node, "none"));
 	}
 
-	// --- long·double 필드(#10) ---
+	// --- long·double 필드 ---
 
 	@Test
 	public void longField_acceptsLongRangeIntegers() throws IOException {
@@ -149,7 +146,7 @@ public class JacksonUtilsTest {
 		assertThrows(JacksonDeserializationException.class, () -> JacksonUtils.getDoubleFieldOrNull(huge, "y"));
 	}
 
-	// --- JSON null과 필드 누락(#15) ---
+	// --- JSON null과 필드 누락 ---
 
 	@Test
 	public void jsonNull_isTreatedAsMissingForEveryType() throws IOException {
@@ -217,13 +214,12 @@ public class JacksonUtilsTest {
 		assertNull(JacksonUtils.getArrayFieldOrNull(node, "nul"));
 		assertTrue(JacksonUtils.getArrayFieldOrEmpty(node, "none").isEmpty());
 		assertEquals(3, JacksonUtils.getArrayFieldOrEmpty(node, "arr").size());
-		// 필수 조회는 필드가 없으면 IOException(이전에는 null을 받은 호출자가 엉뚱한 곳에서 실패했다).
+		// 필수 조회는 필드가 없으면 IOException.
 		assertThrows(IOException.class, () -> JacksonUtils.getArrayField(node, "none"));
 	}
 
 	@Test
 	public void arrayField_rejectsNonArrays() throws IOException {
-		// 이전에는 객체의 필드 값들이나, 스칼라이면 빈 반복자를 돌려줬다.
 		JsonNode node = json("{\"obj\":{\"k\":5},\"num\":7}");
 		JacksonDeserializationException e = assertThrows(JacksonDeserializationException.class,
 												() -> JacksonUtils.getArrayFieldOrNull(node, "obj"));
@@ -232,11 +228,10 @@ public class JacksonUtilsTest {
 		assertThrows(JacksonDeserializationException.class, () -> JacksonUtils.getArrayField(node, "num"));
 	}
 
-	// --- 공유 매퍼 설정(#4) ---
+	// --- 공유 매퍼 설정 ---
 
 	@Test
 	public void mapper_writesDatesAsIsoStrings() throws IOException {
-		// 이전에는 Instant를 1720590037.123000000처럼 숫자로 썼다.
 		Instant instant = Instant.parse("2024-07-10T05:40:37.123Z");
 		assertEquals("\"2024-07-10T05:40:37.123Z\"", JacksonUtils.MAPPER.writeValueAsString(instant));
 		assertEquals("\"2024-07-10T14:40:37\"",
@@ -244,17 +239,17 @@ public class JacksonUtilsTest {
 		assertEquals("\"2024-07-10T05:40:37.123Z\"",
 					JacksonUtils.newJsonMapper(true).writeValueAsString(instant));
 
-		// 읽을 때는 ISO 문자열과 예전 숫자 형식을 모두 받는다.
+		// 읽을 때는 ISO 문자열과 숫자(epoch 초) 형식을 모두 받는다.
 		assertEquals(instant, JacksonUtils.MAPPER.readValue("\"2024-07-10T05:40:37.123Z\"", Instant.class));
 		assertEquals(instant, JacksonUtils.MAPPER.readValue("1720590037.123000000", Instant.class));
 	}
 
-	// --- getField 예외 메시지(#5) ---
+	// --- getField 예외 메시지 ---
 
 	@Test
 	public void getField_messageListsFieldNamesButNotValues() throws IOException {
 		JsonNode node = json("{\"url\":\"jdbc:x\",\"password\":\"s3cret\"}");
-		// 필드 누락도 타입 불일치와 같은 JacksonDeserializationException(IOException의 하위 타입)이다(#11).
+		// 필드 누락도 타입 불일치와 같은 JacksonDeserializationException(IOException의 하위 타입)이다.
 		IOException e = assertThrows(JacksonDeserializationException.class, () -> JacksonUtils.getField(node, "user"));
 		assertEquals("Field not found: field=user, available fields=[url, password]", e.getMessage());
 		assertTrue(!e.getMessage().contains("s3cret"), e.getMessage());
@@ -294,7 +289,7 @@ public class JacksonUtilsTest {
 
 	@Test
 	public void exception_isIOExceptionAndPassesThroughJackson() throws IOException {
-		// IOException 계열이므로 Jackson deserializer 안에서 던져도 감싸이지 않는다(#11).
+		// IOException 계열이므로 Jackson deserializer 안에서 던져도 감싸이지 않는다.
 		assertTrue(IOException.class.isAssignableFrom(JacksonDeserializationException.class));
 		JsonNode node = json("{\"x\":1}");
 		@SuppressWarnings("serial")
@@ -316,7 +311,6 @@ public class JacksonUtilsTest {
 
 	@Test
 	public void exceptionMessage_doesNotRepeatTheCause() {
-		// 이전에는 "java.lang.IllegalStateException: boom, cause=java.lang.IllegalStateException: boom"이었다.
 		IllegalStateException cause = new IllegalStateException("boom");
 		assertEquals(cause.toString(), new JacksonDeserializationException(cause).getMessage());
 		assertEquals("bad", new JacksonDeserializationException("bad", cause).getMessage());

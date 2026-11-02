@@ -40,7 +40,6 @@ public class ScanTest {
 
 	@Test
 	public void a_null_accumulation_is_carried_over_instead_of_restarting() {
-		// 이전 구현은 null을 "첫 호출" 표시로 써서, 결합 결과가 null이면 상태가 처음으로 돌아갔다.
 		// 처음으로 돌아가면 "c" 단계가 초기값 "x"로 시작해 "xc"가 된다.
 		List<String> out = FStream.of("a", "b", "c")
 									.scan("x", (s, t) -> t.equals("b") ? null : String.valueOf(s) + t)

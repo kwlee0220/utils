@@ -572,8 +572,7 @@ public class CommandExecutionTest {
 
 	@Test
 	public void testInputNoneGivesImmediateEof() throws Exception {
-		// Input.none()은 null device를 읽기용으로 연결해야 한다. (예전에는 출력 전용인 Redirect.DISCARD를
-		// redirectInput()에 넘겨 IllegalArgumentException으로 FAILED되었다.)
+		// Input.none()은 null device를 읽기용으로 연결해야 한다.
 		// stdin을 읽는 cat은 즉시 EOF를 받아 빈 출력으로 정상 종료해야 한다.
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/cat")
@@ -712,8 +711,7 @@ public class CommandExecutionTest {
 
 	@Test
 	public void testDefaultStdinGivesImmediateEof() throws Exception {
-		// stdin을 설정하지 않으면 null device가 연결되어야 한다. (예전 기본값인 PIPE는 아무도 쓸 수 없어
-		// stdin을 읽는 cat이 영원히 멈췄다.)
+		// stdin을 설정하지 않으면 null device가 연결되어야 한다.
 		try ( CommandExecution exec = CommandExecution.builder()
 														.addCommand("/bin/cat")
 														.workingDirectory(m_workDir)
@@ -800,7 +798,7 @@ public class CommandExecutionTest {
 	@Test
 	public void testCancelDoesNotWaitForProcessTermination() throws Exception {
 		// SIGTERM을 무시하는 프로세스라도 cancel(true)는 grace(1초) 동안 기다리지 않고 곧바로 반환해야 한다.
-		// (예전에는 cancelWork()가 호출 쓰레드에서 grace만큼 대기했다.) 프로세스는 이후 SIGKILL로 정리된다.
+		// 프로세스는 이후 SIGKILL로 정리된다.
 		File ready = new File(m_workDir, "ready");
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/sh", "-c",
@@ -925,7 +923,7 @@ public class CommandExecutionTest {
 
 	@Test
 	public void testStderrFileAppend() throws Exception {
-		// 예전 API에는 없던 조합: stderr를 파일 뒤에 이어 쓴다.
+		// stderr를 파일 뒤에 이어 쓴다.
 		File errFile = new File(m_workDir, "err.txt");
 		Files.writeString(errFile.toPath(), "previous\n", StandardCharsets.UTF_8);
 

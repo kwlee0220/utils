@@ -33,9 +33,6 @@ import utils.Preconditions;
  * {@link JsonNodeDeserializer}에 전달되지 않는다.
  * <p>
  * 노드는 현재 역직렬화 컨텍스트로 읽는다({@link DeserializationContext#readTree(JsonParser)}).
- * 2026-11-01 이전에는 {@code parser.getCodec().readTree(parser)}를 썼는데, 이 호출은 최상위 값을 읽는 경로라서
- * {@code DeserializationFeature.FAIL_ON_TRAILING_TOKENS}를 켜면 배열의 다음 원소나 객체의 다음 필드를 후행 토큰으로
- * 보고 실패했다.
  *
  * @param <T>	역직렬화 대상 타입.
  * @author Kang-Woo Lee (ETRI)

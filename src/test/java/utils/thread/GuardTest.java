@@ -310,7 +310,7 @@ public class GuardTest {
 			}
 		});
 		future.join();
-		// InterruptedException을 던지므로 플래그는 다시 켜지 않는다(2026-10-31 이전에는 켜서 이중으로 알렸다).
+		// InterruptedException을 던지므로 플래그는 다시 켜지 않는다.
 		assertFalse(interruptFlagPreserved.get(),
 					"InterruptedException을 던질 때 인터럽트 플래그를 다시 켜지 않아야 함");
 	}
@@ -459,7 +459,6 @@ public class GuardTest {
 	@Test
 	public void preAction_successWakesOtherWaiters() throws Exception {
 		// 요청-응답 조율: 소비자는 요청을, 생산자는 preAction으로 요청을 등록한 뒤 응답을 기다린다.
-		// 이전에는 preAction이 정상 반환하면 알리지 않아, 소비자가 깨지 않고 양쪽 모두 시간 초과까지 기다렸다.
 		AtomicBoolean requested = new AtomicBoolean(false);
 		AtomicBoolean responded = new AtomicBoolean(false);
 		CompletableFuture<Void> consumer = CompletableFuture.runAsync(() -> {
@@ -577,7 +576,6 @@ public class GuardTest {
 
 	@Test
 	public void timedWait_interrupted_throwsWithoutSettingTheFlagAgain() throws Exception {
-		// 이전에는 플래그를 다시 켠 뒤 던져, 예외를 잡아 정리하며 다시 기다리면 곧바로 또 인터럽트되었다.
 		CompletableFuture<Boolean> flagAfterCatch = CompletableFuture.supplyAsync(() -> {
 			Thread.currentThread().interrupt();
 			try {
@@ -596,8 +594,7 @@ public class GuardTest {
 
 	@Test
 	public void dueWait_rechecksConditionWhenTheDueIsReached() throws Exception {
-		// 조건이 기한에 맞춰 (신호 없이) 참이 된다. 이전에는 awaitSignalUntil(due)(당시 awaitSignal(Date))가 false를 반환하면 조건을 다시 보지
-		// 않고 TimeoutException을 던졌다.
+		// 조건이 기한에 맞춰 (신호 없이) 참이 된다.
 		Date due = new Date(System.currentTimeMillis() + 100);
 		m_guard.awaitCondition(() -> System.currentTimeMillis() >= due.getTime(), due).andReturn();
 	}
@@ -612,7 +609,6 @@ public class GuardTest {
 
 	@Test
 	public void checkedTerminals_rethrowVirtualMachineErrorUnwrapped() throws Exception {
-		// 이전에는 OutOfMemoryError·StackOverflowError도 ExecutionException으로 감쌌다.
 		StackOverflowError soe = new StackOverflowError("test");
 		StackOverflowError e1 = assertThrows(StackOverflowError.class,
 											() -> m_guard.awaitCondition(() -> true).andRunChecked(() -> { throw soe; }));
@@ -677,7 +673,6 @@ public class GuardTest {
 
 	@Test
 	public void hugeDuration_doesNotOverflow() throws Exception {
-		// 이전에는 Duration.toNanos()가 넘쳐, 조건이 이미 참이어도 ArithmeticException이 났다.
 		m_guard.awaitCondition(() -> true, Duration.ofSeconds(Long.MAX_VALUE)).andReturn();
 
 		AtomicBoolean go = new AtomicBoolean(false);
@@ -713,7 +708,6 @@ public class GuardTest {
 
 	@Test
 	public void extremePastDue_timesOutInsteadOfSpinning() {
-		// 이전에는 m_due.getTime() - now가 넘쳐 미래로 판정되어, 즉시 반환하는 awaitUntil과 조건 확인을 끝없이 반복했다.
 		Date due = new Date(Long.MIN_VALUE);
 		assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
 			assertThrows(TimeoutException.class, () -> m_guard.awaitCondition(() -> false, due).andReturn());
@@ -732,7 +726,6 @@ public class GuardTest {
 
 	@Test
 	public void waitingForTheLock_isInterruptible() throws Exception {
-		// 이전에는 lock()으로 기다려, 인터럽트해도 계속 기다리다가 조건이 참이면 이후 작업까지 실행했다.
 		AtomicBoolean ran = new AtomicBoolean(false);
 		AtomicReference<Throwable> failure = new AtomicReference<>();
 		Thread worker = new Thread(() -> {
@@ -781,7 +774,6 @@ public class GuardTest {
 
 	@Test
 	public void work_mode_methods_reject_null_arguments() {
-		// run/runChecked만 검사하고 나머지는 lock을 잡은 뒤 NullPointerException을 냈다(2026-10-31 이전).
 		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> m_guard.read(null));
 		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> m_guard.get(null));
 		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> m_guard.getChecked(null));

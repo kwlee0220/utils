@@ -25,7 +25,7 @@ public class SuppliableInputStreamTest {
 		return ByteBuffer.wrap(s.getBytes(StandardCharsets.UTF_8));
 	}
 
-	// ----- 빈 chunk 처리 (#1) -----
+	// ----- 빈 chunk 처리 -----
 
 	// 빈 chunk는 건너뛰어야 한다 — 단일 바이트 read에서 BufferUnderflow가 나면 안 된다.
 	@Test
@@ -76,7 +76,7 @@ public class SuppliableInputStreamTest {
 
 	// ----- read 계약 -----
 
-	// len==0이면 블록 없이 즉시 0을 반환해야 한다(공급된 데이터가 없어도). (#3)
+	// len==0이면 블록 없이 즉시 0을 반환해야 한다(공급된 데이터가 없어도).
 	@Test
 	@Timeout(5)
 	public void zeroLengthReadReturnsZeroWithoutBlocking() throws Exception {

@@ -9,9 +9,6 @@ import utils.Preconditions;
 /**
  * 지정한 trigger 신호에 반응하여 전이하는 상태.
  * <p>
- * (2026-10-31 이전 이름은 {@code SingleOutState}였다. {@code on(...)}으로 다른 신호의 전이도 더할 수 있게 되어
- * "출구가 하나"라는 이름이 맞지 않게 되었다.)
- * <p>
  * 생성 시 지정된 trigger 신호와 일치하는 신호({@link Object#equals(Object)} 비교)가 들어오면
  * {@link #selectTransition(Signal)}이 등록된 전이를 반환하고, 그 외의 신호는
  * {@link #on(Signal, Transition)} 등으로 추가 등록한 전이 표에 맡긴다(등록한 것이 없으면 {@link Optional#empty()}).

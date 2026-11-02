@@ -14,16 +14,14 @@ import org.junit.jupiter.api.Timeout;
 
 
 /**
- * {@link FStream#flatMapAsync}·{@link FStream#flatMapCheckedAsync}가 실패를 결과 스트림의 오류로 전파하는지 검증한다.
- * <p>
- * 2026-11-02 이전에는 실패한 입력을 흔적 없이 건너뛰었다({@code [1,2,3]}에서 2가 실패하면 {@code [10,30]}).
+ * {@link FStream#flatMapAsync}가 실패를 결과 스트림의 오류로 전파하는지 검증한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
 @Timeout(10)
 public class FlatMapAsyncFailureTest {
 	private static AsyncExecutionOptions options(boolean keepOrder, int workers) {
-		return AsyncExecutionOptions.create().setKeepOrder(keepOrder).setWorkerCount(workers);
+		return AsyncExecutionOptions.create().withKeepOrder(keepOrder).withWorkerCount(workers);
 	}
 
 	/** 스트림을 끝까지 읽으며 받은 원소를 모으고, 던져진 예외를 반환한다. */
@@ -45,7 +43,7 @@ public class FlatMapAsyncFailureTest {
 	private static void checkedMapperFailurePropagatesUnwrapped(boolean keepOrder) {
 		IOException failure = new IOException("mapper failed");
 		FStream<Integer> out = FStream.of(1, 2, 3)
-										.flatMapCheckedAsync(i -> {
+										.flatMapAsync(i -> {
 											if ( i == 2 ) {
 												throw failure;
 											}
@@ -99,7 +97,7 @@ public class FlatMapAsyncFailureTest {
 	public void results_before_the_failure_are_delivered_then_the_failure() {
 		IOException failure = new IOException("second input failed");
 		FStream<Integer> out = FStream.of(1, 2)
-										.flatMapCheckedAsync(i -> {
+										.flatMapAsync(i -> {
 											if ( i == 2 ) {
 												throw failure;
 											}

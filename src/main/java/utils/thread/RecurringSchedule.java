@@ -7,9 +7,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * {@link RecurringWork}를 주기적으로 수행하는 스케줄.
  * <p>
- * 시간 값은 {@link Duration}으로 주고받는다. (2026-10-31 이전에는 {@code long} 밀리초였다. 그 메소드들은 utils 밖
- * 사용처(marmot)를 위해 {@code @Deprecated}로 남겨 두었고 {@code Duration} 버전에 위임한다. {@link #getInterval()}만
- * 반환형이 {@code Duration}으로 바뀌었다.)
+ * 시간 값은 {@link Duration}으로 주고받는다.
  *
  * @author Kang-Woo Lee
  */
@@ -124,7 +122,7 @@ public interface RecurringSchedule {
 	 *
 	 * @throws InterruptedException	대기가 인터럽트에 의해 중지된 경우.
 	 * @throws IllegalStateException	{@link RecurringWork#perform()} 수행 쓰레드가 자신의 스케줄에 대해 호출하는
-	 * 									경우(교착이 되므로). (2026-10-31 이전에는 {@code RuntimeException}이었다.)
+	 * 									경우(교착이 되므로).
 	 */
 	public void waitForStopped() throws InterruptedException;
 

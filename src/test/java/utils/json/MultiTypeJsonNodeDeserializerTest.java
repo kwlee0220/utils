@@ -44,7 +44,7 @@ public class MultiTypeJsonNodeDeserializerTest {
 		assertEquals(new Circle(3), DESERIALIZER.deserialize(json("{\"@type\":\"circle\",\"radius\":3}")));
 		assertEquals(new Square(4), DESERIALIZER.deserialize(json("{\"@type\":\"square\",\"side\":4}")));
 		assertEquals(Set.of("circle", "square"), DESERIALIZER.getTypeNames());
-		// 타입 필드를 정하지 않으면 공용 상수 JacksonUtils.TYPE_FIELD를 쓴다(#14).
+		// 타입 필드를 정하지 않으면 공용 상수 JacksonUtils.TYPE_FIELD를 쓴다.
 		assertEquals(JacksonUtils.TYPE_FIELD, DESERIALIZER.getTypeField());
 		assertEquals("@type", JacksonUtils.TYPE_FIELD);
 	}

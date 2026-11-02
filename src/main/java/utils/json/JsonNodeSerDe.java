@@ -13,8 +13,6 @@ import com.fasterxml.jackson.databind.JsonNode;
  * {@code null} 계약: 역방향은 {@link JsonNodeDeserializer}의 계약을 따른다. {@link #serialize(Object)}는 Java
  * {@code null} 객체를 받지 않으며(구현은 {@code IllegalArgumentException}을 권장하고 {@code IOException}도 허용),
  * Java {@code null}을 돌려주지 않는다. JSON {@code null}로 나타내야 하는 값이면 {@code NullNode}를 돌려준다.
- * <p>
- * 2026-11-01에 {@code JsonSerDe}에서 이름을 바꿨다(별칭 없음).
  *
  * @param <T>	변환할 객체의 타입.
  * @author Kang-Woo Lee (ETRI)

@@ -58,7 +58,7 @@ public class Executions {
 	 * <p>
 	 * 주로 {@link EventDrivenExecution#setTimeout(long, java.util.concurrent.TimeUnit)} 등
 	 * {@link Execution}에 타임아웃을 부착하는 데 사용된다. 최초 호출 시 lazy 생성되며, 여러 스레드가 동시에
-	 * 처음 호출해도 하나만 만든다(이전 구현은 동기화 없이 만들어 타이머와 그 스레드가 둘 이상 생길 수 있었다).
+	 * 처음 호출해도 하나만 만든다.
 	 *
 	 * @return 공용 {@link Timer} 객체.
 	 */

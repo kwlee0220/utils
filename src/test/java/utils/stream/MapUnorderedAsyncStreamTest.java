@@ -12,14 +12,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import utils.StopWatch;
-import utils.Tuple;
+import utils.func.CheckedFunction;
 import utils.func.Try;
 import utils.func.Unchecked;
 
@@ -48,7 +47,7 @@ public class MapUnorderedAsyncStreamTest {
 	}
 
 	private static AsyncExecutionOptions unordered(int workerCount) {
-		return AsyncExecutionOptions.KEEP_ORDER(false).setWorkerCount(workerCount);
+		return AsyncExecutionOptions.KEEP_ORDER(false).withWorkerCount(workerCount);
 	}
 
 	// ---------- 완료 순서 출력 ----------
@@ -61,28 +60,28 @@ public class MapUnorderedAsyncStreamTest {
 		final int n = 5;
 		CountDownLatch release = new CountDownLatch(1);
 
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			if ( i < n - 1 ) {
 				Unchecked.runOrRTE(() -> release.await(5, TimeUnit.SECONDS));
 			}
 			return i;
 		};
 
-		try ( FStream<Tuple<Integer, Try<Integer>>> stream = FStream.range(0, n)
-																	.mapAsync(mapper, unordered(n)) ) {
+		try ( FStream<MappingResult<Integer,Integer>> stream = FStream.range(0, n)
+																	.mapAsyncToTry(mapper, unordered(n)) ) {
 			// 유일하게 완료 가능한 4가 입력 순서(0)를 제치고 가장 먼저 방출되어야 한다.
-			Tuple<Integer, Try<Integer>> first = stream.next().get();
-			Assertions.assertEquals(Integer.valueOf(n - 1), first._1());
-			Assertions.assertTrue(first._2().isSuccessful());
+			MappingResult<Integer,Integer> first = stream.next().get();
+			Assertions.assertEquals(Integer.valueOf(n - 1), first.input());
+			Assertions.assertTrue(first.result().isSuccessful());
 
 			// 나머지 작업들을 풀어주고 모두 방출되는지 확인한다 (순서 무관).
 			release.countDown();
 
 			Set<Integer> remains = new HashSet<>();
-			for ( Tuple<Integer, Try<Integer>> r : stream ) {
-				Assertions.assertTrue(r._2().isSuccessful(), () -> "Try should succeed: " + r);
-				Assertions.assertEquals(r._1(), r._2().get());
-				remains.add(r._1());
+			for ( MappingResult<Integer,Integer> r : stream ) {
+				Assertions.assertTrue(r.result().isSuccessful(), () -> "Try should succeed: " + r);
+				Assertions.assertEquals(r.input(), r.result().get());
+				remains.add(r.input());
 			}
 			Assertions.assertEquals(new HashSet<>(FStream.range(0, n - 1).toList()), remains);
 		}
@@ -92,8 +91,8 @@ public class MapUnorderedAsyncStreamTest {
 
 	@Test
 	public void emptyInput_terminatesCleanly() throws Exception {
-		List<Tuple<Integer, Try<Integer>>> results = FStream.<Integer>of()
-				.mapAsync(i -> i * 2, unordered(4))
+		List<MappingResult<Integer,Integer>> results = FStream.<Integer>of()
+				.mapAsyncToTry(i -> i * 2, unordered(4))
 				.toList();
 
 		Assertions.assertTrue(results.isEmpty());
@@ -102,22 +101,22 @@ public class MapUnorderedAsyncStreamTest {
 	@Test
 	public void inputShorterThanWorkerCount_terminatesCleanly() throws Exception {
 		// workerCount=4, input=2. 남는 워커가 endOfSupply 도달까지 카운트를 제대로 줄여야.
-		List<Tuple<Integer, Try<Integer>>> results = FStream.of(1, 2)
-				.mapAsync(i -> i * 10, unordered(4))
+		List<MappingResult<Integer,Integer>> results = FStream.of(1, 2)
+				.mapAsyncToTry(i -> i * 10, unordered(4))
 				.toList();
 
 		Assertions.assertEquals(2, results.size());
 		Set<Integer> values = new HashSet<>();
-		for ( Tuple<Integer, Try<Integer>> r : results ) {
-			values.add(r._2().get());
+		for ( MappingResult<Integer,Integer> r : results ) {
+			values.add(r.result().get());
 		}
 		Assertions.assertEquals(new HashSet<>(FStream.of(10, 20).toList()), values);
 	}
 
 	@Test
 	public void inputEqualsWorkerCount_terminatesCleanly() throws Exception {
-		List<Tuple<Integer, Try<Integer>>> results = FStream.of(1, 2, 3)
-				.mapAsync(i -> i * 10, unordered(3))
+		List<MappingResult<Integer,Integer>> results = FStream.of(1, 2, 3)
+				.mapAsyncToTry(i -> i * 10, unordered(3))
 				.toList();
 
 		Assertions.assertEquals(3, results.size());
@@ -127,23 +126,23 @@ public class MapUnorderedAsyncStreamTest {
 
 	@Test
 	public void mapperException_yieldsTryFailure_butContinues() throws Exception {
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			if ( i == 2 ) {
 				throw new IllegalStateException("boom at " + i);
 			}
 			return i * 10;
 		};
 
-		List<Tuple<Integer, Try<Integer>>> results = FStream.range(0, 5)
-				.mapAsync(mapper, unordered(2))
+		List<MappingResult<Integer,Integer>> results = FStream.range(0, 5)
+				.mapAsyncToTry(mapper, unordered(2))
 				.toList();
 
 		Assertions.assertEquals(5, results.size());
 
-		Tuple<Integer, Try<Integer>> failed = null;
+		MappingResult<Integer,Integer> failed = null;
 		int successCount = 0;
-		for ( Tuple<Integer, Try<Integer>> r : results ) {
-			if ( r._2().isFailed() ) {
+		for ( MappingResult<Integer,Integer> r : results ) {
+			if ( r.result().isFailed() ) {
 				failed = r;
 			}
 			else {
@@ -151,8 +150,8 @@ public class MapUnorderedAsyncStreamTest {
 			}
 		}
 		Assertions.assertNotNull(failed, "exactly one failure expected");
-		Assertions.assertEquals(Integer.valueOf(2), failed._1());
-		Assertions.assertEquals("boom at 2", failed._2().getCause().getMessage());
+		Assertions.assertEquals(Integer.valueOf(2), failed.input());
+		Assertions.assertEquals("boom at 2", failed.result().getCause().getMessage());
 		Assertions.assertEquals(4, successCount);
 	}
 
@@ -161,13 +160,13 @@ public class MapUnorderedAsyncStreamTest {
 	@Test
 	public void closeMidStream_cancelsActiveJobs_andDoesNotHang() throws Exception {
 		// mapper가 길게 sleep하는 동안 close → active job들에 cancel(true) 전파되어야.
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			Unchecked.runOrRTE(() -> Thread.sleep(5000));
 			return i;
 		};
 
-		FStream<Tuple<Integer, Try<Integer>>> stream = FStream.range(0, 100)
-				.mapAsync(mapper, unordered(3));
+		FStream<MappingResult<Integer,Integer>> stream = FStream.range(0, 100)
+				.mapAsyncToTry(mapper, unordered(3));
 
 		// 워커들이 mapper sleep에 진입할 시간 확보.
 		Thread.sleep(100);
@@ -203,7 +202,7 @@ public class MapUnorderedAsyncStreamTest {
 		ExecutorService exec = track(Executors.newFixedThreadPool(1));
 		AtomicInteger callIndex = new AtomicInteger();
 
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			int idx = callIndex.getAndIncrement();
 			if ( idx == 0 ) {
 				exec.shutdown();
@@ -211,21 +210,21 @@ public class MapUnorderedAsyncStreamTest {
 			return i * 10;
 		};
 
-		List<Tuple<Integer, Try<Integer>>> results = FStream.range(0, 5)
-				.mapAsync(mapper, unordered(1).setExecutor(exec))
+		List<MappingResult<Integer,Integer>> results = FStream.range(0, 5)
+				.mapAsyncToTry(mapper, unordered(1).withExecutor(exec))
 				.toList();
 
 		Assertions.assertEquals(5, results.size());
 
 		int successCount = 0;
 		int failCount = 0;
-		for ( Tuple<Integer, Try<Integer>> r : results ) {
-			if ( r._2().isSuccessful() ) {
+		for ( MappingResult<Integer,Integer> r : results ) {
+			if ( r.result().isSuccessful() ) {
 				++successCount;
 			}
 			else {
 				++failCount;
-				Throwable root = r._2().getCause();
+				Throwable root = r.result().getCause();
 				while ( root != null && !(root instanceof RejectedExecutionException) ) {
 					root = root.getCause();
 				}
@@ -247,18 +246,18 @@ public class MapUnorderedAsyncStreamTest {
 		final int n = 4;
 		CyclicBarrier barrier = new CyclicBarrier(n);
 
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			Unchecked.runOrRTE(() -> barrier.await(5, TimeUnit.SECONDS));
 			return i;
 		};
 
-		List<Tuple<Integer, Try<Integer>>> results = FStream.range(0, n)
-				.mapAsync(mapper, unordered(n))
+		List<MappingResult<Integer,Integer>> results = FStream.range(0, n)
+				.mapAsyncToTry(mapper, unordered(n))
 				.toList();
 
 		Assertions.assertEquals(n, results.size());
-		for ( Tuple<Integer, Try<Integer>> r : results ) {
-			Assertions.assertTrue(r._2().isSuccessful(),
+		for ( MappingResult<Integer,Integer> r : results ) {
+			Assertions.assertTrue(r.result().isSuccessful(),
 								() -> "워커 " + n + "개가 동시에 실행되어 barrier에 도달해야 함: " + r);
 		}
 	}
@@ -273,7 +272,7 @@ public class MapUnorderedAsyncStreamTest {
 		AtomicInteger inFlight = new AtomicInteger();
 		AtomicInteger peak = new AtomicInteger();
 
-		Function<Integer, Integer> mapper = i -> {
+		CheckedFunction<Integer, Integer> mapper = i -> {
 			int cur = inFlight.incrementAndGet();
 			peak.accumulateAndGet(cur, Math::max);
 			Unchecked.runOrRTE(() -> Thread.sleep(50));
@@ -281,8 +280,8 @@ public class MapUnorderedAsyncStreamTest {
 			return i;
 		};
 
-		List<Tuple<Integer, Try<Integer>>> results = FStream.range(0, total)
-				.mapAsync(mapper, unordered(workers))
+		List<MappingResult<Integer,Integer>> results = FStream.range(0, total)
+				.mapAsyncToTry(mapper, unordered(workers))
 				.toList();
 
 		Assertions.assertEquals(total, results.size());

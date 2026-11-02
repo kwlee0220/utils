@@ -9,7 +9,10 @@ import java.util.Set;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import org.jetbrains.annotations.Nullable;
+
 import utils.Preconditions;
+import utils.Throwables;
 import utils.Tuple;
 import utils.async.Executions;
 import utils.async.StartableExecution;
@@ -40,6 +43,11 @@ import utils.thread.Guard;
  * {@link Try#failure(Throwable)}로 결과 스트림에 포함되고 정상 결과는 {@link Try#success(Object)}로
  * 포함된다. 결과 스트림은 mapper 예외로 인해 조기 종료되지 않는다.
  * <p>
+ * <b>입력 실패</b>: 입력 스트림에서 다음 원소를 꺼내다 예외가 나면 그 예외는 특정 원소에 묶을 수 없으므로
+ * 스트림 전체의 실패로 전파한다. 출력 채널을 그 예외로 종료하고 새 매핑을 시작하지 않는다. 소비자는 이미 채널에
+ * 들어온 결과를 모두 받은 뒤 다음 {@link #next()}에서 그 예외를 <b>감싸지 않은 원래 형태</b>로 받는다(검사 예외도
+ * 선언 없이 던져진다). 그때 진행 중이던 매핑의 결과는 버린다.
+ * <p>
  * <b>close 의미론</b>: {@link #close()} 호출 시 입력 스트림과 출력 채널을 닫고, 진행 중인 모든 매핑
  * 작업에 {@code cancel(true)}를 전파한다. 다만 매핑 함수가
  * {@link InterruptedException}/interrupt 상태를 적극적으로 처리하지 않으면 작업이 끝까지 실행될 수
@@ -51,15 +59,19 @@ import utils.thread.Guard;
  *
  * @author Kang-Woo Lee (ETRI)
  */
-class UnorderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
+class UnorderedMapAsyncStream<S,T> extends AbstractFStream<MappingResult<S,T>> {
 	private final FStream<Tuple<S,StartableExecution<T>>> m_jobStream;
 
 	private final AsyncExecutionOptions m_options;
 	private final Guard m_guard = Guard.create();
-	@GuardedBy("m_guard") private final SuppliableFStream<Tuple<S, Try<T>>> m_outChannel;
+	@GuardedBy("m_guard") private final SuppliableFStream<MappingResult<S,T>> m_outChannel;
 	@GuardedBy("m_guard") int m_runningWorkerCount = 0;
 	@GuardedBy("m_guard") private final Set<StartableExecution<T>> m_activeJobs
 													= Collections.newSetFromMap(new IdentityHashMap<>());
+	// 입력 스트림에서 처음 발생한 실패. 기록되면 새 매핑을 시작하지 않는다.
+	@GuardedBy("m_guard") private @Nullable Throwable m_failure = null;
+	// 소비자가 닫았는지 여부. 닫힌 입력 스트림이 던지는 예외는 입력 실패로 보지 않는다.
+	@GuardedBy("m_guard") private boolean m_closed = false;
 
 	/**
 	 * @param src     입력 스트림. {@code null} 여부는 별도 검증하지 않으므로 호출자가 non-null임을
@@ -87,6 +99,9 @@ class UnorderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 */
 	@Override
 	protected void closeInGuard() throws Exception {
+		// 이후의 startNext()가 입력 스트림을 읽지 않도록 먼저 표시한다.
+		m_guard.run(() -> m_closed = true);
+
 		// 입력 스트림을 닫는다. 이 때 발생하는 예외는 무시한다.
 		Unchecked.runOrIgnore(m_jobStream::close);
 
@@ -125,8 +140,18 @@ class UnorderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 * worker가 있으면 결과가 도착할 때까지 대기한다.
 	 */
 	@Override
-	public FOption<Tuple<S, Try<T>>> nextInGuard() {
-		return m_outChannel.next();
+	public FOption<MappingResult<S,T>> nextInGuard() {
+		try {
+			return m_outChannel.next();
+		}
+		catch ( RuntimeException e ) {
+			// 출력 채널은 등록된 오류를 RuntimeException으로 감싸 던진다. 입력 실패이면 원래 예외로 바꿔 던진다.
+			Throwable failure = m_guard.get(() -> m_failure);
+			if ( failure != null && (e == failure || e.getCause() == failure) ) {
+				return Throwables.sneakyThrow(failure);
+			}
+			throw e;
+		}
 	}
 	
 	/**
@@ -151,23 +176,28 @@ class UnorderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 * {@link #startNext()}를 호출해 다음 입력을 가져온다. 입력이 소진되면 worker 카운트를 감소시키고,
 	 * 마지막 worker가 종료되는 시점에 채널의 {@code endOfSupply}로 소비자에게 종료를 알린다.
 	 *
+	 * 입력 스트림이 예외를 던지면 그 예외로 출력 채널을 종료하고(입력 실패), 이후로는 새 작업을 시작하지 않는다.
+	 *
 	 * @return 새 매핑 작업을 시작했으면 {@code true}, {@link #m_jobStream}에 더 이상 작업이 없거나
-	 *         이미 닫혀 있어 시작하지 못했으면 {@code false}.
+	 *         닫혔거나 실패해 시작하지 못했으면 {@code false}.
 	 */
 	private boolean startNext() {
 		m_guard.lock();
 		try {
 			FOption<Tuple<S, StartableExecution<T>>> ojob;
-			try {
-				ojob = m_jobStream.next();
+			if ( m_closed || m_failure != null ) {
+				ojob = FOption.empty();
 			}
-			catch ( IllegalStateException closed ) {
-				// closeInGuard()로 입력 스트림이 이미 닫힌 상태.
-				// 새 작업을 시작하지 않고 worker 카운트만 정리한다.
-				if ( --m_runningWorkerCount == 0 ) {
-					Unchecked.runOrIgnore(m_outChannel::endOfSupply);
+			else {
+				try {
+					ojob = m_jobStream.next();
 				}
-				return false;
+				catch ( Throwable e ) {
+					// closeInGuard()는 m_closed를 먼저 켜므로, 여기서 난 예외는 닫힘이 아니라 입력 실패다.
+					m_failure = e;
+					m_outChannel.endOfSupply(e);
+					ojob = FOption.empty();
+				}
 			}
 			if ( ojob.isPresent() ) {
 				Tuple<S, StartableExecution<T>> job = ojob.get();
@@ -185,7 +215,7 @@ class UnorderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 					// m_guard 안에서 호출하면 채널이 full + 소비자가 close 시도 시
 					// (closeInGuard도 m_guard를 획득해야 함) deadlock이 발생할 수 있다.
 					try {
-						m_outChannel.supply(Tuple.of(input, ret.asTry()));
+						m_outChannel.supply(MappingResult.of(input, ret.asTry()));
 					}
 					catch ( IllegalStateException ignored ) {
 						// close()가 호출되어 채널이 닫힌 경우,
@@ -204,8 +234,8 @@ class UnorderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 				return true;
 			}
 			else {
-				// 입력이 소진되어 더 이상 시작할 작업이 없다.
-				// worker 카운트를 감소시키고, 마지막 worker가 종료되면 채널 종료.
+				// 입력이 소진되었거나 닫혔거나 실패해 더 이상 시작할 작업이 없다.
+				// worker 카운트를 감소시키고, 마지막 worker가 종료되면 채널 종료(이미 종료됐으면 무시된다).
 				if ( --m_runningWorkerCount == 0 ) {
 					m_outChannel.endOfSupply();
 				}

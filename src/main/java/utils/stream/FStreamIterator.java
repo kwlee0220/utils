@@ -12,9 +12,6 @@ import utils.func.FOption;
  * 원소는 {@link #hasNext()}가 처음 불릴 때 하나씩 읽는다(미리 읽지 않음). 스트림 끝에 닿으면 그 즉시 원본을 닫으므로,
  * 끝까지 순회하면 빈 스트림이라도 원본이 닫힌다. 중간에 멈추는 경우에는 {@link #close()}나 원본의 {@code close()}로
  * 직접 닫아야 한다. 끝 여부는 {@link FOption}으로 판단하므로 {@code null} 원소도 그대로 반환한다.
- * <p>
- * 2026-11-02 이전에는 생성할 때와 각 {@code next()}에서 다음 원소를 미리 읽었고, {@code null}을 끝 표시로 써서
- * {@code null} 원소에서 순회가 끝났으며, 처음부터 빈 스트림은 닫지 않았다.
  *
  * @param <T>	원소 타입.
  * @author Kang-Woo Lee (ETRI)

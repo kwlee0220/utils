@@ -52,7 +52,7 @@ public class ZipFileTest {
 		Assertions.assertEquals("beta", read(dest.resolve("sub/b.txt")));
 	}
 
-	// listEntries는 경로 문자열 목록을 반환한다(#1).
+	// listEntries는 경로 문자열 목록을 반환한다.
 	@Test
 	@Timeout(10)
 	public void listEntriesReturnsNames() throws Exception {

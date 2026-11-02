@@ -1,5 +1,6 @@
 package utils.stream;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executor;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -45,8 +46,9 @@ import utils.stream.FStreams.AbstractFStream;
  * 기록하고 출력 채널을 그 예외로 종료한다. 이후 새 내부 스트림은 시작하지 않으며, 진행 중인 다른 워커는 다음 push에서
  * 실패해 멈춘다. 소비자는 이미 출력 채널에 들어온 원소를 모두 받은 뒤 다음 {@link #next()}에서 그 예외를 <b>감싸지 않은
  * 원래 형태</b>로 받는다(검사 예외도 선언 없이 던져진다). 두 번째 이후의 실패는 버린다. 워커가 인터럽트된 경우도
- * {@link InterruptedException}으로 실패 처리한다. 2026-11-02 이전에는 실패한 내부 스트림을 흔적 없이 건너뛰어, 결과
- * 일부가 조용히 빠졌다.
+ * {@link InterruptedException}으로 실패 처리한다. 워커 작업을 시작하지 못한 경우(예: 실행기가
+ * {@link java.util.concurrent.RejectedExecutionException}으로 거부)도 실패로 처리하며, 그 워커가 맡았던 내부 스트림은
+ * 닫는다.
  *
  * @param <T> 출력 스트림의 원소 타입.
  *
@@ -173,7 +175,16 @@ class MergeParallelFStream<T> extends AbstractFStream<T> {
 							m_guard.run(() -> failInGuard(e));
 						}
 					}, m_executor);
-					exec.whenFinished(ret -> startNext());
+					exec.whenFinished(ret -> {
+						if ( !ret.isSuccessful() ) {
+							// 워커 본문은 모든 예외를 스스로 처리하므로, 여기 오는 것은 작업이 실행되지 못한 경우다
+							// (실행기의 거부 등). 본문이 닫았을 내부 스트림을 대신 닫고 실패로 기록한다.
+							strm.closeQuietly();
+							Throwable cause = ret.isFailed() ? ret.getCause() : new CancellationException();
+							m_guard.run(() -> failInGuard(cause));
+						}
+						startNext();
+					});
 					exec.start();
 				})
 				.ifAbsent(() -> {

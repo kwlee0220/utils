@@ -50,7 +50,6 @@ public class ReduceByKeyTest {
 	
 	@Test
 	public void reducerReturningNullIsRejected() throws Exception {
-		// 2026-11-02 이전에는 null 결과가 키를 지워 누적이 다시 시작되었다({a=a}).
 		FStream<String> stream = FStream.of("a", "a", "a");
 		IllegalArgumentException e = Assertions.assertThrows(IllegalArgumentException.class,
 											() -> stream.reduceByKey(v -> v, (a,v) -> null));

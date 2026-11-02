@@ -54,7 +54,7 @@ public class FlatMapAsyncFStreamTest {
 									};
 		
 		String ret = FStream.range(0, 3)
-							.flatMapCheckedAsync(i -> strms[i], AsyncExecutionOptions.create())
+							.flatMapAsync(i -> strms[i], AsyncExecutionOptions.create())
 							.join("");
 		Assertions.assertEquals("a1b1c1a2c2a3b3c3c4", ret);
 	}
@@ -88,7 +88,7 @@ public class FlatMapAsyncFStreamTest {
 											FStream.generate(this::generateStreamB, 2),
 											FStream.generate(this::generateStreamC, 2)
 										);
-		// 2026-11-02 이전에는 실패한 스트림 A를 조용히 건너뛰어 "a1b1c1a2c2b3c3c4"를 냈다. 이제 실패가 전파된다.
+		// 실패한 내부 스트림의 예외가 전파된다.
 		Assertions.assertThrows(Exception.class, () -> FStream.mergeParallel(fact, 8, null).join(""));
 	}
 	
@@ -151,7 +151,7 @@ public class FlatMapAsyncFStreamTest {
 		m_count = 0;
 		AsyncExecutionOptions options = AsyncExecutionOptions.KEEP_ORDER();
 		String ret = FStream.of("a", "b", "c", "d")
-							.flatMapCheckedAsync(v -> FStream.generate(new SimpleGenerator(v), 2), options)
+							.flatMapAsync(v -> FStream.generate(new SimpleGenerator(v), 2), options)
 							.join("");
 		
 		Assertions.assertEquals("a0a1a2b0b1b2c0c1c2d0d1d2", ret);
@@ -163,7 +163,7 @@ public class FlatMapAsyncFStreamTest {
 		m_count = 0;
 		AsyncExecutionOptions options = AsyncExecutionOptions.KEEP_ORDER();
 		String ret = FStream.of("a", "b", "c", "d")
-							.flatMapCheckedAsync(v -> FStream.generate(new SimpleGenerator(v), 2), options)
+							.flatMapAsync(v -> FStream.generate(new SimpleGenerator(v), 2), options)
 							.take(5)
 							.join("");
 		
@@ -176,7 +176,7 @@ public class FlatMapAsyncFStreamTest {
 		m_count = 0;
 		AsyncExecutionOptions options = AsyncExecutionOptions.KEEP_ORDER();
 		String ret = FStream.of("a", "b", "c", "d")
-							.flatMapCheckedAsync(v -> FStream.generate(new SimpleGenerator(v), 2), options)
+							.flatMapAsync(v -> FStream.generate(new SimpleGenerator(v), 2), options)
 							.take(6)
 							.join("");
 		

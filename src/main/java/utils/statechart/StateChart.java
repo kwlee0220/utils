@@ -152,7 +152,6 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 	 * 하위 클래스가 차트 상태와 함께 갱신되어야 하는 자체 데이터를 보호할 때 사용한다.
 	 * 이 lock은 재진입 가능하므로, 이미 lock을 보유한 콜백(상태의 {@code enter()}, 전이 액션 등)
 	 * 안에서 다시 획득해도 무방하다. 문서에서 "차트 lock"이라 부르는 것이 이 lock이다.
-	 * (2026-10-31 이전 이름은 {@code getMachineLock()}이었다.)
 	 *
 	 * @return	차트 lock.
 	 */
@@ -889,7 +888,6 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 	 * 본 메소드는 {@link #handleSignal(Signal)}이 lock을 보유한 채 호출한다. 하위 클래스가 전이 과정에
 	 * 개입해야 하는 경우에만 재정의한다.
 	 *
-	 * (2026-10-31 이전 이름은 {@code traverse()}였다.)
 	 *
 	 * @param transition	수행할 전이.
 	 * @param signal		전이를 유발한 신호.

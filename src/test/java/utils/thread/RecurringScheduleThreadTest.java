@@ -101,7 +101,6 @@ public class RecurringScheduleThreadTest {
 
 	@Test
 	public void get_state_reports_working_while_performing() throws Exception {
-		// 이전에는 작업 중(RUNNING_WORKING)도 IDLE로 보고해 WORKING이 나오지 않았다.
 		Work work = new Work();
 		CountDownLatch performing = new CountDownLatch(1);
 		CountDownLatch release = new CountDownLatch(1);
@@ -129,7 +128,6 @@ public class RecurringScheduleThreadTest {
 
 	@Test
 	public void timed_wait_for_stopped_from_perform_releases_the_lock() throws Exception {
-		// 이전에는 lock을 잡은 뒤 try 밖에서 예외를 던져, 작업 스레드가 lock을 쥔 채 남았다.
 		Work work = new Work();
 		AtomicReference<RecurringScheduleThread> self = new AtomicReference<>();
 		CompletableFuture<Throwable> rejected = new CompletableFuture<>();
@@ -155,7 +153,6 @@ public class RecurringScheduleThreadTest {
 
 	@Test
 	public void set_logger_uses_the_given_logger_and_null_restores_the_default() {
-		// 이전에는 조건이 반대라 넘긴 로거를 무시하고, null을 넘기면 null이 들어갔다.
 		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", new Work(), java.time.Duration.ofSeconds(1));
 		Logger custom = LoggerFactory.getLogger("custom");
 
@@ -168,7 +165,6 @@ public class RecurringScheduleThreadTest {
 
 	@Test
 	public void start_throws_when_on_started_fails() throws Exception {
-		// 이전에는 상태만 STOPPED로 바꾸고 정상 반환했다.
 		Work work = new Work();
 		IOException failure = new IOException("init failed");
 		work.m_startFailure = failure;
@@ -194,7 +190,6 @@ public class RecurringScheduleThreadTest {
 
 	@Test
 	public void stop_before_start_stops_immediately() throws Exception {
-		// 이전에는 STOPPING에 영원히 머물거나(mayInterruptIfRunning=false) NPE가 났다(true).
 		RecurringScheduleThread interrupting = RecurringScheduleThread.newFixedDelaySchedule("test", new Work(), java.time.Duration.ofSeconds(1));
 		interrupting.stop(true);
 		assertEquals(State.STOPPED, interrupting.getState());
@@ -222,7 +217,6 @@ public class RecurringScheduleThreadTest {
 
 	@Test
 	public void stop_calls_interruptable_work_outside_the_lock() throws Exception {
-		// 이전에는 lock을 쥔 채 interrupt()를 불러, 그것이 기다리는 perform()이 getState()에서 lock을 기다리며 교착되었다.
 		WaitingInterruptibleWork work = new WaitingInterruptibleWork();
 		AtomicReference<RecurringScheduleThread> self = new AtomicReference<>();
 		CountDownLatch performing = new CountDownLatch(1);
@@ -244,7 +238,6 @@ public class RecurringScheduleThreadTest {
 
 	@Test
 	public void stop_from_on_started_stops_without_performing() throws Exception {
-		// 이전에는 stop()이 STARTING이 끝나기를 기다려, onStarted() 안에서 부르면 작업 스레드와 start() 호출자가 함께 멈췄다.
 		Work work = new Work();
 		AtomicReference<RecurringScheduleThread> self = new AtomicReference<>();
 		work.m_onStarted = () -> self.get().stop(true);
@@ -296,7 +289,6 @@ public class RecurringScheduleThreadTest {
 
 	@Test
 	public void a_huge_interval_does_not_overflow() throws Exception {
-		// 이전에는 interval * 1000000이 넘쳐 음수가 되어, 기다리지 않고 perform()을 계속 반복했다.
 		Work work = new Work();
 		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, Long.MAX_VALUE);
 		schedule.start();
@@ -342,7 +334,6 @@ public class RecurringScheduleThreadTest {
 
 	@Test
 	public void perform_now_does_not_lengthen_the_next_fixed_rate_interval() throws Exception {
-		// 이전에는 performNow()로 일찍 깨어난 대기도 지연 보정 표본(약 -interval)으로 기록해 다음 대기가 두 배가 되었다.
 		Work work = new Work();
 		List<Long> starts = new CopyOnWriteArrayList<>();
 		work.m_onPerform = () -> starts.add(System.nanoTime());

@@ -13,19 +13,19 @@ import utils.func.FOption;
  * 비교자 순서에서 앞쪽 {@code k}개 원소를 그 순서대로 내보내는 스트림.
  * <p>
  * 결과는 {@code src.sort(cmp).take(k)}와 같지만 크기 {@code k}의 우선순위 큐만 유지한다. 원본은 첫 {@link #next()}
- * 호출 때 끝까지 읽고 닫는다({@code k}가 0이면 읽지 않는다).
- * <p>
- * 2026-11-02 이전에는 생성자에서 원본을 끝까지 읽었고, {@code k}가 0이면 {@code hasNext()}에서 NPE가 났다.
+ * 호출 때 끝까지 읽고 닫는다({@code k}가 0이면 읽지 않는다). 닫으면 남은 큐를 버리고, 이후 {@link #next()}는
+ * 다른 스트림과 같이 {@link IllegalStateException}을 던진다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class TopKPickedFStream<T> implements FStream<T> {
+public class TopKFStream<T> implements FStream<T> {
 	private final FStream<T> m_src;
 	private final int m_k;
 	private final Comparator<? super T> m_cmptor;
 	@GuardedBy("this") private MinMaxPriorityQueue<Node> m_queue = null;	// 첫 next() 때 채운다
+	@GuardedBy("this") private boolean m_closed = false;
 	
-	TopKPickedFStream(FStream<T> src, int k, Comparator<? super T> cmp) {
+	TopKFStream(FStream<T> src, int k, Comparator<? super T> cmp) {
 		Preconditions.checkNotNullArgument(src, "src is null");
 		Preconditions.checkArgument(k >= 0, "k >= 0, but k=" + k);
 		Preconditions.checkNotNullArgument(cmp, "comparator is null");
@@ -36,12 +36,19 @@ public class TopKPickedFStream<T> implements FStream<T> {
 	}
 
 	@Override
-	public void close() throws Exception {
-		m_src.close();
+	public synchronized void close() throws Exception {
+		if ( !m_closed ) {
+			m_closed = true;
+			m_queue = null;
+			m_src.close();
+		}
 	}
 
 	@Override
 	public synchronized FOption<T> next() {
+		if ( m_closed ) {
+			throw new IllegalStateException("already closed: " + this);
+		}
 		if ( m_k == 0 ) {
 			return FOption.empty();
 		}

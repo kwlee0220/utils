@@ -19,8 +19,6 @@ import utils.func.FOption;
  * <p>
  * 생성: {@link #of(double...)}(기본형 값), {@link #from(Double[])}(박싱 배열), {@link #from(Iterable)},
  * {@link #downcast(FStream)}(기존 스트림 감싸기).
- * 2026-11-02 이전에는 박싱 배열용 생성 메소드도 {@code of(Double...)}여서, {@code of(1, 2)} 같은 리터럴 호출이
- * "ambiguous" 컴파일 오류가 났다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -39,9 +37,6 @@ public interface DoubleFStream extends FStream<Double> {
 
 	/**
 	 * 박싱된 {@link Double} 배열로부터 {@link DoubleFStream}을 생성한다.
-	 * <p>
-	 * 2026-11-02 이전의 이름은 {@code of(Double...)}였다(기본형 {@link #of(double...)}와 모호해 리터럴로 호출할 수
-	 * 없었으므로 이름을 바꿨다, 별칭 없음).
 	 *
 	 * @param values	스트림에 포함될 원소들.
 	 * @return	{@link DoubleFStream} 객체.

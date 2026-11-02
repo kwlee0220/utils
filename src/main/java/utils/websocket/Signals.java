@@ -93,8 +93,7 @@ public class Signals {
 		}
 
 		/**
-		 * 받은 텍스트 메시지를 반환한다. ({@code getMessage()}였다가 2026-10-31에 바뀌었다.
-		 * {@link WebSocketObservable.TextMessage#getText()}와 이름을 맞췄다.)
+		 * 받은 텍스트 메시지를 반환한다.
 		 *
 		 * @return	텍스트 메시지
 		 */
@@ -129,7 +128,7 @@ public class Signals {
 	 * <p>
 	 * {@link TextMessage}와 달리 <b>조각(fragment)마다</b> 하나씩 전달하며 모으지 않는다. 메시지 전체가 필요하면
 	 * 상태가 {@link #isLast()}가 {@code true}인 조각까지 직접 합친다. 대용량 바이너리를 메모리에 모두 모으지 않고
-	 * 조각 단위로 흘려 처리할 수 있게 하려는 의도적인 선택이다(검토 결과 2026-10-31에 유지하기로 함).
+	 * 조각 단위로 흘려 처리할 수 있게 하려는 의도적인 선택이다.
 	 * 리스너가 모으지 않으므로 누적 상한도 없다. 상태가 조각을 모은다면 상한은 그 상태가 정한다.
 	 */
 	public static class BinaryMessage extends WebSocketSignal {
@@ -178,8 +177,7 @@ public class Signals {
 	
 	/**
 	 * 연결 오류 신호. JDK {@code onError}, pong 시간 초과, 텍스트 메시지 길이 초과 때 전달된다.
-	 * 처리되지 않으면 차트가 그 오류로 실패한다. (수신 메시지가 아니라 오류를 나타내므로 2026-10-31에
-	 * {@code ErrorMessage}에서 이름을 바꾸었다.)
+	 * 처리되지 않으면 차트가 그 오류로 실패한다.
 	 */
 	public static class WebSocketError extends WebSocketSignal {
 		private final Throwable m_error;
