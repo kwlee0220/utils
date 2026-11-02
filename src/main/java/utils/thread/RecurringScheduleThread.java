@@ -1,5 +1,6 @@
 package utils.thread;
 
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -20,7 +21,8 @@ import utils.UnitUtils;
 /**
  * 전용 쓰레드에서 {@link RecurringWork}를 주기적으로 수행하는 {@link RecurringSchedule}.
  * <p>
- * 주기 값의 변경({@link #setInterval(long)})은 다음 대기부터 적용되며, 이미 시작한 대기 시간은 바꾸지 않는다.
+ * 주기 값의 변경({@link #setInterval(Duration)})은 다음 대기부터 적용되며, 이미 시작한 대기 시간은 바꾸지 않는다.
+ * 시간 값은 밀리초 단위로 처리한다(1ms 미만은 버린다). 밀리초로 나타낼 수 없을 만큼 큰 값은 최댓값으로 제한한다.
  *
  * @author Kang-Woo Lee
  */
@@ -34,7 +36,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	private static final int STATE_STOPPING = 4;
 	private static final int STATE_STOPPED = 5;
 
-	// 내부 상태 → 인터페이스 상태. 시작 전은 STOPPED로 보고한다(RecurringScheduleImpl과 같다; State에 시작 전 상태가 없다).
+	// 내부 상태 → 인터페이스 상태. 시작 전은 STOPPED로 보고한다(State에 시작 전 상태가 없다).
 	// 2026-10-31 이전에는 시작 전을 STARTING, 작업 중(RUNNING_WORKING)을 IDLE로 보고해 WORKING이 나오지 않았다.
 	private static final State[] STATE_MAPPING = new State[] {
 		State.STOPPED, State.STARTING, State.IDLE, State.WORKING, State.STOPPING, State.STOPPED,
@@ -55,7 +57,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	@GuardedBy("m_lock") private boolean m_startCompleted = false;
 	// performNow()로 즉시 수행이 요청되었는지 여부. 대기에서 깨어난 이유를 구분하는 데 쓴다.
 	@GuardedBy("m_lock") private boolean m_runNowRequested = false;
-	// stop()이 작업 중단(InterruptableWork.interrupt() 또는 쓰레드 인터럽트)을 이미 요청했는지 여부.
+	// stop()이 작업 중단(InterruptibleWork.interrupt() 또는 쓰레드 인터럽트)을 이미 요청했는지 여부.
 	@GuardedBy("m_lock") private boolean m_interruptRequested = false;
 	private volatile long m_interval;
 	private volatile Throwable m_failureCause;
@@ -73,23 +75,24 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	 *
 	 * @param threadName	작업 쓰레드 이름. {@code null}이면 기본 이름을 쓴다.
 	 * @param work			반복 수행할 작업 (non-null)
-	 * @param initialDelay	첫 수행 전 대기 시간 (단위: milli-second, 0 이상)
-	 * @param interval		반복 주기 (단위: milli-second, 0보다 커야 한다)
+	 * @param initialDelay	첫 수행 전 대기 시간 (non-null, 0 이상)
+	 * @param interval		반복 주기 (non-null, 1ms 이상)
 	 * @return	시작되지 않은 스케줄
-	 * @throws IllegalArgumentException	{@code work}가 {@code null}이거나 시간 값이 범위를 벗어난 경우
+	 * @throws IllegalArgumentException	인자가 {@code null}이거나 시간 값이 범위를 벗어난 경우
 	 */
 	public static RecurringScheduleThread newFixedRateSchedule(String threadName, RecurringWork work,
-															long initialDelay, long interval) {
-		return new RecurringScheduleThread(threadName, work, true, initialDelay, interval);
+															Duration initialDelay, Duration interval) {
+		return new RecurringScheduleThread(threadName, work, true, toDelayMillis(initialDelay), toIntervalMillis(interval));
 	}
 
 	/**
 	 * 첫 수행 전 대기 없이 고정 rate 반복 스케줄을 생성한다.
 	 *
-	 * @see #newFixedRateSchedule(String, RecurringWork, long, long)
+	 * @see #newFixedRateSchedule(String, RecurringWork, Duration, Duration)
 	 */
-	public static RecurringScheduleThread newFixedRateSchedule(String threadName, RecurringWork work, long interval) {
-		return new RecurringScheduleThread(threadName, work, true, 0, interval);
+	public static RecurringScheduleThread newFixedRateSchedule(String threadName, RecurringWork work,
+																Duration interval) {
+		return newFixedRateSchedule(threadName, work, Duration.ZERO, interval);
 	}
 
 	/**
@@ -99,21 +102,66 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	 *
 	 * @param threadName	작업 쓰레드 이름. {@code null}이면 기본 이름을 쓴다.
 	 * @param work			반복 수행할 작업 (non-null)
-	 * @param initialDelay	첫 수행 전 대기 시간 (단위: milli-second, 0 이상)
-	 * @param interval		반복 주기 (단위: milli-second, 0보다 커야 한다)
+	 * @param initialDelay	첫 수행 전 대기 시간 (non-null, 0 이상)
+	 * @param interval		반복 주기 (non-null, 1ms 이상)
 	 * @return	시작되지 않은 스케줄
-	 * @throws IllegalArgumentException	{@code work}가 {@code null}이거나 시간 값이 범위를 벗어난 경우
+	 * @throws IllegalArgumentException	인자가 {@code null}이거나 시간 값이 범위를 벗어난 경우
 	 */
+	public static RecurringScheduleThread newFixedDelaySchedule(String threadName, RecurringWork work,
+															Duration initialDelay, Duration interval) {
+		return new RecurringScheduleThread(threadName, work, false, toDelayMillis(initialDelay), toIntervalMillis(interval));
+	}
+
+	/**
+	 * 첫 수행 전 대기 없이 고정 delay 반복 스케줄을 생성한다.
+	 *
+	 * @see #newFixedDelaySchedule(String, RecurringWork, Duration, Duration)
+	 */
+	public static RecurringScheduleThread newFixedDelaySchedule(String threadName, RecurringWork work,
+																Duration interval) {
+		return newFixedDelaySchedule(threadName, work, Duration.ZERO, interval);
+	}
+
+	/**
+	 * 밀리초 시간 값으로 고정 rate 반복 스케줄을 생성한다.
+	 *
+	 * @deprecated	{@link #newFixedRateSchedule(String, RecurringWork, Duration, Duration)}을 쓴다. utils 밖
+	 * 				사용처(marmot)를 위해 남겨 두었다.
+	 */
+	@Deprecated
+	public static RecurringScheduleThread newFixedRateSchedule(String threadName, RecurringWork work,
+															long initialDelay, long interval) {
+		return new RecurringScheduleThread(threadName, work, true, initialDelay, interval);
+	}
+
+	/**
+	 * 밀리초 주기로, 첫 수행 전 대기 없이 고정 rate 반복 스케줄을 생성한다.
+	 *
+	 * @deprecated	{@link #newFixedRateSchedule(String, RecurringWork, Duration)}을 쓴다.
+	 */
+	@Deprecated
+	public static RecurringScheduleThread newFixedRateSchedule(String threadName, RecurringWork work, long interval) {
+		return new RecurringScheduleThread(threadName, work, true, 0, interval);
+	}
+
+	/**
+	 * 밀리초 시간 값으로 고정 delay 반복 스케줄을 생성한다.
+	 *
+	 * @deprecated	{@link #newFixedDelaySchedule(String, RecurringWork, Duration, Duration)}을 쓴다. utils 밖
+	 * 				사용처(marmot)를 위해 남겨 두었다.
+	 */
+	@Deprecated
 	public static RecurringScheduleThread newFixedDelaySchedule(String threadName, RecurringWork work,
 															long initialDelay, long interval) {
 		return new RecurringScheduleThread(threadName, work, false, initialDelay, interval);
 	}
 
 	/**
-	 * 첫 수행 전 대기 없이 고정 delay 반복 스케줄을 생성한다.
+	 * 밀리초 주기로, 첫 수행 전 대기 없이 고정 delay 반복 스케줄을 생성한다.
 	 *
-	 * @see #newFixedDelaySchedule(String, RecurringWork, long, long)
+	 * @deprecated	{@link #newFixedDelaySchedule(String, RecurringWork, Duration)}을 쓴다.
 	 */
+	@Deprecated
 	public static RecurringScheduleThread newFixedDelaySchedule(String threadName, RecurringWork work, long interval) {
 		return new RecurringScheduleThread(threadName, work, false, 0, interval);
 	}
@@ -158,8 +206,8 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	}
 
 	@Override
-	public long getInterval() {
-		return m_interval;
+	public Duration getInterval() {
+		return Duration.ofMillis(m_interval);
 	}
 
 	/**
@@ -167,12 +215,11 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	 * <p>
 	 * 다음 대기부터 적용되며, 이미 시작한 대기 시간은 바꾸지 않는다.
 	 *
-	 * @throws IllegalArgumentException	{@code millis}가 0 이하인 경우
+	 * @throws IllegalArgumentException	{@code interval}이 {@code null}이거나 1ms 미만인 경우
 	 */
 	@Override
-	public void setInterval(long millis) {
-		checkInterval(millis);
-		m_interval = millis;
+	public void setInterval(Duration interval) {
+		m_interval = toIntervalMillis(interval);
 	}
 
 	/**
@@ -238,8 +285,8 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	 * <p>
 	 * 이 메소드는 기다리지 않는다. {@link RecurringWork#onStarted(RecurringSchedule)} 수행 중에 호출되면 중지를 요청해
 	 * 두고 반환하며, 초기화가 끝나면 {@code perform()}을 수행하지 않고 종료한다(초기화가 성공했으면
-	 * {@link RecurringWork#onStopped()}를 호출한다). 작업이 {@link InterruptableWork}이면 {@code mayInterruptIfRunning}과
-	 * 관계없이 {@link InterruptableWork#interrupt()}를 호출한다. 작업 중단 요청은 lock 밖에서 한 번만 하며, 작업 쓰레드
+	 * {@link RecurringWork#onStopped()}를 호출한다). 작업이 {@link InterruptibleWork}이면 {@code mayInterruptIfRunning}과
+	 * 관계없이 {@link InterruptibleWork#interrupt()}를 호출한다. 작업 중단 요청은 lock 밖에서 한 번만 하며, 작업 쓰레드
 	 * 자신이 호출한 경우({@code onStarted()}·{@code perform()} 안에서의 자기 중지)에는 하지 않는다.
 	 */
 	@Override
@@ -267,7 +314,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 			}
 
 			if ( !m_interruptRequested && Thread.currentThread() != m_performThread ) {
-				if ( m_work instanceof InterruptableWork ) {
+				if ( m_work instanceof InterruptibleWork ) {
 					interruptWork = true;
 				}
 				else if ( mayInterruptIfRunning ) {
@@ -280,10 +327,10 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 			m_lock.unlock();
 		}
 
-		// 작업 중단은 lock 밖에서 요청한다. InterruptableWork.interrupt()가 작업이 끝나기를 기다리는 동안 작업 쓰레드가
+		// 작업 중단은 lock 밖에서 요청한다. InterruptibleWork.interrupt()가 작업이 끝나기를 기다리는 동안 작업 쓰레드가
 		// 이 lock을 기다리면 교착되기 때문이다(2026-10-31 이전에는 lock을 쥔 채 호출했다).
 		if ( interruptWork ) {
-			((InterruptableWork)m_work).interrupt();
+			((InterruptibleWork)m_work).interrupt();
 		}
 		else if ( threadToInterrupt != null ) {
 			threadToInterrupt.interrupt();
@@ -295,7 +342,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 		m_lock.lock();
 		try {
 			if ( Thread.currentThread().equals(m_performThread) ) {
-				throw new RuntimeException("may cause deadlock!: "
+				throw new IllegalStateException("may cause deadlock!: "
 										+ "don't call waitForStopped while perform");
 			}
 
@@ -309,15 +356,17 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	}
 
 	@Override
-	public boolean waitForStopped(long timeout) throws InterruptedException {
-		long dueNano = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeout);
+	public boolean waitForStopped(Duration timeout) throws InterruptedException {
+		Preconditions.checkNotNullArgument(timeout, "timeout is null");
+		Preconditions.checkArgument(!timeout.isNegative(), "negative timeout: %s", timeout);
+		long dueNano = System.nanoTime() + toNanosSaturated(timeout);
 
 		m_lock.lock();
 		try {
 			// 검사는 try 안에서 한다. 2026-10-31 이전에는 lock을 잡은 뒤 try 밖에서 던져 lock이 풀리지 않았고,
 			// 작업 스레드가 lock을 쥔 채 남아 stop()·getState() 등이 모두 멈췄다.
 			if ( Thread.currentThread().equals(m_performThread) ) {
-				throw new RuntimeException("may cause deadlock!: "
+				throw new IllegalStateException("may cause deadlock!: "
 										+ "don't call waitForStopped while perform");
 			}
 
@@ -339,6 +388,39 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 
 	private static void checkInterval(long interval) {
 		Preconditions.checkArgument(interval > 0, "interval should be positive: %s", interval);
+	}
+
+	/** 주기 {@link Duration}을 밀리초로 바꾼다. 1ms 이상이어야 하며, 넘치면 {@link Long#MAX_VALUE}로 제한한다. */
+	private static long toIntervalMillis(Duration interval) {
+		Preconditions.checkNotNullArgument(interval, "interval is null");
+		Preconditions.checkArgument(interval.compareTo(Duration.ofMillis(1)) >= 0,
+									"interval must be at least 1ms: %s", interval);
+		return toMillisSaturated(interval);
+	}
+
+	/** 첫 대기 {@link Duration}을 밀리초로 바꾼다. 0 이상이어야 하며, 넘치면 {@link Long#MAX_VALUE}로 제한한다. */
+	private static long toDelayMillis(Duration initialDelay) {
+		Preconditions.checkNotNullArgument(initialDelay, "initialDelay is null");
+		Preconditions.checkArgument(!initialDelay.isNegative(), "negative initialDelay: %s", initialDelay);
+		return toMillisSaturated(initialDelay);
+	}
+
+	private static long toMillisSaturated(Duration duration) {
+		try {
+			return duration.toMillis();
+		}
+		catch ( ArithmeticException e ) {
+			return Long.MAX_VALUE;
+		}
+	}
+
+	private static long toNanosSaturated(Duration duration) {
+		try {
+			return duration.toNanos();
+		}
+		catch ( ArithmeticException e ) {
+			return Long.MAX_VALUE;
+		}
 	}
 
 	private void _setState(int state) {
@@ -366,7 +448,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 
 		_setState(STATE_STOPPED);
 		if ( m_logger.isInfoEnabled() ) {
-			String str = UnitUtils.toSecondString(getInterval());
+			String str = UnitUtils.toSecondString(m_interval);
 			m_logger.info("stopped: {}[period={}]", getClass().getSimpleName(), str);
 		}
 	}
@@ -399,7 +481,7 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 				else {
 					_setState(STATE_RUNNING_IDLE);
 					if ( m_logger.isInfoEnabled() ) {
-						String str = UnitUtils.toSecondString(getInterval());
+						String str = UnitUtils.toSecondString(m_interval);
 						m_logger.info("started: {}[period={}]",
 										getClass().getSimpleName(), str);
 					}

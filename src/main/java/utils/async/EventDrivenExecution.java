@@ -135,7 +135,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 					case CANCELLING:
 						// 'STARTING'/'CANCELLING' 상태인 경우에는 상태가 바뀔때까지
 						// 제한시간동안 대기한다.
-						if ( !m_aopGuard.awaitSignal(due) ) {
+						if ( !m_aopGuard.awaitSignalUntil(due) ) {
 							// 제한 시간이 초과된 경우
 							return false;
 						}
@@ -477,7 +477,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     		Date due = new Date(System.currentTimeMillis() + m_cancelTimeoutMillis);
 			while ( m_aopState == AsyncState.STARTING ) {
 				try {
-					if ( !m_aopGuard.awaitSignal(due) ) {
+					if ( !m_aopGuard.awaitSignalUntil(due) ) {
 						return false;
 					}
 				}
@@ -532,7 +532,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
     		Date due = new Date(System.currentTimeMillis() + m_cancelTimeoutMillis);
     		try {
 				while ( m_aopState == AsyncState.STARTING ) {
-					if ( !m_aopGuard.awaitSignal(due) ) {
+					if ( !m_aopGuard.awaitSignalUntil(due) ) {
 						return false;
 					}
 				}

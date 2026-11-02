@@ -208,7 +208,7 @@ public class SuppliableInputStream extends InputStream {
 			// 이미 lock을 보유하고 있으므로 m_closed를 직접 참조한다(isClosed()는 매번 재진입+불필요한
 			// signalAll을 유발한다).
 			while ( !m_closed && m_current < chunkNo ) {
-				if ( !m_guard.awaitSignal(due) ) {
+				if ( !m_guard.awaitSignalUntil(due) ) {
 					return false;
 				}
 			}
@@ -351,7 +351,7 @@ public class SuppliableInputStream extends InputStream {
 					throw new TimeoutException("supply timeout");
 				}
 				else {
-					if ( !m_guard.awaitSignal(due) ) {
+					if ( !m_guard.awaitSignalUntil(due) ) {
 						String details = String.format("supply timeout: %s",
 														UnitUtils.toMillisString(unit.toMillis(timeout)));
 						throw new TimeoutException(details);

@@ -8,6 +8,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -33,7 +34,7 @@ import utils.func.CheckedSupplierX;
  *       {@link #accept(Consumer, Object)}과 그 {@code Checked} 변형. lock을 자동 획득/해제하고,
  *       작업 완료 후 finally에서 {@link #signalAll()}을 자동 호출한다. 공유 상태를 갱신하고
  *       대기 쓰레드를 깨우는 가장 일반적인 경로.</li>
- *   <li><b>조건 대기 모드</b> — {@link #awaitCondition(Supplier)} 또는 시간 제한 변형이 반환하는
+ *   <li><b>조건 대기 모드</b> — {@link #awaitCondition(BooleanSupplier)} 또는 시간 제한 변형이 반환하는
  *       {@link AwaitCondition} / {@link TimedAwaitCondition} 빌더로 "조건 대기 → 작업 → signal"을
  *       한 번에 표현한다. {@link #preAction(Runnable)}로 lock 획득 직후 한 번만 실행할 사전 작업도
  *       chaining 가능하다.</li>
@@ -142,13 +143,14 @@ public class Guard {
 	 * Guard가 signal을 받거나 주어진 제한 시각을 경과할 때까지 대기한다.
 	 * <p>
 	 * 본 메소드는 반드시 lock을 획득한 상태에서 호출해야 한다.
+	 * 기간을 기준으로 기다리려면 {@link #awaitSignal(Duration)}을 사용한다.
 	 * 
 	 * @param due	대기 제한 시각
 	 * @return	대기 제한 시각이 경과하기 전에 signal을 받아 대기가 멈춘 경우는 {@code true},
 	 * 			그렇지 않고 시간 제한으로 대기가 멈춘 경우는 {@code false}.
 	 * @throws InterruptedException	대기 중에 현재 쓰레드가 interrupt된 경우.
 	 */
-	public boolean awaitSignal(Date due) throws InterruptedException {
+	public boolean awaitSignalUntil(Date due) throws InterruptedException {
 		Preconditions.checkNotNullArgument(due, "due is null");
 		
 		return m_cond.awaitUntil(due);
@@ -217,7 +219,7 @@ public class Guard {
 	 * 					필드를 직접 읽거나 {@link #read(Supplier)}를 쓴다.
 	 * @return	{@link AwaitCondition} 빌더
 	 */
-	public AwaitCondition awaitCondition(Supplier<Boolean> condition) {
+	public AwaitCondition awaitCondition(BooleanSupplier condition) {
 		return new AwaitCondition(this, null, condition);
 	}
 
@@ -233,7 +235,7 @@ public class Guard {
 	 * @param due		대기 제한 시각 (non-null)
 	 * @return	{@link TimedAwaitCondition} 빌더
 	 */
-	public TimedAwaitCondition awaitCondition(Supplier<Boolean> condition, Date due) {
+	public TimedAwaitCondition awaitCondition(BooleanSupplier condition, Date due) {
 		return new TimedAwaitCondition(this, null, condition, due);
 	}
 
@@ -252,7 +254,7 @@ public class Guard {
 	 * @return	{@link TimedAwaitCondition} 빌더
 	 * @throws IllegalArgumentException	{@code timeout}이 {@code null}이거나 음수인 경우
 	 */
-	public TimedAwaitCondition awaitCondition(Supplier<Boolean> condition, Duration timeout) {
+	public TimedAwaitCondition awaitCondition(BooleanSupplier condition, Duration timeout) {
 		return new TimedAwaitCondition(this, null, condition, timeout);
 	}
 
@@ -271,7 +273,7 @@ public class Guard {
 	 * @return	{@link TimedAwaitCondition} 빌더
 	 * @throws IllegalArgumentException	{@code timeout}이 음수이거나 {@code unit}이 {@code null}인 경우
 	 */
-	public TimedAwaitCondition awaitCondition(Supplier<Boolean> condition, long timeout, TimeUnit unit) {
+	public TimedAwaitCondition awaitCondition(BooleanSupplier condition, long timeout, TimeUnit unit) {
 		return new TimedAwaitCondition(this, null, condition, timeout, unit);
 	}
 	
@@ -331,8 +333,11 @@ public class Guard {
 	 * @param <T>	반환 값의 타입
 	 * @param suppl	값을 읽을 supplier
 	 * @return		supplier가 반환한 값
+	 * @throws IllegalArgumentException	{@code suppl}가 {@code null}인 경우
 	 */
 	public <T> T read(Supplier<T> suppl) {
+		Preconditions.checkNotNullArgument(suppl, "supplier is null");
+
 		m_lock.lock();
 		try {
 			return suppl.get();
@@ -351,8 +356,11 @@ public class Guard {
 	 * @param <T>	반환 값의 타입
 	 * @param suppl	값을 공급할 supplier
 	 * @return		supplier가 반환한 값
+	 * @throws IllegalArgumentException	{@code suppl}가 {@code null}인 경우
 	 */
 	public <T> T get(Supplier<T> suppl) {
+		Preconditions.checkNotNullArgument(suppl, "supplier is null");
+
 		m_lock.lock();
 		try {
 			T value = suppl.get();
@@ -375,8 +383,11 @@ public class Guard {
 	 * @param suppl	값을 공급할 supplier
 	 * @return		supplier가 반환한 값
 	 * @throws X	supplier 수행 중 발생한 예외
+	 * @throws IllegalArgumentException	{@code suppl}가 {@code null}인 경우
 	 */
 	public <T,X extends Throwable> T getChecked(CheckedSupplierX<T,X> suppl) throws X {
+		Preconditions.checkNotNullArgument(suppl, "supplier is null");
+
 		m_lock.lock();
 		try {
 			T value = suppl.get();
@@ -396,8 +407,11 @@ public class Guard {
 	 * @param <T>		값의 타입
 	 * @param consumer	값을 받아 처리할 consumer
 	 * @param value		consumer에 전달할 값
+	 * @throws IllegalArgumentException	{@code consumer}가 {@code null}인 경우
 	 */
 	public <T> void accept(Consumer<T> consumer, T value) {
+		Preconditions.checkNotNullArgument(consumer, "consumer is null");
+
 		m_lock.lock();
 		try {
 			consumer.accept(value);
@@ -419,8 +433,11 @@ public class Guard {
 	 * @param consumer	값을 받아 처리할 consumer
 	 * @param value		consumer에 전달할 값
 	 * @throws X		consumer 수행 중 발생한 예외
+	 * @throws IllegalArgumentException	{@code consumer}가 {@code null}인 경우
 	 */
 	public <T,X extends Throwable> void acceptChecked(CheckedConsumerX<T,X> consumer, T value) throws X {
+		Preconditions.checkNotNullArgument(consumer, "consumer is null");
+
 		m_lock.lock();
 		try {
 			consumer.accept(value);
@@ -445,8 +462,8 @@ public class Guard {
 	 *      .andReturn();
 	 * }</pre>
 	 */
-	public static class PreAction {
-		protected final Guard m_guard;
+	public static final class PreAction {
+		private final Guard m_guard;
 		private final Runnable m_action;
 
 		PreAction(Guard guard, Runnable action) {
@@ -463,7 +480,7 @@ public class Guard {
 		 * @param condition	대기 조건
 		 * @return	{@link AwaitCondition} 빌더
 		 */
-		public AwaitCondition awaitCondition(Supplier<Boolean> condition) {
+		public AwaitCondition awaitCondition(BooleanSupplier condition) {
 			return new AwaitCondition(m_guard, m_action, condition);
 		}
 
@@ -474,7 +491,7 @@ public class Guard {
 		 * @param due		대기 제한 시각
 		 * @return	{@link TimedAwaitCondition} 빌더
 		 */
-		public TimedAwaitCondition awaitCondition(Supplier<Boolean> condition, Date due) {
+		public TimedAwaitCondition awaitCondition(BooleanSupplier condition, Date due) {
 			return new TimedAwaitCondition(m_guard, m_action, condition, due);
 		}
 
@@ -485,7 +502,7 @@ public class Guard {
 		 * @param timeout	대기 제한 기간 (양수)
 		 * @return	{@link TimedAwaitCondition} 빌더
 		 */
-		public TimedAwaitCondition awaitCondition(Supplier<Boolean> condition, Duration timeout) {
+		public TimedAwaitCondition awaitCondition(BooleanSupplier condition, Duration timeout) {
 			return new TimedAwaitCondition(m_guard, m_action, condition, timeout);
 		}
 
@@ -497,65 +514,77 @@ public class Guard {
 		 * @param unit		{@code timeout}의 시간 단위
 		 * @return	{@link TimedAwaitCondition} 빌더
 		 */
-		public TimedAwaitCondition awaitCondition(Supplier<Boolean> condition, long timeout, TimeUnit unit) {
+		public TimedAwaitCondition awaitCondition(BooleanSupplier condition, long timeout, TimeUnit unit) {
 			return new TimedAwaitCondition(m_guard, m_action, condition, timeout, unit);
 		}
 	}
 	
 	/**
-	 * 사전 조건이 만족할 때까지 무한 대기하는 빌더.
-	 * <p>
-	 * {@link Guard#awaitCondition(Supplier)} 또는 {@link PreAction#awaitCondition(Supplier)}으로 생성된다.
-	 * 종결 메소드 ({@code andReturn} / {@code andRun} / {@code andRunChecked} / {@code andGet} /
-	 * {@code andGetChecked}) 중 하나를 호출해야 실제 lock 획득과 대기가 시작된다.
+	 * 조건 대기 빌더의 공통 기반. 종결 메소드({@code andReturn} / {@code andRun} / {@code andRunChecked} /
+	 * {@code andGet} / {@code andGetChecked})를 한 번만 구현하고, 조건을 기다리는 방법만 하위 클래스에 맡긴다.
 	 * <p>
 	 * 종결 메소드 공통 동작:
 	 * <ol>
 	 *   <li>lock 획득. 다른 쓰레드가 보유하고 있으면 인터럽트 가능하게 기다린다({@link InterruptedException}).</li>
 	 *   <li>사전 작업이 있으면 정확히 한 번 실행. 성공·실패와 관계없이 signal하고, 실패 시 예외 전파.</li>
-	 *   <li>{@code precondition}이 {@code true}가 될 때까지 {@code awaitSignal()}로 대기.</li>
+	 *   <li>조건이 {@code true}가 될 때까지 대기. 기다리는 방법(무한 대기, 시간 제한 대기)은 하위 클래스가 정한다.</li>
 	 *   <li>지정된 작업 수행. 정상/예외 종료 모두 finally에서 signal과 lock 해제.</li>
 	 * </ol>
+	 * {@code *Checked} 종결 메소드는 작업의 실패를 {@link ExecutionException}으로 감싼다. 단, {@link InterruptedException}은
+	 * 감싸지 않고 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다. 인터럽트는 예외로만 알리고
+	 * 인터럽트 플래그는 다시 켜지 않는다.
+	 * <p>
+	 * (2026-10-31 이전에는 {@link AwaitCondition}과 {@link TimedAwaitCondition}이 종결 메소드 5개를 각자 거의 똑같이
+	 * 구현했다. 검토 #16.)
+	 *
+	 * @param <X>	조건 대기가 실패할 때 던지는 예외 타입. 무한 대기는 {@link RuntimeException}(호출자가 따로 처리할
+	 * 				필요가 없음), 시간 제한 대기는 {@link TimeoutException}.
 	 */
-	public static final class AwaitCondition {
-		protected final Guard m_guard;
-		private final Runnable m_preAction;
-		private final Supplier<Boolean> m_precondition;
+	public static abstract sealed class AbstractAwaitCondition<X extends Exception>
+															permits AwaitCondition, TimedAwaitCondition {
+		private final Guard m_guard;
+		private final @Nullable Runnable m_preAction;
+		private final BooleanSupplier m_precondition;
 
-		AwaitCondition(Guard guard, Runnable preAction, Supplier<Boolean> precondition) {
+		AbstractAwaitCondition(Guard guard, @Nullable Runnable preAction, BooleanSupplier precondition) {
 			Preconditions.checkNotNullArgument(guard, "Guard is null");
 			Preconditions.checkNotNullArgument(precondition, "precondition is null");
 
-	        m_guard = guard;
+			m_guard = guard;
 			m_preAction = preAction;
-	        m_precondition = precondition;
+			m_precondition = precondition;
 		}
 
 		/**
-		 * 사전 조건이 만족될 때까지 대기한 후 반환한다.
+		 * 사전 조건이 만족될 때까지 대기한 후 반환한다. 대기를 마친 뒤 signal을 보내지 않는다.
 		 *
 		 * @throws InterruptedException	대기 중에 쓰레드가 인터럽트된 경우
+		 * @throws X	조건 대기가 실패한 경우(시간 제한 대기에서 제한 시간이 지난 경우 {@link TimeoutException})
 		 */
-		public void andReturn() throws InterruptedException {
+		public void andReturn() throws InterruptedException, X {
 			m_guard.lockForWait();
 			try {
-				awaitConditionSatisfied();
+				awaitSatisfied();
 			}
 			finally {
 				m_guard.unlock();
 			}
 		}
-		
+
 		/**
-		 * 주어진 사전 조건이 만족할 때까지 대기하고 이 조건이 만족한 경우 주어진 작업을 실행하고,
-		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
-		 * 
-		 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
+		 * 사전 조건이 만족할 때까지 대기하고, 만족하면 주어진 작업을 실행한 뒤 대기 쓰레드들에게 signal을 보낸다.
+		 *
+		 * @param task	실행할 작업 (non-null)
+		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우
+		 * @throws X	조건 대기가 실패한 경우(시간 제한 대기에서 제한 시간이 지난 경우 {@link TimeoutException})
+		 * @throws IllegalArgumentException	{@code task}가 {@code null}인 경우
 		 */
-		public void andRun(Runnable task) throws InterruptedException {
+		public void andRun(Runnable task) throws InterruptedException, X {
+			Preconditions.checkNotNullArgument(task, "task is null");
+
 			m_guard.lockForWait();
 			try {
-				awaitConditionSatisfied();
+				awaitSatisfied();
 
 				try {
 					task.run();
@@ -568,22 +597,26 @@ public class Guard {
 				m_guard.unlock();
 			}
 		}
-		
+
 		/**
-		 * 주어진 사전 조건이 만족할 때까지 대기하고 이 조건이 만족한 경우 주어진 작업을 실행하고,
-		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
+		 * 사전 조건이 만족할 때까지 대기하고, 만족하면 checked 예외를 던질 수 있는 작업을 실행한 뒤 대기 쓰레드들에게
+		 * signal을 보낸다.
 		 * <p>
-		 * 주어진 작업은 내부 lock을 획득한 상태에서 실행되고, 작업 수행 중 예외가 발생한 경우
-		 * {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지 않고
-		 * 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
+		 * 작업 수행 중 예외가 발생하면 {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지
+		 * 않고 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
 		 *
-		 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
-		 * @throws ExecutionException 작업 ({@code work}) 수행 중 예외가 발생한 경우.
+		 * @param task	실행할 작업 (non-null)
+		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우
+		 * @throws X	조건 대기가 실패한 경우(시간 제한 대기에서 제한 시간이 지난 경우 {@link TimeoutException})
+		 * @throws ExecutionException	작업 수행 중 예외가 발생한 경우
+		 * @throws IllegalArgumentException	{@code task}가 {@code null}인 경우
 		 */
-		public void andRunChecked(CheckedRunnable task) throws InterruptedException, ExecutionException {
+		public void andRunChecked(CheckedRunnable task) throws InterruptedException, X, ExecutionException {
+			Preconditions.checkNotNullArgument(task, "task is null");
+
 			m_guard.lockForWait();
 			try {
-				awaitConditionSatisfied();
+				awaitSatisfied();
 
 				try {
 					task.run();
@@ -603,19 +636,25 @@ public class Guard {
 				m_guard.unlock();
 			}
 		}
-		
+
 		/**
-		 * 주어진 사전 조건이 만족할 때까지 대기하고 이 조건이 만족한 경우 주어진 작업을 실행하고,
-		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
+		 * 사전 조건이 만족할 때까지 대기하고, 만족하면 주어진 작업을 실행해 결과를 반환한다. 작업 뒤 대기 쓰레드들에게
+		 * signal을 보낸다.
 		 *
-		 * @return 작업의 결과 값.
-		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우.
+		 * @param <T>		결과 값의 타입
+		 * @param supplier	실행할 작업 (non-null)
+		 * @return	작업의 결과 값
+		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우
+		 * @throws X	조건 대기가 실패한 경우(시간 제한 대기에서 제한 시간이 지난 경우 {@link TimeoutException})
+		 * @throws IllegalArgumentException	{@code supplier}가 {@code null}인 경우
 		 */
-		public <T> T andGet(Supplier<T> supplier) throws InterruptedException {
+		public <T> T andGet(Supplier<T> supplier) throws InterruptedException, X {
+			Preconditions.checkNotNullArgument(supplier, "supplier is null");
+
 			m_guard.lockForWait();
 			try {
-				awaitConditionSatisfied();
-				
+				awaitSatisfied();
+
 				try {
 					return supplier.get();
 				}
@@ -627,23 +666,28 @@ public class Guard {
 				m_guard.unlock();
 			}
 		}
-		
+
 		/**
-		 * 주어진 사전 조건이 만족할 때까지 대기하고 이 조건이 만족한 경우 주어진 작업을 실행하고,
-		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
+		 * 사전 조건이 만족할 때까지 대기하고, 만족하면 checked 예외를 던질 수 있는 작업을 실행해 결과를 반환한다.
+		 * 작업 뒤 대기 쓰레드들에게 signal을 보낸다.
 		 * <p>
-		 * 주어진 작업은 내부 lock을 획득한 상태에서 실행되고, 작업 수행 중 예외가 발생한 경우
-		 * {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지 않고
-		 * 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
+		 * 작업 수행 중 예외가 발생하면 {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지
+		 * 않고 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
 		 *
-		 * @return 작업의 결과 값.
-		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우.
-		 * @throws ExecutionException 작업 ({@code supplier}) 수행 중 예외가 발생한 경우.
+		 * @param <T>		결과 값의 타입
+		 * @param supplier	실행할 작업 (non-null)
+		 * @return	작업의 결과 값
+		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우
+		 * @throws X	조건 대기가 실패한 경우(시간 제한 대기에서 제한 시간이 지난 경우 {@link TimeoutException})
+		 * @throws ExecutionException	작업 수행 중 예외가 발생한 경우
+		 * @throws IllegalArgumentException	{@code supplier}가 {@code null}인 경우
 		 */
-		public <T> T andGetChecked(CheckedSupplier<T> supplier) throws InterruptedException, ExecutionException {
+		public <T> T andGetChecked(CheckedSupplier<T> supplier) throws InterruptedException, X, ExecutionException {
+			Preconditions.checkNotNullArgument(supplier, "supplier is null");
+
 			m_guard.lockForWait();
 			try {
-				awaitConditionSatisfied();
+				awaitSatisfied();
 
 				try {
 					return supplier.get();
@@ -663,16 +707,11 @@ public class Guard {
 				m_guard.unlock();
 			}
 		}
-		
+
 		/**
-		 * 사전 조건이 만족할 때까지 대기한다.
-		 * <p>
-		 * {@code m_precondition}이 {@code true}가 될 때까지 대기한다.
-		 * 본 메소드는 {@link Guard} 객체의 lock을 획득한 상태에서 호출되어야 한다.
-		 * 
-		 * @throws InterruptedException	대기 중에 interrupt가 발생한 경우.
+		 * 사전 작업을 실행한 뒤 조건이 만족할 때까지 대기한다. {@link Guard} 객체의 lock을 획득한 상태에서 호출된다.
 		 */
-		private void awaitConditionSatisfied() throws InterruptedException {
+		private void awaitSatisfied() throws InterruptedException, X {
 			if ( m_preAction != null ) {
 				try {
 					m_preAction.run();
@@ -683,264 +722,113 @@ public class Guard {
 					m_guard.signalAll();
 				}
 			}
-			
-			while ( !m_precondition.get() ) {
-				m_guard.awaitSignal();
+			awaitPrecondition(m_guard, m_precondition);
+		}
+
+		/**
+		 * 조건이 {@code true}가 될 때까지 대기한다. lock을 획득한 상태에서 호출된다. 인터럽트는
+		 * {@link InterruptedException}으로만 알린다(플래그는 다시 켜지 않는다).
+		 *
+		 * @param guard			대기에 쓸 {@link Guard}
+		 * @param precondition	대기 조건
+		 */
+		abstract void awaitPrecondition(Guard guard, BooleanSupplier precondition) throws InterruptedException, X;
+	}
+
+	/**
+	 * 사전 조건이 만족할 때까지 무한 대기하는 빌더.
+	 * <p>
+	 * {@link Guard#awaitCondition(BooleanSupplier)} 또는 {@link PreAction#awaitCondition(BooleanSupplier)}으로 생성된다.
+	 * 종결 메소드 ({@code andReturn} / {@code andRun} / {@code andRunChecked} / {@code andGet} /
+	 * {@code andGetChecked}) 중 하나를 호출해야 실제 lock 획득과 대기가 시작된다. 공통 동작은
+	 * {@link AbstractAwaitCondition}을 참조한다. 대기는 시간 제한이 없으므로 종결 메소드는 {@link TimeoutException}을
+	 * 던지지 않는다.
+	 */
+	public static final class AwaitCondition extends AbstractAwaitCondition<RuntimeException> {
+		AwaitCondition(Guard guard, @Nullable Runnable preAction, BooleanSupplier precondition) {
+			super(guard, preAction, precondition);
+		}
+
+		@Override
+		void awaitPrecondition(Guard guard, BooleanSupplier precondition) throws InterruptedException {
+			while ( !precondition.getAsBoolean() ) {
+				guard.awaitSignal();
 			}
 		}
 	}
-	
+
 	/**
 	 * 사전 조건이 만족할 때까지 시간 제한이 있는 대기 빌더.
 	 * <p>
-	 * {@link Guard#awaitCondition(Supplier, Date)}, {@link Guard#awaitCondition(Supplier, Duration)},
-	 * {@link Guard#awaitCondition(Supplier, long, TimeUnit)} 또는 {@link PreAction}의 동등한 메소드로
+	 * {@link Guard#awaitCondition(BooleanSupplier, Date)}, {@link Guard#awaitCondition(BooleanSupplier, Duration)},
+	 * {@link Guard#awaitCondition(BooleanSupplier, long, TimeUnit)} 또는 {@link PreAction}의 동등한 메소드로
 	 * 생성된다. 종결 메소드를 호출해야 실제 lock 획득과 대기가 시작된다.
-	 * lock 획득·사전 작업·조건 충족 후 작업 등 공통 동작은 {@link AwaitCondition}과 같다. 제한 시간은 조건 대기에만
-	 * 적용되며 lock 획득 대기에는 적용되지 않는다(lock 획득 대기는 인터럽트로만 끊을 수 있다).
+	 * lock 획득·사전 작업·조건 충족 후 작업 등 공통 동작은 {@link AbstractAwaitCondition}과 같다. 제한 시간은 조건
+	 * 대기에만 적용되며 lock 획득 대기에는 적용되지 않는다(lock 획득 대기는 인터럽트로만 끊을 수 있다).
 	 * <p>
 	 * {@link AwaitCondition}과의 차이점은 시각/기간 만료 시 모든 종결 메소드
 	 * ({@link #andReturn()} 포함)가 {@link TimeoutException}을 발생시킨다는 점이다.
 	 */
-	public static final class TimedAwaitCondition {
-		protected final Guard m_guard;
-		private final Runnable m_preAction;
-		private final Supplier<Boolean> m_precondition;
+	public static final class TimedAwaitCondition extends AbstractAwaitCondition<TimeoutException> {
 		private final @Nullable Date m_due;
 		private final @Nullable Duration m_timeout;
 
-		TimedAwaitCondition(Guard guard, Runnable preAction, Supplier<Boolean> precondition, Date due) {
-			Preconditions.checkNotNullArgument(guard, "Guard is null");
-			Preconditions.checkNotNullArgument(precondition, "Precondition is null");
+		TimedAwaitCondition(Guard guard, @Nullable Runnable preAction, BooleanSupplier precondition, Date due) {
+			super(guard, preAction, precondition);
 			Preconditions.checkNotNullArgument(due, "Due is null");
-			
-	        m_guard = guard;
-	        m_preAction = preAction;
-	        m_precondition = precondition;
+
 	        m_due = new Date(due.getTime());	// 호출자가 원본을 바꿔도 등록된 기한이 바뀌지 않도록 복사한다
 	        m_timeout = null;
 		}
-		
-		TimedAwaitCondition(Guard guard, Runnable preAction, Supplier<Boolean> precondition,
+
+		TimedAwaitCondition(Guard guard, @Nullable Runnable preAction, BooleanSupplier precondition,
 							Duration timeout) {
-			Preconditions.checkNotNullArgument(guard, "Guard is null");
-			Preconditions.checkNotNullArgument(precondition, "Precondition is null");
+			super(guard, preAction, precondition);
 			Preconditions.checkNotNullArgument(timeout, "Timeout is null");
 			Preconditions.checkArgument(!timeout.isNegative(), "Timeout is negative");
-			
-	        m_guard = guard;
-	        m_preAction = preAction;
-	        m_precondition = precondition;
+
 	        m_due = null;
 	        m_timeout = timeout;
 		}
-		
-		TimedAwaitCondition(Guard guard, Runnable preAction, Supplier<Boolean> precondition, long timeout,
+
+		TimedAwaitCondition(Guard guard, @Nullable Runnable preAction, BooleanSupplier precondition, long timeout,
 							TimeUnit unit) {
-			Preconditions.checkNotNullArgument(guard, "Guard is null");
-			Preconditions.checkNotNullArgument(precondition, "Precondition is null");
+			super(guard, preAction, precondition);
 			Preconditions.checkArgument(timeout >= 0, "Timeout must be non-negative: %d", timeout);
 			Preconditions.checkNotNullArgument(unit, "TimeUnit is null");
-			
-	        m_guard = guard;
-	        m_preAction = preAction;
-	        m_precondition = precondition;
+
 	        m_due = null;
 	        m_timeout = Duration.ofNanos(unit.toNanos(timeout));
 		}
-	
-		/**
-		 * 사전 조건이 만족될 때까지 시간 제한 안에서 대기한다.
-		 *
-		 * @throws InterruptedException	대기 중에 쓰레드가 인터럽트된 경우
-		 * @throws TimeoutException		대기 제한 시각이 경과한 경우
-		 */
-		public void andReturn() throws InterruptedException, TimeoutException {
-			m_guard.lockForWait();
-			try {
-				awaitPreconditionSatisfied();
-			}
-			finally {
-				m_guard.unlock();
-			}
-		}
-		
-		/**
-		 * 주어진 사전 조건이 만족할 때까지 대기하고 이 조건이 만족한 경우 주어진 작업을 실행하고,
-		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
-		 * <p>
-		 * 대기 제한 시간이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
-		 *
-		 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
-		 * @throws TimeoutException 대기 제한 시각을 경과한 경우.
-		 */
-		public void andRun(Runnable task) throws InterruptedException, TimeoutException {
-			m_guard.lockForWait();
-			try {
-				awaitPreconditionSatisfied();
-	
-				try {
-					task.run();
-				}
-				finally {
-					m_guard.signalAll();
-				}
-			}
-			finally {
-				m_guard.unlock();
-			}
-		}
-		
-		/**
-		 * 주어진 사전 조건이 만족할 때까지 대기하고 이 조건이 만족한 경우 주어진 작업을 실행하고,
-		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
-		 * <p>
-		 * 주어진 작업은 내부 lock을 획득한 상태에서 실행되고, 작업 수행 중 예외가 발생한 경우
-		 * {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지 않고
-		 * 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
-		 * 대기 제한 시간이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
-		 *
-		 * @throws InterruptedException 대기 과정 중에 쓰레드가 중단된 경우.
-		 * @throws TimeoutException 대기 제한 시각을 경과한 경우.
-		 * @throws ExecutionException 작업 ({@code work}) 수행 중 예외가 발생한 경우.
-		 */
-		public void andRunChecked(CheckedRunnable task) throws InterruptedException, TimeoutException, ExecutionException {
-			m_guard.lockForWait();
-			try {
-				awaitPreconditionSatisfied();
 
-				try {
-					task.run();
-				}
-				catch ( InterruptedException e ) {
-					// 감싸지 않고 그대로 던진다. 예외로 알리므로 인터럽트 플래그는 다시 켜지 않는다.
-					throw e;
-				}
-				catch ( Throwable e ) {
-					throw toExecutionException(e);
-				}
-				finally {
-					m_guard.signalAll();
-				}
-			}
-			finally {
-				m_guard.unlock();
-			}
-		}
-		
-		/**
-		 * 주어진 사전 조건이 만족할 때까지 대기하고 이 조건이 만족한 경우 주어진 작업을 실행하고,
-		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
-		 * <p>
-		 * 대기 제한 시간이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
-		 *
-		 * @return 작업의 결과 값.
-		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우.
-		 * @throws TimeoutException 대기 제한 시각을 경과한 경우.
-		 */
-		public <T> T andGet(Supplier<T> supplier) throws InterruptedException, TimeoutException {
-			m_guard.lockForWait();
-			try {
-				awaitPreconditionSatisfied();
-				
-				try {
-					return supplier.get();
-				}
-				finally {
-					m_guard.signalAll();
-				}
-			}
-			finally {
-				m_guard.unlock();
-			}
-		}
-		
-		/**
-		 * 주어진 사전 조건이 만족할 때까지 대기하고 이 조건이 만족한 경우 주어진 작업을 실행하고,
-		 * 필요한 경우 대기 쓰레드들에게 signal을 보낸다.
-		 * <p>
-		 * 주어진 작업은 내부 lock을 획득한 상태에서 실행되고, 작업 수행 중 예외가 발생한 경우
-		 * {@link ExecutionException}을 발생시킨다. 단, {@link InterruptedException}은 감싸지 않고
-		 * 그대로 던지고, {@link VirtualMachineError}도 감싸지 않고 다시 던진다.
-		 * 대기 제한 시간이 경과한 경우에는 대기가 종료되고 {@link TimeoutException}을 발생시킨다.
-		 *
-		 * @return 작업의 결과 값.
-		 * @throws InterruptedException	대기 과정 중에 쓰레드가 중단된 경우.
-		 * @throws TimeoutException 대기 제한 시각을 경과한 경우.
-		 * @throws ExecutionException 작업 ({@code supplier}) 수행 중 예외가 발생한 경우.
-		 */
-		public <T> T andGetChecked(CheckedSupplier<T> supplier) throws InterruptedException, TimeoutException, ExecutionException {
-			m_guard.lockForWait();
-			try {
-				awaitPreconditionSatisfied();
-
-				try {
-					return supplier.get();
-				}
-				catch ( InterruptedException e ) {
-					// 감싸지 않고 그대로 던진다. 예외로 알리므로 인터럽트 플래그는 다시 켜지 않는다.
-					throw e;
-				}
-				catch ( Throwable e ) {
-					throw toExecutionException(e);
-				}
-				finally {
-					m_guard.signalAll();
-				}
-			}
-			finally {
-				m_guard.unlock();
-			}
-		}
-		
-		/**
-		 * 사전 조건이 만족할 때까지 대기한다.
-		 * <p>
-		 * 사전 조건이 없는 경우에는 바로 반환한다.
-		 * 본 메소드는 {@link Guard} 객체의 lock을 획득한 상태에서 호출되어야 한다.
-		 * 
-		 * @throws TimeoutException	사전 조건 대기 시간이 경과한 경우.
-		 * @throws InterruptedException	대기 중에 interrupt가 발생한 경우.
-		 */
-		private void awaitPreconditionSatisfied() throws InterruptedException, TimeoutException {
-			if ( m_preAction != null ) {
-				try {
-					m_preAction.run();
-				}
-				finally {
-					// 사전 작업이 바꾼 상태를 기다리는 대기자가 있을 수 있으므로 성공·실패와 관계없이 알린다(실패 시 예외는
-					// 그대로 전파). 2026-10-31 이전에는 실패할 때만 알려, 사전 작업으로 등록한 요청을 기다리던 쪽이 깨지 않았다.
-					m_guard.signalAll();
-				}
-			}
-
+		@Override
+		void awaitPrecondition(Guard guard, BooleanSupplier precondition) throws InterruptedException, TimeoutException {
 			// 두 방식 모두 "조건 확인 → 남은 시간 확인 → 대기" 순서로, 시간이 다 되어 깨어나도 조건을 한 번 더 확인한다.
-			// 인터럽트는 InterruptedException으로만 알린다(플래그는 다시 켜지 않는다).
 			if ( m_due != null ) {
-				// 절대 시각 기반 대기. 2026-10-31 이전에는 awaitSignal(due)가 false를 반환하면 조건을 다시 보지 않고
+				// 절대 시각 기반 대기. 2026-10-31 이전에는 awaitSignalUntil(due)(당시 awaitSignal(Date))가 false를 반환하면 조건을 다시 보지 않고
 				// 시간 초과로 처리해, 기한 직전에 조건이 충족되어도 TimeoutException이 났다.
-				while ( !m_precondition.get() ) {
+				while ( !precondition.getAsBoolean() ) {
 					// 차이를 계산하지 않고 직접 비교한다(new Date(Long.MIN_VALUE) 등에서 뺄셈이 넘쳐 미래로 판정되면,
 					// 즉시 반환하는 awaitUntil과 조건 확인을 끝없이 반복한다).
 					if ( m_due.getTime() <= System.currentTimeMillis() ) {
 						throw new TimeoutException(String.format("due=%s", m_due));
 					}
-					m_guard.awaitSignal(m_due);
+					guard.awaitSignalUntil(m_due);
 				}
 			}
 			else {
 				// 상대 기간 기반 대기. nanos 단위로 카운트다운.
 				long remainingNanos = toNanosSaturated(m_timeout);
-				while ( !m_precondition.get() ) {
+				while ( !precondition.getAsBoolean() ) {
 					if ( remainingNanos <= 0 ) {
 						throw new TimeoutException(String.format("timeout=%s", m_timeout));
 					}
-					remainingNanos = m_guard.awaitSignalNanos(remainingNanos);
+					remainingNanos = guard.awaitSignalNanos(remainingNanos);
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 * {@code *Checked} 종결 메소드에서 작업이 던진 예외를 {@link ExecutionException}으로 감싼다.
 	 * <p>

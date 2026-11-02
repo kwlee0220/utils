@@ -114,7 +114,7 @@ public class RecurringScheduleThreadTest {
 				Thread.currentThread().interrupt();
 			}
 		};
-		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, 1000);
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofSeconds(1));
 
 		assertEquals(State.STOPPED, schedule.getState());	// 시작 전 (이전에는 STARTING)
 		schedule.start();
@@ -123,7 +123,7 @@ public class RecurringScheduleThreadTest {
 
 		release.countDown();
 		schedule.stop(true);
-		assertTrue(schedule.waitForStopped(5000));
+		assertTrue(schedule.waitForStopped(java.time.Duration.ofMillis(5000)));
 		assertEquals(State.STOPPED, schedule.getState());
 	}
 
@@ -135,28 +135,28 @@ public class RecurringScheduleThreadTest {
 		CompletableFuture<Throwable> rejected = new CompletableFuture<>();
 		work.m_onPerform = () -> {
 			try {
-				self.get().waitForStopped(100);
+				self.get().waitForStopped(java.time.Duration.ofMillis(100));
 			}
 			catch ( Throwable e ) {
 				rejected.complete(e);
 			}
 		};
-		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, 1000);
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofSeconds(1));
 		self.set(schedule);
 		schedule.start();
 
-		assertTrue(rejected.get(5, TimeUnit.SECONDS) instanceof RuntimeException);
+		assertTrue(rejected.get(5, TimeUnit.SECONDS) instanceof IllegalStateException);	// 2026-10-31 이전에는 RuntimeException
 		// lock이 풀렸다면 다른 스레드의 호출이 막히지 않는다.
 		CompletableFuture<State> state = CompletableFuture.supplyAsync(schedule::getState);
 		state.get(2, TimeUnit.SECONDS);
 		schedule.stop(true);
-		assertTrue(schedule.waitForStopped(5000));
+		assertTrue(schedule.waitForStopped(java.time.Duration.ofMillis(5000)));
 	}
 
 	@Test
 	public void set_logger_uses_the_given_logger_and_null_restores_the_default() {
 		// 이전에는 조건이 반대라 넘긴 로거를 무시하고, null을 넘기면 null이 들어갔다.
-		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", new Work(), 1000);
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", new Work(), java.time.Duration.ofSeconds(1));
 		Logger custom = LoggerFactory.getLogger("custom");
 
 		schedule.setLogger(custom);
@@ -172,7 +172,7 @@ public class RecurringScheduleThreadTest {
 		Work work = new Work();
 		IOException failure = new IOException("init failed");
 		work.m_startFailure = failure;
-		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, 1000);
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofSeconds(1));
 
 		ExecutionException e = assertThrows(ExecutionException.class, schedule::start);
 		assertSame(failure, e.getCause());
@@ -185,23 +185,23 @@ public class RecurringScheduleThreadTest {
 		// 첫 perform()이 곧바로 실패해 start()가 깨기 전에 STOPPED가 되어도 시작 실패로 보지 않는다.
 		Work work = new Work();
 		work.m_onPerform = () -> { throw new IllegalStateException("perform failed"); };
-		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, 1000);
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofSeconds(1));
 
 		schedule.start();
-		assertTrue(schedule.waitForStopped(5000));
+		assertTrue(schedule.waitForStopped(java.time.Duration.ofMillis(5000)));
 		assertTrue(schedule.getFailureCause() instanceof IllegalStateException);
 	}
 
 	@Test
 	public void stop_before_start_stops_immediately() throws Exception {
 		// 이전에는 STOPPING에 영원히 머물거나(mayInterruptIfRunning=false) NPE가 났다(true).
-		RecurringScheduleThread interrupting = RecurringScheduleThread.newFixedDelaySchedule("test", new Work(), 1000);
+		RecurringScheduleThread interrupting = RecurringScheduleThread.newFixedDelaySchedule("test", new Work(), java.time.Duration.ofSeconds(1));
 		interrupting.stop(true);
 		assertEquals(State.STOPPED, interrupting.getState());
-		assertTrue(interrupting.waitForStopped(1000));
+		assertTrue(interrupting.waitForStopped(java.time.Duration.ofMillis(1000)));
 
 		Work work = new Work();
-		RecurringScheduleThread plain = RecurringScheduleThread.newFixedDelaySchedule("test", work, 1000);
+		RecurringScheduleThread plain = RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofSeconds(1));
 		plain.stop(false);
 		assertEquals(State.STOPPED, plain.getState());
 		plain.waitForStopped();
@@ -209,7 +209,7 @@ public class RecurringScheduleThreadTest {
 	}
 
 	/** {@code interrupt()}가 수행 중인 {@code perform()}이 끝나기를 기다리는 작업. */
-	private static class WaitingInterruptableWork extends Work implements InterruptableWork {
+	private static class WaitingInterruptibleWork extends Work implements InterruptibleWork {
 		final CountDownLatch m_release = new CountDownLatch(1);
 		final CountDownLatch m_performDone = new CountDownLatch(1);
 
@@ -223,7 +223,7 @@ public class RecurringScheduleThreadTest {
 	@Test
 	public void stop_calls_interruptable_work_outside_the_lock() throws Exception {
 		// 이전에는 lock을 쥔 채 interrupt()를 불러, 그것이 기다리는 perform()이 getState()에서 lock을 기다리며 교착되었다.
-		WaitingInterruptableWork work = new WaitingInterruptableWork();
+		WaitingInterruptibleWork work = new WaitingInterruptibleWork();
 		AtomicReference<RecurringScheduleThread> self = new AtomicReference<>();
 		CountDownLatch performing = new CountDownLatch(1);
 		work.m_onPerform = () -> {
@@ -232,13 +232,13 @@ public class RecurringScheduleThreadTest {
 			self.get().getState();
 			work.m_performDone.countDown();
 		};
-		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, 1000);
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofSeconds(1));
 		self.set(schedule);
 		schedule.start();
 		performing.await();
 
 		runAsync(() -> schedule.stop(false)).get(5, TimeUnit.SECONDS);
-		assertTrue(schedule.waitForStopped(5000));
+		assertTrue(schedule.waitForStopped(java.time.Duration.ofMillis(5000)));
 		assertEquals(0, work.m_stopped.getCount());
 	}
 
@@ -248,11 +248,11 @@ public class RecurringScheduleThreadTest {
 		Work work = new Work();
 		AtomicReference<RecurringScheduleThread> self = new AtomicReference<>();
 		work.m_onStarted = () -> self.get().stop(true);
-		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, 1000);
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofSeconds(1));
 		self.set(schedule);
 
 		runAsync(schedule::start).get(5, TimeUnit.SECONDS);
-		assertTrue(schedule.waitForStopped(5000));
+		assertTrue(schedule.waitForStopped(java.time.Duration.ofMillis(5000)));
 		assertEquals(0, work.m_performCount.get());
 		assertEquals(0, work.m_stopped.getCount(), "onStopped() runs since onStarted() succeeded");
 	}
@@ -266,7 +266,7 @@ public class RecurringScheduleThreadTest {
 			starting.countDown();
 			await(release);
 		};
-		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, 1000);
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofSeconds(1));
 		CompletableFuture<Void> started = runAsync(schedule::start);
 		starting.await();
 
@@ -276,7 +276,7 @@ public class RecurringScheduleThreadTest {
 
 		release.countDown();
 		started.get(5, TimeUnit.SECONDS);
-		assertTrue(schedule.waitForStopped(5000));
+		assertTrue(schedule.waitForStopped(java.time.Duration.ofMillis(5000)));
 		assertEquals(0, work.m_performCount.get());
 	}
 
@@ -291,7 +291,7 @@ public class RecurringScheduleThreadTest {
 
 		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, 1000);
 		assertThrows(IllegalArgumentException.class, () -> schedule.setInterval(0));
-		assertEquals(1000, schedule.getInterval());
+		assertEquals(java.time.Duration.ofMillis(1000), schedule.getInterval());
 	}
 
 	@Test
@@ -305,7 +305,7 @@ public class RecurringScheduleThreadTest {
 		assertEquals(1, work.m_performCount.get());
 
 		schedule.stop(false);
-		assertTrue(schedule.waitForStopped(5000));
+		assertTrue(schedule.waitForStopped(java.time.Duration.ofMillis(5000)));
 	}
 
 	@Test
@@ -336,7 +336,7 @@ public class RecurringScheduleThreadTest {
 		assertEquals(2, work.m_performCount.get());
 
 		schedule.stop(false);
-		assertTrue(schedule.waitForStopped(5000));
+		assertTrue(schedule.waitForStopped(java.time.Duration.ofMillis(5000)));
 		assertFalse(schedule.performNow());		// 종료 후
 	}
 
@@ -356,9 +356,52 @@ public class RecurringScheduleThreadTest {
 			Thread.sleep(1);
 		}
 		schedule.stop(false);
-		assertTrue(schedule.waitForStopped(5000));
+		assertTrue(schedule.waitForStopped(java.time.Duration.ofMillis(5000)));
 
 		long gapMillis = (starts.get(2) - starts.get(1)) / 1_000_000;
 		assertTrue(gapMillis < 450, "the interval after performNow() should stay near 300ms: " + gapMillis + "ms");
+	}
+
+	// ---- #20: Duration API와 예외 계약 ----
+
+	@Test
+	public void duration_api_validates_and_reports_interval() {
+		Work work = new Work();
+		java.time.Duration subMillis = java.time.Duration.ofNanos(500_000);
+		assertThrows(IllegalArgumentException.class,
+					() -> RecurringScheduleThread.newFixedRateSchedule("test", work, subMillis));
+		assertThrows(IllegalArgumentException.class,
+					() -> RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofMillis(-1),
+																	java.time.Duration.ofSeconds(1)));
+		assertThrows(IllegalArgumentException.class,
+					() -> RecurringScheduleThread.newFixedDelaySchedule("test", work, (java.time.Duration)null));
+
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedRateSchedule("test", work,
+																		java.time.Duration.ofSeconds(2));
+		assertEquals(java.time.Duration.ofSeconds(2), schedule.getInterval());
+		schedule.setInterval(java.time.Duration.ofMillis(1500));
+		assertEquals(java.time.Duration.ofMillis(1500), schedule.getInterval());
+		assertThrows(IllegalArgumentException.class, () -> schedule.setInterval(subMillis));
+		assertThrows(IllegalArgumentException.class, () -> schedule.setInterval((java.time.Duration)null));
+
+		// 밀리초로 나타낼 수 없을 만큼 큰 값은 최댓값으로 제한한다.
+		RecurringScheduleThread huge = RecurringScheduleThread.newFixedDelaySchedule("test", work,
+														java.time.temporal.ChronoUnit.FOREVER.getDuration());
+		assertEquals(java.time.Duration.ofMillis(Long.MAX_VALUE), huge.getInterval());
+	}
+
+	@Test
+	public void deprecated_millisecond_api_still_works() throws Exception {
+		// utils 밖 사용처(marmot)를 위해 남긴 long 밀리초 메소드는 Duration 버전과 같게 동작한다.
+		Work work = new Work();
+		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, 0, 1000);
+		assertEquals(java.time.Duration.ofSeconds(1), schedule.getInterval());
+		schedule.setInterval(250);
+		assertEquals(java.time.Duration.ofMillis(250), schedule.getInterval());
+
+		schedule.start();
+		schedule.stop(false);
+		assertTrue(schedule.waitForStopped(5000));
+		assertThrows(IllegalArgumentException.class, () -> schedule.waitForStopped(java.time.Duration.ofMillis(-1)));
 	}
 }

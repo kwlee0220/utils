@@ -46,8 +46,8 @@ Generic concurrency primitives previously living here have moved to `utils.threa
 
 - **`utils.thread.Guard`** — `ReentrantLock` + `Condition` wrapper. The `m_aopGuard` field on `EventDrivenExecution` (protected, reentrant) is the canonical state-protection lock. `awaitCondition(predicate).andReturn()` / `.andRunChecked(task)` is the standard wait pattern.
 - **`utils.thread.Timer`** — Schedules timeouts on `Execution` via `setTimeout`: `setTimer(...)` cancels the execution with `cancel(true)` on a separate canceller thread; the timer is released when the execution finishes; no size limit.
-- **`utils.thread.SingleWaiterExecutor`** — Latest-wins single-slot executor (one running + one pending; new submit replaces and cancels pending).
-- **`utils.thread.LengthOneOverridingQueue`** — Single-slot blocking queue where new offers overwrite the pending element.
+- **`utils.thread.SingleWaiterExecutor`** — Latest-wins single-slot executor (one running + one pending; new submit replaces and cancels pending; `shutdownNow()` stops it for good).
+- **`utils.thread.SingleSlotOverwriteQueue`** — Single-slot blocking queue where new offers overwrite the pending element.
 - **`utils.thread.AsyncConsumer`** — Async consumer helper.
 
 ## Subpackages

@@ -3,129 +3,65 @@ package utils.thread;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.concurrent.Executor;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.Timeout;
 
+import utils.async.CompletableFutureAsyncExecution;
 import utils.async.Execution;
 import utils.async.Executions;
+import utils.async.StartableExecution;
 import utils.func.FOption;
 import utils.func.Result;
 
 /**
+ * {@link CompletionFStream}의 완료 순서 수집, 등록·시작 구분, 용량 제한, 종료 동작을 검증한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
-@ExtendWith(MockitoExtension.class)
+@Timeout(value = 20, unit = TimeUnit.SECONDS)
 public class CompletionFStreamTest {
-	private Executor m_executor = Executors.newFixedThreadPool(5);
-	private CompletionFStream<Integer> m_completions = new CompletionFStream<>(5);
+	private final ExecutorService m_executor = Executors.newFixedThreadPool(5);
+	private final CompletionFStream<Integer> m_completions = new CompletionFStream<>(5);
+
+	@AfterEach
+	public void tearDown() {
+		m_completions.close();
+		m_executor.shutdownNow();
+	}
 
 	@Test
-	public void test0() throws Exception {
+	public void results_arrive_in_completion_order() throws Exception {
 		m_completions.submit(() -> { MILLISECONDS.sleep(300); return 0; }, m_executor);
 		m_completions.submit(() -> { return 1; }, m_executor);
 		m_completions.submit(() -> { MILLISECONDS.sleep(100); return 2; }, m_executor);
 
-		FOption<Result<Integer>> ret;
-
-		ret = m_completions.next();
-		assertEquals(1, (int)ret.get().get());
-
-		ret = m_completions.next();
-		assertEquals(2, (int)ret.get().get());
-
-		ret = m_completions.next();
-		assertEquals(0, (int)ret.get().get());
+		assertEquals(1, (int)m_completions.next().get().get());
+		assertEquals(2, (int)m_completions.next().get().get());
+		assertEquals(0, (int)m_completions.next().get().get());
 
 		assertThrows(TimeoutException.class, () -> m_completions.next(10, MILLISECONDS));
 
-		m_completions.endOfSupply();
-		ret = m_completions.next(0, MILLISECONDS);
-		assertTrue(ret.isAbsent());
+		m_completions.finishSubmissions();
+		assertTrue(m_completions.next(0, MILLISECONDS).isAbsent());
 	}
 
 	@Test
-	public void test1() throws Exception {
-		m_completions.submit(() -> { MILLISECONDS.sleep(100); return 0; }, m_executor);
-		m_completions.submit(() -> { throw new IllegalStateException(); }, m_executor);
-		Thread.sleep(200);
-		m_completions.submit(() -> { MILLISECONDS.sleep(100); return 2; }, m_executor);
-
-		Result<Integer> trial;
-
-		trial = m_completions.next().get();
-		assertTrue(trial.isFailed());
-		assertEquals(IllegalStateException.class, trial.getCause().getClass());
-
-		trial = m_completions.next().get();
-		assertEquals(0, (int)trial.get());
-	}
-
-	@Test
-	public void test2_submitAfterClose() throws Exception {
-		m_completions.submit(() -> { MILLISECONDS.sleep(30); return 0; }, m_executor);
-		m_completions.submit(() -> { return 1; }, m_executor);
-		m_completions.close();
-
-		assertThrows(IllegalStateException.class,
-						() -> m_completions.submit(() -> { MILLISECONDS.sleep(30); return 2; }, m_executor));
-	}
-
-	@Test
-	public void test3_submitAfterEndOfSupply() throws Exception {
-		m_completions.submit(() -> { MILLISECONDS.sleep(30); return 0; }, m_executor);
-		m_completions.submit(() -> { return 1; }, m_executor);
-		m_completions.endOfSupply();
-
-		assertThrows(IllegalStateException.class,
-						() -> m_completions.submit(() -> { MILLISECONDS.sleep(30); return 2; }, m_executor));
-	}
-
-	@Test
-	public void test4_submitNullCallable() throws Exception {
-		assertThrows(IllegalArgumentException.class, () -> m_completions.submit(null, m_executor));
-	}
-
-	@Test
-	public void test5_submitNullExecution() throws Exception {
-		assertThrows(IllegalArgumentException.class, () -> m_completions.submit((Execution<Integer>) null));
-	}
-
-	@Test
-	public void test6_submitAlreadyStartedExecution() throws Exception {
-		Execution<Integer> exec = Executions.supplyCheckedAsync(() -> {
-			MILLISECONDS.sleep(50);
-			return 42;
-		}, m_executor);
-
-		// 이미 시작된 Execution을 submit하는 경우, 정상적으로 결과를 수집해야 한다.
-		m_completions.submit(exec);
-
-		Result<Integer> result = m_completions.next().get();
-		assertEquals(42, (int)result.get());
-	}
-
-	@Test
-	public void test7_submitNotStartedNonStartable() throws Exception {
-		// 시작되지 않은 비-StartableExecution은 IllegalArgumentException을 발생시켜야 한다.
-		@SuppressWarnings("unchecked")
-		Execution<Integer> exec = org.mockito.Mockito.mock(Execution.class);
-		org.mockito.Mockito.when(exec.isStarted()).thenReturn(false);
-
-		assertThrows(IllegalArgumentException.class, () -> m_completions.submit(exec));
-	}
-
-	@Test
-	public void test8_failedExecutionCarriesCause() throws Exception {
+	public void failed_execution_carries_cause() throws Exception {
 		IllegalArgumentException cause = new IllegalArgumentException("boom");
 		m_completions.submit(() -> { throw cause; }, m_executor);
 
@@ -135,37 +71,201 @@ public class CompletionFStreamTest {
 	}
 
 	@Test
-	public void test9_endOfSupplyAfterAllConsumed() throws Exception {
-		m_completions.submit(() -> 0, m_executor);
-		m_completions.submit(() -> 1, m_executor);
+	public void submit_after_close_or_finish_is_rejected() throws Exception {
+		CompletionFStream<Integer> closed = new CompletionFStream<>(2);
+		closed.close();
+		assertThrows(IllegalStateException.class, () -> closed.submit(() -> 0, m_executor));
 
-		// 적재된 결과 모두 소비 (next()는 결과 또는 종료까지 블록).
-		assertTrue(m_completions.next().isPresent());
-		assertTrue(m_completions.next().isPresent());
-
-		// 모두 소비한 뒤 endOfSupply 호출.
-		m_completions.endOfSupply();
-
-		// 종료된 stream에서 next는 empty 반환.
-		FOption<Result<Integer>> ret = m_completions.next(0, MILLISECONDS);
-		assertTrue(ret.isAbsent());
+		m_completions.finishSubmissions();
+		assertThrows(IllegalStateException.class, () -> m_completions.submit(() -> 0, m_executor));
+		assertThrows(IllegalStateException.class,
+					() -> m_completions.register(Executions.supplyCheckedAsync(() -> 0, m_executor)));
+		assertTrue(m_completions.isSubmissionFinished());
 	}
 
 	@Test
-	public void test10_consumesMoreTasksThanBufferCapacity() throws Exception {
-		// buffer capacity(5)보다 많은 task를 submit하면, 초과 task는 worker 쓰레드의 supply에서
-		// 소비자의 next 호출을 기다리며 블록된 뒤 차례로 적재되어야 한다.
-		for ( int i = 0; i < 6; ++i ) {
-			final int v = i;
-			m_completions.submit(() -> v, m_executor);
-		}
+	public void null_arguments_are_rejected() {
+		assertThrows(IllegalArgumentException.class, () -> m_completions.submit((Callable<Integer>)null, m_executor));
+		assertThrows(IllegalArgumentException.class, () -> m_completions.submit((StartableExecution<Integer>)null));
+		assertThrows(IllegalArgumentException.class, () -> m_completions.register(null));
+		assertThrows(IllegalArgumentException.class, () -> new CompletionFStream<Integer>(0));
+	}
+
+	// ---- 등록(register)과 시작(submit)의 구분 ----
+
+	@Test
+	public void register_collects_without_starting() throws Exception {
+		CompletableFutureAsyncExecution<Integer> exec = Executions.supplyCheckedAsync(() -> 42, m_executor);
+		m_completions.register(exec);
+
+		Thread.sleep(100);
+		assertTrue(exec.isNotStarted(), "register() must not start the execution");
+		assertThrows(TimeoutException.class, () -> m_completions.next(50, MILLISECONDS));
+
+		exec.start();								// 시작은 호출자가 맡는다
+		assertEquals(42, (int)m_completions.next().get().get());
+	}
+
+	@Test
+	public void register_collects_an_execution_cancelled_before_start() throws Exception {
+		// 이전에는 isStarted()로 판단해, 시작 전에 취소된(시작할 수 없는) 작업을 IllegalArgumentException으로 거부했다.
+		CompletableFutureAsyncExecution<Integer> exec = Executions.supplyCheckedAsync(() -> 42, m_executor);
+		exec.cancel(true);
+
+		m_completions.register(exec);
+
+		Result<Integer> result = m_completions.next().get();
+		assertTrue(result.isNone(), "a cancelled result is expected: " + result);
+	}
+
+	@Test
+	public void submit_requires_a_not_started_execution() throws Exception {
+		CompletableFutureAsyncExecution<Integer> started = Executions.supplyCheckedAsync(() -> 42, m_executor);
+		started.start();
+
+		assertThrows(IllegalArgumentException.class, () -> m_completions.submit(started));
+		// 이미 시작된 작업은 register()로 수집한다.
+		m_completions.register(started);
+		assertEquals(42, (int)m_completions.next().get().get());
+	}
+
+	@Test
+	public void execution_that_failed_to_start_is_collected_as_cancelled() throws Exception {
+		// start()가 작업을 끝내지 않고 던져도 취소 결과가 수집되어, finishSubmissions() 뒤 스트림이 끝난다.
+		StartableExecution<Integer> failing = new CompletableFutureAsyncExecution<Integer>() {
+			@Override
+			protected CompletableFuture<? extends Integer> startExecution() {
+				return CompletableFuture.completedFuture(0);
+			}
+
+			@Override
+			public void start() {
+				throw new IllegalStateException("start failed");
+			}
+		};
+
+		assertThrows(IllegalStateException.class, () -> m_completions.submit(failing));
+		m_completions.finishSubmissions();
+
+		assertTrue(m_completions.next().get().isNone());
+		assertTrue(m_completions.next(1, TimeUnit.SECONDS).isAbsent());
+	}
+
+	// ---- 용량 제한 ----
+
+	@Test
+	public void submit_waits_when_capacity_is_reached() throws Exception {
+		// 꺼내지 않은 작업이 용량(2)에 이르면 다음 등록이 기다린다. 결과는 용량 이상 쌓이지 않는다.
+		CompletionFStream<Integer> completions = new CompletionFStream<>(2);
+		completions.submit(() -> 0, m_executor);
+		completions.submit(() -> 1, m_executor);
+
+		CompletableFuture<Execution<Integer>> third = CompletableFuture.supplyAsync(() -> {
+			try {
+				return completions.submit(() -> 2, m_executor);
+			}
+			catch ( InterruptedException e ) {
+				throw new IllegalStateException(e);
+			}
+		});
+		Thread.sleep(200);
+		assertFalse(third.isDone(), "the third submit must wait for a free slot");
+
+		completions.next().get();
+		third.get(2, TimeUnit.SECONDS);
+		completions.finishSubmissions();
+		assertEquals(2, completions.toList().size());
+	}
+
+	@Test
+	public void consumes_more_tasks_than_capacity_with_a_concurrent_consumer() throws Exception {
+		CompletableFuture<Void> producer = CompletableFuture.runAsync(() -> {
+			try {
+				for ( int i = 0; i < 20; ++i ) {
+					final int v = i;
+					m_completions.submit(() -> v, m_executor);
+				}
+				m_completions.finishSubmissions();
+			}
+			catch ( InterruptedException e ) {
+				throw new IllegalStateException(e);
+			}
+		});
 
 		int total = 0;
-		for ( int i = 0; i < 6; ++i ) {
-			Result<Integer> r = m_completions.next().get();
-			assertTrue(r.isSuccessful());
-			total += r.get();
+		int count = 0;
+		FOption<Result<Integer>> next;
+		while ( (next = m_completions.next()).isPresent() ) {
+			total += next.get().get();
+			++count;
 		}
-		assertEquals(0 + 1 + 2 + 3 + 4 + 5, total);
+		producer.get(5, TimeUnit.SECONDS);
+		assertEquals(20, count);
+		assertEquals(190, total);
+	}
+
+	@Test
+	public void close_releases_a_waiting_submitter() throws Exception {
+		CompletionFStream<Integer> completions = new CompletionFStream<>(1);
+		completions.submit(() -> 0, m_executor);
+
+		CompletableFuture<Throwable> waiting = CompletableFuture.supplyAsync(() -> {
+			try {
+				completions.submit(() -> 1, m_executor);
+				return null;
+			}
+			catch ( Throwable e ) {
+				return e;
+			}
+		});
+		Thread.sleep(200);
+		completions.close();
+
+		assertTrue(waiting.get(2, TimeUnit.SECONDS) instanceof IllegalStateException);
+	}
+
+	// ---- 종료 ----
+
+	@Test
+	public void finishSubmissions_delivers_results_of_unfinished_executions() throws Exception {
+		// 이전의 endOfSupply()와 달리, 아직 끝나지 않은 작업의 결과도 모두 전달한 뒤 끝난다.
+		CountDownLatch release = new CountDownLatch(1);
+		m_completions.submit(() -> 0, m_executor);
+		m_completions.submit(() -> { release.await(); return 1; }, m_executor);
+
+		m_completions.finishSubmissions();
+		assertEquals(0, (int)m_completions.next().get().get());
+		assertThrows(TimeoutException.class, () -> m_completions.next(100, MILLISECONDS));
+
+		release.countDown();
+		assertEquals(1, (int)m_completions.next().get().get());
+		assertTrue(m_completions.next().isAbsent());
+	}
+
+	@Test
+	public void results_after_close_are_dropped() throws Exception {
+		CountDownLatch release = new CountDownLatch(1);
+		Execution<Integer> late = m_completions.submit(() -> { release.await(); return 1; }, m_executor);
+		m_completions.close();
+		release.countDown();
+
+		assertTrue(late.waitForFinished(2, TimeUnit.SECONDS).isCompleted());
+		assertTrue(m_completions.next().isAbsent(), "a closed stream yields no more results");
+	}
+
+	@Test
+	public void full_buffer_never_blocks_a_completion_callback() throws Exception {
+		// 꺼내지 않은 결과가 용량만큼 쌓여도 작업의 lock은 잡혀 있지 않다(완료 콜백이 기다리지 않는다).
+		CompletionFStream<Integer> completions = new CompletionFStream<>(2);
+		Execution<Integer> a = completions.submit(() -> 0, m_executor);
+		Execution<Integer> b = completions.submit(() -> 1, m_executor);
+		a.waitForFinished(2, TimeUnit.SECONDS);
+		b.waitForFinished(2, TimeUnit.SECONDS);
+
+		for ( Execution<Integer> exec: List.of(a, b) ) {
+			CompletableFuture<Boolean> query = CompletableFuture.supplyAsync(() -> exec.cancel(true) || exec.isDone());
+			assertTrue(query.get(2, TimeUnit.SECONDS), "execution lock is held: " + exec);
+		}
+		completions.close();
 	}
 }

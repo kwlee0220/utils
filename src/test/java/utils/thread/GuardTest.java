@@ -534,11 +534,11 @@ public class GuardTest {
 	}
 
 	@Test
-	public void awaitSignal_rejectsNullDate() throws Exception {
+	public void awaitSignalUntil_rejectsNullDate() throws Exception {
 		assertThrows(IllegalArgumentException.class, () -> {
 			m_guard.lock();
 			try {
-				m_guard.awaitSignal((Date)null);
+				m_guard.awaitSignalUntil(null);
 			}
 			finally {
 				m_guard.unlock();
@@ -596,7 +596,7 @@ public class GuardTest {
 
 	@Test
 	public void dueWait_rechecksConditionWhenTheDueIsReached() throws Exception {
-		// 조건이 기한에 맞춰 (신호 없이) 참이 된다. 이전에는 awaitSignal(due)가 false를 반환하면 조건을 다시 보지
+		// 조건이 기한에 맞춰 (신호 없이) 참이 된다. 이전에는 awaitSignalUntil(due)(당시 awaitSignal(Date))가 false를 반환하면 조건을 다시 보지
 		// 않고 TimeoutException을 던졌다.
 		Date due = new Date(System.currentTimeMillis() + 100);
 		m_guard.awaitCondition(() -> System.currentTimeMillis() >= due.getTime(), due).andReturn();
@@ -775,5 +775,41 @@ public class GuardTest {
 			}
 		});
 		assertTrue(result.join());
+	}
+
+	// ---- #16: 인자 검사와 공통 종결 메소드 ----
+
+	@Test
+	public void work_mode_methods_reject_null_arguments() {
+		// run/runChecked만 검사하고 나머지는 lock을 잡은 뒤 NullPointerException을 냈다(2026-10-31 이전).
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> m_guard.read(null));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> m_guard.get(null));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> m_guard.getChecked(null));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> m_guard.accept(null, "x"));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> m_guard.acceptChecked(null, "x"));
+		org.junit.jupiter.api.Assertions.assertFalse(m_guard.isHeldByCurrentThread(), "lock leaked");
+	}
+
+	@Test
+	public void terminal_methods_reject_null_tasks_without_waiting() {
+		// 조건이 만족되지 않아도 인자 검사로 바로 실패해야 한다(대기에 들어가지 않는다).
+		AwaitCondition await = m_guard.awaitCondition(() -> false);
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> await.andRun(null));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> await.andRunChecked(null));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> await.andGet(null));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> await.andGetChecked(null));
+
+		TimedAwaitCondition timed = m_guard.awaitCondition(() -> false, Duration.ofSeconds(10));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> timed.andRun(null));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> timed.andGetChecked(null));
+	}
+
+	@Test
+	public void untimed_terminals_do_not_declare_timeout() throws Exception {
+		// 무한 대기 빌더는 TimeoutException을 던지지 않으므로 호출자가 처리할 필요가 없다(컴파일로 확인).
+		m_guard.run(() -> m_interrupted = true);
+		m_guard.awaitCondition(() -> m_interrupted).andReturn();
+		String value = m_guard.awaitCondition(() -> m_interrupted).andGet(() -> "ok");
+		org.junit.jupiter.api.Assertions.assertEquals("ok", value);
 	}
 }
