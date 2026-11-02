@@ -12,14 +12,16 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import utils.KeyValue;
 import utils.Keyed;
+import utils.Preconditions;
 import utils.Tuple;
 import utils.func.CheckedBiConsumerX;
+import utils.func.CheckedBiFunctionX;
+import utils.func.CheckedFunctionX;
 import utils.func.FOption;
 import utils.stream.FStreams.PeekedStream;
 
@@ -58,7 +60,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 */
 	@SafeVarargs
 	public static <K,V> KeyValueFStream<K,V> of(KeyValue<K,V>... values) {
-		Preconditions.checkArgument(values != null, "null values");
+		Preconditions.checkNotNullArgument(values, "null values");
 
 		return from(Arrays.asList(values));
 	}
@@ -76,7 +78,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 */
 	public static <K,V> KeyValueFStream<K,V>
 	from(FStream<? extends KeyValue<? extends K,? extends V>> stream) {
-		Preconditions.checkArgument(stream != null, "stream is null");
+		Preconditions.checkNotNullArgument(stream, "stream is null");
 
 		return new DefaultKeyValueFStream<>(narrow(stream));
 	}
@@ -92,7 +94,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 */
 	public static <K,V> KeyValueFStream<K,V>
 	from(Iterable<? extends KeyValue<? extends K,? extends V>> iter) {
-		Preconditions.checkArgument(iter != null, "null iterable");
+		Preconditions.checkNotNullArgument(iter, "null iterable");
 
 		return new DefaultKeyValueFStream<>(narrow(FStream.from(iter)));
 	}
@@ -109,7 +111,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code iter}가 {@code null}인 경우.
 	 */
 	public static <K,V> KeyValueFStream<K,V> from(Iterator<KeyValue<K,V>> iter) {
-		Preconditions.checkArgument(iter != null, "null iterable");
+		Preconditions.checkNotNullArgument(iter, "null iterable");
 
 		return new DefaultKeyValueFStream<>(FStream.from(iter));
 	}
@@ -127,7 +129,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code kvMap}이 {@code null}인 경우.
 	 */
 	public static <K,V> KeyValueFStream<K,V> from(Map<K,V> kvMap) {
-		Preconditions.checkArgument(kvMap != null, "kvMap is null");
+		Preconditions.checkNotNullArgument(kvMap, "kvMap is null");
 
 		return FStream.from(kvMap.entrySet())
 						.toKeyValueStream(KeyValue::from);
@@ -143,7 +145,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code iter}가 {@code null}인 경우.
 	 */
 	public static <K,V extends Keyed<K>> KeyValueFStream<K,V> fromKeyed(Iterable<V> iter) {
-		Preconditions.checkArgument(iter != null, "null iterable");
+		Preconditions.checkNotNullArgument(iter, "null iterable");
 
 		Function<V,KeyValue<K,V>> mapper = kv -> KeyValue.of(kv.key(), kv);
 		return FStream.from(iter).toKeyValueStream(mapper);
@@ -175,7 +177,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code pred}가 {@code null}인 경우.
 	 */
 	public default KeyValueFStream<K,V> filterKey(Predicate<? super K> pred) {
-		Preconditions.checkArgument(pred != null, "predicate is null");
+		Preconditions.checkNotNullArgument(pred, "predicate is null");
 
 		return from(filter(kv -> pred.test(kv.key())));
 	}
@@ -188,7 +190,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code pred}가 {@code null}인 경우.
 	 */
 	public default KeyValueFStream<K,V> filterValue(Predicate<? super V> pred) {
-		Preconditions.checkArgument(pred != null, "predicate is null");
+		Preconditions.checkNotNullArgument(pred, "predicate is null");
 
 		return from(filter(kv -> pred.test(kv.value())));
 	}
@@ -202,9 +204,33 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
 	 */
 	public default <S> FStream<S> map(BiFunction<? super K, ? super V, ? extends S> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return map(kv -> mapper.apply(kv.key(), kv.value()));
+	}
+
+	/**
+	 * 각 원소의 키와 값을 인자로 받고 검사 예외를 던질 수 있는 함수를 적용한 결과의 스트림을 생성한다.
+	 * <p>
+	 * {@link #map(BiFunction)}의 검사 예외 버전이며, 예외 전달 방식은 {@link FStream#mapOrThrow(CheckedFunctionX)}와
+	 * 같다. {@code mapper}가 던진 예외는 원소를 꺼낼 때 감싸지 않은 원래 예외 그대로 <b>선언 없이</b> 던져지므로
+	 * 컴파일러가 추적하지 못한다(잡는 방법은 그 메소드의 설명을 따른다).
+	 * <p>
+	 * 원소({@link KeyValue}) 하나를 받는 {@link FStream#mapOrThrow(CheckedFunctionX)}와 오버로드되어 있다. 인자 수가
+	 * 분명한 람다({@code (k,v) -> ...})는 문제가 없지만, 오버로드가 있는 메소드 참조는 모호해 컴파일되지 않을 수
+	 * 있다. 그때는 람다로 쓴다.
+	 *
+	 * @param <S>		결과 타입.
+	 * @param <X>		{@code mapper}가 던질 수 있는 예외 타입. 원소를 꺼내는 시점에 선언 없이 던져진다.
+	 * @param mapper	키와 값을 받아 결과를 만드는 함수.
+	 * @return	변환된 스트림.
+	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 */
+	public default <S,X extends Throwable> FStream<S>
+	mapOrThrow(CheckedBiFunctionX<? super K,? super V,? extends S,X> mapper) {
+		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
+
+		return mapOrThrow(kv -> mapper.apply(kv.key(), kv.value()));
 	}
 
 	/**
@@ -218,7 +244,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
 	 */
 	public default <S> KeyValueFStream<S,V> mapKey(Function<? super K,? extends S> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return from(map(kv -> kv.mapKey(mapper)));
 	}
@@ -239,7 +265,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 */
 	public default <S> KeyValueFStream<S,V>
 	mapKeyWithValue(BiFunction<? super K,? super V,? extends S> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return from(map(kv -> kv.mapKey(mapper)));
 	}
@@ -253,7 +279,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
 	 */
 	public default <U> KeyValueFStream<K,U> mapValue(Function<? super V,? extends U> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return from(map(kv -> KeyValue.of(kv.key(), mapper.apply(kv.value()))));
 	}
@@ -272,7 +298,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 */
 	public default <U> KeyValueFStream<K,U>
 	mapValueWithKey(BiFunction<? super K,? super V,? extends U> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return from(map(kv -> KeyValue.of(kv.key(), mapper.apply(kv.key(), kv.value()))));
 	}
@@ -288,7 +314,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 */
 	public default <K2,V2>
 	KeyValueFStream<K2, V2> mapKeyValue(BiFunction<? super K, ? super V, KeyValue<K2,V2>> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return from(map(kv -> mapper.apply(kv.key(), kv.value())));
 	}
@@ -302,7 +328,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
 	 */
 	public default <T> FStream<T> flatMap(BiFunction<? super K,? super V,FStream<T>> mapper) {
-		Preconditions.checkArgument(mapper != null, "mapper is null");
+		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return flatMap(kv -> mapper.apply(kv.key(), kv.value()));
 	}
@@ -314,7 +340,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code effect}가 {@code null}인 경우.
 	 */
 	public default void forEach(BiConsumer<? super K,? super V> effect) {
-		Preconditions.checkArgument(effect != null, "effect is null");
+		Preconditions.checkNotNullArgument(effect, "effect is null");
 
 		forEach(kv -> effect.accept(kv.key(), kv.value()));
 	}
@@ -331,7 +357,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 */
 	public default <X extends Throwable>
 	void forEachOrThrow(CheckedBiConsumerX<? super K,? super V,X> effect) throws X {
-		utils.Preconditions.checkNotNullArgument(effect, "effect is null");
+		Preconditions.checkNotNullArgument(effect, "effect is null");
 
 		try {
 			FOption<KeyValue<K,V>> next;
@@ -353,7 +379,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 * @throws IllegalArgumentException	{@code effect}가 {@code null}인 경우.
 	 */
 	public default KeyValueFStream<K,V> peek(Consumer<? super KeyValue<K,V>> effect) {
-		utils.Preconditions.checkNotNullArgument(effect, "effect is null");
+		Preconditions.checkNotNullArgument(effect, "effect is null");
 
 		return from(new PeekedStream<>(this, effect));
 	}
@@ -408,7 +434,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 */
 	public default <R> KeyValueFStream<K,Tuple<V,R>> match(Map<? super K,? extends R> lut,
 															boolean keepUnmatched) {
-		utils.Preconditions.checkNotNullArgument(lut, "lut is null");
+		Preconditions.checkNotNullArgument(lut, "lut is null");
 
 		return new MatchKVFStream<>(this, lut, keepUnmatched);
 	}
@@ -459,7 +485,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 	 */
 	public default <R> KeyValueFStream<K,Tuple<V,R>>
 	flatMatch(Map<? super K,? extends Iterable<? extends R>> lut, boolean keepUnmatched) {
-		utils.Preconditions.checkNotNullArgument(lut, "lut is null");
+		Preconditions.checkNotNullArgument(lut, "lut is null");
 
 		FStream<KeyValue<K,Tuple<V,R>>> joined = flatMap((k,v) -> {
 			Iterable<? extends R> refs = lut.get(k);

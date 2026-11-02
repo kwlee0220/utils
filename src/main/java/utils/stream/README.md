@@ -332,6 +332,7 @@ KeyValueFStream.fromKeyed(keyedObjects)
 | `mapKey`, `mapValue`, `mapKeyValue` | 키·값 변환. `mapKey`/`mapValue`는 키 또는 값 하나만 받는다 |
 | `mapKeyWithValue`, `mapValueWithKey` | 키와 값을 함께 받아 키 또는 값을 바꿈(2026-11-02 이전 이름: `mapKey`/`mapValue`의 `BiFunction` 오버로드) |
 | `map(BiFunction)`, `flatMap(BiFunction)`, `forEach(BiConsumer)` | 키와 값을 별도 인자로 처리 |
+| `mapOrThrow(CheckedBiFunctionX)` | `map(BiFunction)`의 검사 예외 버전. 예외는 `FStream.mapOrThrow`처럼 선언 없이 원래 예외로 던져짐 |
 | `groupByKey()` | 키별 목록을 가진 `KeyedGroups` 생성. 그룹은 처음 나온 순서, null 값도 목록에 포함. `asMap()`·`get()` 등은 읽기 전용 뷰 |
 | `sortByKey()` | 키의 자연 순서로 정렬 |
 | `match(map)`, `flatMatch(map)` | 참조 맵과 키로 연결 |
