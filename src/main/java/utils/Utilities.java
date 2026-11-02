@@ -135,7 +135,7 @@ public class Utilities {
 	public static Map<String,String> parseKeyValueMap(String expr, char delim) {
 		return CSV.parseCsv(expr, ';', '"')
 					.map(String::trim)
-					.toKeyValueStream(KeyValue::parse)
+					.mapToKeyValue(KeyValue::parse)
 					.toMap();
 	}
 	

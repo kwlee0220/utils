@@ -212,8 +212,7 @@ public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 		
 		return FStream.from(m_opDesc.getOutputVariables())
 						.lookup(cmdVars)
-						.mapOrThrow(kv -> m_serde.serialize(kv.value()))
-						.toKeyValueStream(kv -> kv)
+						.mapToKeyValueOrThrow(kv -> m_serde.serialize(kv.value()))
 						.toMap();
 	}
 }

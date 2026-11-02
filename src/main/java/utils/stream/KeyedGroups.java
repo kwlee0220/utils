@@ -162,7 +162,7 @@ public class KeyedGroups<K,V> implements FStreamable<KeyValue<K,List<V>>> {
 		return KeyValueFStream.from(m_groups)
 						.flatMap(kv -> FStream.from(kv.value())
 												.map(v -> KeyValue.of(kv.key(), v)))
-						.toKeyValueStream(v -> v);
+						.mapToKeyValue(v -> v);
 	}
 
 	@Override

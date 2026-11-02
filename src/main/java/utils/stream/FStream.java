@@ -81,7 +81,7 @@ import utils.stream.IntFStream.RangedStream;
  *       {@link #closeQuietly()}를 호출해 자원을 해제한다. {@code map}/{@code filter} 같은
  *       intermediate 연산은 close를 source 스트림으로 위임한다.</li>
  *   <li><b>{@link FOption}/{@link Tuple}/{@link KeyValue}와 일체화</b>: 결과 표현, key-value 스트림
- *       변환({@link #toKeyValueStream}, {@link #tagKey}), zip 결과 등에서 라이브러리 고유 타입을
+ *       변환({@link #mapToKeyValue}, {@link #tagKey}), zip 결과 등에서 라이브러리 고유 타입을
  *       사용한다.</li>
  *   <li><b>비동기 매핑/flatMap</b>: {@link #mapAsync}, {@link #flatMapAsync}로 워커 수/순서 보존을
  *       옵션으로 지정한 병렬 매핑을 지원한다.</li>
@@ -2153,39 +2153,6 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return KeyValueFStream.from(map(t -> KeyValue.of(keyer.apply(t), t)));
 	}
 
-	/**
-	 * 본 스트림의 각 원소를 {@code mapper}로 {@link KeyValue}로 변환하여 {@link KeyValueFStream}을
-	 * 생성한다.
-	 *
-	 * @param <K>		변환 결과의 키 타입.
-	 * @param <V>		변환 결과의 값 타입.
-	 * @param mapper	원소를 {@link KeyValue}로 변환하는 함수.
-	 * @return	{@link KeyValueFStream} 객체.
-	 */
-	public default <K,V> KeyValueFStream<K,V> toKeyValueStream(Function<? super T, KeyValue<K,V>> mapper) {
-		Preconditions.checkNotNullArgument(mapper, "mapper is null");
-
-		return KeyValueFStream.from(map(mapper));
-	}
-
-	/**
-	 * 본 스트림의 각 원소에서 {@code keyer}로 키를, {@code valuer}로 값을 각각 추출하여
-	 * {@link KeyValueFStream}을 생성한다.
-	 *
-	 * @param <K>		키 타입.
-	 * @param <V>		값 타입.
-	 * @param keyer		각 원소에서 키를 추출하는 함수.
-	 * @param valuer	각 원소에서 값을 추출하는 함수.
-	 * @return	{@link KeyValueFStream} 객체.
-	 */
-	public default <K, V> KeyValueFStream<K, V> toKeyValueStream(Function<? super T, ? extends K> keyer,
-																Function<? super T, ? extends V> valuer) {
-		Preconditions.checkNotNullArgument(keyer, "keyer is null");
-		Preconditions.checkNotNullArgument(valuer, "valuer is null");
-
-		Function<? super T, KeyValue<K,V>> mapper = t -> KeyValue.of(keyer.apply(t), valuer.apply(t));
-		return KeyValueFStream.from(map(mapper));
-	}
 	
 	//
 	//
@@ -2907,6 +2874,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 
 	/**
 	 * 각 원소를 {@link KeyValue}로 매핑한 후 key-value 전용 {@link KeyValueFStream}을 생성한다.
+	 * <p>
+	 * 같은 일을 하던 {@code toKeyValueStream(mapper)}는 2026-11-02에 삭제했다(review #19, 별칭 없음).
 	 *
 	 * @param <K>    키 타입.
 	 * @param <V>    값 타입.
@@ -2917,6 +2886,28 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	mapToKeyValue(Function<? super T, ? extends KeyValue<K, V>> mapper) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 		return KeyValueFStream.from(map(mapper));
+	}
+
+	/**
+	 * 각 원소에서 {@code keyer}로 키를, {@code valuer}로 값을 뽑아 key-value 전용 {@link KeyValueFStream}을 생성한다.
+	 * <p>
+	 * 결과 스트림의 각 원소는 {@code (keyer.apply(t), valuer.apply(t))}이다. 값이 원소 자신이면
+	 * {@link #tagKey(Function)}을 쓴다. 2026-11-02에 추가했다. 같은 일을 하던 {@code toKeyValueStream(keyer, valuer)}는
+	 * 이때 삭제했다(review #19).
+	 *
+	 * @param <K>		키 타입.
+	 * @param <V>		값 타입.
+	 * @param keyer		각 원소에서 키를 뽑는 함수.
+	 * @param valuer	각 원소에서 값을 뽑는 함수.
+	 * @return {@link KeyValueFStream} 객체.
+	 * @throws IllegalArgumentException	{@code keyer}나 {@code valuer}가 {@code null}인 경우.
+	 */
+	public default <K, V> KeyValueFStream<K, V>
+	mapToKeyValue(Function<? super T, ? extends K> keyer, Function<? super T, ? extends V> valuer) {
+		Preconditions.checkNotNullArgument(keyer, "keyer is null");
+		Preconditions.checkNotNullArgument(valuer, "valuer is null");
+
+		return KeyValueFStream.from(map(t -> KeyValue.<K,V>of(keyer.apply(t), valuer.apply(t))));
 	}
 
 	/**

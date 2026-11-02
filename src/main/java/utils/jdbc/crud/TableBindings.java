@@ -7,6 +7,7 @@ import java.util.Map;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import utils.KeyValue;
 import utils.stream.FStream;
 
 
@@ -27,7 +28,7 @@ public class TableBindings  {
 	public void setTableBindings(List<TableBinding> bindings) {
 		LinkedHashMap<String, TableBinding> bindingMaps = Maps.newLinkedHashMap();
 		tableBindingMap = FStream.from(bindings)
-				                .toKeyValueStream(b -> b.getTableName(), b -> b)
+								.mapToKeyValue(b -> KeyValue.of(b.getTableName(), b))
 								.toMap(bindingMaps);
 	}
 }

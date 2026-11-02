@@ -321,9 +321,13 @@ try (java.util.stream.Stream<Integer> javaStream = FStream.range(0, 100).stream(
 ```java
 KeyValueFStream.from(map)
 FStream.from(persons).tagKey(Person::getId)
-FStream.from(rows).toKeyValueStream(Row::getId, Row::getValue)
+FStream.from(rows).mapToKeyValue(Row::getId, Row::getValue)
+FStream.from(rows).mapToKeyValue(row -> KeyValue.of(row.getId(), row.getValue()))
 KeyValueFStream.fromKeyed(keyedObjects)
 ```
+
+원소를 `KeyValue`로 바꿀 때는 `mapToKeyValue`를 쓴다. 값이 원소 자신이면 `tagKey(keyer)`를 쓴다. 같은 일을 하던
+`toKeyValueStream(mapper)`·`toKeyValueStream(keyer, valuer)`는 2026-11-02에 삭제했다(검토 #19, 별칭 없음). 이름만 `mapToKeyValue`로 바꾸면 된다.
 
 | API | 동작 |
 |---|---|

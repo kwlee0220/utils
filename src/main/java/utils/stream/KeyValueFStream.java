@@ -132,7 +132,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkNotNullArgument(kvMap, "kvMap is null");
 
 		return FStream.from(kvMap.entrySet())
-						.toKeyValueStream(KeyValue::from);
+						.mapToKeyValue(KeyValue::from);
 	}
 
 	/**
@@ -148,7 +148,7 @@ public interface KeyValueFStream<K,V> extends FStream<KeyValue<K,V>> {
 		Preconditions.checkNotNullArgument(iter, "null iterable");
 
 		Function<V,KeyValue<K,V>> mapper = kv -> KeyValue.of(kv.key(), kv);
-		return FStream.from(iter).toKeyValueStream(mapper);
+		return FStream.from(iter).mapToKeyValue(mapper);
 	}
 
 	/**

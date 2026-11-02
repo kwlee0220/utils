@@ -20,7 +20,7 @@ public class KeyValueFStreamTest {
 	public void testToMap1() throws Exception {
 		List<Integer> keys = List.of(1, 2, 3, 4, 5);
 		KeyValueFStream<Integer, String> stream
-								= FStream.from(keys).toKeyValueStream(v -> KeyValue.of(v, ""+v));
+								= FStream.from(keys).mapToKeyValue(v -> KeyValue.of(v, ""+v));
 		
 		Map<Integer,String> map = Maps.newLinkedHashMap();
 		stream.toMap(map);
@@ -37,7 +37,7 @@ public class KeyValueFStreamTest {
 	public void testToMap2() throws Exception {
 		List<Integer> keys = List.of(1, 2, 3, 4, 5);
 		KeyValueFStream<Integer, String> stream
-								= FStream.from(keys).toKeyValueStream(v -> KeyValue.of(v, ""+v));
+								= FStream.from(keys).mapToKeyValue(v -> KeyValue.of(v, ""+v));
 		
 		var result = stream.toMap();
 		
