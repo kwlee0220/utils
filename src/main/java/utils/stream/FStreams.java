@@ -253,35 +253,28 @@ public class FStreams {
 		}
 	}
 	
-	static class FoldLeftLeakFStream<S,T> extends SingleSourceStream<T,T> {
-		private S m_state;
-		private @Nullable T m_last = null;
-		private final BiFunction<? super S,? super T,? extends Tuple<S,T>> m_combine;
+	static class FoldScannedStream<T,S> extends SingleSourceStream<T,S> {
+		private @Nullable S m_accum;
+		private final BiFunction<? super S,? super T,? extends S> m_folder;
 		
-		FoldLeftLeakFStream(FStream<T> src, S initial,
-							BiFunction<? super S,? super T,? extends Tuple<S,T>> combine) {
+		FoldScannedStream(FStream<T> src, @Nullable S initial,
+							BiFunction<? super S,? super T,? extends S> folder) {
 			super(src);
 			
-			m_state = initial;
-			m_combine = combine;
+			m_accum = initial;
+			m_folder = folder;
 		}
 
 		@Override
-		protected FOption<T> getNext(FStream<T> src) {
-			if ( m_last == null ) {	// 첫번째 call인 경우.
-				return src.next()
-							.ifPresent(s -> m_last = s);
+		protected FOption<S> getNext(FStream<T> src) {
+			// 첫 호출 여부를 따로 기억할 필요가 없다.
+			// 초기값이 첫 원소에도 적용되고, 누적값이 null이어도 그대로 이어진다.
+			FOption<T> next = src.next();
+			if ( next.isAbsent() ) {
+				return FOption.empty();
 			}
-			else {
-				return src.next()
-							.map(v -> m_combine.apply(m_state, m_last))
-							.ifPresent(t -> {
-								m_state = t._1;
-								m_last = t._2;
-							})
-							.map(t -> t._2);
-				
-			}
+			m_accum = m_folder.apply(m_accum, next.getUnchecked());
+			return FOption.of(m_accum);
 		}
 	}
 
@@ -374,17 +367,47 @@ public class FStreams {
 			m_closingTask = closingTask;
 		}
 
+		// 원본을 먼저 닫고, 원본 닫기가 실패해도 등록한 작업은 실행한다. 둘 다 실패하면 작업의 예외를
+		// 원본 예외의 suppressed로 붙여 원본 예외를 던진다. 2026-11-02 이전에는 원본을 닫지 않았다.
 		@Override
 		public void close() throws Exception {
 			if ( !m_closed ) {
 				m_closed = true;
-				m_closingTask.run();
+
+				Throwable failure = null;
+				try {
+					m_base.close();
+				}
+				catch ( Throwable e ) {
+					failure = e;
+				}
+				try {
+					m_closingTask.run();
+				}
+				catch ( Throwable e ) {
+					if ( failure == null ) {
+						failure = e;
+					}
+					else {
+						failure.addSuppressed(e);
+					}
+				}
+
+				if ( failure instanceof Exception ex ) {
+					throw ex;
+				}
+				else if ( failure instanceof Error err ) {
+					throw err;
+				}
 			}
 		}
 
 		@Override
 		public FOption<T> next() {
-			return (!m_closed) ? m_base.next() : FOption.empty();
+			if ( m_closed ) {
+				throw new IllegalStateException("already closed: " + this);
+			}
+			return m_base.next();
 		}
 	}
 	
@@ -470,9 +493,9 @@ public class FStreams {
 	}
 	
 	static class FlatMapTry<S,T> extends SingleSourceStream<S,T> {
-		private final Function<? super S,Try<T>> m_mapper;
+		private final Function<? super S,? extends Try<? extends T>> m_mapper;
 		
-		FlatMapTry(FStream<S> base, Function<? super S, Try<T>> mapper) {
+		FlatMapTry(FStream<S> base, Function<? super S, ? extends Try<? extends T>> mapper) {
 			super(base);
 			Preconditions.checkNotNullArgument(mapper, "mapper is null");
 			
@@ -483,9 +506,10 @@ public class FStreams {
 		public FOption<T> getNext(FStream<S> src) {
 			FOption<S> next;
 			while ( (next = src.next()).isPresent() ) {
-				Try<T> mapped = m_mapper.apply(next.getUnchecked());
+				Try<? extends T> mapped = m_mapper.apply(next.getUnchecked());
 				if ( mapped.isSuccessful() ) {
-					return FOption.of(mapped.getUnchecked());
+					T value = mapped.getUnchecked();
+					return FOption.of(value);
 				}
 			}
 			
@@ -527,6 +551,7 @@ public class FStreams {
 	
 	static class SplitFStream<T> extends SingleSourceStream<T,List<T>> {
 		private final Predicate<? super T> m_delimiter;
+		private boolean m_first = true;
 		
 		SplitFStream(FStream<T> src, Predicate<? super T> delimiter) {
 			super(src);
@@ -538,11 +563,14 @@ public class FStreams {
 		@Override
 		public FOption<List<T>> getNext(FStream<T> src) {
 			List<T> buffer = Lists.newArrayList();
+			boolean first = m_first;
+			m_first = false;
 			while ( true ) {
 				FOption<T> onext = src.next();
 				if ( onext.isAbsent() ) {
 					markEndOfStream();
-					return FOption.of(buffer);
+					// 빈 입력은 빈 스트림이다.
+					return (first && buffer.isEmpty()) ? FOption.empty() : FOption.of(buffer);
 				}
 				
 				T next = onext.get();

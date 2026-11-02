@@ -1,5 +1,6 @@
 package utils.stream;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -86,19 +87,18 @@ public class MergeParallelFStreamTest {
 	
 	@Test
 	public void test10() throws Exception {
-		// 스트림 A가 a2 공급 후 예외로 종료되어도 병합 스트림은 나머지 스트림들을 계속
-		// 처리해야 한다. test3()과 같은 이유로 스트림별 상대 순서만 검증한다.
+		// 스트림 A가 a2 공급 후 예외로 종료되면 병합 스트림은 그 실패를 전파한다. 실패 전에 공급된 a1, a2는 먼저
+		// 전달된다. 2026-11-02 이전에는 실패를 흔적 없이 건너뛰고 나머지 스트림을 계속 처리해 8개를 냈다.
 		FStream<FStream<String>> fact = FStream.of(
 											FStream.generate(this::generateStreamAX, 2),
 											FStream.generate(this::generateStreamB, 2),
 											FStream.generate(this::generateStreamC, 2)
 										);
-		List<String> ret = FStream.mergeParallel(fact, 8, null).toList();
-
-		Assertions.assertEquals(8, ret.size());
-		assertPerStreamOrder(ret, "a", "a1", "a2");	// 예외 이전에 공급된 a1, a2만 방출.
-		assertPerStreamOrder(ret, "b", "b1", "b3");
-		assertPerStreamOrder(ret, "c", "c1", "c2", "c3", "c4");
+		List<String> ret = new ArrayList<>();
+		FStream<String> merged = FStream.mergeParallel(fact, 8, null);
+		RuntimeException e = Assertions.assertThrows(RuntimeException.class, () -> merged.forEach(ret::add));
+		Assertions.assertEquals(Exception.class, e.getCause().getClass(), "the generator failure: " + e);
+		assertPerStreamOrder(ret, "a", "a1", "a2");
 	}
 
 	/**

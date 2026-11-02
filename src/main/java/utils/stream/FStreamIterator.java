@@ -3,46 +3,65 @@ package utils.stream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.jetbrains.annotations.Nullable;
+import utils.func.FOption;
 
 
 /**
- * 
+ * {@link FStream}을 {@link Iterator}로 순회하는 반복자({@link FStream#iterator()}).
+ * <p>
+ * 원소는 {@link #hasNext()}가 처음 불릴 때 하나씩 읽는다(미리 읽지 않음). 스트림 끝에 닿으면 그 즉시 원본을 닫으므로,
+ * 끝까지 순회하면 빈 스트림이라도 원본이 닫힌다. 중간에 멈추는 경우에는 {@link #close()}나 원본의 {@code close()}로
+ * 직접 닫아야 한다. 끝 여부는 {@link FOption}으로 판단하므로 {@code null} 원소도 그대로 반환한다.
+ * <p>
+ * 2026-11-02 이전에는 생성할 때와 각 {@code next()}에서 다음 원소를 미리 읽었고, {@code null}을 끝 표시로 써서
+ * {@code null} 원소에서 순회가 끝났으며, 처음부터 빈 스트림은 닫지 않았다.
+ *
+ * @param <T>	원소 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 class FStreamIterator<T> implements Iterator<T>, AutoCloseable {
 	private final FStream<T> m_strm;
-	@Nullable private T m_next;	// 다음 요소가 없는 경우는 null
-	private boolean m_closed = false;
-	
+	private FOption<T> m_next = null;	// 미리 읽은 다음 원소. null이면 아직 읽지 않음.
+	private boolean m_done = false;		// 끝에 닿았거나 닫힘. 원본은 이미 닫혔다.
+
 	FStreamIterator(FStream<T> strm) {
 		m_strm = strm;
-		m_next = m_strm.next().getOrNull();
 	}
 
 	@Override
 	public void close() throws Exception {
-		if ( !m_closed ) {
-			m_closed = true;
-			m_strm.close();
+		if ( !m_done ) {
+			m_done = true;
 			m_next = null;
+			m_strm.close();
 		}
 	}
-	
+
 	@Override
 	public boolean hasNext() {
-		return m_next != null;
+		if ( m_done ) {
+			return false;
+		}
+		if ( m_next == null ) {
+			m_next = m_strm.next();
+			if ( m_next.isAbsent() ) {
+				m_done = true;
+				m_next = null;
+				m_strm.closeQuietly();
+				return false;
+			}
+		}
+		return true;
 	}
 
 	@Override
 	public T next() {
-		if ( m_next == null ) {
+		if ( !hasNext() ) {
 			throw new NoSuchElementException();
 		}
-		
-		T next = m_next;
-		m_next = m_strm.next().ifAbsent(m_strm::closeQuietly).getOrNull();
-		
+
+		T next = m_next.getUnchecked();
+		m_next = null;
 		return next;
 	}
 }

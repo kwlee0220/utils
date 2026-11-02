@@ -1,9 +1,16 @@
 package utils.stream;
 
 
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.function.Consumer;
 
 import javax.annotation.concurrent.GuardedBy;
+
+import org.jetbrains.annotations.Nullable;
+
+import com.google.common.collect.Sets;
 
 import utils.Preconditions;
 import utils.Tuple;
@@ -37,6 +44,11 @@ import utils.thread.Guard;
  * 중인 매핑 작업에는 {@code cancel}을 전파하지 않으므로 작업은 끝까지 실행되지만, 그 결과는 닫힌
  * 채널에 enqueue되거나 소비자에 의해 더 이상 소비되지 않아 silent drop된다. close 이후 새로 호출되는
  * {@link #startNext()}는 {@link IllegalStateException}으로 즉시 빠져나온다.
+ * <p>
+ * <b>버린 결과의 정리</b>: 생성 시 {@code onDiscarded}를 주면, 소비자에게 넘기지 못하고 버린 <em>성공</em>
+ * 결과마다 그것을 한 번 호출한다. 닫을 때 출력 채널에 쌓여 있던 결과와, 닫을 때 진행 중이어서 닫은 뒤에
+ * 끝난 결과가 대상이다(후자는 작업이 끝날 때 비동기로 호출된다). 결과가 자원을 쥐는 경우(예: keepOrder인
+ * {@code flatMapAsync}의 하위 스트림)에 쓴다. 2026-11-02 이전에는 이 훅이 없어 그런 자원이 샜다(review #26).
  *
  * @param <S> 입력 스트림 원소 타입.
  * @param <T> 매핑 결과 타입.
@@ -62,6 +74,12 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 * 감소하며, 0이 되면 {@code m_outChannel.endOfSupply()}를 호출하여 소비자에게 종료를 알린다.
 	 */
 	@GuardedBy("m_guard") int m_runningWorkerCount = 0;
+	/** 버린 성공 결과를 정리하는 함수. {@code null}이면 정리하지 않는다. */
+	private final @Nullable Consumer<? super T> m_onDiscarded;
+	/** 시작했지만 아직 소비자에게 넘기지 않은 작업들. 닫을 때 {@link #m_onDiscarded}를 걸 대상이다. */
+	@GuardedBy("m_guard") private final Set<StartableExecution<T>> m_undelivered = Sets.newIdentityHashSet();
+	/** {@link #closeInGuard()}가 시작되었는지 여부. 이후에는 새 작업을 시작하지 않고 결과를 넘기지 않는다. */
+	@GuardedBy("m_guard") private boolean m_discarding = false;
 
 	/**
 	 * @param src     입력 스트림. {@code null} 여부는 별도 검증하지 않으므로 호출자가 non-null임을
@@ -76,9 +94,25 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 */
 	OrderedMapAsyncStream(FStream<S> src, CheckedFunction<? super S, ? extends T> mapper,
 							AsyncExecutionOptions options) {
+		this(src, mapper, options, null);
+	}
+
+	/**
+	 * 버린 성공 결과를 {@code onDiscarded}로 정리하는 스트림을 생성한다. 나머지 인자는
+	 * {@link #OrderedMapAsyncStream(FStream, CheckedFunction, AsyncExecutionOptions)}와 같다.
+	 *
+	 * @param src			입력 스트림.
+	 * @param mapper		각 원소에 적용할 매핑 함수.
+	 * @param options		비동기 옵션.
+	 * @param onDiscarded	버린 성공 결과마다 한 번 호출할 함수. {@code null}이면 정리하지 않는다. 예외를 던지면
+	 * 						로그만 남긴다.
+	 */
+	OrderedMapAsyncStream(FStream<S> src, CheckedFunction<? super S, ? extends T> mapper,
+							AsyncExecutionOptions options, @Nullable Consumer<? super T> onDiscarded) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		m_options = options;
+		m_onDiscarded = onDiscarded;
 		m_jobStream = src.map(input -> applyFunction(mapper, input));
 		m_outChannel = new SuppliableFStream<>(options.getWorkerCount());
 	}
@@ -94,7 +128,20 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 */
 	@Override
 	protected void closeInGuard() throws Exception {
-		m_guard.run(() -> Unchecked.runOrIgnore(m_outChannel::close));
+		List<StartableExecution<T>> discarded = m_guard.get(() -> {
+			m_discarding = true;
+			List<StartableExecution<T>> undelivered = List.copyOf(m_undelivered);
+			m_undelivered.clear();
+			Unchecked.runOrIgnore(m_outChannel::close);
+			return undelivered;
+		});
+		if ( m_onDiscarded != null ) {
+			// 이미 끝난 작업은 바로, 진행 중인 작업은 끝날 때 정리한다. 정리가 블록될 수 있으므로
+			// 실행의 lock 밖에서 호출되는 비동기 리스너를 쓴다.
+			for ( StartableExecution<T> exec: discarded ) {
+				exec.whenFinishedAsync(r -> r.ifSuccessful(this::discard));
+			}
+		}
 		Unchecked.runOrIgnore(m_jobStream::close);
 	}
 
@@ -120,9 +167,29 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 */
 	@Override
 	protected FOption<Tuple<S,Try<T>>> nextInGuard() {
-		return m_outChannel.next()
-							.map(this::awaitResult)
-							.ifPresent(__ -> startNext());
+		FOption<Tuple<S,StartableExecution<T>>> ojob = m_outChannel.next();
+		if ( ojob.isAbsent() ) {
+			return FOption.empty();
+		}
+		
+		Tuple<S,Try<T>> result = awaitResult(ojob.get());
+		// 기다리는 동안 다른 쓰레드가 닫았다면 closeInGuard()가 이 작업을 정리하므로 넘기지 않는다.
+		boolean delivered = m_guard.get(() -> m_undelivered.remove(ojob.get()._2()));
+		if ( !delivered ) {
+			return FOption.empty();
+		}
+		startNext();
+		
+		return FOption.of(result);
+	}
+	
+	private void discard(T result) {
+		try {
+			m_onDiscarded.accept(result);
+		}
+		catch ( Throwable e ) {
+			getLogger().warn("failed to clean up a discarded result: " + result, e);
+		}
 	}
 	
 	/**
@@ -201,6 +268,9 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	private void startNext() {
 		m_guard.lock();
 		try {
+			if ( m_discarding ) {
+				return;
+			}
 			m_jobStream.next()
 						.ifPresent(job -> {
 							try {
@@ -210,6 +280,8 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 								// consumer가 unstarted exec을 꺼내 waitForFinished()에서 블록되는
 								// race가 생길 수 있다.
 								exec.start();
+								// supply가 실패해도 닫을 때 정리되도록 먼저 등록한다.
+								m_undelivered.add(exec);
 								m_outChannel.supply(Tuple.of(input, exec));
 							}
 							catch ( InterruptedException e ) {

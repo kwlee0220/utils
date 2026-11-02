@@ -78,7 +78,7 @@ public class QuasiSortTest {
 		Assertions.assertEquals(Arrays.asList(7, 5, 3, 9, 2, 1), result);
 
 		result = FStream.from(input)
-						.quasiSort(2, v -> v, true)
+						.quasiSort(2, v -> v, SortOrder.DESCENDING)
 						.toList();
 		Assertions.assertEquals(Arrays.asList(7, 5, 3, 9, 2, 1), result);
 	}

@@ -88,8 +88,8 @@ public class FlatMapAsyncFStreamTest {
 											FStream.generate(this::generateStreamB, 2),
 											FStream.generate(this::generateStreamC, 2)
 										);
-		String ret = FStream.mergeParallel(fact, 8, null).join("");
-		Assertions.assertEquals("a1b1c1a2c2b3c3c4", ret);
+		// 2026-11-02 이전에는 실패한 스트림 A를 조용히 건너뛰어 "a1b1c1a2c2b3c3c4"를 냈다. 이제 실패가 전파된다.
+		Assertions.assertThrows(Exception.class, () -> FStream.mergeParallel(fact, 8, null).join(""));
 	}
 	
 	@Test

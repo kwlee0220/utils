@@ -87,7 +87,7 @@ try (FStream<Integer> stream = FStream.of(1, 2, 3)) {
 | `FStream.of(new int[] {1, 2, 3})` | `IntFStream` |
 | `KeyValueFStream.from(map)` | 맵의 키·값 스트림 |
 
-`FOption`은 값의 존재 여부를 나타낸다. `FOption.of(null)`도 표현할 수 있지만, 모든 스트림 연산이 null 원소를 동일하게 지원하지는 않는다. 특히 반복자 구현은 null을 끝 표시로 사용하고, 버퍼의 `ArrayDeque`도 null을 받지 않는다. 일반적인 처리에서는 null 원소를 피하고 `flatMapNullable()` 등으로 제거한다.
+`FOption`은 값의 존재 여부를 나타낸다. `FOption.of(null)`도 표현할 수 있지만, 모든 스트림 연산이 null 원소를 동일하게 지원하지는 않는다. 특히 버퍼의 `ArrayDeque`는 null을 받지 않는다(반복자는 2026-11-02부터 null 원소도 그대로 반환한다). 일반적인 처리에서는 null 원소를 피하고 `flatMapNullable()` 등으로 제거한다.
 
 ### 3.2 값 생성
 
@@ -142,12 +142,33 @@ FStream.mergeParallel(streamOfStreams, 4, pool) // 여러 하위 스트림을 �
 | `map(f)`, `filter(p)`, `filterNot(p)` | 변환, 조건 선택, 반대 조건 선택 |
 | `mapOrIgnore(f)` | 검사 예외를 허용하는 함수를 적용하고 실패한 원소 제외 |
 | `tryMap(f)` | 각 결과를 `Try<S>`로 감싸 성공과 실패를 함께 전달 |
+| `mapOrThrow(f)` | 검사 예외를 허용하는 함수를 적용하고 실패하면 예외를 그대로 던짐(아래 설명) |
 | `mapSelectively(p, f)` | 조건에 맞는 원소만 변환하고 나머지는 그대로 전달 |
 | `peek(effect)` | 통과하는 원소에 추가 작업 수행 |
 | `cast(type)` | 지정 타입으로 변환. 맞지 않으면 예외 |
 | `castSafely(type)` | 해당 타입의 원소만 선택 |
 | `ofExactClass(type)` | 하위 타입을 제외하고 정확히 같은 클래스만 선택 |
 | `mapToInt`, `mapToLong`, `mapToFloat`, `mapToDouble`, `mapToBoolean` | 타입별 편의 스트림으로 변환 |
+
+`mapOrThrow(f)`와 `mapToKeyValueOrThrow(f)`가 던지는 검사 예외는 컴파일러가 추적하지 못한다. 지연 연산이므로 예외는 원소를 꺼낼 때(`next()`나 `toList()`·`toMap()` 같은 종단 연산) 감싸지 않은 원래 형태로 던져지는데, 종단 연산은 `throws`를 선언하지 않는다. 종단 연산은 `finally`에서 스트림을 닫으므로 원본은 닫힌다.
+
+```java
+// 감싸는 메서드가 throws IOException을 선언하면 그대로 전파된다(가장 흔한 사용법).
+List<String> lines = FStream.from(files).mapOrThrow(Files::readString).toList();
+
+// 같은 try 블록에 IOException을 선언한 다른 호출이 없으면 catch (IOException e)는 컴파일 오류가 난다.
+try {
+    List<String> lines = FStream.from(files).mapOrThrow(Files::readString).toList();
+}
+catch ( Exception e ) {
+    if ( e instanceof IOException ioe ) {
+        throw new UncheckedIOException(ioe);   // 또는 여기서 처리
+    }
+    throw e;   // 컴파일러가 보기에는 비검사 예외만 남으므로 throws 선언이 필요 없다
+}
+```
+
+선언된 예외가 필요하면 원소마다 부수 효과만 수행하는 `forEachOrThrow(effect)`(`throws X` 선언)를 쓰고, 실패를 값으로 다루려면 `tryMap(f)`를 쓴다. 이름은 같은 "OrThrow"지만 `mapOrThrow`는 `throws` 선언을 뜻하지 않는다.
 
 ### 4.2 한 원소에서 여러 결과 만들기
 
@@ -199,21 +220,29 @@ stream.split(predicate)                   // 조건에 맞는 원소를 구분�
 
 `buffer(count, skip)`은 끝에 남은 작은 묶음도 반환한다. 예를 들어 `[0,1,2,3]`에 `buffer(3,1)`을 적용하면 `[[0,1,2], [1,2,3], [2,3], [3]]`이다. `count`와 `skip`은 모두 양수로 사용한다. 현재 구현은 `skip <= 0`을 충분히 검증하지 않아 같은 묶음을 계속 반환할 수 있다.
 
-`split()`은 구분자를 결과에서 제외하지만 빈 구간은 유지한다. `["a", ",", ","]`를 쉼표 기준으로 나누면 `[["a"], [], []]`이다. 빈 구간이 필요 없으면 `.filter(group -> !group.isEmpty())`를 이어 붙인다.
+`split()`은 구분자를 결과에서 제외하지만 빈 구간은 유지한다. `["a", ",", ","]`를 쉼표 기준으로 나누면 `[["a"], [], []]`이다. 단 빈 입력은 빈 스트림이다(2026-11-02 이전에는 `[[]]`). 빈 구간이 필요 없으면 `.filter(group -> !group.isEmpty())`를 이어 붙인다.
 
 ### 4.5 정렬과 일부 값 선택
 
 | 호출 | 현재 구현의 동작 |
 |---|---|
 | `sort()`, `sort(comparator)` | 전체 입력을 즉시 읽고 정렬 |
-| `sort(keyer)` | 추출한 키의 자연 순서로 정렬 |
-| `sort(keyer, true)` | 키의 역순으로 정렬 |
-| `quasiSort(queueLength)` | 제한된 선행 입력만 비교하는 근사 정렬 |
-| `takeTopK(k)` | **자연 순서에서 작은 값 k개**를 선택해 작은 값부터 반환 |
-| `takeTopK(k, true)` | 큰 값 k개를 선택해 큰 값부터 반환 |
-| `takeTopK(k, keyer, reverse)` | 키 비교 순서의 앞쪽 k개 선택 |
+| `sort(SortOrder.DESCENDING)` | 자연 순서의 내림차순으로 정렬 |
+| `sort(keyer)` / `sort(keyer, order)` | 추출한 키 기준으로 정렬. 기본은 오름차순 |
+| `quasiSort(queueLength)` / `quasiSort(queueLength, order)` | 제한된 선행 입력만 비교하는 근사 정렬. 기본은 오름차순 |
+| `quasiSort(queueLength, keyer)` / `quasiSort(queueLength, keyer, order)` | 키 기준 근사 정렬 |
+| `takeTopK(k)` | 자연 순서에서 큰 값 k개를 큰 값부터 반환(`SortOrder.DESCENDING`과 같음) |
+| `takeTopK(k, SortOrder.ASCENDING)` | 작은 값 k개를 작은 값부터 반환 |
+| `takeTopK(k, keyer)` / `takeTopK(k, keyer, order)` | 추출한 키 기준으로 같은 규칙. 기본은 키가 큰 k개 |
+| `takeTopK(k, comparator)` | 비교자 순서의 앞쪽 k개를 그 순서로 반환. `sort(comparator).take(k)`와 같음 |
 
-`takeTopK()`의 이름과 일부 주석은 큰 값 선택으로 읽히지만 현재 우선순위 큐는 비교 순서에서 작은 값들을 유지한다. 예를 들어 `[4,1,3,2]`에서 `takeTopK(2)`는 `[1,2]`, `takeTopK(2,true)`는 `[4,3]`이다. 양수 k에서는 호출 즉시 전체 입력을 읽고 원본을 닫으며, k가 0이면 읽지 않고 빈 결과를 만든다.
+예를 들어 `[4,1,3,2]`에서 `takeTopK(2)`는 `[4,3]`, `takeTopK(2, SortOrder.ASCENDING)`은 `[1,2]`다. 비교자를 받는 오버로드만 기본 방향이 없고 비교자 순서를 그대로 따른다. 큰 값을 고르려면 `(a,b) -> Integer.compare(b, a)`처럼 내림차순 비교자를 넘긴다.
+
+전체를 정렬하지 않고 크기 k의 우선순위 큐만 유지한다. 원본은 결과에서 처음 원소를 꺼낼 때 끝까지 읽고 닫으며, k가 0이면 읽지 않는다.
+
+방향은 `SortOrder`(`ASCENDING`/`DESCENDING`)로 지정한다. `sort`·`quasiSort`는 기본이 오름차순이고, `takeTopK`는 "상위 k개"라는 이름대로 기본이 내림차순이다.
+
+2026-11-02 이전에는 `takeTopK(k)`가 작은 값 k개를 골랐고(Javadoc과 반대), 또 호출하는 즉시 원본을 끝까지 읽었다. `sort`·`quasiSort`·`takeTopK`의 방향은 `boolean reverse` 인자로 정했는데, 모두 `SortOrder`로 바꾸고 `boolean` 오버로드는 별칭 없이 삭제했다.
 
 `quasiSort(n)`은 최대 n+1개 정도를 먼저 읽어 작은 값부터 내보낸다. 멀리 떨어진 순서 뒤집힘까지 바로잡지는 못한다. 거의 정렬된 입력에 적합하고, 제한된 버퍼만 사용하므로 무한 입력에도 적용할 수 있다.
 
@@ -235,7 +264,15 @@ List<Integer> sums = FStream.of(1, 2, 3)
         .toList();  // [1, 3, 6]
 ```
 
-`reduceLeak()`은 첫 원소부터 중간 누적값을 차례로 반환한다. `foldLeak()`도 API에 있지만 현재 구현은 첫 원소를 그대로 반환한 뒤, 이후 입력값 대신 이전 출력값을 결합 함수에 전달한다. 예를 들어 `foldLeak(0, (s,t) -> Tuple.of(s+t, s+t))`를 `[1,2,3]`에 적용하면 `[1,1,2]`가 된다. 일반적인 누적 연산이 필요하면 `reduceLeak()`이나 별도 상태를 가진 스트림을 사용한다.
+`reduceLeak()`은 첫 원소부터 중간 누적값을 차례로 반환한다. 초기값이 필요하거나 누적값의 타입이 원소와 다르면 `scan(init, folder)`를 쓴다. `fold()`의 lazy 판으로, 매 단계의 누적값을 차례로 반환한다.
+
+```java
+List<String> joined = FStream.of(1, 2, 3)
+        .scan("", (s, n) -> s + n)
+        .toList();  // ["1", "12", "123"]
+```
+
+결과의 길이는 입력과 같고 초기값 자체는 반환하지 않는다. 첫 원소는 `folder(init, 첫 원소)`다(Scala `scanLeft`·Kotlin `runningFold`는 초기값을 먼저 반환하므로 하나 더 길다). 누적값이 `null`이 되어도 그대로 다음 단계에 전달된다. `scan`은 2026-11-02에 결과가 틀리던 `foldLeak()`(입력값 대신 직전 출력값을 결합해 `[1,2,3,4]`에서 `[1,1,2,4]`를 냄)을 대체했다. `foldLeak()`은 사용처가 없어 별칭 없이 삭제했다.
 
 기존 스트림 변환 함수를 처리 과정에 넣을 때는 `lift()`를 사용한다. `stream.lift(f)`는 `f.apply(stream)`과 같다.
 
@@ -266,8 +303,8 @@ FStream<Report> reports = FStream.from(rows)
 | 컬렉션 수집 | `toList`, `toSet`, `toCollection` | 리스트·집합·지정 컬렉션 |
 | 배열 수집 | `toArray(String.class)` | 지정 원소 타입 배열 |
 | 뒤쪽 원소 | `takeLast(n)` | 마지막 n개의 `List<T>`. 전체 입력 소비 |
-| 문자열 결합 | `join(", ")`, `join(", ", "[", "]")`, `join(csv)` | 문자열 |
-| 키별 집계 | `reduceByKey`, `foldByKey`, `collectByKey` | 키별 결과 맵 |
+| 문자열 결합 | `join(", ")`, `join(", ", "[", "]")`, `join(csv)` | 문자열. `null` 원소는 `"null"` |
+| 키별 집계 | `reduceByKey`, `foldByKey`, `collectByKey` | 키별 결과 맵. `reduceByKey`의 reducer가 `null`을 내면 IAE |
 
 `stream()`은 종단 연산이 아니라 Java Stream으로 변환하는 어댑터다. 반환된 Stream을 닫으면 원래 FStream도 닫는다. Java Stream의 단축 연산은 자동으로 `close()`하지 않으므로 자원으로 선언한다.
 
@@ -292,13 +329,14 @@ KeyValueFStream.fromKeyed(keyedObjects)
 |---|---|
 | `keys()`, `values()` | 키 또는 값만 추출 |
 | `filterKey`, `filterValue` | 키 또는 값 조건으로 선택 |
-| `mapKey`, `mapValue`, `mapKeyValue` | 키·값 변환 |
+| `mapKey`, `mapValue`, `mapKeyValue` | 키·값 변환. `mapKey`/`mapValue`는 키 또는 값 하나만 받는다 |
+| `mapKeyWithValue`, `mapValueWithKey` | 키와 값을 함께 받아 키 또는 값을 바꿈(2026-11-02 이전 이름: `mapKey`/`mapValue`의 `BiFunction` 오버로드) |
 | `map(BiFunction)`, `flatMap(BiFunction)`, `forEach(BiConsumer)` | 키와 값을 별도 인자로 처리 |
-| `groupByKey()` | 키별 목록을 가진 `KeyedGroups` 생성 |
+| `groupByKey()` | 키별 목록을 가진 `KeyedGroups` 생성. 그룹은 처음 나온 순서, null 값도 목록에 포함. `asMap()`·`get()` 등은 읽기 전용 뷰 |
 | `sortByKey()` | 키의 자연 순서로 정렬 |
 | `match(map)`, `flatMatch(map)` | 참조 맵과 키로 연결 |
 | `toMap()`, `toMap(targetMap)` | 키별 값 수집. 중복 키는 나중 값이 덮어씀 |
-| `toListMap()` | 같은 키의 값을 목록으로 수집 |
+| `toListMap()` | 같은 키의 값을 목록으로 수집(`groupByKey()`와 같은 결과를 `HashMap`으로). null 값도 포함 |
 
 ```java
 Map<String, Integer> countByDepartment = FStream.from(employees)
@@ -309,9 +347,17 @@ Map<String, Integer> countByDepartment = FStream.from(employees)
         .toMap();
 ```
 
-`match()`의 값은 원래 값과 참조 맵의 값을 묶은 `Tuple<V,R>`이다. `keepUnmatched=true`이면 일치하지 않은 항목도 유지하며, 튜플의 두 번째 값이 null이다. `flatMatch()`는 참조 맵에 있는 값 목록을 각각의 결과로 펼친다.
+`match()`의 값은 원래 값과 참조 맵의 값을 묶은 `Tuple<V,R>`이다. 일치 여부는 참조 맵에 키가 있는지(`containsKey`)로 판단하므로, 참조 맵에 값이 null로 들어 있는 키도 일치한 것으로 전달된다(튜플의 두 번째 값이 null). 2026-11-01 이전에는 이런 항목을 일치하지 않은 것으로 보아 버렸다. `keepUnmatched=true`이면 일치하지 않은 항목도 유지하며, 튜플의 두 번째 값이 null이다. 따라서 이때는 두 경우를 튜플만으로 구분할 수 없다. `flatMatch()`는 값 목록을 담은 참조 맵과 일대다로 연결하여, 목록의 값마다 `(키, (원래 값, 참조 값))` 한 행을 낸다. 참조 값이 하나도 없는 원소(빈 목록, null 목록, 맵에 없는 키)는 모두 "일치하지 않음"으로 같게 다룬다. `keepUnmatched=false`(inner join)이면 이런 원소는 나오지 않고, `true`(left outer join)이면 `(원래 값, null)` 한 행으로 남는다.
 
-일반 `FStream`에는 `lookup(map)`과 `lookup(function, keepUnmatched)`도 있다. 각 원소를 키로 보고 조회한 값을 붙인다. 패키지 내부에 조인 구현 클래스가 있지만 `outerJoin()` 공개 진입점은 주석 처리되어 있으므로 실제 사용에는 `match`, `flatMatch`, `lookup`을 이용한다.
+| 참조 맵의 상태 | `flatMatch(lut)` | `flatMatch(lut, true)` |
+|---|---|---|
+| 값이 n개인 목록 | n행 | n행 |
+| 빈 목록 또는 null | 0행 | `(v, null)` 1행 |
+| 키가 없음 | 0행 | `(v, null)` 1행 |
+
+키의 존재만 보는 `match()`와 달리 null 목록을 일치로 보지 않는다. 2026-11-02 이전에는 null 목록이 inner join에서도 `(v, null)`을 냈고, 빈 목록은 outer join에서도 원소가 사라졌다.
+
+일반 `FStream`에는 `lookup(map[, keepUnmatched])`과 `lookup(function, keepUnmatched)`도 있다. 각 원소를 키로 보고 조회한 값을 붙인 `(원소, 값)` 쌍을 낸다. 맵을 받는 버전은 `match()`와 같이 키의 존재(`containsKey`)로 판단하므로 값이 null인 키도 `(원소, null)`로 일치한다. 조회 함수를 받는 버전은 키의 존재를 알 수 없으므로 함수가 null을 반환하면 일치하지 않은 것으로 본다. 2026-11-02 이전에는 맵 버전도 `get()` 결과가 null이면 일치하지 않은 것으로 보았다. 패키지 내부에 조인 구현 클래스가 있지만 `outerJoin()` 공개 진입점은 주석 처리되어 있으므로 실제 사용에는 `match`, `flatMatch`, `lookup`을 이용한다.
 
 현재 `toListMap()`은 일반 반복문으로 구현되어 예외·빈 입력에서의 자동 정리가 주요 종단 연산과 같지 않다. 자원이 있는 스트림은 `try-with-resources`로 감싼다.
 
@@ -321,10 +367,12 @@ Map<String, Integer> countByDepartment = FStream.from(employees)
 
 | 타입 | 대표 생성 방법 | 전용 연산 |
 |---|---|---|
-| [`IntFStream`](IntFStream.java) | `FStream.range`, `FStream.of(int[])`, `mapToInt` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
-| [`LongFStream`](LongFStream.java) | `LongFStream.range`, `mapToLong` | `sum`, `average`, `toArray` |
-| [`FloatFStream`](FloatFStream.java) | `FloatFStream.of(float[])`, `mapToFloat` | `sum`, `average`, `toArray` |
-| [`DoubleFStream`](DoubleFStream.java) | `FStream.of(double[])`, `mapToDouble` | `sum`, `average`, `toArray` |
+| [`IntFStream`](IntFStream.java) | `IntFStream.range`·`FStream.range`, `of(int...)`, `mapToInt` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
+| [`LongFStream`](LongFStream.java) | `LongFStream.range`, `of(long...)`, `mapToLong` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
+| [`FloatFStream`](FloatFStream.java) | `of(float...)`, `mapToFloat` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
+| [`DoubleFStream`](DoubleFStream.java) | `of(double...)`, `FStream.of(double[])`, `mapToDouble` | `sum`, `average`, `maxValue`, `minValue`, `toArray` |
+
+Int·Long·Float·Double 스트림은 생성 방법도 같다. 기본형 값은 `of(...)`, 박싱 배열은 `from(Integer[])` 등, 컬렉션은 `from(Iterable)`, 기존 `FStream<Integer>` 등은 `downcast(stream)`으로 감싼다. 2026-11-02 이전에는 박싱 배열용도 `of(Long...)` 같은 이름이어서 `LongFStream.of(1L, 2L)` 같은 리터럴 호출이 모호성 컴파일 오류가 났다.
 | [`BooleanFStream`](BooleanFStream.java) | `BooleanFStream.of(boolean[])`, `mapToBoolean` | `andAll`, `orAll`, `toArray` |
 
 ```java
@@ -338,7 +386,7 @@ List<String> labels = FStream.range(0, 3)
         .toList();
 ```
 
-빈 입력의 평균은 빈 `FOption`이다. `IntFStream.sum()`은 `long`으로 누적한다. `BooleanFStream.andAll()`은 빈 입력에서 true, `orAll()`은 false를 반환하며, 현재 두 연산은 결과가 결정된 뒤에도 끝까지 읽는다. 조기 종료가 필요하면 `allMatch`나 `exists`를 사용한다.
+빈 입력의 평균은 빈 `FOption`이다. `IntFStream.sum()`은 `long`으로, `FloatFStream.sum()`은 `double`로 누적한다(2026-11-02 이전에는 `float`로 누적해 정밀도를 잃었다). 원소에 null이 있으면 수치 연산은 `NullPointerException`을 던진다. `BooleanFStream.andAll()`은 빈 입력에서 true, `orAll()`은 false를 반환하며, 현재 두 연산은 결과가 결정된 뒤에도 끝까지 읽는다. 조기 종료가 필요하면 `allMatch`나 `exists`를 사용한다.
 
 ## 8. 비동기 매핑과 병합
 
@@ -363,7 +411,7 @@ AsyncExecutionOptions options = AsyncExecutionOptions.WORKER_COUNT(4)
 
 ### 8.2 결과와 실패 처리
 
-`mapAsync()`와 `mapCheckedAsync()`의 결과 원소는 모두 **입력과 결과를 묶은 `Tuple<T, Try<R>>`**다. 일부 소스 주석의 `Try<R>` 단독 반환 설명과는 다르다.
+`mapAsync()`와 `mapCheckedAsync()`의 결과 원소는 모두 **입력과 결과를 묶은 `Tuple<T, Try<R>>`**다. 두 메서드는 받는 함수 타입(비검사 `Function` / 검사 예외를 허용하는 `CheckedFunction`)만 다르고 동작은 같다.
 
 ```java
 FStream.of("10", "bad", "30")
@@ -397,11 +445,17 @@ FStream<Record> records = FStream.from(files)
         .flatMapAsync(this::readRecords, AsyncExecutionOptions.WORKER_COUNT(4));
 ```
 
-`keepOrder=true`이면 하위 스트림 생성 결과를 입력 순서대로 받아 하나씩 소비한다. `false`이면 `mergeParallel()`로 하위 스트림도 병렬 소비하므로 원소가 서로 섞일 수 있다. 검사 예외를 허용하는 함수에는 `flatMapCheckedAsync()`를 사용한다.
+`keepOrder=true`이면 매핑 함수 호출(하위 스트림 생성)만 병렬로 하고, 하위 스트림은 결과를 소비하는 스레드가 입력 순서대로 하나씩 끝까지 읽는다. 생성이 비싸고 읽기가 싼 경우에 맞다. `false`이면 `mergeParallel()`로 워커가 하위 스트림 읽기까지 맡으므로 원소가 서로 섞일 수 있다.
 
-`flatMapAsync()`는 결과에 `Try`를 남기지 않으며 하위 스트림 생성에 실패한 입력은 제외될 수 있다. `mergeParallel()`도 워커의 실패 결과를 출력 채널에 전달하지 않고 다음 입력으로 넘어가는 경로가 있다. 따라서 누락 여부를 반드시 알아야 하는 처리에서는 `mapAsync()`로 성공·실패를 먼저 명시적으로 관리한다.
+`flatMapAsync()`와 `flatMapCheckedAsync()`는 받는 함수 타입만 다르다. `flatMapCheckedAsync()`는 검사 예외를 던질 수 있는 `CheckedFunction`을 받고, 그 예외는 결과를 읽는 쪽에 선언 없이 전달된다. 순서·병렬성·실패 전파·닫기 동작은 같다.
 
-`mergeParallel(streams, workerCount, executor)`는 각 워커가 하위 스트림 하나를 끝까지 읽은 뒤 다음 스트림을 맡는 방식이다. executor가 null이면 이 병합 구현은 작업마다 새 스레드를 사용한다. 매핑에서의 기본 실행기 선택과 구분한다.
+`keepOrder=true`에서 결과 스트림을 중간에 닫으면 읽던 하위 스트림과, 미리 만들어 두었지만 아직 읽지 않은 하위 스트림을 닫는다. 닫을 때 진행 중이던 매핑 함수가 나중에 만든 하위 스트림도 만들어지는 즉시 비동기로 닫는다. 따라서 `close()`가 돌아온 직후에는 일부가 아직 닫히지 않았을 수 있다. 2026-11-02 이전에는 읽지 않은 하위 스트림이 닫히지 않았다.
+
+`flatMapAsync()`·`flatMapCheckedAsync()`·`mergeParallel()`은 실패를 결과 스트림의 오류로 전파한다. 매핑 함수가 예외를 던지거나 하위 스트림을 읽는 중 예외가 나면, 그때까지 나온 원소를 받은 뒤 다음 원소를 꺼낼 때 감싸지 않은 원래 예외가 던져진다(검사 예외는 `mapOrThrow`처럼 선언 없이 전달된다, 4.1 참고). 순서를 보존하지 않는 경우(`keepOrder=false`, `mergeParallel`)는 처음 실패 뒤로 새 입력을 처리하지 않고, 진행 중인 다른 워커도 다음 출력에서 멈춘다. 여러 워커가 실패해도 처음 예외만 전달한다. 워커가 인터럽트되면 `InterruptedException`으로 실패한다.
+
+일부 입력의 실패를 허용하려면 매핑 함수 안에서 처리한다. 예를 들어 실패하면 `FStream.empty()`를 반환하게 한다. 입력별 성공·실패를 모두 알아야 하면 `mapAsync()`로 `Try`를 받아 처리한다. 2026-11-02 이전에는 실패한 입력을 흔적 없이 건너뛰어 결과 일부가 조용히 빠졌다.
+
+`mergeParallel(streams, workerCount, executor)`는 각 워커가 하위 스트림 하나를 끝까지 읽은 뒤 다음 스트림을 맡는 방식이다. executor가 null이면 비동기 매핑과 같이 `CompletableFuture`의 기본 풀(공용 `ForkJoinPool`)에서 실행된다. 하위 스트림을 읽는 작업이 오래 막히면 공용 풀을 점유하므로, 블로킹 I/O가 많으면 전용 executor를 지정한다.
 
 ### 8.5 닫기와 작업 중단
 
@@ -475,33 +529,31 @@ try (channel) {
 | `toList`, `forEach`, `fold` 등 주요 종단 연산 | 완료·실패 시 `closeQuietly()` 호출. 닫기 오류는 전달하지 않음 |
 | `map`, `filter` 결과 닫기 | 보통 원본까지 닫음. 모든 구현의 공통 보장은 아님 |
 | `next()` 직접 반복 | 소진 후에도 호출자가 닫아야 함 |
-| 향상된 for 문 | 중간 종료·예외·빈 입력에서 정리가 빠질 수 있으므로 자원으로 선언 |
+| 향상된 for 문 | 끝까지 돌면 원본을 닫음(빈 입력 포함). 중간 종료·예외에서는 정리가 빠지므로 자원으로 선언 |
 | `stream()`으로 변환 | 반환된 Java Stream을 자원으로 선언 |
-| `onClose()`로 감싼 스트림 | 현재 원본에 닫기를 전달하지 않음. 원본도 별도 정리 |
+| `onClose()`로 감싼 스트림 | 원본을 먼저 닫고 등록한 작업을 실행(2026-11-02부터) |
 
-`FStreams.AbstractFStream`은 중복 `close()`를 무시하고, 닫은 뒤 `next()`에는 `IllegalStateException`을 던진다. 그러나 이 규칙을 패키지 전체에 일반화할 수는 없다. 빈 스트림, 연결 스트림, `onClose` 래퍼, `SuppliableFStream` 등에는 닫은 뒤 empty을 반환하는 구현도 있다. 닫은 스트림은 다시 읽지 않는 규칙으로 사용한다.
+`FStreams.AbstractFStream`은 중복 `close()`를 무시하고, 닫은 뒤 `next()`에는 `IllegalStateException`을 던진다. 그러나 이 규칙을 패키지 전체에 일반화할 수는 없다. 빈 스트림, 연결 스트림, `SuppliableFStream` 등에는 닫은 뒤 empty을 반환하는 구현도 있다. 닫은 스트림은 다시 읽지 않는 규칙으로 사용한다.
 
-### 10.2 `onClose()`의 현재 제약
+### 10.2 `onClose()`의 동작
 
-현재 [`CloserAttachedStream`](FStreams.java)의 `close()`는 등록한 작업만 실행하고 원본을 닫지 않는다. 따라서 다음 두 가지를 주의해야 한다.
+[`CloserAttachedStream`](FStreams.java)의 `close()`는 원본을 먼저 닫고, 그 직후 등록한 작업을 실행한다.
 
-- `source.onClose(task)`를 닫아도 source의 정리는 별도로 필요하다.
-- `.onClose(first).onClose(second)`를 닫으면 가장 바깥의 second만 실행된다. 등록 순서대로 모두 실행하지 않는다.
-
-원본도 자원으로 선언하면 콜백과 원본의 정리를 각각 처리할 수 있다.
+- 원본을 닫다 예외가 나도 작업은 실행된다. 둘 다 실패하면 작업의 예외를 원본 예외의 suppressed로 붙여 원본 예외를 던진다.
+- `.onClose(first).onClose(second)`를 닫으면 `first`, `second` 순서로 모두 실행된다.
+- 닫은 뒤 `next()`는 `IllegalStateException`이다.
 
 ```java
-try (FStream<Integer> source = FStream.of(1, 2, 3);
-     FStream<Integer> decorated = source.onClose(() -> System.out.println("소비 종료"))) {
+try (FStream<Integer> decorated = FStream.of(1, 2, 3).onClose(() -> System.out.println("소비 종료"))) {
     decorated.forEach(System.out::println);
-}
+}   // 원본이 닫힌 뒤 "소비 종료"
 ```
 
-자원 정리 여러 개를 연결할 때는 `onClose()`를 연달아 붙이는 대신 각각 `try-with-resources`로 관리한다. 콜백은 `Runnable`이므로 검사 예외를 직접 던지는 `connection.close()` 같은 메서드를 그대로 람다에 넣을 수 없다는 점도 구분한다.
+콜백은 `Runnable`이므로 검사 예외를 직접 던지는 `connection.close()` 같은 메서드를 그대로 람다에 넣을 수 없다. 2026-11-02 이전에는 `close()`가 등록한 작업만 실행하고 원본을 닫지 않았으며, 연달아 등록하면 가장 바깥 작업만 실행됐다.
 
 ### 10.3 반복자와 조기 종료
 
-반복자는 생성하는 순간 첫 원소를 미리 읽고, 각 `next()`에서 그다음 원소를 미리 읽는다. 따라서 for 문 본문에서 `break`하기 전에 다음 입력이 이미 소비될 수 있다. 다음 원소를 기다리는 스트림이면 본문에 도달하기 전에 대기할 수도 있다.
+반복자는 `hasNext()`가 불릴 때 원소를 하나씩 읽고 미리 읽지 않는다. 따라서 for 문 본문에서 `break`해도 그다음 입력은 소비되지 않는다. 2026-11-02 이전에는 생성할 때와 각 `next()`에서 다음 원소를 미리 읽었다.
 
 ```java
 try (FStream<Row> rows = openRows()) {
@@ -514,7 +566,7 @@ try (FStream<Row> rows = openRows()) {
 }
 ```
 
-일반 반복을 끝까지 마치면 소진을 감지한 반복자가 원본을 닫지만, 처음부터 빈 입력에서는 생성 시 닫기를 호출하지 않는다. 반복 중 예외에서도 자동 정리가 빠질 수 있으므로 자원 선언을 유지한다.
+반복을 끝까지 마치면 끝을 감지한 반복자가 원본을 닫는다. 처음부터 빈 입력도 같다. 그러나 `break`나 반복 중 예외로 멈추면 자동 정리가 일어나지 않으므로 자원 선언을 유지한다. `stream()`으로 바꾼 Java Stream도 같은 반복자를 쓰므로 null 원소에서 잘리지 않는다.
 
 ### 10.4 사용자 정의 스트림
 
@@ -551,7 +603,8 @@ class CounterStream extends FStreams.AbstractFStream<Integer> {
 | `quasiSort(n)` | 조회 시 최대 n+1개 정도 선행 읽기 | 전체 정렬 보장 없음 |
 | `dropLast(n)` | 처음 n개를 보관하고 이후 한 개씩 읽기 | 전체 입력을 미리 읽지 않음 |
 | `takeLast(n)` | 호출 시 끝까지 읽기 | 마지막 n개만 보관하는 종단 연산 |
-| `sort`, 양수 k의 `takeTopK` | 호출 즉시 끝까지 읽기 | 반환값이 스트림이어도 입력은 이미 소비됨 |
+| `sort` | 호출 즉시 끝까지 읽기 | 반환값이 스트림이어도 입력은 이미 소비됨 |
+| 양수 k의 `takeTopK` | 첫 조회 시 끝까지 읽기 | k개만 보관 |
 | `shuffle` | 첫 조회 시 끝까지 읽기 | 전체 입력을 메모리에 보관 |
 | `mapAsync`, `flatMapAsync`, `mergeParallel` | 첫 조회 때 시작, 이후 선행 실행 | 소비한 결과보다 더 많은 작업이 이미 시작될 수 있음 |
 
@@ -560,11 +613,11 @@ class CounterStream extends FStreams.AbstractFStream<Integer> {
 | 상황 | 확인할 내용 |
 |---|---|
 | 두 번째 수집에서 값이 없거나 예외가 남 | 스트림은 일회성. 원본 컬렉션에서 새로 생성 |
-| `takeTopK()`에서 작은 값이 나옴 | 현재 기본 동작. 큰 값은 역순 옵션 사용 |
-| 비동기 매핑 일부 결과가 빠진 것처럼 보임 | `Try.failure` 처리 여부와 `flatMapAsync`의 실패 제외 동작 확인 |
+| `mapOrThrow()` 뒤 `catch (IOException e)`가 "never thrown" 컴파일 오류 | 종단 연산이 `throws`를 선언하지 않음. 메서드에 `throws` 선언, `catch (Exception)` 후 구분, 또는 `forEachOrThrow`·`tryMap` 사용(4.1) |
+| `takeTopK(k, comparator)`에서 작은 값이 나옴 | 비교자 순서의 앞쪽 k개를 고름. 큰 값은 내림차순 비교자를 넘기거나 `takeTopK(k)` 사용 |
+| 비동기 매핑 일부 결과가 빠진 것처럼 보임 | `mapAsync`의 `Try.failure` 처리 여부 확인(`flatMapAsync`는 실패를 예외로 전파) |
 | 설정한 매핑 제한 시간이 적용되지 않음 | `timeoutMillis`는 현재 실행에 사용되지 않음 |
 | `close()` 뒤에도 외부 작업이 계속됨 | 생성기·매핑·병합의 종료 대기와 취소 범위 확인 |
-| 닫기 콜백은 실행됐는데 원본 자원이 남음 | `onClose`가 원본을 닫지 않는 현재 동작 확인 |
 | 종료된 공유 채널에서 `supply()` 예외가 남 | 소비자의 `close()`나 생산 종료 이후에는 추가 적재 불가 |
 | 무한 입력에서 정렬·수집이 끝나지 않음 | 전체 소비 연산 전에 `take()` 등으로 제한 |
 

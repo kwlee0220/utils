@@ -62,7 +62,7 @@ public class CIStringMap<T> implements Map<String,T> {
 	@Override
 	public Set<Entry<String, T>> entrySet() {
 		 return KeyValueFStream.from(m_map)
-				 		.mapKey((k,v) -> k.get())
+				 		.mapKey(k -> k.get())
 				 		.toMap()
 				 		.entrySet();
 	}

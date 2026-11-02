@@ -6,6 +6,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -48,7 +49,7 @@ import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.FlatMapDataSupplier;
 import utils.stream.FStreams.FlatMapTry;
-import utils.stream.FStreams.FoldLeftLeakFStream;
+import utils.stream.FStreams.FoldScannedStream;
 import utils.stream.FStreams.GeneratedStream;
 import utils.stream.FStreams.MapOrThrowStream;
 import utils.stream.FStreams.MapToBooleanStream;
@@ -84,8 +85,10 @@ import utils.stream.IntFStream.RangedStream;
  *       사용한다.</li>
  *   <li><b>비동기 매핑/flatMap</b>: {@link #mapAsync}, {@link #flatMapAsync}로 워커 수/순서 보존을
  *       옵션으로 지정한 병렬 매핑을 지원한다.</li>
- *   <li><b>primitive 변환</b>: {@link #mapToInt}, {@link #mapToLong}, {@link #mapToFloat},
- *       {@link #mapToDouble}, {@link #mapToBoolean}으로 box 비용 없는 변환을 지원한다.</li>
+ *   <li><b>수치 스트림 변환</b>: {@link #mapToInt}, {@link #mapToLong}, {@link #mapToFloat},
+ *       {@link #mapToDouble}, {@link #mapToBoolean}은 합계·평균·최댓값 같은 수치 종단 연산을 더한
+ *       스트림({@link IntFStream} 등)으로 변환한다. 원소는 박싱된 값이므로 {@code java.util.stream}의
+ *       기본형 스트림과 달리 박싱 비용이 있다(2026-11-02 이전 문서는 "box 비용 없는 변환"이라 했다).</li>
  * </ul>
  * <p>
  * <b>사용 흐름</b>:
@@ -251,16 +254,17 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		return generate(value, (v) -> v);
 	}
 	/**
-	 * 주어진 값을 주어진 횟수만큼 반복하여 반환하는 무한 스트림 객체를 반환한다.
+	 * 주어진 값을 주어진 횟수만큼 반복하여 반환하는 유한 스트림 객체를 반환한다.
 	 * 
 	 * @param <T>		스트림이 반환하는 데이터의 타입
 	 * @param value		스트림이 반복하여 반환할 데이터 값.
-	 * @param count		반복 횟수.
-	 * @return	스트림 객체.
+	 * @param count		반복 횟수(0 이상). {@code 0}이면 빈 스트림.
+	 * @return	{@code value}를 {@code count}번 반환하는 스트림 객체.
+	 * @throws IllegalArgumentException	{@code value}가 {@code null}이거나 {@code count}가 음수인 경우.
 	 */
 	public static <T> FStream<T> repeat(T value, int count) {
 		Preconditions.checkNotNullArgument(value, "repeat value");
-		Preconditions.checkArgument(count >= 0, "count >= 0, but: %d", count);
+		Preconditions.checkArgument(count >= 0, "count >= 0, but: %s", count);
 
 		return generate(value, (v) -> v).take(count);
 	}
@@ -457,13 +461,31 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	/**
-	 * 본 스트림에 포함된 각 데이터에 주어진 함수({@code mapper})를 적용한 결과 데이터로
+	 * 본 스트림에 포함된 각 데이터에 검사 예외를 던질 수 있는 함수({@code mapper})를 적용한 결과 데이터로
 	 * 구성된 스트림을 생성한다.
 	 * <p>
-	 * 함수 수행 중 오류가 발생되면 바로 예외를 발생시킨다.
+	 * <b>예외 전달 방식 — 컴파일러가 추적하지 못한다.</b>
+	 * <ul>
+	 *   <li>lazy 연산이므로 본 메소드 호출 시점에는 아무 일도 일어나지 않는다. {@code mapper}가 던진 예외는 원소를
+	 *       꺼낼 때({@link #next()}, 또는 {@code toList()}·{@code toMap()}·{@code forEach()} 같은 종단 연산) 발생한다.</li>
+	 *   <li>예외는 감싸지 않은 원래 예외 그대로 던져진다(sneaky throw). 그러나 종단 연산은 {@code throws X}를 선언하지
+	 *       않으므로 컴파일러는 이 예외를 알지 못한다. 종단 연산은 {@code finally}에서 스트림을 닫으므로 예외가 나도
+	 *       원본은 닫힌다.</li>
+	 * </ul>
+	 * 잡는 방법:
+	 * <ul>
+	 *   <li>감싸는 메소드에 {@code throws X}를 선언해 그대로 전파한다(가장 흔한 사용법).</li>
+	 *   <li>{@code catch (X e)}는 같은 {@code try} 블록 안에 {@code X}를 선언한 다른 호출이 있을 때만 컴파일된다. 없으면
+	 *       "exception X is never thrown" 컴파일 오류가 난다.</li>
+	 *   <li>그 밖에는 {@code catch (Exception e)}/{@code catch (Throwable e)}로 잡은 뒤 {@code instanceof}로 고르거나
+	 *       {@link utils.Throwables#throwIfInstanceOf(Throwable, Class)}를 쓴다.</li>
+	 * </ul>
+	 * 선언된 예외가 필요하면, 원소마다 부수 효과만 필요한 경우 {@code throws X}를 선언하는
+	 * {@link #forEachOrThrow(CheckedConsumerX)}를 쓰고, 실패를 값으로 다루려면 {@link #tryMap(CheckedFunction)}을 쓴다.
+	 * 이름은 같은 "OrThrow"지만 {@code forEachOrThrow}와 달리 {@code throws} 선언을 뜻하지 않는다.
 	 * 
 	 * @param <S>		매핑된 데이터의 타입
-	 * @param <X>		발생될 수 있는 오류 타입
+	 * @param <X>		{@code mapper}가 던질 수 있는 예외 타입. 원소를 꺼내는 시점에 선언 없이 던져진다.
 	 * @param mapper	매핑 함수 객체.
 	 * @return FStream 객체
 	 */
@@ -494,35 +516,23 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 
 	/**
-	 * 스트림에 포함된 데이터들을 주어진 매핑 함수 {@code mapper}에 병렬로 적용하여
-	 * 출력된 결과로 구성된 스트림을 생성한다.
+	 * 본 스트림의 각 원소에 검사 예외를 던질 수 있는 매핑 함수 {@code mapper}를 기본 옵션으로 병렬 적용한 스트림을
+	 * 생성한다.
 	 * <p>
-	 * 스트림 데이터에 대해 매핑 함수를 병렬로 적용하기 때문에 매핑의 수행 시간이 다른 경우
-	 * 출력 스트림에서의 결과 값 순서는 바뀔 수 있다.
-	 * 만일 입력 데이터 순서와 출력 데이터 순서를 맞추려면
-	 * {@link FStream#mapAsync(Function, AsyncExecutionOptions)} 함수를 사용하되, 입력 인자로
-	 * {@link AsyncExecutionOptions#setKeepOrder(boolean)}를 활용하여 입력 데이터 순서와
-	 * 출력 데이터 순서를 맞춘다.
+	 * {@code mapCheckedAsync(mapper, AsyncExecutionOptions.create())}와 같다. 기본 옵션은 {@code keepOrder=false}
+	 * (매핑이 끝난 순서대로 출력), {@code workerCount=max(1, 프로세서 수 - 2)}, {@code executor=null}(공용
+	 * {@link java.util.concurrent.ForkJoinPool})이다. 순서 보존이나 워커 수를 지정하려면
+	 * {@link #mapCheckedAsync(CheckedFunction, AsyncExecutionOptions)}를 쓴다.
 	 * <p>
-	 * 또한 입력 데이터에 대한 매칭 함수 적용은 각각 별도의 쓰레드에 의해 수행되고 동시 실행되는
-	 * 쓰레드의 수는 시스템 내부 default 값을 사용한다. 만일 쓰레드 수를 변경하려면
-	 * {@link FStream#mapAsync(Function, AsyncExecutionOptions)} 함수를 사용한다.
-	 * 
-	 * <p>
-	 * 본 메소드는 {@link AsyncExecutionOptions#create()}로 얻은 기본 옵션을 사용한다. 기본 옵션은:
-	 * <ul>
-	 *   <li>{@code keepOrder = false} (출력 순서 보존하지 않음)</li>
-	 *   <li>{@code workerCount = max(1, availableProcessors - 2)}</li>
-	 *   <li>{@code executor = null} (CompletableFuture 기본 풀 사용)</li>
-	 *   <li>{@code timeout = -1L} (무제한)</li>
-	 * </ul>
+	 * 결과 원소는 {@code (입력 원소, Try로 감싼 매핑 결과)}이며, {@code mapper}의 실패는 스트림을 끝내지 않고
+	 * {@link Try#failure(Throwable)}로 전달된다. 자세한 규칙은
+	 * {@link #mapCheckedAsync(CheckedFunction, AsyncExecutionOptions)}를 참고한다.
 	 *
 	 * @param <S>		매핑 결과 데이터의 타입
-	 * @param mapper	매핑 함수 객체.
-	 * @return FStream 객체. 각 원소는 {@code (입력 원소, 매핑 결과)} 형태의 {@link Tuple}이며,
-	 *         매핑 결과는 {@link Try}로 감싸져 있다. mapper가 예외를 던지면
-	 *         {@link Try#failure(Throwable)}로 결과 스트림에 포함된다.
-	 * @see FStream#mapAsync(Function, AsyncExecutionOptions)
+	 * @param mapper	매핑 함수. 검사 예외를 던질 수 있다.
+	 * @return	{@code (입력 원소, 매핑 결과)} 쌍의 스트림. 매핑 결과는 {@link Try}로 감싸져 있다.
+	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 * @see #mapCheckedAsync(CheckedFunction, AsyncExecutionOptions)
 	 */
 	public default <S> FStream<Tuple<T,Try<S>>> mapAsync(CheckedFunction<? super T, ? extends S> mapper) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
@@ -530,37 +540,39 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 
 	/**
-	 * 스트림에 포함된 데이터들을 주어진 매핑 함수 {@code mapper}에 병렬로 적용하여
-	 * 출력된 결과로 구성된 스트림을 생성한다.
+	 * 본 스트림의 각 원소에 검사 예외를 던질 수 있는 매핑 함수 {@code mapper}를 병렬로 적용한 스트림을 생성한다.
 	 * <p>
-	 * 구체적인 매핑 함수 적용 방법은 두번째 인자인 {@link AsyncExecutionOptions}에 의해 다음과
-	 * 같이 결정된다.
-	 * <dl>
-	 * 	<dt>{@link AsyncExecutionOptions#getKeepOrder()}</dt>
-	 * 	<dd>입력 데이터 사이 순서와 해당 출력 데이터 사이 순서를 맞출지 여부. {@code true}인 경우는
-	 * 		각 쓰레드에 의해 수행되는 매핑 함수 수행 시간과 무관하게 출력 스트림의 결과 데이터는
-	 * 		해당 입력 스트림내 데이터 순서와 동일하게 된다.
-	 * 	</dd>
-	 * 	<dt>{@link AsyncExecutionOptions#getWorkerCount()}</dt>
-	 * 	<dd> 매핑 함수 수행을 위해 사용되는 최대 쓰레드 수.</dd>
-	 * 	<dt>{@link AsyncExecutionOptions#getExecutor()}</dt>
-	 * 	<dd>쓰레드 할당에 사용될 쓰레드 풀을 관리할 {@link Executor} 객체.</dd>
-	 * </dl>
-	 * 
+	 * <b>옵션</b>({@link AsyncExecutionOptions}):
+	 * <ul>
+	 *   <li>{@code keepOrder} — {@code true}이면 결과를 입력 순서대로 낸다({@link OrderedMapAsyncStream}). 앞선 원소의
+	 *       매핑이 오래 걸리면 뒤의 결과가 끝났어도 기다린다. {@code false}이면 매핑이 끝난 순서대로 낸다
+	 *       ({@link UnorderedMapAsyncStream}).</li>
+	 *   <li>{@code workerCount} — 동시에 수행하는 매핑의 최대 수.</li>
+	 *   <li>{@code executor} — 매핑을 수행할 {@link Executor}. {@code null}이면
+	 *       {@link java.util.concurrent.CompletableFuture}의 기본 풀(공용
+	 *       {@link java.util.concurrent.ForkJoinPool})을 쓴다.</li>
+	 *   <li>{@code timeout} — 현재 사용되지 않는다.</li>
+	 * </ul>
 	 * <p>
-	 * 내부적으로 {@code options.getKeepOrder()} 값에 따라 두 구현체 중 하나를 선택한다:
-	 * {@code true}이면 입력 순서를 보존하는 {@link OrderedMapAsyncStream}, {@code false}이면 처리량을
-	 * 우선하는 {@link UnorderedMapAsyncStream}.
+	 * <b>결과와 실패</b>: 결과 원소는 {@code (입력 원소, 매핑 결과)} 쌍인 {@link Tuple}이며, 매핑 결과는 {@link Try}로
+	 * 감싸진다. {@code mapper}가 예외를 던지면 그 원소의 결과가 {@link Try#failure(Throwable)}(원래 예외)가 될 뿐 스트림은
+	 * 계속된다. 따라서 호출자가 각 {@link Try}를 검사하지 않으면 실패를 놓친다. 실패를 결과 스트림의 오류로 받고
+	 * 싶으면 {@code .map(t -> t._2().get())}처럼 꺼낸다({@link Try#get()}은 원래 예외를 다시 던진다).
+	 * <p>
+	 * <b>실행과 닫기</b>: 매핑은 결과 스트림에서 처음 원소를 꺼낼 때 시작되며, 소비보다 앞서 최대 {@code workerCount}개가
+	 * 진행된다. 결과 스트림을 닫으면 본 스트림도 닫힌다. 이미 진행 중인 매핑은 중단되지 않을 수 있으며(순서 보존 시에는
+	 * 취소 요청도 하지 않는다), 닫은 뒤에 끝난 결과는 버려진다. 외부 자원을 쥐는 {@code mapper}는 스스로 정리해야 한다.
+	 * <p>
+	 * 비검사 함수를 쓰는 {@link #mapAsync(Function, AsyncExecutionOptions)}와는 받는 함수 타입만 다르고 동작은 같다.
 	 *
 	 * @param <S>		매핑 결과 데이터의 타입
-	 * @param mapper	매핑 함수 객체.
+	 * @param mapper	매핑 함수. 검사 예외를 던질 수 있다.
 	 * @param options	매핑 적용 옵션
-	 * @return FStream 객체. 각 원소는 {@code (입력 원소, 매핑 결과)} 형태의 {@link Tuple}이며,
-	 *         매핑 결과는 {@link Try}로 감싸져 있다. mapper가 예외를 던지면
-	 *         {@link Try#failure(Throwable)}로 결과 스트림에 포함된다.
+	 * @return	{@code (입력 원소, 매핑 결과)} 쌍의 스트림. 매핑 결과는 {@link Try}로 감싸져 있다.
+	 * @throws IllegalArgumentException	{@code mapper}나 {@code options}가 {@code null}인 경우.
 	 */
 	public default <S> FStream<Tuple<T,Try<S>>> mapCheckedAsync(CheckedFunction<? super T,? extends S> mapper,
-													AsyncExecutionOptions options) {
+																AsyncExecutionOptions options) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 		Preconditions.checkNotNullArgument(options, "AsyncExecutionOptions is null");
 		
@@ -573,26 +585,37 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 
 	/**
-	 * 본 스트림의 각 원소에 매핑 함수 {@code mapper}를 병렬로 적용한 결과로 구성된 스트림을 생성한다.
+	 * 본 스트림의 각 원소에 매핑 함수 {@code mapper}를 병렬로 적용한 스트림을 생성한다.
 	 * <p>
-	 * {@link #mapCheckedAsync(CheckedFunction, AsyncExecutionOptions)}와 달리 반환되는 스트림의 원소는
-	 * 입력 원소를 동반하지 않는 {@link Try} 단독 값이다. mapper가 예외를 던지면
-	 * {@link Try#failure(Throwable)}, 정상이면 {@link Try#success(Object)}로 노출된다.
+	 * {@link #mapCheckedAsync(CheckedFunction, AsyncExecutionOptions)}와 받는 함수 타입만 다르고(비검사
+	 * {@link Function}) 동작은 같다. 결과 원소도 같은 {@code (입력 원소, Try로 감싼 매핑 결과)} 쌍이다.
 	 * <p>
-	 * 동작 방식은 {@code options}에 따라 결정된다.
-	 * <dl>
-	 * 	<dt>{@link AsyncExecutionOptions#getKeepOrder()}</dt>
-	 * 	<dd>{@code true}이면 입력 순서가 보존되고, {@code false}이면 매핑 완료 순서로 출력된다.</dd>
-	 * 	<dt>{@link AsyncExecutionOptions#getWorkerCount()}</dt>
-	 * 	<dd>동시에 실행되는 최대 워커 수.</dd>
-	 * 	<dt>{@link AsyncExecutionOptions#getExecutor()}</dt>
-	 * 	<dd>매핑 실행에 사용할 {@link Executor}. {@code null}이면 기본 풀을 사용한다.</dd>
-	 * </dl>
+	 * <b>옵션</b>({@link AsyncExecutionOptions}):
+	 * <ul>
+	 *   <li>{@code keepOrder} — {@code true}이면 결과를 입력 순서대로 낸다({@link OrderedMapAsyncStream}). 앞선 원소의
+	 *       매핑이 오래 걸리면 뒤의 결과가 끝났어도 기다린다. {@code false}이면 매핑이 끝난 순서대로 낸다
+	 *       ({@link UnorderedMapAsyncStream}).</li>
+	 *   <li>{@code workerCount} — 동시에 수행하는 매핑의 최대 수.</li>
+	 *   <li>{@code executor} — 매핑을 수행할 {@link Executor}. {@code null}이면
+	 *       {@link java.util.concurrent.CompletableFuture}의 기본 풀(공용
+	 *       {@link java.util.concurrent.ForkJoinPool})을 쓴다.</li>
+	 *   <li>{@code timeout} — 현재 사용되지 않는다.</li>
+	 * </ul>
+	 * <p>
+	 * <b>결과와 실패</b>: 결과 원소는 {@code (입력 원소, 매핑 결과)} 쌍인 {@link Tuple}이며, 매핑 결과는 {@link Try}로
+	 * 감싸진다. {@code mapper}가 예외를 던지면 그 원소의 결과가 {@link Try#failure(Throwable)}(원래 예외)가 될 뿐 스트림은
+	 * 계속된다. 따라서 호출자가 각 {@link Try}를 검사하지 않으면 실패를 놓친다. 실패를 결과 스트림의 오류로 받고
+	 * 싶으면 {@code .map(t -> t._2().get())}처럼 꺼낸다({@link Try#get()}은 원래 예외를 다시 던진다).
+	 * <p>
+	 * <b>실행과 닫기</b>: 매핑은 결과 스트림에서 처음 원소를 꺼낼 때 시작되며, 소비보다 앞서 최대 {@code workerCount}개가
+	 * 진행된다. 결과 스트림을 닫으면 본 스트림도 닫힌다. 이미 진행 중인 매핑은 중단되지 않을 수 있으며(순서 보존 시에는
+	 * 취소 요청도 하지 않는다), 닫은 뒤에 끝난 결과는 버려진다. 외부 자원을 쥐는 {@code mapper}는 스스로 정리해야 한다.
 	 *
 	 * @param <S>		매핑 결과 데이터의 타입.
 	 * @param mapper	매핑 함수.
 	 * @param options	매핑 적용 옵션.
-	 * @return	각 원소가 {@link Try}로 감싸진 결과 스트림.
+	 * @return	{@code (입력 원소, 매핑 결과)} 쌍의 스트림. 매핑 결과는 {@link Try}로 감싸져 있다.
+	 * @throws IllegalArgumentException	{@code mapper}나 {@code options}가 {@code null}인 경우.
 	 * @see #mapCheckedAsync(CheckedFunction, AsyncExecutionOptions)
 	 */
 	public default <S> FStream<Tuple<T,Try<S>>> mapAsync(Function<? super T,? extends S> mapper,
@@ -617,10 +640,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param mapper	매핑 함수.
 	 * @return	결과 스트림.
 	 */
-	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<V>> mapper) {
+	public default <V> FStream<V> flatMap(Function<? super T,? extends FStream<? extends V>> mapper) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 		
-		return concat(map(mapper));
+		return concat(this.<FStream<V>>map(t -> narrow(mapper.apply(t))));
 	}
 	
 	/**
@@ -633,9 +656,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param mapper	각 원소를 {@link Iterable}로 변환하는 함수.
 	 * @return	flattening된 결과 스트림.
 	 */
-	public default <V> FStream<V> flatMapIterable(Function<? super T, ? extends Iterable<V>> mapper) {
+	public default <V> FStream<V>
+	flatMapIterable(Function<? super T, ? extends Iterable<? extends V>> mapper) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
-		return flatMap(mapper.andThen(FStream::from));
+		return this.<V>flatMap(t -> FStream.<V>from(mapper.apply(t)));
 	}
 
 	/**
@@ -647,9 +671,9 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param mapper	각 원소를 배열로 변환하는 함수.
 	 * @return	flattening된 결과 스트림.
 	 */
-	public default <V> FStream<V> flatMapArray(Function<? super T,V[]> mapper) {
+	public default <V> FStream<V> flatMapArray(Function<? super T,? extends V[]> mapper) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
-		return flatMap(mapper.andThen(FStream::of));
+		return this.<V>flatMap(t -> FStream.<V>of(mapper.apply(t)));
 	}
 	
 	/**
@@ -705,36 +729,54 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param mapper	매핑 함수.
 	 * @return	결과 스트림.
 	 */
-	public default <V> FStream<V> flatMapTry(Function<? super T,Try<V>> mapper) {
+	public default <V> FStream<V> flatMapTry(Function<? super T,? extends Try<? extends V>> mapper) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return new FlatMapTry<>(this, mapper);
 	}
 
 	/**
-	 * 본 스트림에 포함된 각 원소에 대해 주어진 매핑 함수 {@code mapper}를 병렬로 적용한  얻은 결과
-	 * {@link FStream}들을 flattening하여 구성된 스트림을 생성한다.
+	 * 본 스트림의 각 원소에 검사 예외를 던질 수 있는 함수 {@code mapper}를 병렬로 적용해 얻은 하위 스트림들을 하나로
+	 * 펼친(flatten) 스트림을 생성한다.
 	 * <p>
-	 * 구체적인 매핑 함수 적용 방법은 두번째 인자인 {@link AsyncExecutionOptions}에 의해 다음과
-	 * 같이 결정된다.
-	 * <dl>
-	 * 	<dt>{@link AsyncExecutionOptions#getKeepOrder()}</dt>
-	 * 	<dd>입력 데이터에 매핑 함수를 병렬적으로 적용하여 생성된 {@link FStream}에서 생성된 데이터가
-	 * 		섞이게 할지 말지를 결정한다. {@code true}인 경우에는 결과 FStream에 포함된 데이터가
-	 * 		서로 섞이지 않고, 입력 데이터 순서을 유지하게 되고, {@code false}인 경우에는 거의 동시에
-	 * 		생성된 여러 결과 FStream에서 생성된 데이터들이 서로 섞일 수 있게 된다.</dd> 
-	 * 	<dt>{@link AsyncExecutionOptions#getWorkerCount()}</dt>
-	 * 	<dd> 매핑 함수 수행을 위해 사용되는 최대 쓰레드 수.</dd>
-	 * 	<dt>{@link AsyncExecutionOptions#getExecutor()}</dt>
-	 * 	<dd>쓰레드 할당에 사용될 쓰레드 풀을 관리할 {@link Executor} 객체.</dd>
-	 * </dl>
-	 * 
+	 * <b>{@code keepOrder}에 따른 동작</b>:
+	 * <ul>
+	 *   <li>{@code true} — {@code mapper} 호출(하위 스트림 생성)만 최대 {@code workerCount}개까지 병렬로 수행하고, 하위
+	 *       스트림은 결과를 소비하는 쓰레드가 입력 순서대로 하나씩 끝까지 읽는다. 결과는 입력 순서대로, 하위 스트림끼리
+	 *       섞이지 않고 나온다. 하위 스트림을 읽는 일은 병렬화되지 않으므로, 하위 스트림 생성이 비싸고 읽기가 싼 경우에
+	 *       알맞다.</li>
+	 *   <li>{@code false} — 워커 쓰레드(최대 {@code workerCount}개)가 입력 하나씩 맡아 {@code mapper}를 호출하고 그
+	 *       하위 스트림을 끝까지 읽어 출력 채널(크기 {@code workerCount})로 넣는다({@link #mergeParallel}). 여러 하위
+	 *       스트림의 원소가 섞여 나오며 순서는 정해지지 않는다. 하위 스트림 읽기까지 병렬화된다.</li>
+	 * </ul>
+	 * {@code executor}가 {@code null}이면 공용 {@link java.util.concurrent.ForkJoinPool}을 쓴다. {@code timeout} 옵션은
+	 * 현재 사용되지 않는다.
+	 * <p>
+	 * <b>실패 전파</b>: {@link #mapAsync(Function, AsyncExecutionOptions)}와 달리 실패를 {@link Try}로 남기지 않고 결과
+	 * 스트림의 오류로 전파한다. {@code mapper}가 예외를 던지거나 하위 스트림을 읽는 중 예외가 나면, 그때까지 나온 원소를
+	 * 받은 뒤 다음 원소를 꺼낼 때 <b>감싸지 않은 원래 예외</b>가 던져진다. {@code keepOrder=false}이면 처음 실패 뒤로 새
+	 * 입력을 처리하지 않고 진행 중인 워커도 멈추며, 여러 워커가 실패해도 처음 예외만 전달한다. 일부 입력의 실패를
+	 * 허용하려면 {@code mapper} 안에서 처리한다(예: 실패하면 {@link FStream#empty()} 반환). 2026-11-02 이전에는 실패한
+	 * 입력을 흔적 없이 건너뛰었다.
+	 * <p>
+	 * <b>실행과 닫기</b>: 작업은 결과 스트림에서 처음 원소를 꺼낼 때 시작된다. 결과 스트림을 닫으면 본 스트림도 닫힌다.
+	 * {@code keepOrder=false}이면 진행 중인 워커는 다음 출력에서 멈추고 읽던 하위 스트림을 닫는다. {@code keepOrder=true}이면
+	 * 읽던 하위 스트림과, 미리 만들어 두었지만 아직 읽지 않은 하위 스트림을 닫는다. 닫을 때 진행 중이던 {@code mapper}가
+	 * 나중에 만든 하위 스트림도 만들어지는 즉시 닫는다(비동기). 2026-11-02 이전에는 읽지 않은 하위 스트림이 닫히지 않았다.
+	 * <p>
+	 * <b>{@code flatMapAsync}와 {@code flatMapCheckedAsync}의 차이</b>: 받는 함수 타입만 다르다.
+	 * {@link #flatMapCheckedAsync(CheckedFunction, AsyncExecutionOptions) flatMapCheckedAsync}는 검사 예외를 던질 수
+	 * 있는 {@link CheckedFunction}을, {@link #flatMapAsync(Function, AsyncExecutionOptions) flatMapAsync}는 비검사
+	 * {@link Function}을 받는다. 순서·병렬성·실패 전파·닫기 동작은 같다. {@code flatMapCheckedAsync}의 {@code mapper}가
+	 * 던진 검사 예외는 결과 스트림을 읽는 쪽에 감싸지 않은 채 <b>선언 없이</b> 던져지므로, 컴파일러가 추적하지 못한다
+	 * (잡는 방법은 {@link #mapOrThrow(CheckedFunctionX)} 참고).
+	 *
 	 * @param <V>		결과 스트림 원소 데이터 타입.
-	 * @param mapper	매핑 함수.
+	 * @param mapper	입력 원소로 하위 스트림을 만드는 함수. 검사 예외를 던질 수 있다.
 	 * @param options	매핑 적용 옵션
-	 * @return	flattening된 결과 스트림. {@code keepOrder=true}이면 입력 순서 보존,
-	 *          {@code false}이면 워커 스레드의 종료 순서로 출력된다. mapper가 예외를 던지면 그 시점의
-	 *          입력 원소는 결과 스트림에 포함되지 않는다(예외 처리 정책은 내부 dispatcher에 의해 결정).
+	 * @return	하위 스트림들을 펼친 결과 스트림. {@code keepOrder=true}이면 입력 순서, {@code false}이면 순서가 정해지지 않는다.
+	 * @throws IllegalArgumentException	{@code mapper}나 {@code options}가 {@code null}인 경우.
+	 * @see #flatMapAsync(Function, AsyncExecutionOptions)
 	 */
 	public default <V> FStream<V>
 	flatMapCheckedAsync(CheckedFunction<? super T, ? extends FStream<V>> mapper, AsyncExecutionOptions options) {
@@ -742,9 +784,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		Preconditions.checkNotNullArgument(options, "options is null");
 		
 		if ( options.getKeepOrder() ) {
-			return mapCheckedAsync(mapper, options)
-					.flatMapTry(tried -> tried._2())
-					.flatMap(strm -> strm);
+			// 실패한 Try를 꺼내면 원래 예외가 (선언 없이) 던져진다. 2026-11-02 이전에는 flatMapTry가 실패를 버렸다.
+			// 닫을 때 넘기지 못한 하위 스트림은 닫는다(review #26).
+			return new OrderedMapAsyncStream<T,FStream<V>>(this, mapper, options, FStream::closeQuietly)
+					.flatMap(tried -> tried._2().get());
 		}
 		else {
 			Function<? super T, ? extends FStream<V>> asyncMapper = mapper.toSneakyThrowFunction();
@@ -753,15 +796,61 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		}
 	}
 	
+	/**
+	 * 본 스트림의 각 원소에 함수 {@code mapper}를 병렬로 적용해 얻은 하위 스트림들을 하나로 펼친(flatten) 스트림을
+	 * 생성한다.
+	 * <p>
+	 * <b>{@code keepOrder}에 따른 동작</b>:
+	 * <ul>
+	 *   <li>{@code true} — {@code mapper} 호출(하위 스트림 생성)만 최대 {@code workerCount}개까지 병렬로 수행하고, 하위
+	 *       스트림은 결과를 소비하는 쓰레드가 입력 순서대로 하나씩 끝까지 읽는다. 결과는 입력 순서대로, 하위 스트림끼리
+	 *       섞이지 않고 나온다. 하위 스트림을 읽는 일은 병렬화되지 않으므로, 하위 스트림 생성이 비싸고 읽기가 싼 경우에
+	 *       알맞다.</li>
+	 *   <li>{@code false} — 워커 쓰레드(최대 {@code workerCount}개)가 입력 하나씩 맡아 {@code mapper}를 호출하고 그
+	 *       하위 스트림을 끝까지 읽어 출력 채널(크기 {@code workerCount})로 넣는다({@link #mergeParallel}). 여러 하위
+	 *       스트림의 원소가 섞여 나오며 순서는 정해지지 않는다. 하위 스트림 읽기까지 병렬화된다.</li>
+	 * </ul>
+	 * {@code executor}가 {@code null}이면 공용 {@link java.util.concurrent.ForkJoinPool}을 쓴다. {@code timeout} 옵션은
+	 * 현재 사용되지 않는다.
+	 * <p>
+	 * <b>실패 전파</b>: {@link #mapAsync(Function, AsyncExecutionOptions)}와 달리 실패를 {@link Try}로 남기지 않고 결과
+	 * 스트림의 오류로 전파한다. {@code mapper}가 예외를 던지거나 하위 스트림을 읽는 중 예외가 나면, 그때까지 나온 원소를
+	 * 받은 뒤 다음 원소를 꺼낼 때 <b>감싸지 않은 원래 예외</b>가 던져진다. {@code keepOrder=false}이면 처음 실패 뒤로 새
+	 * 입력을 처리하지 않고 진행 중인 워커도 멈추며, 여러 워커가 실패해도 처음 예외만 전달한다. 일부 입력의 실패를
+	 * 허용하려면 {@code mapper} 안에서 처리한다(예: 실패하면 {@link FStream#empty()} 반환). 2026-11-02 이전에는 실패한
+	 * 입력을 흔적 없이 건너뛰었다.
+	 * <p>
+	 * <b>실행과 닫기</b>: 작업은 결과 스트림에서 처음 원소를 꺼낼 때 시작된다. 결과 스트림을 닫으면 본 스트림도 닫힌다.
+	 * {@code keepOrder=false}이면 진행 중인 워커는 다음 출력에서 멈추고 읽던 하위 스트림을 닫는다. {@code keepOrder=true}이면
+	 * 읽던 하위 스트림과, 미리 만들어 두었지만 아직 읽지 않은 하위 스트림을 닫는다. 닫을 때 진행 중이던 {@code mapper}가
+	 * 나중에 만든 하위 스트림도 만들어지는 즉시 닫는다(비동기). 2026-11-02 이전에는 읽지 않은 하위 스트림이 닫히지 않았다.
+	 * <p>
+	 * <b>{@code flatMapAsync}와 {@code flatMapCheckedAsync}의 차이</b>: 받는 함수 타입만 다르다.
+	 * {@link #flatMapCheckedAsync(CheckedFunction, AsyncExecutionOptions) flatMapCheckedAsync}는 검사 예외를 던질 수
+	 * 있는 {@link CheckedFunction}을, {@link #flatMapAsync(Function, AsyncExecutionOptions) flatMapAsync}는 비검사
+	 * {@link Function}을 받는다. 순서·병렬성·실패 전파·닫기 동작은 같다. {@code flatMapCheckedAsync}의 {@code mapper}가
+	 * 던진 검사 예외는 결과 스트림을 읽는 쪽에 감싸지 않은 채 <b>선언 없이</b> 던져지므로, 컴파일러가 추적하지 못한다
+	 * (잡는 방법은 {@link #mapOrThrow(CheckedFunctionX)} 참고).
+	 *
+	 * @param <V>		결과 스트림 원소 데이터 타입.
+	 * @param mapper	입력 원소로 하위 스트림을 만드는 함수.
+	 * @param options	매핑 적용 옵션
+	 * @return	하위 스트림들을 펼친 결과 스트림. {@code keepOrder=true}이면 입력 순서, {@code false}이면 순서가 정해지지 않는다.
+	 * @throws IllegalArgumentException	{@code mapper}나 {@code options}가 {@code null}인 경우.
+	 * @see #flatMapCheckedAsync(CheckedFunction, AsyncExecutionOptions)
+	 */
 	public default <V> FStream<V>
 	flatMapAsync(Function<? super T, ? extends FStream<V>> mapper, AsyncExecutionOptions options) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 		Preconditions.checkNotNullArgument(options, "options is null");
 		
 		if ( options.getKeepOrder() ) {
-			return mapAsync(mapper, options)
-					.flatMapTry(tried -> tried._2())
-					.flatMap(strm -> strm);
+			// 실패한 Try를 꺼내면 원래 예외가 (선언 없이) 던져진다. 2026-11-02 이전에는 flatMapTry가 실패를 버렸다.
+			// 닫을 때 넘기지 못한 하위 스트림은 닫는다(review #26).
+			CheckedFunction<? super T, ? extends FStream<V>> checkedMapper = mapper::apply;
+			return new OrderedMapAsyncStream<T,FStream<V>>(this, checkedMapper, options,
+															FStream::closeQuietly)
+					.flatMap(tried -> tried._2().get());
 		}
 		else {
 			FStream<FStream<V>> strmOfStreams = this.map(t -> new FlatMapDataSupplier<T,V>(t, mapper));
@@ -779,7 +868,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return	최대 'count' 개의  데이터로 구성된 스트림 객체.
 	 */
 	public default FStream<T> take(long count) {
-		Preconditions.checkArgument(count >= 0, "count >= 0, but {}", count); 
+		Preconditions.checkArgument(count >= 0, "count >= 0, but: %s", count); 
 		
 		return new SingleSourceStream<T,T>(this) {
 			private long m_remains = count;
@@ -806,7 +895,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return	최대 'count' 개의  데이터로 구성된 스트림 객체.
 	 */
 	public default FStream<T> drop(final long count) {
-		Preconditions.checkArgument(count >= 0, "count >= 0, but {}", count); 
+		Preconditions.checkArgument(count >= 0, "count >= 0, but: %s", count); 
 		
 		return new SingleSourceStream<T,T>(this) {
 			private boolean m_dropped = false;
@@ -836,7 +925,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return	스트림 객체.
 	 */
 	public default FStream<T> dropLast(final int count) {
-		Preconditions.checkArgument(count >= 0, "count >= 0, but {}", count);
+		Preconditions.checkArgument(count >= 0, "count >= 0, but: %s", count);
 
 		return new SingleSourceStream<T,T>(this) {
 			private final ArrayDeque<T> m_tail = new ArrayDeque<T>(count+1);
@@ -1114,10 +1203,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param follower	본 스트림에 뒤에 붙일 스트림 객체.
 	 * @return	{@code FStream} 객체.
 	 */
-	public default FStream<T> concatWith(FStream<T> follower) {
+	public default FStream<T> concatWith(FStream<? extends T> follower) {
 		Preconditions.checkNotNullArgument(follower, "follower is null");
 		
-		return concat(FStream.of(this, follower));
+		return concat(FStream.of(this, narrow(follower)));
 	}
 	/**
 	 * 현 스트림 뒤에 주어진 {@link Iterable}을 이어 붙인 스트림을 생성한다.
@@ -1125,10 +1214,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param follower	본 스트림 뒤에 이어 붙일 {@link Iterable} 객체.
 	 * @return	{@code FStream} 객체.
 	 */
-	public default FStream<T> concatWith(Iterable<T> follower) {
+	public default FStream<T> concatWith(Iterable<? extends T> follower) {
 		Preconditions.checkNotNullArgument(follower, "follower is null");
 
-		return concat(FStream.of(this, FStream.from(follower)));
+		return concat(FStream.of(this, FStream.<T>from(follower)));
 	}
 	
 	/**
@@ -1157,8 +1246,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param inputStreamFact	입력 스트림의 스트림 객체.
 	 * @param workerCount	스트림 merge 작업을 수행하는 쓰레드의 갯수.
 	 * @param executor		쓰레드 풀 객체.
-	 * 						{@code null}인 경우는 별도의 쓰레드 풀을 사용하지 않고,
-	 * 						각 작업마다 {@link Thread}를 새로 생성하여 수행한다.
+	 * 						{@code null}이면 {@link java.util.concurrent.CompletableFuture}의 기본 풀
+	 * 						(공용 {@link java.util.concurrent.ForkJoinPool})에서 수행한다.
 	 * @return	{@code FStream} 객체.
 	 */
 	public static <T> FStream<T> mergeParallel(FStream<? extends FStream<? extends T>> inputStreamFact,
@@ -1223,25 +1312,30 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 	
 	/**
-	 * 초기 누적값과 스트림 원소로부터 (새 누적값, 방출할 원소) 쌍을 생성하는 누적 스트림을 만든다.
+	 * 초기 누적값에 스트림의 각 원소를 좌측 누적으로 결합하며 <b>매 단계의 누적값을 차례로 방출</b>하는 스트림을 생성한다.
 	 * <p>
-	 * {@code folder}는 매 원소마다 {@link Tuple}을 반환하며, 첫 요소는 다음 단계로 전달될 누적값,
-	 * 두번째 요소는 결과 스트림에 방출되는 원소이다. {@link #foldLeak}는 종결 연산이 아닌 lazy 스트림을
-	 * 반환한다.
+	 * {@link #fold(Object, BiFunction)}의 lazy 판으로, 최종 값 하나 대신 중간 누적값을 모두 낸다. 결과 스트림의 길이는
+	 * 입력 스트림의 길이와 같으며, <b>초기값 자체는 방출하지 않는다</b>(Scala {@code scanLeft}·Kotlin
+	 * {@code runningFold}와 달리 첫 원소는 {@code folder(init, 첫 원소)}이다). 빈 스트림이면 빈 스트림이 된다.
+	 * <pre>
+	 *   입력: [1, 2, 3, 4],   init: 0,   folder: (s,t) -&gt; s+t
+	 *   결과: [1, 3, 6, 10]
+	 * </pre>
+	 * 누적값과 원소의 타입이 같고 초기값이 필요 없으면 {@link #reduceLeak(BiFunction)}을 쓴다.
 	 * <p>
 	 * <b>close 의미</b>: 본 메소드는 lazy 스트림을 반환하므로 본 스트림을 즉시 close하지 않는다. 결과
 	 * 스트림에 대해 terminal 연산을 호출하거나 결과 스트림을 close하면 본 스트림으로 close가 전파된다.
 	 *
 	 * @param <S>    누적값 타입.
-	 * @param accum  초기 누적값.
-	 * @param folder 현 누적값과 원소를 받아 (새 누적값, 방출 원소) 쌍을 반환하는 함수.
-	 * @return 각 단계의 방출 원소로 구성된 스트림.
+	 * @param init   초기 누적값. {@code null} 허용.
+	 * @param folder 현 누적값과 다음 원소로부터 새 누적값을 계산하는 함수. 결과가 {@code null}이어도 그대로 다음 단계로 전달된다.
+	 * @return 각 단계의 누적값으로 구성된 스트림.
+	 * @throws IllegalArgumentException {@code folder}가 {@code null}인 경우.
 	 */
-	public default <S> FStream<T> foldLeak(S accum,
-											BiFunction<? super S,? super T,? extends Tuple<S,T>> folder) {
+	public default <S> FStream<S> scan(@Nullable S init, BiFunction<? super S,? super T,? extends S> folder) {
 		Preconditions.checkNotNullArgument(folder, "folder is null");
 
-		return new FoldLeftLeakFStream<S,T>(this, accum, folder);
+		return new FoldScannedStream<>(this, init, folder);
 	}
 
 	/**
@@ -1341,19 +1435,33 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * <p>
 	 * 수행된 결과는 key별로 {@link Map}에 저장되어 반환된다. 내부적으로 {@link #collect}를 사용하므로
 	 * 메소드 종료 시 스트림은 {@link #closeQuietly()}를 통해 닫힌다.
+	 * <p>
+	 * {@code reducer}는 {@code null}을 반환하면 안 된다. {@code null}을 반환하면
+	 * {@link IllegalArgumentException}이 발생한다. 2026-11-02 이전에는 {@code null} 결과가 키를 지워서
+	 * 그 키의 누적이 다음 원소부터 처음부터 다시 시작되었다(예외 없이 틀린 값).
 	 *
 	 * @param <K>	{@code keyer}를 통해 생성되는 키 타입 클래스.
 	 * @param keyer	입력 데이터에서 키를 뽑아내는 함수.
-	 * @param reducer	reduce 함수.
+	 * @param reducer	reduce 함수. {@code null}을 반환하지 않아야 한다.
 	 * @return	키 별로 reduce된 결과를 담은 Map 객체.
+	 * @throws IllegalArgumentException	인자 중 하나가 {@code null}이거나(호출 즉시 검사한다),
+	 * 									{@code reducer}가 {@code null}을 반환한 경우.
 	 */
 	public default <K> Map<K,T> reduceByKey(Function<? super T,? extends K> keyer,
 											BiFunction<? super T,? super T,? extends T> reducer) {
 		Preconditions.checkNotNullArgument(keyer, "keyer is null");
 		Preconditions.checkNotNullArgument(reducer, "reducer is null");
 		
-		return collect(Maps.newHashMap(), (accums,v) ->
-			accums.compute(keyer.apply(v), (k,old) -> (old != null) ? reducer.apply(old, v) : v));
+		return collect(Maps.newHashMap(),
+						(accums,v) -> accums.compute(keyer.apply(v), (k,old) -> {
+							if ( old == null ) {
+								return v;
+							}
+							T reduced = reducer.apply(old, v);
+							Preconditions.checkArgument(reduced != null,
+													"reducer returned null for key: %s", k);
+							return reduced;
+						}));
 	}
 	
 	/**
@@ -1372,11 +1480,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param accumInitializer 키별 초기 누적값을 생성하는 함수.
 	 * @param folder           현 누적값과 원소로부터 새 누적값을 계산하는 함수.
 	 * @return 키별로 fold된 결과를 담은 {@link Map}.
+	 * @throws IllegalArgumentException 인자 중 하나가 {@code null}인 경우(호출 즉시 검사한다).
 	 * @throws IllegalStateException {@code accumInitializer}가 {@code null}을 반환한 경우.
 	 */
 	public default <K,S> Map<K,S> foldByKey(Function<? super T,? extends K> keyer,
 											Function<? super K,? extends S> accumInitializer,
 											BiFunction<? super S,? super T,? extends S> folder) {
+		Preconditions.checkNotNullArgument(keyer, "keyer is null");
+		Preconditions.checkNotNullArgument(accumInitializer, "accumInitializer is null");
+		Preconditions.checkNotNullArgument(folder, "folder is null");
+
 		Map<K,S> accumMap = Maps.newHashMap();
 		return collect(accumMap,
 					(accums,v) -> accums.compute(keyer.apply(v),
@@ -1407,10 +1520,15 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param initState 키별 누적기를 생성하는 함수.
 	 * @param collector 누적기와 원소를 받아 누적기를 in-place로 갱신하는 함수.
 	 * @return 키별로 collect된 결과를 담은 {@link Map}.
+	 * @throws IllegalArgumentException 인자 중 하나가 {@code null}인 경우(호출 즉시 검사한다).
 	 */
 	public default <K,S> Map<K,S> collectByKey(Function<? super T,? extends K> keyer,
 												Function<? super K,? extends S> initState,
 												BiConsumer<? super S,? super T> collector) {
+		Preconditions.checkNotNullArgument(keyer, "keyer is null");
+		Preconditions.checkNotNullArgument(initState, "initState is null");
+		Preconditions.checkNotNullArgument(collector, "collector is null");
+
 		return collect(Maps.newHashMap(),
 						(accums,v) -> {
 							S accum = accums.computeIfAbsent(keyer.apply(v), initState);
@@ -1420,25 +1538,36 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 
 	/**
 	 * 스트림에 포함된 데이터 중에서 마지막 {@code count}개의 원소로 구성된 리스트를 반환된다.
+	 * <p>
+	 * 입력 전체를 소비하며, 원소 수가 {@code count}보다 적으면 모든 원소를 반환한다. 원소는 크기가
+	 * {@code count}인 순환 버퍼에 담기므로 원소당 O(1)이다({@code null} 원소도 허용). 2026-11-02 이전에는
+	 * 원소마다 리스트 맨 앞을 지워 O(N·count)였고, {@code count}가 {@link Integer#MAX_VALUE}이면
+	 * 초기 용량이 넘쳐 실패했다.
 	 * 
 	 * @param count	선택할 데이터의 갯수.
 	 * @return		마지막 {@code count}개로 구성된 데이터 리스트.
 	 */
 	public default List<T> takeLast(int count) {
-		Preconditions.checkArgument(count >= 0, "count >= 0: but: %d", count);
+		Preconditions.checkArgument(count >= 0, "count >= 0, but: %s", count);
 		
 		try {
-			List<T> list = new ArrayList<>(count + 1);
+			// 'count'개가 찰 때까지는 뒤에 더하고, 그 뒤로는 가장 오래된 자리('head')를 덮어쓴다.
+			List<T> ring = new ArrayList<>();
+			int head = 0;
 			
 			FOption<T> next;
 			while ( (next = next()).isPresent() ) {
-				list.add(next.getUnchecked());
-				if ( list.size() > count ) {
-					list.remove(0);
+				if ( ring.size() < count ) {
+					ring.add(next.getUnchecked());
+				}
+				else if ( count > 0 ) {
+					ring.set(head, next.getUnchecked());
+					head = (head + 1) % count;
 				}
 			}
 			
-			return list;
+			Collections.rotate(ring, -head);
+			return ring;
 		}
 		finally {
 			closeQuietly();
@@ -1670,13 +1799,59 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		}
 	}
 
-	public default <V> KeyValueFStream<T,V> lookup(Function<T,V> lookup, boolean keepUnmatched) {
+	/**
+	 * 각 원소를 키로 조회 함수에 넘겨 {@code (원소, 조회 값)} 쌍의 {@link KeyValueFStream}을 생성한다.
+	 * <p>
+	 * 조회 함수는 키의 존재를 알릴 수 없으므로, <b>{@code null}을 반환하면 일치하지 않은 것</b>으로 본다. 일치하지 않은
+	 * 원소는 버리고, {@code keepUnmatched}가 {@code true}이면 {@code (원소, null)}로 유지한다. 값이 {@code null}인
+	 * 항목도 일치로 다뤄야 하면 {@link #lookup(Map, boolean)}을 쓴다.
+	 * <p>
+	 * lazy 연산이며, 결과 스트림을 끝까지 읽거나 닫으면 본 스트림도 닫힌다.
+	 *
+	 * @param <V>			조회 값 타입.
+	 * @param lookup		원소로 값을 조회하는 함수. 일치하는 값이 없으면 {@code null}을 반환한다.
+	 * @param keepUnmatched	일치하지 않은 원소를 {@code (원소, null)}로 유지할지 여부.
+	 * @return	{@code (원소, 조회 값)} 쌍의 스트림.
+	 */
+	public default <V> KeyValueFStream<T,V> lookup(Function<? super T,? extends V> lookup,
+													boolean keepUnmatched) {
+		Preconditions.checkNotNullArgument(lookup, "lookup is null");
+
 		return new MatchFStream<>(this, lookup, keepUnmatched);
 	}
-	public default <V> KeyValueFStream<T,V> lookup(Map<T,V> lut, boolean keepUnmatched) {
+
+	/**
+	 * 각 원소를 키로 참조 맵을 조회해 {@code (원소, 값)} 쌍의 {@link KeyValueFStream}을 생성한다.
+	 * <p>
+	 * 일치 여부는 <b>키의 존재</b>({@link Map#containsKey(Object)})로 판단한다. 값이 {@code null}인 키도 일치하며
+	 * {@code (원소, null)}을 낸다({@link KeyValueFStream#match(Map)}와 같은 기준). 맵에 없는 원소는 버리고,
+	 * {@code keepUnmatched}가 {@code true}이면 {@code (원소, null)}로 유지한다. 이때 값이 {@code null}인 키와 없는 키는
+	 * 결과에서 구별되지 않는다.
+	 * <p>
+	 * lazy 연산이며, 결과 스트림을 끝까지 읽거나 닫으면 본 스트림도 닫힌다.
+	 *
+	 * @param <V>			값 타입.
+	 * @param lut			참조 맵. {@code null} 값을 가진 키도 허용한다.
+	 * @param keepUnmatched	맵에 없는 원소를 {@code (원소, null)}로 유지할지 여부.
+	 * @return	{@code (원소, 값)} 쌍의 스트림.
+	 */
+	public default <V> KeyValueFStream<T,V> lookup(Map<? super T,? extends V> lut, boolean keepUnmatched) {
+		Preconditions.checkNotNullArgument(lut, "lut is null");
+
 		return new MatchFStream<>(this, lut, keepUnmatched);
 	}
-	public default <V> KeyValueFStream<T,V> lookup(Map<T,V> lut) {
+
+	/**
+	 * 각 원소를 키로 참조 맵을 조회해, 맵에 있는 원소만 {@code (원소, 값)} 쌍으로 내는 스트림을 생성한다.
+	 * <p>
+	 * {@code lookup(lut, false)}와 같다. 값이 {@code null}인 키도 일치로 본다.
+	 *
+	 * @param <V>	값 타입.
+	 * @param lut	참조 맵. {@code null} 값을 가진 키도 허용한다.
+	 * @return	{@code (원소, 값)} 쌍의 스트림.
+	 * @see #lookup(Map, boolean)
+	 */
+	public default <V> KeyValueFStream<T,V> lookup(Map<? super T,? extends V> lut) {
 		return lookup(lut, false);
 	}
 	
@@ -1711,6 +1886,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	
 	/**
 	 * 스트림에 포함된 모든 데이터를 순환하는 {@link Iterator} 객체를 반환한다.
+	 * <p>
+	 * 원소는 {@code hasNext()}에서 하나씩 읽으며 미리 읽지 않는다. 끝에 닿으면 본 스트림을 닫으므로 끝까지 순회하면
+	 * 정리가 필요 없다. 중간에 멈출 때(for 문의 {@code break}, 예외)는 본 스트림을 직접 닫아야 하므로
+	 * try-with-resources로 선언한다. {@code null} 원소도 그대로 반환한다.
 	 * 
 	 * @return	스트림에 포함된 데이터 순환을 위한 {@link Iterator} 객체.
 	 */
@@ -1783,7 +1962,8 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * 스트림을 생성한다.
 	 * <p>
 	 * {@link #castSafely(Class)}와 달리 하위 클래스 인스턴스는 제외하고, 클래스가 정확히 일치하는
-	 * 원소만 포함한다 ({@code v.getClass().equals(cls)}).
+	 * 원소만 포함한다 ({@code v.getClass().equals(cls)}). {@code null} 원소는 {@link #castSafely(Class)}처럼
+	 * 걸러낸다(2026-11-02 이전에는 {@link NullPointerException}이 발생했다).
 	 *
 	 * @param <V>	대상 타입. 본 스트림의 원소 타입의 하위 타입이어야 한다.
 	 * @param cls	대상 타입의 {@link Class} 객체.
@@ -1792,7 +1972,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	public default <V extends T> FStream<V> ofExactClass(Class<V> cls) {
 		Preconditions.checkNotNullArgument(cls, "target class is null");
 
-		return filter(v -> v.getClass().equals(cls)).map(cls::cast);
+		return filter(v -> v != null && v.getClass().equals(cls)).map(cls::cast);
 	}
 
 	/**
@@ -1819,13 +1999,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * {@code skip == 1}이면 인접한 두 윈도우가 {@code count - 1}개의 원소를 공유하고,
 	 * {@code skip == count}이면 윈도우들이 겹치지 않는다.
 	 *
-	 * @param count	각 윈도우의 길이.
+	 * @param count	각 윈도우의 길이. {@code 0}보다 커야 한다.
 	 * @param skip	윈도우 사이의 시작 위치 간격. {@code 0}보다 커야 한다.
 	 * @return	각 윈도우 리스트로 구성된 스트림.
+	 * @throws IllegalArgumentException	{@code count}나 {@code skip}이 {@code 0} 이하인 경우.
 	 */
 	public default FStream<List<T>> buffer(int count, int skip) {
-		Preconditions.checkArgument(count >= 0, "count >= 0, but: " + count);
-		Preconditions.checkArgument(skip > 0, "skip > 0, but: " + skip);
+		// BufferedStream과 같이 count > 0을 요구한다(2026-11-02 이전에는 count >= 0만 검사해 count=0이 내부 클래스의
+		// 메시지로 실패했다).
+		Preconditions.checkArgument(count > 0, "count > 0, but: %s", count);
+		Preconditions.checkArgument(skip > 0, "skip > 0, but: %s", skip);
 
 		return new BufferedStream<>(this, count, skip);
 	}
@@ -1834,7 +2017,9 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * {@code delimiter}를 만족하는 원소를 구분자로 사용하여 본 스트림을 여러 부분 리스트로 나눈
 	 * 스트림을 생성한다.
 	 * <p>
-	 * 구분자에 해당하는 원소는 결과 리스트에 포함되지 않는다.
+	 * 구분자에 해당하는 원소는 결과 리스트에 포함되지 않는다. 구분자가 맨 앞·맨 끝에 있거나 연달아
+	 * 나오면 그 자리에 빈 리스트가 나온다(예: {@code [d, a, d]} → {@code [], [a], []}). 단 빈 입력은
+	 * 빈 스트림이다(2026-11-02 이전에는 빈 리스트 하나를 냈다).
 	 *
 	 * @param delimiter	구분자 판단 조건.
 	 * @return	구분자 사이의 원소들을 모은 리스트로 구성된 스트림.
@@ -1920,10 +2105,15 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	
 	/**
 	 * 본 스트림에 포함된 데이터를 구성된 배열을 반환한다.
+	 * <p>
+	 * {@code componentType}은 모든 원소를 담을 수 있는 타입(원소 타입이나 그 상위 타입)이어야 한다. 그렇지 않으면
+	 * {@link ArrayStoreException}이 난다. Java 제네릭은 메소드 타입 매개변수의 하한({@code S super T})을 표현할 수
+	 * 없어 컴파일러가 이를 검사하지 못한다(예: {@code FStream<Integer>.toArray(String.class)}도 컴파일된다).
 	 * 
 	 * @param <S>	컴포넌트 타입
-	 * @param componentType	 스트림에 포함된 데이터의 클래스.
+	 * @param componentType	 배열의 컴포넌트 타입. 원소 타입이나 그 상위 타입이어야 한다.
 	 * @return	배열
+	 * @throws ArrayStoreException	원소가 {@code componentType}의 인스턴스가 아닌 경우.
 	 */
 	@SuppressWarnings("unchecked")
 	public default <S> S[] toArray(Class<S> componentType) {
@@ -2018,43 +2208,53 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 
 	/**
-	 * 각 원소에서 추출한 키의 자연 순서로 정렬한 스트림을 생성한다.
+	 * 각 원소에서 추출한 키의 오름차순으로 정렬한 스트림을 생성한다.
+	 * <p>
+	 * {@code sort(keyer, SortOrder.ASCENDING)}과 같다.
 	 *
 	 * @param <S>	키 타입.
 	 * @param keyer	각 원소에서 비교 키를 추출하는 함수.
 	 * @return	정렬된 스트림.
 	 */
 	public default <S extends Comparable<S>> FStream<T> sort(Function<? super T,S> keyer) {
-		return sort(keyer, false);
+		return sort(keyer, SortOrder.ASCENDING);
 	}
 
 	/**
-	 * 각 원소에서 추출한 키의 자연 순서(또는 그 역순)로 정렬한 스트림을 생성한다.
+	 * 각 원소에서 추출한 키를 기준으로 주어진 순서로 정렬한 스트림을 생성한다.
+	 * <p>
+	 * 2026-11-02 이전에는 순서를 {@code boolean reverse}로 지정했다(삭제, 별칭 없음).
 	 *
 	 * @param <S>		키 타입.
 	 * @param keyer		각 원소에서 비교 키를 추출하는 함수.
-	 * @param reverse	{@code true}이면 키의 역순으로 정렬, {@code false}이면 자연 순서.
+	 * @param order		정렬 순서.
 	 * @return	정렬된 스트림.
 	 */
-	public default <S extends Comparable<S>> FStream<T> sort(Function<? super T,S> keyer, boolean reverse) {
-		if ( reverse ) {
-			return sort((t1,t2) -> (keyer.apply(t2)).compareTo(keyer.apply(t1)));
-		}
-		else {
-			return sort((t1,t2) -> (keyer.apply(t1)).compareTo(keyer.apply(t2)));
-		}
+	public default <S extends Comparable<S>> FStream<T> sort(Function<? super T,S> keyer, SortOrder order) {
+		return sort(keyComparator(keyer, order));
 	}
 
 	/**
-	 * 본 스트림의 원소들을 자연 순서로 정렬한 스트림을 생성한다.
+	 * 본 스트림의 원소들을 자연 순서(오름차순)로 정렬한 스트림을 생성한다.
 	 * <p>
 	 * 원소 타입은 {@link Comparable}을 구현해야 한다.
 	 *
 	 * @return	정렬된 스트림.
 	 */
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public default FStream<T> sort() {
-		return sort((Comparator<? super T>)(Comparator)Comparator.naturalOrder());
+		return sort(SortOrder.ASCENDING);
+	}
+
+	/**
+	 * 본 스트림의 원소들을 자연 순서 기준으로 주어진 순서로 정렬한 스트림을 생성한다.
+	 * <p>
+	 * 원소 타입은 {@link Comparable}을 구현해야 한다.
+	 *
+	 * @param order	정렬 순서.
+	 * @return	정렬된 스트림.
+	 */
+	public default FStream<T> sort(SortOrder order) {
+		return sort(naturalComparator(order));
 	}
 
 	/**
@@ -2068,9 +2268,21 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param queueLength	내부 우선순위 큐의 길이.
 	 * @return	근사 정렬된 스트림.
 	 */
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public default FStream<T> quasiSort(int queueLength) {
-		return quasiSort(queueLength, (Comparator<? super T>)(Comparator)Comparator.naturalOrder());
+		return quasiSort(queueLength, SortOrder.ASCENDING);
+	}
+
+	/**
+	 * 길이 {@code queueLength}의 우선순위 큐를 사용하여 자연 순서 기준으로 주어진 순서로 근사 정렬한 스트림을 생성한다.
+	 * <p>
+	 * 원소 타입은 {@link Comparable}을 구현해야 한다.
+	 *
+	 * @param queueLength	내부 우선순위 큐의 길이.
+	 * @param order			정렬 순서.
+	 * @return	근사 정렬된 스트림.
+	 */
+	public default FStream<T> quasiSort(int queueLength, SortOrder order) {
+		return quasiSort(queueLength, naturalComparator(order));
 	}
 
 	/**
@@ -2085,7 +2297,9 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	}
 
 	/**
-	 * 길이 {@code queueLength}의 우선순위 큐를 사용하는 근사 정렬 스트림을 키 기반으로 생성한다.
+	 * 길이 {@code queueLength}의 우선순위 큐를 사용하는 근사 정렬 스트림을 키의 오름차순으로 생성한다.
+	 * <p>
+	 * {@code quasiSort(queueLength, keyer, SortOrder.ASCENDING)}과 같다.
 	 *
 	 * @param <S>			키 타입.
 	 * @param queueLength	내부 우선순위 큐의 길이.
@@ -2094,104 +2308,131 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 */
 	public default <S extends Comparable<S>> FStream<T> quasiSort(int queueLength,
 																	Function<? super T,S> keyer) {
-		return quasiSort(queueLength, (t1,t2) -> (keyer.apply(t1)).compareTo(keyer.apply(t2)));
+		return quasiSort(queueLength, keyer, SortOrder.ASCENDING);
 	}
 
 	/**
-	 * 길이 {@code queueLength}의 우선순위 큐를 사용하는 근사 정렬 스트림을 키 기반(자연 순서 또는
-	 * 역순)으로 생성한다.
+	 * 길이 {@code queueLength}의 우선순위 큐를 사용하는 근사 정렬 스트림을 키 기준의 주어진 순서로 생성한다.
+	 * <p>
+	 * 2026-11-02 이전에는 순서를 {@code boolean reverse}로 지정했다(삭제, 별칭 없음).
 	 *
 	 * @param <S>			키 타입.
 	 * @param queueLength	내부 우선순위 큐의 길이.
 	 * @param keyer			각 원소에서 비교 키를 추출하는 함수.
-	 * @param reverse		{@code true}이면 키의 역순, {@code false}이면 자연 순서.
+	 * @param order			정렬 순서.
 	 * @return	근사 정렬된 스트림.
 	 */
 	public default <S extends Comparable<S>> FStream<T> quasiSort(int queueLength,
-															Function<? super T,S> keyer, boolean reverse) {
-		if ( reverse ) {
-			return quasiSort(queueLength, (t1,t2) -> (keyer.apply(t2)).compareTo(keyer.apply(t1)));
-		}
-		else {
-			return quasiSort(queueLength, (t1,t2) -> (keyer.apply(t1)).compareTo(keyer.apply(t2)));
-		}
+															Function<? super T,S> keyer, SortOrder order) {
+		return quasiSort(queueLength, keyComparator(keyer, order));
 	}
 	
     /**
-     * 본 스트림에서 주어진 비교자 기준으로 상위 {@code k}개 원소만으로 구성된 스트림을 생성한다.
+     * 주어진 비교자 순서에서 앞쪽 {@code k}개 원소를 그 순서대로 내보내는 스트림을 생성한다.
      * <p>
-     * 입력 스트림의 모든 원소를 한 번씩 순회하며, {@code cmp} 기준의 큰 값 {@code k}개를
-     * 유지하는 방식으로 동작한다. 결과 스트림에 포함되는 원소의 순서는 정렬되어 있지 않을 수 있다.
-     * 입력 원소 수가 {@code k}보다 작으면 모든 원소가 그대로 결과에 포함된다.
+     * 결과는 {@code sort(cmp).take(k)}와 같다. 즉 {@code cmp}가 오름차순이면 작은 값 {@code k}개가 작은 값부터,
+     * 내림차순(예: {@code (a,b) -> Integer.compare(b, a)})이면 큰 값 {@code k}개가 큰 값부터 나온다. 전체를 정렬하지
+     * 않고 크기 {@code k}의 우선순위 큐만 유지한다. 입력 원소 수가 {@code k}보다 작으면 모든 원소가 정렬되어 나온다.
+     * <p>
+     * 자연 순서나 키 기준의 다른 오버로드는 기본이 내림차순(큰 값 {@code k}개)이지만, 이 오버로드는 비교자 순서를
+     * 그대로 따른다.
+     * <p>
+     * <b>close 의미</b>: 결과 스트림에서 처음 원소를 꺼낼 때 본 스트림을 끝까지 읽고 닫는다({@code k}가 0이면 읽지
+     * 않는다). 그 전에 결과 스트림을 닫으면 본 스트림도 닫힌다.
      *
-     * @param k		선택할 상위 원소 개수.
-     * @param cmp	상위 판단에 사용할 비교자.
-     * @return	상위 {@code k}개 원소로 구성된 스트림.
+     * @param k		선택할 원소 개수 (0 이상).
+     * @param cmp	순서를 정하는 비교자.
+     * @return	비교자 순서상 앞쪽 {@code k}개 원소로 구성된 스트림.
+     * @throws IllegalArgumentException	{@code k}가 음수이거나 {@code cmp}가 {@code null}인 경우.
      */
     public default FStream<T> takeTopK(int k, Comparator<? super T> cmp) {
         return new TopKPickedFStream<>(this, k, cmp);
     }
 
     /**
-     * 본 스트림에서 자연 순서 기준으로 상위 {@code k}개 원소만으로 구성된 스트림을 생성한다.
+     * 자연 순서에서 큰 값 {@code k}개를 큰 값부터 내보내는 스트림을 생성한다.
      * <p>
-     * 원소 타입은 {@link Comparable}을 구현해야 한다.
+     * {@code takeTopK(k, SortOrder.DESCENDING)}과 같다. 원소 타입은 {@link Comparable}을 구현해야 한다.
      *
-     * @param k	선택할 상위 원소 개수.
-     * @return	상위 {@code k}개 원소로 구성된 스트림.
+     * @param k	선택할 원소 개수 (0 이상).
+     * @return	큰 값 {@code k}개로 구성된 스트림.
+     * @see #takeTopK(int, SortOrder)
      */
     public default FStream<T> takeTopK(int k) {
-        return takeTopK(k, false);
+        return takeTopK(k, SortOrder.DESCENDING);
     }
 
     /**
-     * 본 스트림에서 자연 순서 또는 그 역순 기준으로 상위 {@code k}개 원소만으로 구성된
-     * 스트림을 생성한다.
+     * 자연 순서 기준으로 {@code k}개 원소를 골라 주어진 순서로 내보내는 스트림을 생성한다.
      * <p>
-     * 원소 타입은 {@link Comparable}을 구현해야 한다.
+     * {@link SortOrder#DESCENDING}이면 큰 값 {@code k}개를 큰 값부터, {@link SortOrder#ASCENDING}이면 작은 값
+     * {@code k}개를 작은 값부터 내보낸다. 원소 타입은 {@link Comparable}을 구현해야 한다.
+     * <p>
+     * 2026-11-02 이전의 {@code takeTopK(k)}는 작은 값 {@code k}개를 골랐고(Javadoc과 반대), 순서는
+     * {@code boolean reverse}로 지정했다(삭제, 별칭 없음).
      *
-     * @param k			선택할 상위 원소 개수.
-     * @param reverse	{@code true}이면 자연 순서의 역순(즉, 하위 {@code k}개)을 선택, {@code false}이면 자연 순서.
-     * @return	상위/하위 {@code k}개 원소로 구성된 스트림.
+     * @param k		선택할 원소 개수 (0 이상).
+     * @param order	고르고 내보내는 순서.
+     * @return	선택된 {@code k}개 원소로 구성된 스트림.
      */
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    public default FStream<T> takeTopK(int k, boolean reverse) {
-        Comparator<? super T> cmp = (Comparator)Comparator.naturalOrder();
-        return takeTopK(k, reverse ? cmp.reversed() : cmp);
+    public default FStream<T> takeTopK(int k, SortOrder order) {
+        return takeTopK(k, naturalComparator(order));
     }
 
     /**
-     * 각 원소에 대해 {@code keyer}로 추출한 키의 자연 순서 기준으로 상위 {@code k}개 원소만으로
-     * 구성된 스트림을 생성한다.
+     * 각 원소에서 {@code keyer}로 뽑은 키가 큰 {@code k}개 원소를 키가 큰 것부터 내보내는 스트림을 생성한다.
+     * <p>
+     * {@code takeTopK(k, keyer, SortOrder.DESCENDING)}과 같다.
      *
      * @param <S>	키의 타입.
-     * @param k		선택할 상위 원소 개수.
+     * @param k		선택할 원소 개수 (0 이상).
      * @param keyer	각 원소에서 비교 키를 추출하는 함수.
-     * @return	상위 {@code k}개 원소로 구성된 스트림.
+     * @return	키가 큰 {@code k}개 원소로 구성된 스트림.
+     * @see #takeTopK(int, Function, SortOrder)
      */
     public default <S extends Comparable<S>> FStream<T> takeTopK(int k, Function<? super T,S> keyer) {
-        return takeTopK(k, keyer, false);
+        return takeTopK(k, keyer, SortOrder.DESCENDING);
     }
 
     /**
-     * 각 원소에 대해 {@code keyer}로 추출한 키의 자연 순서(또는 그 역순) 기준으로
-     * 상위 {@code k}개 원소만으로 구성된 스트림을 생성한다.
+     * 각 원소에서 {@code keyer}로 뽑은 키 기준으로 {@code k}개 원소를 골라 주어진 순서로 내보내는 스트림을 생성한다.
+     * <p>
+     * {@link SortOrder#DESCENDING}이면 키가 큰 {@code k}개를 키가 큰 것부터, {@link SortOrder#ASCENDING}이면 키가
+     * 작은 {@code k}개를 키가 작은 것부터 내보낸다.
      *
      * @param <S>		키의 타입.
-     * @param k			선택할 상위 원소 개수.
+     * @param k			선택할 원소 개수 (0 이상).
      * @param keyer		각 원소에서 비교 키를 추출하는 함수.
-     * @param reverse	{@code true}이면 키의 역순(즉, 하위 {@code k}개)을 선택, {@code false}이면 자연 순서.
-     * @return	상위/하위 {@code k}개 원소로 구성된 스트림.
+     * @param order		고르고 내보내는 순서.
+     * @return	선택된 {@code k}개 원소로 구성된 스트림.
      */
     public default <S extends Comparable<S>> FStream<T> takeTopK(int k, Function<? super T,S> keyer,
-                                                                    boolean reverse) {
-        if ( reverse ) {
-            return takeTopK(k, (t1,t2) -> keyer.apply(t2).compareTo(keyer.apply(t1)));
-        }
-        else {
-            return takeTopK(k, (t1,t2) -> keyer.apply(t1).compareTo(keyer.apply(t2)));
-        }
+                                                                    SortOrder order) {
+        return takeTopK(k, keyComparator(keyer, order));
     }
+
+	/**
+	 * 자연 순서 비교자를 주어진 순서로 만든다({@code sort}·{@code quasiSort}·{@code takeTopK} 공용).
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private static <T> Comparator<T> naturalComparator(SortOrder order) {
+		Preconditions.checkNotNullArgument(order, "order is null");
+
+		Comparator<T> cmp = (Comparator)Comparator.naturalOrder();
+		return (order == SortOrder.DESCENDING) ? cmp.reversed() : cmp;
+	}
+
+	/**
+	 * {@code keyer}로 뽑은 키를 비교하는 비교자를 주어진 순서로 만든다({@code sort}·{@code quasiSort}·{@code takeTopK} 공용).
+	 */
+	private static <T,S extends Comparable<S>> Comparator<T> keyComparator(Function<? super T,S> keyer,
+																			SortOrder order) {
+		Preconditions.checkNotNullArgument(keyer, "keyer is null");
+		Preconditions.checkNotNullArgument(order, "order is null");
+
+		Comparator<T> cmp = (t1,t2) -> keyer.apply(t1).compareTo(keyer.apply(t2));
+		return (order == SortOrder.DESCENDING) ? cmp.reversed() : cmp;
+	}
 	
 	/**
 	 * 비교자 기준으로 본 스트림에서 가장 큰 원소 하나를 반환한다.
@@ -2284,7 +2525,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param keyer	각 원소에서 비교 키를 추출하는 함수.
 	 * @return	최대 키와 동일한 키를 갖는 원소들의 리스트.
 	 */
-	public default <K extends Comparable<K>> List<T> maxMultiple(Function<T,K> keyer) {
+	public default <K extends Comparable<K>> List<T> maxMultiple(Function<? super T,K> keyer) {
 		List<ComparableKeyValue<K,T>> maxValues = map(v -> ComparableKeyValue.of(keyer.apply(v), v))
 																			.maxMultiple();
 		return FStream.from(maxValues)
@@ -2396,7 +2637,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param keyer	각 원소에서 비교 키를 추출하는 함수.
 	 * @return	최소 키와 동일한 키를 갖는 원소들의 리스트.
 	 */
-	public default <K extends Comparable<K>> List<T> minMultiple(Function<T,K> keyer) {
+	public default <K extends Comparable<K>> List<T> minMultiple(Function<? super T,K> keyer) {
 		List<ComparableKeyValue<K,T>> minValues = map(v -> ComparableKeyValue.of(keyer.apply(v), v))
 																			.minMultiple();
 		return FStream.from(minValues)
@@ -2455,12 +2696,16 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 
 	/**
 	 * 주어진 {@link CSV} 설정으로 원소들을 직렬화한다.
+	 * <p>
+	 * 원소는 {@link String#valueOf(Object)}로 바꾸므로 {@code null} 원소는 {@link #join(String)}처럼
+	 * {@code "null"}이 된다(2026-11-02 이전에는 {@link NullPointerException}이 발생했다).
 	 *
 	 * @param csv CSV 직렬화 설정.
 	 * @return CSV 직렬화 결과.
 	 */
 	public default String join(CSV csv) {
-		return csv.toString(map(Object::toString));
+		Preconditions.checkNotNullArgument(csv, "csv is null");
+		return csv.toString(map(String::valueOf));
 	}
 
 	/**
@@ -2474,11 +2719,11 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return prefix가 일치하면 {@code true}.
 	 * @throws IllegalArgumentException {@code subList}가 {@code null}인 경우.
 	 */
-	public default boolean startsWith(FStream<T> subList) {
+	public default boolean startsWith(FStream<? extends T> subList) {
 		Preconditions.checkNotNullArgument(subList, "subList is null");
 
 		try {
-			FOption<T> subNext = subList.next();
+			FOption<? extends T> subNext = subList.next();
 			FOption<T> next = next();
 			while ( subNext.isPresent() && next.isPresent() ) {
 				if ( !subNext.get().equals(next.get()) ) {
@@ -2519,7 +2764,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @return 키 기준 중복이 제거된 스트림.
 	 * @see #distinct()
 	 */
-	public default <K> FStream<T> distinct(Function<T,K> keyer) {
+	public default <K> FStream<T> distinct(Function<? super T,K> keyer) {
 		Set<K> keys = Sets.newHashSet();
 		return this.map(v -> Tuple.of(keyer.apply(v), v))
 					.filter(t -> keys.add(t._1))
@@ -2553,8 +2798,12 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	/**
 	 * 본 스트림이 close될 때 추가로 실행할 작업을 등록한 새 스트림을 반환한다.
 	 * <p>
-	 * {@code closingTask}는 본 스트림의 close 작업이 완료된 직후 실행된다. 여러 번 등록하면 등록한
-	 * 순서대로 실행된다.
+	 * 반환된 스트림을 닫으면 본 스트림을 먼저 닫고, 그 직후 {@code closingTask}를 실행한다. 본 스트림을 닫다가
+	 * 예외가 나도 {@code closingTask}는 실행되며, 둘 다 실패하면 {@code closingTask}의 예외를 본 스트림 예외의
+	 * suppressed로 붙여 본 스트림의 예외를 던진다. 여러 번 등록하면({@code s.onClose(a).onClose(b)}) 등록한
+	 * 순서대로({@code a}, {@code b}) 실행된다. 닫은 뒤 {@code next()}를 부르면 {@link IllegalStateException}이다.
+	 * <p>
+	 * 2026-11-02 이전에는 본 스트림을 닫지 않고 {@code closingTask}만 실행했다(연달아 등록하면 가장 바깥 작업만 실행).
 	 *
 	 * @param closingTask close 시점에 실행할 작업.
 	 * @return close hook이 부착된 스트림.
@@ -2664,14 +2913,17 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param mapper 원소를 {@link KeyValue}로 변환하는 함수.
 	 * @return {@link KeyValueFStream} 객체.
 	 */
-	public default <K, V> KeyValueFStream<K, V> mapToKeyValue(Function<T, KeyValue<K, V>> mapper) {
+	public default <K, V> KeyValueFStream<K, V>
+	mapToKeyValue(Function<? super T, ? extends KeyValue<K, V>> mapper) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 		return KeyValueFStream.from(map(mapper));
 	}
 
 	/**
 	 * Checked exception을 던질 수 있는 mapper로 {@link KeyValueFStream}을 생성한다.
-	 * 매핑 중 예외가 발생하면 그대로 전파된다.
+	 * <p>
+	 * 매핑 중 예외는 {@link #mapOrThrow(CheckedFunctionX)}와 같이 원소를 꺼내는 시점(종단 연산 등)에 감싸지 않고
+	 * <b>선언 없이</b> 던져진다. 컴파일러가 이 예외를 추적하지 못하므로 잡는 방법은 {@code mapOrThrow}의 설명을 따른다.
 	 *
 	 * @param <K>    키 타입.
 	 * @param <V>    값 타입.
@@ -2695,7 +2947,18 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * @param streamFunc 본 스트림을 받아 새 스트림으로 변환하는 함수.
 	 * @return 변환된 스트림.
 	 */
-	public default <S> FStream<S> lift(Function<FStream<T>, FStream<S>> streamFunc) {
+	public default <S> FStream<S> lift(Function<? super FStream<T>, ? extends FStream<S>> streamFunc) {
         return streamFunc.apply(this);
     }
+
+	/**
+	 * {@code FStream<? extends T>}를 {@code FStream<T>}로 본다.
+	 * <p>
+	 * {@link FStream}은 원소를 내주기만 하고 받지 않으므로(생산자 전용) 이 변환은 타입 안전하다. 변성을 넓힌 연산이
+	 * 내부 구현({@code concat} 등)에 넘길 때 쓴다.
+	 */
+	@SuppressWarnings("unchecked")
+	private static <T> FStream<T> narrow(FStream<? extends T> stream) {
+		return (FStream<T>)stream;
+	}
 }

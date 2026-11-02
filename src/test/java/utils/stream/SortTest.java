@@ -1,6 +1,7 @@
 package utils.stream;
 
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -63,5 +64,36 @@ public class SortTest {
 		sorted1 = list.stream().sorted((i,j) -> i-j).collect(Collectors.toList());
 		sorted2 = FStream.from(list).sort((i,j) -> i-j).toList();
 		Assertions.assertEquals(sorted1, sorted2);
+	}
+
+	@Test
+	public void sort_order_selects_the_direction() {
+		Assertions.assertEquals(Arrays.asList(1, 3, 4, 5), FStream.of(5, 1, 3, 4).sort().toList());
+		Assertions.assertEquals(Arrays.asList(1, 3, 4, 5), FStream.of(5, 1, 3, 4).sort(SortOrder.ASCENDING).toList());
+		Assertions.assertEquals(Arrays.asList(5, 4, 3, 1), FStream.of(5, 1, 3, 4).sort(SortOrder.DESCENDING).toList());
+	}
+
+	@Test
+	public void sort_by_key_defaults_to_ascending_and_accepts_an_order() {
+		Assertions.assertEquals(Arrays.asList("a", "bb", "ccc"),
+								FStream.of("bb", "ccc", "a").sort(String::length).toList());
+		Assertions.assertEquals(Arrays.asList("ccc", "bb", "a"),
+								FStream.of("bb", "ccc", "a").sort(String::length, SortOrder.DESCENDING).toList());
+	}
+
+	@Test
+	public void quasi_sort_order_selects_the_direction() {
+		// 큐 길이가 입력보다 길면 정확히 정렬된다.
+		Assertions.assertEquals(Arrays.asList(1, 3, 4, 5), FStream.of(5, 1, 3, 4).quasiSort(10).toList());
+		Assertions.assertEquals(Arrays.asList(5, 4, 3, 1),
+								FStream.of(5, 1, 3, 4).quasiSort(10, SortOrder.DESCENDING).toList());
+	}
+
+	@Test
+	public void null_order_is_rejected() {
+		Assertions.assertThrows(IllegalArgumentException.class, () -> FStream.of(1).sort((SortOrder)null));
+		Assertions.assertThrows(IllegalArgumentException.class,
+								() -> FStream.of("a").sort(String::length, (SortOrder)null));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> FStream.of(1).quasiSort(2, (SortOrder)null));
 	}
 }

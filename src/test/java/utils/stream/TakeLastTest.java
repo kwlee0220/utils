@@ -54,4 +54,25 @@ public class TakeLastTest {
 		Assertions.assertEquals(Lists.newArrayList(), tail);
 		verify(task, times(1)).run();
 	}
+
+	@Test
+	public void wrapAroundKeepsOrderAndNulls() throws Exception {
+		// 순환 버퍼가 여러 바퀴 돈 뒤에도 순서가 맞아야 한다(64 % 5 != 0).
+		Assertions.assertEquals(Lists.newArrayList(59, 60, 61, 62, 63), FStream.range(0, 64).takeLast(5));
+		Assertions.assertEquals(Lists.newArrayList(null, "c", null),
+								FStream.of("a", null, "c", null).takeLast(3));
+	}
+
+	@Test
+	public void hugeCountDoesNotOverflow() throws Exception {
+		// 2026-11-02 이전에는 'new ArrayList<>(count + 1)'이 넘쳐 IllegalArgumentException이 났다.
+		Assertions.assertEquals(Lists.newArrayList(0, 1, 2), FStream.range(0, 3).takeLast(Integer.MAX_VALUE));
+	}
+
+	@Test
+	public void ofExactClassSkipsNulls() throws Exception {
+		// 2026-11-02 이전에는 null 원소에서 NullPointerException이 났다.
+		FStream<Number> stream = FStream.of(1, null, 2L, 3);
+		Assertions.assertEquals(Lists.newArrayList(1, 3), stream.ofExactClass(Integer.class).toList());
+	}
 }

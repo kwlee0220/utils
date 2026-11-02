@@ -73,7 +73,7 @@ class UnorderedMapAsyncStream<S,T> extends AbstractFStream<Tuple<S,Try<T>>> {
 	 * @throws IllegalArgumentException {@code mapper}가 {@code null}인 경우.
 	 */
 	UnorderedMapAsyncStream(FStream<S> src, CheckedFunction<? super S, ? extends T> mapper,
-								AsyncExecutionOptions options) {
+							AsyncExecutionOptions options) {
 		Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		m_options = options;
