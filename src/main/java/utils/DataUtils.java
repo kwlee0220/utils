@@ -280,7 +280,7 @@ public class DataUtils {
 	/**
 	 * 시각을 나타내는 객체를 {@link Instant}로 변환한다.
 	 * <p>
-	 * {@link Instant}, 시각 문자열({@link Instants#fromString(String)}), {@link Timestamp}, {@link Date}
+	 * {@link Instant}, 시각 문자열({@link Instants#parse(String)}), {@link Timestamp}, {@link Date}
 	 * ({@link java.sql.Date} 포함), {@link OffsetDateTime}, {@link ZonedDateTime}, {@link LocalDateTime}을 받는다.
 	 * {@link LocalDateTime}처럼 시간대가 없는 값은 시스템 기본 시간대의 시각으로 해석한다.
 	 *
@@ -296,7 +296,7 @@ public class DataUtils {
 			return inst;
 		}
 		else if ( obj instanceof String str ) {
-			return Instants.fromString(str);
+			return Instants.parse(str);
 		}
 		else if ( obj instanceof Timestamp ts ) {
 			// 나노초를 유지하도록 Date보다 먼저 처리한다.
