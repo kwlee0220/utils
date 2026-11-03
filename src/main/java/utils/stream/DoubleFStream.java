@@ -151,6 +151,11 @@ public interface DoubleFStream extends FStream<Double> {
 		return Doubles.toArray(toList());
 	}
 
+	/**
+	 * 일반 {@link FStream}{@code <Double>}을 {@link DoubleFStream}로 감싸는 어댑터.
+	 * <p>
+	 * {@link #next()}와 {@link #close()}를 모두 원본 스트림에 그대로 위임한다.
+	 */
 	static class FStreamAdaptor implements DoubleFStream {
 		private final FStream<Double> m_src;
 

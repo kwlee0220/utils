@@ -12,7 +12,8 @@ import utils.func.FOption;
  * <p>
  * {@link #next(long, TimeUnit)}는 주어진 제한 시간동안만 다음 번 데이터를 대기하는 기능을
  * 제공한다. 주어진 시간 내에 데이터가 반환되지 않는 경우에는 {@link FOption#empty()}가 반환된다.
- * 
+ *
+ * @param <T>	원소 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public interface TimedFStream<T> extends FStream<T> {

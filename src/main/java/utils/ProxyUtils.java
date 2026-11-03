@@ -28,6 +28,9 @@ import net.sf.cglib.proxy.MethodProxy;
 
 
 /**
+ * cglib 또는 ByteBuddy 동적 프록시로 객체의 일부 메소드 동작을 바꾸거나 인터페이스를 덧붙이는 정적 유틸리티.
+ * <p>
+ * 동작을 바꿀 메소드는 {@link CallHandler}가 고르고 처리하며, 나머지 메소드는 원본 객체로 위임된다.
  *
  * @author Kang-Woo Lee
  */
@@ -36,6 +39,21 @@ public final class ProxyUtils {
 		throw new AssertionError("Should not be invoked!!: class=" + ProxyUtils.class.getName());
 	}
 
+	/**
+	 * cglib로 {@code obj}의 클래스를 상속한 프록시를 만들어, {@code handler.test(method)}가 {@code true}인
+	 * 메소드는 {@code handler}가 처리하고 그 외의 메소드는 {@code obj}로 위임하게 한다.
+	 * <p>
+	 * 프록시 인스턴스는 대상 클래스의 인자 없는 생성자로 새로 만들어지므로, 대상 클래스는 {@code final}이 아니고
+	 * 접근 가능한 인자 없는 생성자를 가져야 한다. {@code handler}에 전달되는 첫 인자는 원본 객체가 아니라 프록시이다.
+	 * JDK 9 이상에서는 {@code --add-opens=java.base/java.lang=ALL-UNNAMED}가 필요할 수 있으며, 그렇지 않은
+	 * 환경에서는 {@link #replaceActionByteBuddy(Object, CallHandler)}를 쓴다.
+	 *
+	 * @param <T>		대상 객체 타입.
+	 * @param obj		동작을 교체할 원본 객체.
+	 * @param handler	교체할 동작을 정의하는 {@link CallHandler}.
+	 * @return	동작이 교체된 프록시 객체.
+	 * @throws IllegalArgumentException	{@code obj} 또는 {@code handler}가 {@code null}인 경우.
+	 */
 	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(T obj, CallHandler handler) {
 		Preconditions.checkNotNullArgument(obj, "target object is null");
@@ -137,6 +155,21 @@ public final class ProxyUtils {
 		}
 	}
 
+	/**
+	 * cglib로 인터페이스 {@code intfc} 하나만 구현하는 프록시를 만들어, 메소드마다 {@code handler} 배열에서
+	 * 처음으로 {@code test(method)}가 {@code true}인 핸들러가 처리하게 하고, 해당하는 핸들러가 없으면
+	 * {@code obj}로 위임한다.
+	 * <p>
+	 * 반환 객체는 {@code intfc} 타입으로만 사용할 수 있다. 생성 중 발생한 예외는 원인 예외로 풀어 그대로
+	 * (검사 예외도 선언 없이) 던진다.
+	 *
+	 * @param <T>		반환 객체 타입.
+	 * @param obj		위임 대상 원본 객체.
+	 * @param intfc		프록시가 구현할 인터페이스.
+	 * @param handler	메소드 호출을 처리할 핸들러들. 앞의 핸들러가 우선한다.
+	 * @return	{@code intfc}를 구현하는 프록시 객체.
+	 * @throws IllegalArgumentException	{@code obj} 또는 {@code handler} 배열이 {@code null}인 경우.
+	 */
 	@SuppressWarnings("unchecked")
 	public static <T> T replaceAction(T obj, Class<?> intfc, CallHandler... handler) {
 		Preconditions.checkNotNullArgument(obj, "target object is null");
@@ -165,6 +198,22 @@ public final class ProxyUtils {
 		}
 	}
 
+	/**
+	 * cglib로 {@code base}가 구현한 모든 인터페이스와 {@code extraIntfcs}를 함께 구현하는 프록시를 만든다.
+	 * <p>
+	 * 메소드마다 {@code handlers}에서 처음으로 {@code test(method)}가 {@code true}인 핸들러가 처리하고,
+	 * 해당하는 핸들러가 없으면 {@code base}로 위임한다. {@code extraIntfcs}에만 있는 메소드를 처리하는 핸들러가
+	 * 없으면 그 메소드 호출은 실패한다. 생성 중 발생한 예외는 원인 예외로 풀어 그대로 던진다.
+	 *
+	 * @param <T>		반환 객체 타입.
+	 * @param base		위임 대상 원본 객체.
+	 * @param extraIntfcs	추가로 구현할 인터페이스들. {@code null}이면 {@link NullPointerException}이 발생한다.
+	 * @param handlers	메소드 호출을 처리할 핸들러들. 앞의 핸들러가 우선한다.
+	 * @param outIntfc	반환 타입을 정하는 데만 쓰이며, 프록시가 이 타입을 구현하는지는 검사하지 않는다.
+	 * @return	생성된 프록시 객체.
+	 * @throws IllegalArgumentException	{@code base} 또는 {@code handlers}가 {@code null}이거나
+	 * 									{@code handlers}가 비어 있는 경우.
+	 */
 	@SuppressWarnings("unchecked")
 	public static <T> T buildObject(Object base, Class<?>[] extraIntfcs, CallHandler[] handlers,
 									Class<T> outIntfc) {
@@ -296,6 +345,18 @@ public final class ProxyUtils {
 			m_handler = handler;
 		}
 
+		/**
+		 * 프록시 메소드 호출을 처리한다. {@link CallHandler#test(Object)}가 {@code true}이면
+		 * {@code MethodProxy} 인자를 {@code null}로 하여 핸들러에 넘기고, 아니면 원본 객체의 메소드를
+		 * 리플렉션으로 호출한다.
+		 *
+		 * @param self	호출을 받은 프록시 객체.
+		 * @param method	호출된 메소드.
+		 * @param args	호출 인자.
+		 * @return	메소드 호출 결과.
+		 * @throws Throwable	핸들러 또는 원본 메소드가 던진 예외. 원본 메소드의 예외는
+		 * 					{@link InvocationTargetException}을 벗겨 그대로 던진다.
+		 */
 		@RuntimeType
 		public Object intercept(@This Object self, @Origin Method method, @AllArguments Object[] args)
 			throws Throwable {

@@ -29,6 +29,7 @@ import utils.func.Try;
  * 연산이 모두 취소 요청되고, 전방 연산이 실제로 취소 종료되는 시점에 본 연산의 취소 통보가
  * 일어난다.
  *
+ * @param <T>	전방 연산(곧 본 연산)의 결과 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public class BackgroundedAsyncExecution<T> extends EventDrivenExecution<T>

@@ -5,7 +5,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * 
+ * 데이터를 소비자 측으로 하나씩 공급하고, 공급의 끝(정상 종료 또는 오류)을 알리는 인터페이스.
+ * <p>
+ * 공급이 종료된 뒤의 {@code supply} 호출은 {@link IllegalStateException}을 발생시킨다.
+ *
+ * @param <T>	공급하는 데이터 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public interface Suppliable<T> {

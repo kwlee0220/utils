@@ -115,6 +115,15 @@ public class MultipleCases<K,V> {
 				.collect(Collectors.toList());
 	}
 	
+	/**
+	 * {@link MultipleCases#ifCase(Object)}로 선택된 하나의 case이다.
+	 * <p>
+	 * 선택된 key의 존재 여부와 값, 그리고 해당 key를 제외한 나머지 case들을 보유하며,
+	 * {@link #consume(Consumer)}로 처리한 뒤 나머지 case들로 다음 단계를 이어간다.
+	 *
+	 * @param <K>	key 타입.
+	 * @param <V>	value 타입.
+	 */
 	public static final class Case<K,V> {
 		private final K m_key;
 		@Nullable private final V m_value;
@@ -147,6 +156,15 @@ public class MultipleCases<K,V> {
 		}
 	}
 
+	/**
+	 * {@link MultipleCases#ifCase(Object, Object)}로 선택된, context를 동반하는 하나의 case이다.
+	 * <p>
+	 * {@link #consume(BiConsumer)}로 처리한 뒤 나머지 case들로 다음 단계를 이어간다.
+	 *
+	 * @param <K>	key 타입.
+	 * @param <V>	value 타입.
+	 * @param <X>	context 타입.
+	 */
 	public static class ContextedCase<K,V,X> {
 		private final X m_context;
 		private final K m_key;
@@ -179,6 +197,12 @@ public class MultipleCases<K,V> {
 		}
 	}
 	
+	/**
+	 * {@link MultipleCases#otherwise()}가 반환하는, 처리되지 않고 남은 key-value 쌍들의 모음이다.
+	 *
+	 * @param <K>	key 타입.
+	 * @param <V>	value 타입.
+	 */
 	public static class Otherwise<K,V> {
 		private final List<KeyValue<K,V>> m_remaining;
 
@@ -196,6 +220,14 @@ public class MultipleCases<K,V> {
 		}
 	}
 
+	/**
+	 * {@link MultipleCases#otherwise(Object)}가 반환하는, 처리되지 않고 남은 key-value 쌍들과
+	 * context의 모음이다.
+	 *
+	 * @param <K>	key 타입.
+	 * @param <V>	value 타입.
+	 * @param <X>	context 타입.
+	 */
 	public static class ContextedOtherwise<K,V,X> {
 		private final X m_context;
 		private final List<KeyValue<K,V>> m_remaining;

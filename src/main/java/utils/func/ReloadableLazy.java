@@ -10,6 +10,11 @@ import org.jetbrains.annotations.Nullable;
 /**
  * {@code ReloadableLazy}는 지연 초기화(lazy initialization)된 값을 저장하고,
  * 필요에 따라 값을 다시 로드할 수 있는 기능을 제공하는 클래스이다.
+ * <p>
+ * 모든 public 메소드는 {@code synchronized}로 동기화되며, 내부적으로 {@code null}을
+ * '적재되지 않음' 상태로 사용하므로 {@code null} 값은 저장할 수 없다.
+ * 
+ * @param <T>	적재되는 값의 타입.
  * 
  * @author Kang-Woo Lee (ETRI)
  */
@@ -23,8 +28,10 @@ public class ReloadableLazy<T> {
 	 * {@link #get()} 메서드가 처음 호출될 때 공급자에서 값을 {@code supplier}를	통해
 	 * 획득하여 저장하며, 이후에는 저장된 값을 반환한다.
 	 * 
+	 * @param <T>	적재되는 값의 타입.
 	 * @param supplier 값을 제공하는 공급자
 	 * @return {@code ReloadableLazy} 인스턴스
+	 * @throws NullPointerException	{@code supplier}가 {@code null}인 경우.
 	 */
 	public static <T> ReloadableLazy<T> of(Supplier<T> supplier) {
 		return new ReloadableLazy<>(supplier);
@@ -52,6 +59,7 @@ public class ReloadableLazy<T> {
 	 * 만약 값이 아직 로드되지 않은 경우에는 공급자에서 값을 획득하여 저장한 후 반환한다.
 	 * 
 	 * @return 현재 저장된 값
+	 * @throws IllegalStateException	공급자가 {@code null}을 반환한 경우.
 	 */
 	public synchronized T get() {
 		if ( m_loaded == null ) {
@@ -66,6 +74,7 @@ public class ReloadableLazy<T> {
 	 * 지정된 값으로 현재 저장된 값을 설정한다.
 	 * 
 	 * @param value 새로 설정할 값
+	 * @throws NullPointerException	{@code value}가 {@code null}인 경우.
 	 */
 	public synchronized void set(T value) {
 		Preconditions.checkNotNull(value, "value is null");

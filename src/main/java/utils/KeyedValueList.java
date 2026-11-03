@@ -19,30 +19,54 @@ import utils.stream.FStream;
 import utils.stream.KeyValueFStream;
 
 /**
+ * 각 값에서 키 추출 함수({@code keyer})로 구한 키가 서로 겹치지 않도록 관리하는 {@link List}.
+ * <p>
+ * 값은 {@link java.util.ArrayList}에 삽입 순서대로 저장되며, 키 비교는 {@code equals}로 한다.
+ * 키 기반 조회({@link #getOfKey(Object)}, {@link #indexOfKey(Object)} 등)는 리스트를 처음부터 훑는다.
+ * 동기화하지 않는다.
+ * <p>
+ * <b>주의:</b> 키 중복은 {@link #add(Object)}, {@link #add(int, Object)}, {@link #addIfAbsent(Object)}에서만
+ * 검사한다. Lombok {@code @Delegate}로 내부 리스트에 그대로 위임되는 {@code addAll}, {@code set},
+ * {@code listIterator().add} 등은 검사하지 않으므로 중복 키나 {@code null} 값이 들어갈 수 있다.
  *
+ * @param <K>	키의 타입.
+ * @param <V>	값의 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public class KeyedValueList<K,V> implements List<V> {
 	@Delegate private final List<V> m_values;
 	private final Function<V,K> m_keyer;
 	
+	/**
+	 * 주어진 키 추출 함수를 쓰는 빈 리스트를 만든다.
+	 * <p>
+	 * {@code keyer}의 {@code null} 여부를 검사하지 않으므로, {@code null}이면 값을 추가할 때
+	 * {@link NullPointerException}이 발생한다.
+	 *
+	 * @param keyer	값에서 키를 추출하는 함수.
+	 */
 	public KeyedValueList(Function<V,K> keyer) {
 		m_keyer = keyer;
 		m_values = Lists.newArrayList();
 	}
 
+	/**
+	 * 각 값에 {@code keyer}로 구한 키를 붙인 스트림을 반환한다.
+	 *
+	 * @return	(키, 값) 스트림.
+	 */
 	public KeyValueFStream<K,V> fstream() {
 		return FStream.from(m_values).tagKey(m_keyer);
 	}
 	
 	/**
-	 * 주어진 {@link Iterable} 객체로부터 {@link KeyedValueList} 객체를 생성한다.
-	 * <p>
-	 * {@code Iterable} 객체에 포함된 값들은 {@link Keyed} 인터페이스를 구현해야 한다.
+	 * 주어진 키 추출 함수를 쓰는 빈 {@link KeyedValueList} 객체를 생성한다.
 	 * 
 	 * @param <K> 키 값의 타입.
 	 * @param <V> 값의 타입.
 	 * @param keyer 키 값을 추출하는 함수.
+	 * @return	새 {@link KeyedValueList} 객체.
+	 * @throws IllegalArgumentException	{@code keyer}가 {@code null}인 경우.
 	 */
 	public static <K, V> KeyedValueList<K, V> with(Function<V,K> keyer) {
 		Preconditions.checkArgument(keyer != null, "Function<V,K> keyer is null");
@@ -53,11 +77,16 @@ public class KeyedValueList<K,V> implements List<V> {
 	/**
 	 * 주어진 {@link Iterable} 객체로부터 {@link KeyedValueList} 객체를 생성한다.
 	 * <p>
-	 * {@code Iterable} 객체에 포함된 값들은 {@link Keyed} 인터페이스를 구현해야 한다.
+	 * {@code values}의 값들을 순서대로 {@link #add(Object)}로 추가한다. {@code keyer}의 {@code null} 여부는
+	 * 검사하지 않으므로, {@code null}이고 {@code values}가 비어 있지 않으면 {@link NullPointerException}이 발생한다.
 	 * 
 	 * @param <K> 키 값의 타입.
 	 * @param <V> 값의 타입.
 	 * @param values 값의 {@link Iterable} 객체.
+	 * @param keyer	키 값을 추출하는 함수.
+	 * @return	새 {@link KeyedValueList} 객체.
+	 * @throws IllegalArgumentException	{@code values}가 {@code null}이거나, {@code null} 값을 포함하거나,
+	 * 			같은 키를 가지는 값이 둘 이상 있는 경우.
 	 */
 	public static <K, V> KeyedValueList<K, V> from(Iterable<V> values, Function<V,K> keyer) {
 		Preconditions.checkArgument(values != null, "values is null");
@@ -93,6 +122,8 @@ public class KeyedValueList<K,V> implements List<V> {
 	 * 만일 동일한 키 값을 가지는 값이 존재할 경우는 아무런 동작을 하지 않고, {@code false}를 반환한다.
 	 * 
 	 * @param value 추가할 값.
+	 * @return	값이 추가되었으면 {@code true}, 동일한 키 값을 가지는 값이 이미 있으면 {@code false}.
+	 * @throws IllegalArgumentException	{@code value}가 {@code null}인 경우.
 	 */
 	public boolean addIfAbsent(V value) {
 		Preconditions.checkArgument(value != null, "value is null");
@@ -242,6 +273,14 @@ public class KeyedValueList<K,V> implements List<V> {
 		return m_values.toString();
 	}
 	
+	/**
+	 * 주어진 인덱스가 삽입 위치로 유효한지({@code 0 <= index <= size()}) 검사한다.
+	 * <p>
+	 * <b>주의:</b> 예외 메시지의 {@code Size} 부분에 리스트 크기가 아니라 {@code index}가 들어간다.
+	 *
+	 * @param index	검사할 인덱스.
+	 * @throws IndexOutOfBoundsException	인덱스가 범위를 벗어난 경우.
+	 */
 	protected void assertValidIndex(int index) {
 		if (index > size() || index < 0) {
 	        throw new IndexOutOfBoundsException("Index: " + index + ", Size " + index);

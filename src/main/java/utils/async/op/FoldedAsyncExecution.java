@@ -19,13 +19,15 @@ import utils.stream.FStream;
 
 /**
  * <code>FoldedAsyncExecution</code>은 복수개의 {@link StartableExecution}을 지정된
- * 순서대로 수행시키는 비동기 수행 클래스를 정의한다.
+ * 순서대로 수행시키면서 그 결과들을 누적(fold)하는 비동기 수행 클래스를 정의한다.
  * <p>
- * 순차 비동기 수행은 소속 비동기 수행을 등록된 순서대로 차례대로 수행시킨다. 전체 순차 비동기 수행의
- * 수행 결과는 마지막 원소 비동기 수행의 결과로 정의된다.
- * 소속 비동기 수행 수행 중 오류 또는 취소가 발생되면 전체 순차 연산이 오류가 발생되거나 취소된 것으로
+ * 소속 비동기 수행을 스트림 순서대로 하나씩 차례로 수행시키고, 각 수행이 성공하면 그 결과를
+ * 누적 함수로 누적 값에 반영한다. 전체 수행의 결과는 마지막 누적 값이다(소속 수행이 없으면 초기 값).
+ * 소속 비동기 수행 수행 중 오류 또는 취소가 발생되면 전체 연산이 오류가 발생되거나 취소된 것으로
  * 간주한다.
- * 
+ *
+ * @param <T>	누적 값(곧 전체 수행 결과)의 타입.
+ * @param <S>	소속 비동기 수행의 결과 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<T>
@@ -37,6 +39,23 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<T>
 	
 	@Nullable @GuardedBy("m_aopGuard") private StartableExecution<? extends S> m_cursor = null;
 	
+	/**
+	 * 순차 수행하며 결과를 누적하는 비동기 수행 객체를 생성한다.
+	 * <p>
+	 * 반환된 객체는 {@link #start()}를 호출해야 시작된다. 시작 시 {@code initSupplier}로 초기 누적 값을 만들고,
+	 * 소속 수행이 성공할 때마다 {@code folder(누적 값, 결과)}로 누적 값을 갱신한다.
+	 * <p>
+	 * <b>주의:</b> {@code initSupplier}가 {@link #start()}에서 예외를 던지면 그 예외가 호출자에게 전파되고,
+	 * 수행 상태는 {@link utils.async.AsyncState#STARTING}에 머문다.
+	 *
+	 * @param <T>	누적 값의 타입.
+	 * @param <S>	소속 비동기 수행의 결과 타입.
+	 * @param sequence	순서대로 수행할 비동기 수행 객체 스트림.
+	 * @param initSupplier	초기 누적 값을 만드는 함수.
+	 * @param folder	누적 값과 소속 수행 결과로 새 누적 값을 만드는 함수.
+	 * @return	시작되지 않은 비동기 수행 객체.
+	 * @throws IllegalArgumentException	인자 중 하나라도 {@code null}인 경우.
+	 */
 	public static <T,S> FoldedAsyncExecution<T,S> of(FStream<StartableExecution<S>> sequence,
 													Supplier<? extends T> initSupplier,
 													BiFunction<? super T,? super S,? extends T> folder) {

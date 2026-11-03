@@ -1,5 +1,7 @@
 package utils;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
@@ -210,6 +212,57 @@ public class KeyValue<K,V> implements Keyed<K> {
 		}
 
 		return KeyValue.of(split.head().strip(), split.tail().get().strip());
+	}
+
+	/**
+	 * {@code delim}으로 구분된 {@code key=value} 목록 문자열을 파싱한다.
+	 * <p>
+	 * 항목은 {@link CSV#parseCsv(String, char, char)}로 나누며 escape 문자는 {@code '"'}이다. escape 문자는 따옴표가
+	 * 아니라 바로 다음 문자를 그대로 쓰게 하므로, 값에 구분자를 넣으려면 그 앞에 붙인다(예: 구분자가 {@code ';'}일 때
+	 * {@code a=1";2} → 키 {@code a}, 값 {@code 1;2}). 각 항목은
+	 * {@link #parse(String)}로 파싱하므로 키·값의 앞뒤 공백은 제거된다. 같은 키가 여러 번 나와도 모두 유지한다.
+	 * 빈 항목(예: 끝에 붙은 구분자)도 항목으로 보므로 {@code '='}가 없어 예외가 난다.
+	 * <p>
+	 * 2026-11-02 이전에는 {@code Utilities.parseKeyValues(String, char)}였다(별칭 없이 옮김).
+	 *
+	 * @param expr	파싱할 문자열 (예: {@code "a=1; b=2"}).
+	 * @param delim	항목 구분 문자.
+	 * @return	파싱된 key-value 목록(입력 순서, 수정 가능).
+	 * @throws IllegalArgumentException	{@code expr}이 {@code null}이거나, 항목에 {@code '='}가 없거나 키가 비어 있는
+	 * 									경우, 또는 {@code delim}이 {@code '"'}인 경우.
+	 */
+	public static List<KeyValue<String,String>> parseList(String expr, char delim) {
+		Preconditions.checkNotNullArgument(expr, "expr is null");
+
+		return CSV.parseCsv(expr, delim, '"')
+					.map(KeyValue::parse)
+					.toList();
+	}
+
+	/**
+	 * {@code delim}으로 구분된 {@code key=value} 목록 문자열을 파싱하여 맵으로 반환한다.
+	 * <p>
+	 * 항목은 {@link #parseList(String, char)}와 같이 나누고 파싱한다. 맵은 입력 순서를 유지한다. 같은 키가 두 번
+	 * 이상 나오면 어느 값을 쓸지 정할 수 없으므로 예외를 던진다.
+	 * <p>
+	 * 2026-11-02 이전에는 {@code Utilities.parseKeyValueMap(String, char)}였다(별칭 없이 옮김). 그때는 같은 키가 나오면
+	 * 나중 값이 앞의 값을 덮어썼다.
+	 *
+	 * @param expr	파싱할 문자열 (예: {@code "a=1; b=2"}).
+	 * @param delim	항목 구분 문자.
+	 * @return	파싱된 key-value 맵(입력 순서를 유지하는 수정 가능한 {@link LinkedHashMap}).
+	 * @throws IllegalArgumentException	{@code expr}이 {@code null}이거나, 항목에 {@code '='}가 없거나 키가 비어 있거나,
+	 * 									같은 키가 두 번 이상 나오는 경우, 또는 {@code delim}이 {@code '"'}인 경우.
+	 */
+	public static Map<String,String> parseMap(String expr, char delim) {
+		Map<String,String> map = new LinkedHashMap<>();
+		for ( KeyValue<String,String> kv: parseList(expr, delim) ) {
+			if ( map.containsKey(kv.key()) ) {
+				throw new IllegalArgumentException("duplicate key: " + kv.key());
+			}
+			map.put(kv.key(), kv.value());
+		}
+		return map;
 	}
 	
 	/**

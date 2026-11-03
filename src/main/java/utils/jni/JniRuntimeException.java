@@ -10,6 +10,11 @@ package utils.jni;
 public class JniRuntimeException extends RuntimeException {
 	private static final long serialVersionUID = 4926540670892527294L;
 
+	/**
+	 * 주어진 메시지를 갖는 예외 객체를 생성한다.
+	 *
+	 * @param msg	예외 메시지.
+	 */
 	public JniRuntimeException(String msg) {
 		super(msg);
 	}

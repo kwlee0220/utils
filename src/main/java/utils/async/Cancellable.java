@@ -3,7 +3,10 @@ package utils.async;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 
+ * 수행 중단을 요청할 수 있는 연산을 나타내는 인터페이스.
+ * <p>
+ * 하위 호환을 위해 유지되는 인터페이스이다.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
 public interface Cancellable {

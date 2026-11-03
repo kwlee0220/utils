@@ -28,10 +28,21 @@ import utils.func.Unchecked;
 import utils.io.IOUtils;
 
 /**
- * 
+ * {@link FStream} 연산자들의 구현 클래스를 모아 둔 클래스.
+ * <p>
+ * 외부에 공개된 멤버는 사용자 정의 스트림의 기반 클래스인 {@link AbstractFStream}뿐이며,
+ * 나머지 구현 클래스들은 패키지 내부에서 {@link FStream}의 메소드를 통해서만 사용된다.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
 public class FStreams {
+	/**
+	 * {@code FStreams} 객체를 생성한다.
+	 * <p>
+	 * 이 클래스는 정적 멤버만 제공하므로 직접 생성할 필요가 없다.
+	 */
+	public FStreams() { }
+
 	@SuppressWarnings("rawtypes")
 	static final EmptyStream EMPTY = new EmptyStream<>();
 	
@@ -50,6 +61,18 @@ public class FStreams {
 		}
 	}
 	
+	/**
+	 * 초기화·소진·닫힘 상태를 관리하는 사용자 정의 스트림의 기반 클래스.
+	 * <p>
+	 * 하위 클래스는 {@link #nextInGuard()}와 {@link #closeInGuard()}를 구현하고, 필요하면
+	 * {@link #initialize()}를 재정의한다. {@link #close()}는 {@code final}이며 중복 호출을 무시한다.
+	 * 닫힌 뒤 {@link #next()}를 호출하면 {@link IllegalStateException}이 발생한다.
+	 * <p>
+	 * 메소드 이름의 'InGuard'와 달리 이 클래스는 동기화를 수행하지 않으므로 여러 스레드에서
+	 * 동시에 사용하면 안 된다.
+	 *
+	 * @param <T>	원소 타입.
+	 */
 	public static abstract class AbstractFStream<T> implements FStream<T>, LoggerSettable {
 		private final static Logger s_logger = LoggerFactory.getLogger(AbstractFStream.class);
 		
@@ -57,9 +80,37 @@ public class FStreams {
 		private boolean m_eos = false;
 		private boolean m_initialized = false;
 		private Logger m_logger = s_logger;
+
+		/**
+		 * {@code AbstractFStream} 객체를 생성한다.
+		 */
+		public AbstractFStream() { }
 		
+		/**
+		 * 스트림이 사용하는 자원을 해제한다.
+		 * <p>
+		 * {@link #close()}가 처음 호출될 때 한 번만 호출된다.
+		 *
+		 * @throws Exception	자원 해제 중 오류가 발생한 경우.
+		 */
 		abstract protected void closeInGuard() throws Exception;
+
+		/**
+		 * 다음 원소를 반환한다.
+		 * <p>
+		 * 스트림이 닫히지 않았고 끝에 도달하지 않은 경우에만 {@link #next()}에서 호출된다.
+		 * {@link FOption#empty()}를 반환하면 스트림의 끝으로 표시되어 이후 다시 호출되지 않는다.
+		 *
+		 * @return	다음 원소. 더 이상 원소가 없으면 {@link FOption#empty()}.
+		 */
 		abstract protected FOption<T> nextInGuard();
+
+		/**
+		 * 첫 {@link #nextInGuard()} 호출 직전에 한 번 호출되는 초기화 메소드.
+		 * <p>
+		 * 기본 구현은 아무것도 하지 않는다. 이 메소드가 예외를 던지면 초기화 완료로 표시되지 않으므로
+		 * 다음 {@link #next()} 호출 때 다시 호출된다.
+		 */
 		protected void initialize() { }
 
 		@Override
@@ -86,20 +137,40 @@ public class FStreams {
 			return nextInGuard().ifAbsent(() -> m_eos = true);
 		}
 		
+		/**
+		 * 스트림이 닫혔는지 여부를 반환한다.
+		 *
+		 * @return	{@link #close()}가 호출되었으면 {@code true}.
+		 */
 		public boolean isClosed() {
 			return m_closed;
 		}
 		
+		/**
+		 * 스트림이 닫히지 않았는지 확인한다.
+		 *
+		 * @throws IllegalStateException	스트림이 이미 닫힌 경우.
+		 */
 		public void checkNotClosed() {
 			if ( m_closed ) {
 				throw new IllegalStateException("already closed: " + this);
 			}
 		}
 		
+		/**
+		 * 스트림을 끝에 도달한 상태로 표시한다.
+		 * <p>
+		 * 이후 {@link #next()}는 {@link #nextInGuard()}를 호출하지 않고 {@link FOption#empty()}를 반환한다.
+		 */
 		protected void markEndOfStream() {
 			m_eos = true;
 		}
 		
+		/**
+		 * 스트림이 끝에 도달했는지 여부를 반환한다.
+		 *
+		 * @return	끝에 도달했거나 닫힌 경우 {@code true}.
+		 */
 		public boolean isEndOfStream() {
 			return m_eos;
 		}

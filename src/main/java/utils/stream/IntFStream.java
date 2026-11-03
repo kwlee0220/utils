@@ -166,6 +166,9 @@ public interface IntFStream extends FStream<Integer> {
 		return Ints.toArray(toList());
 	}
 
+	/**
+	 * {@code start}(포함)부터 {@code end}(제외)까지의 정수를 1씩 증가시키며 내보내는 스트림.
+	 */
 	static class RangedStream extends AbstractFStream<Integer> implements IntFStream {
 		private int m_next;
 		private final int m_end;
@@ -191,6 +194,11 @@ public interface IntFStream extends FStream<Integer> {
 		}
 	}
 
+	/**
+	 * 일반 {@link FStream}{@code <Integer>}을 {@link IntFStream}로 감싸는 어댑터.
+	 * <p>
+	 * {@link #next()}와 {@link #close()}를 모두 원본 스트림에 그대로 위임한다.
+	 */
 	static class FStreamAdaptor implements IntFStream {
 		private final FStream<Integer> m_src;
 

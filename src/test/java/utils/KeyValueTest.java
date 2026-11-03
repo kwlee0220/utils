@@ -301,4 +301,32 @@ public class KeyValueTest {
 		Assertions.assertEquals(Integer.valueOf(101), mapped.value());
 		Assertions.assertNotSame(kv, mapped);
 	}
+
+	// --- parseList / parseMap (2026-11-02에 Utilities에서 옮김) ---
+
+	@Test
+	public void parseList_keepsOrderAndDuplicates() {
+		Assertions.assertEquals(java.util.List.of(KeyValue.of("a", "1"), KeyValue.of("b", "x=y"), KeyValue.of("a", "3")),
+								KeyValue.parseList("a=1, b = x=y ,a=3", ','));
+		Assertions.assertEquals(java.util.List.of(KeyValue.of("a", "1;2")), KeyValue.parseList("a=1\";2", ';'));	// '"' 다음 문자는 그대로
+		Assertions.assertThrows(IllegalArgumentException.class, () -> KeyValue.parseList("a=1;b", ';'));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> KeyValue.parseList(null, ';'));
+	}
+
+	@Test
+	public void parseMap_usesDelimiterAndKeepsOrder() {
+		Map<String,String> map = KeyValue.parseMap("z=1,a=2", ',');
+		Assertions.assertEquals(java.util.List.of("z", "a"), new java.util.ArrayList<>(map.keySet()));
+		Assertions.assertEquals("2", map.get("a"));
+	}
+
+	/**
+	 * 같은 키가 두 번 이상 나오면 거부한다(옮기기 전 Utilities.parseKeyValueMap은 나중 값이 이겼다).
+	 */
+	@Test
+	public void parseMap_rejectsDuplicateKeys() {
+		IllegalArgumentException e = Assertions.assertThrows(IllegalArgumentException.class,
+															() -> KeyValue.parseMap("a=1;b=2;a=3", ';'));
+		Assertions.assertEquals("duplicate key: a", e.getMessage());
+	}
 }

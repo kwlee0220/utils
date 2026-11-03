@@ -4,7 +4,13 @@ import javax.annotation.concurrent.GuardedBy;
 
 
 /**
- * 
+ * {@code long} 값의 이동 평균을 구해 값의 변동을 완만하게 만든다.
+ * <p>
+ * 첫 관측값은 그대로 결과가 되고, 관측값 수가 윈도우 크기에 이를 때까지는 누적 평균, 그 뒤로는
+ * 이전 결과의 {@code (1 - 1/windowSize)}와 새 값의 {@code 1/windowSize}를 합하는 방식으로 갱신하며,
+ * 가중치는 이 계산에 함께 적용된다. 생성자의 초기 값은 첫 관측 전 {@link #getSmoothed()}에만 보인다.
+ * 모든 갱신·조회 메소드는 {@code synchronized}이다.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
 public class LongVariableSmoother {

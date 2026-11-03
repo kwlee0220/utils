@@ -13,6 +13,10 @@ import java.time.format.DateTimeParseException;
 import java.util.Date;
 
 /**
+ * 타입이 정해지지 않은 값({@link Object})을 기본 타입, 문자열, 날짜·시각 타입으로 변환하는 정적 유틸리티.
+ * <p>
+ * 숫자 변환 메소드는 {@code null}을 0으로, {@link Boolean}을 1/0으로 바꾸고, 문자열은 앞뒤 공백을 제거한 뒤 파싱한다.
+ * 실수를 정수 타입으로 바꿀 때 소수 부분이 있으면 예외를 던지지만, 범위를 넘는 값은 검사하지 않는다.
  * 
  * @author Kang-Woo Lee (ETRI)
  */
@@ -21,10 +25,31 @@ public class DataUtils {
 		throw new AssertionError("Should not be called: " + DataUtils.class);
 	}
 	
+	/**
+	 * 주어진 객체의 {@link Object#toString()} 결과를 반환한다.
+	 *
+	 * @param obj	변환할 객체.
+	 * @return	문자열. {@code obj}가 {@code null}이면 {@code null}.
+	 */
 	public static String asString(Object obj) {
 		return obj != null ? obj.toString() : null;
 	}
 	
+	/**
+	 * 주어진 객체를 {@code int} 값으로 변환한다.
+	 * <p>
+	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
+	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
+	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. 실수 값에 소수 부분이 있거나 NaN·무한대이면 예외를 던진다.
+	 * <p>
+	 * <b>주의:</b> 대상 타입의 범위는 검사하지 않는다. 더 큰 정수 타입의 값은 Java 축소 변환 규칙대로
+	 * 상위 비트가 잘리고, 실수 값도 범위를 넘으면 조용히 다른 값이 된다.
+	 *
+	 * @param obj	변환할 객체.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없거나
+	 * 			({@link NumberFormatException}), 실수 값에 소수 부분이 있는 경우.
+	 */
 	public static int asInt(Object obj) {
 		if ( obj == null ) {
 			return 0;
@@ -54,6 +79,21 @@ public class DataUtils {
 		throw new IllegalArgumentException("unknown int value=" + obj);
 	}
 	
+	/**
+	 * 주어진 객체를 {@code long} 값으로 변환한다.
+	 * <p>
+	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
+	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
+	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. 실수 값에 소수 부분이 있거나 NaN·무한대이면 예외를 던진다.
+	 * <p>
+	 * <b>주의:</b> 대상 타입의 범위는 검사하지 않는다. 더 큰 정수 타입의 값은 Java 축소 변환 규칙대로
+	 * 상위 비트가 잘리고, 실수 값도 범위를 넘으면 조용히 다른 값이 된다.
+	 *
+	 * @param obj	변환할 객체.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없거나
+	 * 			({@link NumberFormatException}), 실수 값에 소수 부분이 있는 경우.
+	 */
 	public static long asLong(Object obj) {
 		if ( obj == null ) {
 			return 0;
@@ -89,6 +129,21 @@ public class DataUtils {
 		throw new IllegalArgumentException("unknown long value=" + obj);
 	}
 	
+	/**
+	 * 주어진 객체를 {@code short} 값으로 변환한다.
+	 * <p>
+	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
+	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
+	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. 실수 값에 소수 부분이 있거나 NaN·무한대이면 예외를 던진다.
+	 * <p>
+	 * <b>주의:</b> 대상 타입의 범위는 검사하지 않는다. 더 큰 정수 타입의 값은 Java 축소 변환 규칙대로
+	 * 상위 비트가 잘리고, 실수 값도 범위를 넘으면 조용히 다른 값이 된다.
+	 *
+	 * @param obj	변환할 객체.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없거나
+	 * 			({@link NumberFormatException}), 실수 값에 소수 부분이 있는 경우.
+	 */
 	public static short asShort(Object obj) {
 		if ( obj == null ) {
 			return 0;
@@ -121,6 +176,21 @@ public class DataUtils {
 		throw new IllegalArgumentException("unknown short value=" + obj);
 	}
 	
+	/**
+	 * 주어진 객체를 {@code byte} 값으로 변환한다.
+	 * <p>
+	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
+	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
+	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. 실수 값에 소수 부분이 있거나 NaN·무한대이면 예외를 던진다.
+	 * <p>
+	 * <b>주의:</b> 대상 타입의 범위는 검사하지 않는다. 더 큰 정수 타입의 값은 Java 축소 변환 규칙대로
+	 * 상위 비트가 잘리고, 실수 값도 범위를 넘으면 조용히 다른 값이 된다.
+	 *
+	 * @param obj	변환할 객체.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없거나
+	 * 			({@link NumberFormatException}), 실수 값에 소수 부분이 있는 경우.
+	 */
 	public static byte asByte(Object obj) {
 		if ( obj == null ) {
 			return 0;
@@ -153,6 +223,18 @@ public class DataUtils {
 		throw new IllegalArgumentException("unknown byte value=" + obj);
 	}
 	
+	/**
+	 * 주어진 객체를 {@code boolean} 값으로 변환한다.
+	 * <p>
+	 * 숫자는 0이 아니면 {@code true}이다(NaN도 {@code true}).
+	 * 문자열은 앞뒤 공백을 제거한 뒤, {@code "false"}·{@code "no"}(대소문자 무시)·{@code "0"}이거나 빈 문자열이면
+	 * {@code false}이고, 그 밖의 문자열은 모두 {@code true}이다(예: {@code "off"}, {@code "abc"}도 {@code true}).
+	 *
+	 * @param obj	변환할 객체.
+	 * @param defValue	{@code obj}가 {@code null}일 때 반환할 값.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	{@link Boolean}, {@link Number}, {@link String}이 아닌 경우.
+	 */
 	public static boolean asBoolean(Object obj, boolean defValue) {
 		if ( obj == null ) {
 			return defValue;
@@ -184,6 +266,18 @@ public class DataUtils {
 		throw new IllegalArgumentException("unknown boolean value=" + obj);
 	}
 	
+	/**
+	 * 주어진 객체를 {@code float} 값으로 변환한다.
+	 * <p>
+	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
+	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
+	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. {@code double}·{@code long} 등은 정밀도 손실을 검사하지 않고 변환한다.
+	 *
+	 * @param obj	변환할 객체.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없는 경우
+	 * 			({@link NumberFormatException}).
+	 */
 	public static float asFloat(Object obj) {
 		if ( obj == null ) {
 			return 0;
@@ -214,6 +308,18 @@ public class DataUtils {
 		throw new IllegalArgumentException("unknown float value='" + obj + "'");
 	}
 	
+	/**
+	 * 주어진 객체를 {@code double} 값으로 변환한다.
+	 * <p>
+	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
+	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
+	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다.
+	 *
+	 * @param obj	변환할 객체.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없는 경우
+	 * 			({@link NumberFormatException}).
+	 */
 	public static double asDouble(Object obj) {
 		if ( obj == null ) {
 			return 0;
@@ -244,6 +350,14 @@ public class DataUtils {
 		throw new IllegalArgumentException("unknown double value='" + obj + "'");
 	}
 	
+	/**
+	 * 주어진 객체를 {@code boolean} 값으로 변환한다. {@code null}이면 {@code false}이다.
+	 * 변환 규칙은 {@link #asBoolean(Object, boolean)}과 같다.
+	 *
+	 * @param obj	변환할 객체.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	{@link Boolean}, {@link Number}, {@link String}이 아닌 경우.
+	 */
 	public static boolean asBoolean(Object obj) {
 		return asBoolean(obj, false);
 	}

@@ -203,6 +203,9 @@ public interface LongFStream extends FStream<Long> {
 		return Longs.toArray(toList());
 	}
 
+	/**
+	 * {@code start}(포함)부터 {@code end}(제외)까지의 정수를 1씩 증가시키며 내보내는 스트림.
+	 */
 	static class RangedStream extends AbstractFStream<Long> implements LongFStream {
 		private long m_next;
 		private final long m_end;
@@ -228,6 +231,11 @@ public interface LongFStream extends FStream<Long> {
 		}
 	}
 
+	/**
+	 * 일반 {@link FStream}{@code <Long>}을 {@link LongFStream}로 감싸는 어댑터.
+	 * <p>
+	 * {@link #next()}와 {@link #close()}를 모두 원본 스트림에 그대로 위임한다.
+	 */
 	static class FStreamAdaptor implements LongFStream {
 		private final FStream<Long> m_src;
 

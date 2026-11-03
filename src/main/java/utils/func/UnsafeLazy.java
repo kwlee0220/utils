@@ -10,7 +10,15 @@ import net.sf.cglib.proxy.MethodProxy;
 
 
 /**
- * 
+ * 동기화 없이 값을 지연 적재(lazy loading)하는 클래스이다.
+ * <p>
+ * {@link #get()}이 처음 호출될 때 {@link Supplier}로 값을 생성하여 보관한다. 동기화하지 않으므로
+ * 여러 쓰레드가 동시에 {@code get()}을 호출하면 {@code Supplier}가 여러 번 호출될 수 있다.
+ * 내부적으로 {@code null}을 '적재되지 않음' 상태로 사용하므로, {@code Supplier}가 {@code null}을
+ * 반환하면 다음 {@code get()} 호출에서 다시 생성을 시도한다.
+ *
+ * @param <T>	적재되는 값의 타입.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
 public class UnsafeLazy<T> {
@@ -20,6 +28,7 @@ public class UnsafeLazy<T> {
 	/**
      * 주어진 {@link Supplier}를 이용하여 적재된 값을 생성하는 {@link UnsafeLazy} 인스턴스를 생성한다.
      * 
+     * @param <T>	적재되는 값의 타입.
      * @param supplier	적재된 값을 생성하는 {@link Supplier}
      * @return	{@link UnsafeLazy} 인스턴스.
      */
@@ -30,6 +39,11 @@ public class UnsafeLazy<T> {
 	/**
 	 * 주어진 값으로 적재된 {@link UnsafeLazy} 인스턴스를 생성한다.
 	 * 
+	 * <p>
+	 * <b>주의:</b> 이렇게 생성된 객체는 {@code Supplier}가 없으므로, {@link #unload()} 후
+	 * {@link #get()}을 호출하면 {@link NullPointerException}이 발생한다.
+	 * 
+	 * @param <T>	적재되는 값의 타입.
 	 * @param value 적재된 값
 	 * @return {@link UnsafeLazy} 인스턴스.
 	 */
@@ -37,6 +51,20 @@ public class UnsafeLazy<T> {
 		return new UnsafeLazy<>(value);
 	}
 	
+	/**
+	 * 주어진 인터페이스를 구현하는 지연 적재 프록시 객체를 생성한다.
+	 * <p>
+	 * cglib {@code Enhancer}로 {@code intfc}를 구현한 프록시를 만들며, {@code intfc}(또는 그 상위 타입,
+	 * {@link Object} 포함)에 선언된 메소드가 처음 호출될 때 {@code supplier}로 실제 객체를 생성하여
+	 * 이후 호출을 그 객체에 위임한다. 실제 객체 생성은 동기화되지 않으므로 여러 쓰레드가 동시에 처음
+	 * 호출하면 {@code supplier}가 여러 번 호출될 수 있다.
+	 *
+	 * @param <T>		프록시가 구현할 인터페이스 타입.
+	 * @param supplier	실제 객체를 생성하는 {@link Supplier}.
+	 * @param intfc		프록시가 구현할 인터페이스.
+	 * @return		{@code intfc}를 구현한 프록시 객체.
+	 * @throws NullPointerException	{@code supplier}가 {@code null}인 경우.
+	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public static <T> T wrap(Supplier<? extends T> supplier, Class<T> intfc) {
 		Enhancer enhancer = new Enhancer();
@@ -83,12 +111,12 @@ public class UnsafeLazy<T> {
 	}
 	
 	/**
-	 * 주어진 값을 적재시키고, 이전 값을 {@link FOption} 형태로 반환한다.
+	 * 주어진 값을 적재시키고, 새로 적재된 값을 그대로 반환한다.
 	 * <p>
-	 * 설정된 값이 없었으면 {@link FOption#empty()}를 반환한다.
+	 * {@code null}을 지정하면 {@link #unload()}와 같이 적재되지 않은 상태가 된다.
 	 *
 	 * @param value	설정할 값
-	 * @return	이전 값. 설정된 값이 없었으면 {@link FOption#empty()} 반환.
+	 * @return	새로 적재된 값({@code value}).
 	 */
 	public T set(T value) {
         return m_ref = value;

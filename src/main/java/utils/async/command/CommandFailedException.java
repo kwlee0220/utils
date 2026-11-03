@@ -17,7 +17,9 @@ import org.jetbrains.annotations.Nullable;
 public class CommandFailedException extends ExecutionException {
 	private static final long serialVersionUID = 1L;
 
+	/** sub-process의 종료 코드. */
 	private final int m_exitCode;
+	/** stderr(또는 stdout) 파일의 마지막 부분. 출력이 파일로 redirect되지 않았거나 읽지 못한 경우 {@code null}. */
 	private final @Nullable String m_outputTail;
 
 	/**

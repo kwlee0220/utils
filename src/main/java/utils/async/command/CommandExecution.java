@@ -175,11 +175,21 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 
 		/** {@link #none()}. */
-		public enum None implements Input { INSTANCE }
+		public enum None implements Input { /** 유일한 인스턴스. */ INSTANCE }
 		/** {@link #inherit()}. */
-		public enum Inherit implements Input { INSTANCE }
-		/** {@link #file(File)}. */
+		public enum Inherit implements Input { /** 유일한 인스턴스. */ INSTANCE }
+		/**
+		 * {@link #file(File)}.
+		 *
+		 * @param file	입력 파일.
+		 */
 		public record FromFile(File file) implements Input {
+			/**
+			 * 파일 입력을 생성한다.
+			 *
+			 * @param file	입력 파일.
+			 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우.
+			 */
 			public FromFile {
 				Preconditions.checkNotNullArgument(file, "stdin file must not be null");
 			}
@@ -232,11 +242,11 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 
 		/** {@link #discard()}. */
-		public enum Discard implements Output { INSTANCE }
+		public enum Discard implements Output { /** 유일한 인스턴스. */ INSTANCE }
 		/** {@link #inherit()}. */
-		public enum Inherit implements Output { INSTANCE }
+		public enum Inherit implements Output { /** 유일한 인스턴스. */ INSTANCE }
 		/** {@link #toStdout()}. */
-		public enum ToStdout implements Output { INSTANCE }
+		public enum ToStdout implements Output { /** 유일한 인스턴스. */ INSTANCE }
 		/**
 		 * {@link #file(File)}.
 		 *
@@ -244,6 +254,13 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		 * @param appending	{@code true}이면 기존 내용 뒤에 이어 쓰고, {@code false}이면 덮어쓴다.
 		 */
 		public record ToFile(File file, boolean appending) implements Output {
+			/**
+			 * 파일 출력을 생성한다.
+			 *
+			 * @param file		출력 파일.
+			 * @param appending	{@code true}이면 기존 내용 뒤에 이어 쓰고, {@code false}이면 덮어쓴다.
+			 * @throws IllegalArgumentException	{@code file}이 {@code null}인 경우.
+			 */
 			public ToFile {
 				Preconditions.checkNotNullArgument(file, "output file must not be null");
 			}
@@ -690,9 +707,20 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 	}
 
+	/**
+	 * {@link CommandExecution}을 구성하는 빌더를 생성한다.
+	 *
+	 * @return	새 빌더 객체.
+	 */
 	public static Builder builder() {
 		return new Builder();
 	}
+	/**
+	 * {@link CommandExecution} 빌더.
+	 * <p>
+	 * 명령행, working directory, 환경 변수, {@link CommandVariable}, 표준 입출력 연결 방식, 성공 종료 코드,
+	 * 제한 시간 등을 설정한 뒤 {@link #build()}로 {@link CommandExecution}을 생성한다.
+	 */
 	public static final class Builder {
 		private List<String> m_command = Lists.newArrayList();
 		private File m_workingDirectory;
@@ -704,6 +732,11 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		private Input m_stdin = Input.none();
 		private Output m_stdout = Output.discard();
 		private Output m_stderr = Output.discard();
+		
+		/**
+		 * 빈 빌더를 생성한다. 보통은 {@link CommandExecution#builder()}를 사용한다.
+		 */
+		public Builder() { }
 		
 		/**
 		 * 현재 빌더 설정으로 {@link CommandExecution}을 생성한다.
@@ -846,6 +879,12 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 			return this;
 		}
 		
+		/**
+		 * 주어진 이름의 변수가 등록되어 있는지 여부를 반환한다.
+		 *
+		 * @param varId	변수 이름.
+		 * @return	등록되어 있으면 {@code true}.
+		 */
 		public boolean hasVariable(String varId) {
 			return m_variables.containsKey(varId);
 		}

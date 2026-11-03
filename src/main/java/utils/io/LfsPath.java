@@ -18,7 +18,8 @@ import com.google.common.base.Objects;
 import utils.stream.FStream;
 
 /**
- * 
+ * 로컬 파일 시스템의 {@link File}에 기반한 {@link FilePath} 구현이다.
+ * 직렬화 시에는 파일의 절대 경로가 기록된다.
  * @author Kang-Woo Lee (ETRI)
  */
 public class LfsPath implements FilePath, Serializable {
@@ -26,10 +27,22 @@ public class LfsPath implements FilePath, Serializable {
 	
 	private transient File m_file;
 	
+	/**
+	 * 주어진 파일에 대한 {@link LfsPath} 객체를 생성한다.
+	 *
+	 * @param file	대상 파일.
+	 * @return	생성된 {@link LfsPath} 객체.
+	 */
 	public static LfsPath of(File file) {
 		return new LfsPath(file);
 	}
 	
+	/**
+	 * 주어진 경로에 대한 {@link LfsPath} 객체를 생성한다.
+	 *
+	 * @param path	대상 파일 경로.
+	 * @return	생성된 {@link LfsPath} 객체.
+	 */
 	public static LfsPath of(String path) {
 		return new LfsPath(new File(path));
 	}
@@ -38,6 +51,11 @@ public class LfsPath implements FilePath, Serializable {
 		m_file = file;
 	}
 	
+	/**
+	 * 본 경로에 해당하는 {@link File} 객체를 반환한다.
+	 *
+	 * @return	파일 객체.
+	 */
 	public File getFile() {
 		return m_file;
 	}
@@ -222,12 +240,25 @@ public class LfsPath implements FilePath, Serializable {
 		return Objects.equal(m_file, other.m_file);
 	}
 	
+	/**
+	 * 직렬화 시 기본 필드에 이어 파일의 절대 경로를 UTF 문자열로 기록한다.
+	 *
+	 * @param os	객체 출력 스트림.
+	 * @throws IOException	기록 중 오류가 발생한 경우.
+	 */
 	private void writeObject(ObjectOutputStream os) throws IOException {
 		os.defaultWriteObject();
 		
 		os.writeUTF(m_file.getAbsolutePath());
 	}
 	
+	/**
+	 * 역직렬화 시 기록된 절대 경로로부터 {@link File} 객체를 복원한다.
+	 *
+	 * @param is	객체 입력 스트림.
+	 * @throws IOException	읽는 중 오류가 발생한 경우.
+	 * @throws ClassNotFoundException	기본 필드 역직렬화 중 클래스를 찾을 수 없는 경우.
+	 */
 	private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
 		is.defaultReadObject();
 		

@@ -170,6 +170,11 @@ public class CommandVariable implements Keyed<String>, AutoCloseable {
 		return getName();
 	}
 
+	/**
+	 * 변수 이름을 반환한다. 명령행에서 {@code ${<이름>}} 형태로 참조된다.
+	 *
+	 * @return	변수 이름.
+	 */
 	public @NotNull String getName() {
 		return m_name;
 	}

@@ -12,6 +12,7 @@ import utils.func.FOption;
  * 남은 원소 수와 남은 표본 수의 비로 선택 확률을 매번 다시 정하므로, 입력의 실제 개수가 {@code total}과 같으면
  * 정확히 {@code nsamples}개를 고른다. 목표 개수를 모두 고르면 남은 입력을 읽지 않고 끝난다.
  *
+ * @param <T>	원소 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public class AdaptiveSamplingStream<T> implements FStream<T> {

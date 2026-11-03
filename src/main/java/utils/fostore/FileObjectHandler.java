@@ -6,7 +6,11 @@ import java.util.concurrent.ExecutionException;
 
 
 /**
+ * 파일 객체 저장소({@link FileObjectStore})에서 식별자와 파일 사이의 대응 및
+ * 파일 객체의 읽기/쓰기를 담당하는 인터페이스.
  *
+ * @param <K>	파일 객체 식별자 타입.
+ * @param <T>	파일 객체 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public interface FileObjectHandler<K,T> extends FileObjectReader<K,T> {
@@ -15,7 +19,8 @@ public interface FileObjectHandler<K,T> extends FileObjectReader<K,T> {
 	 * 
 	 * @param obj	파일 객체.
 	 * @param file	저장할 파일
-	 * @throws IOException 파일 객체 생성 중 오류가 발생된 경우일
+	 * @throws IOException 파일 저장 중 입출력 오류가 발생된 경우.
+	 * @throws ExecutionException	파일 객체를 파일 내용으로 변환하는 과정에서 예외가 발생된 경우.
 	 */
 	public void writeFileObject(T obj, File file) throws IOException, ExecutionException;
 	

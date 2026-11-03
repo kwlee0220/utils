@@ -151,6 +151,11 @@ public interface FloatFStream extends FStream<Float> {
 		return Floats.toArray(toList());
 	}
 
+	/**
+	 * 일반 {@link FStream}{@code <Float>}을 {@link FloatFStream}로 감싸는 어댑터.
+	 * <p>
+	 * {@link #next()}와 {@link #close()}를 모두 원본 스트림에 그대로 위임한다.
+	 */
 	static class FStreamAdaptor implements FloatFStream {
 		private final FStream<Float> m_src;
 

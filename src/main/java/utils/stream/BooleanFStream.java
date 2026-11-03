@@ -84,6 +84,11 @@ public interface BooleanFStream extends FStream<Boolean> {
 		return Booleans.toArray(toList());
 	}
 	
+	/**
+	 * 일반 {@link FStream}{@code <Boolean>}을 {@link BooleanFStream}로 감싸는 어댑터.
+	 * <p>
+	 * {@link #next()}와 {@link #close()}를 모두 원본 스트림에 그대로 위임한다.
+	 */
 	static class FStreamAdaptor implements BooleanFStream {
 		private final FStream<Boolean> m_src;
 		

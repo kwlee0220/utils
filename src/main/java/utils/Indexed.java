@@ -12,6 +12,14 @@ public final class Indexed<T> {
 	private final int m_index;
 	private final T m_value;
 	
+	/**
+	 * 값과 인덱스로 {@link Indexed}를 만든다. 인덱스의 범위는 검사하지 않는다.
+	 *
+	 * @param <T>	값의 타입.
+	 * @param data	값. {@code null}을 허용한다.
+	 * @param index	인덱스.
+	 * @return	새 {@link Indexed} 객체.
+	 */
 	public static <T> Indexed<T> with(T data, int index) {
 		return new Indexed<>(data, index);
 	}
@@ -21,10 +29,20 @@ public final class Indexed<T> {
 		m_value = data;
 	}
 	
+	/**
+	 * 인덱스를 반환한다.
+	 *
+	 * @return	인덱스.
+	 */
 	public int index() {
 		return m_index;
 	}
 	
+	/**
+	 * 값을 반환한다.
+	 *
+	 * @return	값. {@code null}일 수 있다.
+	 */
 	public T value() {
 		return m_value;
 	}

@@ -19,6 +19,11 @@ import ch.qos.logback.core.joran.spi.JoranException;
  */
 public class LogbackConfigLoader {
 	/**
+	 * 인스턴스를 생성한다. 모든 메소드가 정적이므로 인스턴스를 만들 필요는 없다.
+	 */
+	public LogbackConfigLoader() { }
+
+	/**
 	 * 주어진 {@link File}로부터 Logback 설정을 적재한다.
 	 * <p>
 	 * 현재 {@link LoggerContext}를 reset한 뒤 설정 파일을 적용한다.
@@ -48,12 +53,14 @@ public class LogbackConfigLoader {
     }
 
 	/**
-	 * 주어진 클래스의 classpath에서 {@code /logback.xml}을 찾아 Logback 설정을 적재한다.
+	 * 주어진 클래스를 기준으로 classpath 리소스 {@code resourceName}을 찾아 Logback 설정을 적재한다.
 	 * <p>
-	 * 현재 {@link LoggerContext}를 reset한 뒤 {@code configFileResource.getResourceAsStream("/logback.xml")}로
+	 * 현재 {@link LoggerContext}를 reset한 뒤 {@code configFileResource.getResourceAsStream(resourceName)}으로
 	 * 읽은 스트림을 설정에 사용한다. 해당 리소스가 없으면 스트림이 {@code null}이 되며 동작이 정의되지 않는다.
 	 *
 	 * @param configFileResource classpath 조회의 기준이 되는 클래스.
+	 * @param resourceName	리소스 이름. {@link Class#getResourceAsStream(String)} 규칙을 따르므로
+	 * 						{@code '/'}로 시작하지 않으면 클래스의 패키지에 대한 상대 경로로 해석된다.
 	 * @throws JoranException 설정 파싱/적용 중 오류가 발생한 경우.
 	 */
     public static void loadLogbackConfigFromClass(Class<?> configFileResource, String resourceName)
@@ -100,6 +107,9 @@ public class LogbackConfigLoader {
 
 	/**
 	 * 개발/테스트용 진입점. 하드코딩된 logback.xml 경로로 설정을 적재하여 로그 출력을 확인한다.
+	 *
+	 * @param args	사용하지 않는다.
+	 * @throws Exception	설정 적재가 실패한 경우.
 	 */
     public static void main(String[] args) throws Exception {
         // 예제: 특정 Logback 설정 파일 사용

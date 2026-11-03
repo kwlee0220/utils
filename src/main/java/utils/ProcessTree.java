@@ -33,6 +33,13 @@ public final class ProcessTree {
 		m_root = root;
 	}
 
+	/**
+	 * 주어진 root process에 대한 process tree를 생성한다.
+	 *
+	 * @param root	root process.
+	 * @return	생성된 {@code ProcessTree}.
+	 * @throws IllegalArgumentException	{@code root}가 {@code null}인 경우.
+	 */
 	public static ProcessTree of(Process root) {
 		return new ProcessTree(root);
 	}

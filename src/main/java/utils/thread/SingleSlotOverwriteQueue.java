@@ -34,6 +34,12 @@ public class SingleSlotOverwriteQueue<T> {
 	@Nullable @GuardedBy("m_guard") private T m_data = null;
 
 	/**
+	 * 비어 있는 큐를 생성한다.
+	 */
+	public SingleSlotOverwriteQueue() {
+	}
+
+	/**
 	 * 항목을 큐에 넣는다.
 	 * <p>
 	 * 큐에 이미 미수신 항목이 있으면 별도 통지 없이 폐기되고 새 항목으로 대체된다.

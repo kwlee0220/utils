@@ -10,7 +10,8 @@ import utils.func.UncheckedPredicate;
 import utils.stream.FStream;
 
 /**
- * 
+ * 파일 또는 디렉토리를 가리키는 경로 proxy 인터페이스이다.
+ * 파일 정보 조회, 하위 파일 탐색, 이동/삭제, 입출력 스트림 생성 기능을 제공한다.
  * @author Kang-Woo Lee (ETRI)
  */
 public interface FilePath {
@@ -58,8 +59,18 @@ public interface FilePath {
 	 */
 	public boolean isDirectory();
 	
+	/**
+	 * 본 경로에 해당하는 파일이 일반 파일인지 여부를 반환한다.
+	 *
+	 * @return	일반 파일인 경우는 {@code true}, 그렇지 않은 경우는 {@code false}.
+	 */
 	public boolean isRegular();
 	
+	/**
+	 * 본 경로가 디렉토리가 아니면서 {@link #isRegular()}가 {@code true}인지 여부를 반환한다.
+	 *
+	 * @return	디렉토리가 아닌 일반 파일인 경우는 {@code true}, 그렇지 않은 경우는 {@code false}.
+	 */
 	public default boolean isRegularFile() {
 		return !isDirectory() && isRegular();
 	}
@@ -106,6 +117,13 @@ public interface FilePath {
 	 */
 	public boolean delete();
 	
+	/**
+	 * 본 파일을 삭제하고, 부모 디렉토리에 대해 {@link #deleteIfEmptyDirectory()}를 호출하여
+	 * 비게 된 상위 디렉토리들을 차례로 삭제한다.
+	 * 본 파일의 삭제 실패({@link #delete()}가 {@code false}를 반환한 경우)는 무시된다.
+	 *
+	 * @throws IOException	상위 디렉토리의 하위 파일 목록 조회 중 I/O 오류가 발생한 경우.
+	 */
 	public default void deleteUpward() throws IOException {
 		delete();
 		
@@ -115,6 +133,13 @@ public interface FilePath {
 		}
 	}
 	
+	/**
+	 * 본 경로가 비어 있는 디렉토리이면 삭제하고, 이어서 부모 디렉토리에 대해서도
+	 * 같은 작업을 재귀적으로 수행한다. 디렉토리가 아니거나 비어 있지 않으면 아무것도 하지 않는다.
+	 * 디렉토리 삭제 실패는 무시된다.
+	 *
+	 * @throws IOException	하위 파일 목록 조회 중 I/O 오류가 발생한 경우.
+	 */
 	public default void deleteIfEmptyDirectory() throws IOException {
 		if ( isDirectory() && !streamChildFilePaths().exists() ) {
 			delete();
@@ -142,6 +167,14 @@ public interface FilePath {
 	 */
 	public long getLength() throws IOException;
 	
+	/**
+	 * 본 디렉토리 아래의 모든 일반 파일({@link #walkRegularFileTree()})의 길이 합을 byte 단위로 반환한다.
+	 * <p>
+	 * <b>주의:</b> 개별 파일의 {@link #getLength()}가 실패하면 해당 파일은 오류 없이 합계에서 제외된다.
+	 *
+	 * @return	총 byte 크기.
+	 * @throws IOException	하위 파일 탐색 중 I/O 오류가 발생한 경우.
+	 */
 	public default long getTotalLength() throws IOException {
 		return walkRegularFileTree()
 					.mapToTry(FilePath::getLength)
@@ -165,6 +198,7 @@ public interface FilePath {
 	 * {@code IOException} 예외를 생성한다. 
 	 * 
 	 * @param overwrite	기존 파일이 존재하는 경우 해당 파일의 삭제 여부.
+	 * @return	출력 스트림 객체.
 	 * @throws IOException	I/O 오류가 발생된 경우.
 	 */
 	public OutputStream create(boolean overwrite) throws IOException;
@@ -177,6 +211,18 @@ public interface FilePath {
 	 */
 	public OutputStream append() throws IOException;
 
+	/**
+	 * 본 디렉토리 아래의 모든 하위 파일과 디렉토리를 깊이 우선(전위 순서)으로 나열하는 스트림을 반환한다.
+	 * 하위 디렉토리의 탐색은 스트림을 소비하는 시점에 수행되며, 그 과정에서 발생한
+	 * {@link IOException}은 검사되지 않는 예외처럼(sneaky throw) 그대로 전파된다.
+	 * <p>
+	 * <b>주의:</b> 본 경로는 디렉토리여야 한다. 디렉토리가 아니면 {@link #streamChildFilePaths()}가
+	 * {@code null}을 반환하여 {@link NullPointerException}이 발생할 수 있다.
+	 *
+	 * @param includeCurrent	결과 스트림의 맨 앞에 본 경로 자신을 포함할지 여부.
+	 * @return	하위 경로 스트림.
+	 * @throws IOException	본 디렉토리의 하위 파일 목록 조회 중 I/O 오류가 발생한 경우.
+	 */
 	public default FStream<FilePath> walkTree(boolean includeCurrent) throws IOException {
 		Function<FilePath,FStream<FilePath>> walkDown
 			= UncheckedFunction.sneakyThrow(fp ->  fp.isDirectory() ? fp.walkTree(true) : FStream.of(fp));
@@ -189,6 +235,13 @@ public interface FilePath {
 		}
 	}
 	
+	/**
+	 * 본 디렉토리 아래의 모든 디렉토리가 아닌 파일들을 나열하는 스트림을 반환한다.
+	 * 본 경로 자신은 포함되지 않으며, 탐색 방식과 제약은 {@link #walkTree(boolean)}와 같다.
+	 *
+	 * @return	하위 파일 스트림.
+	 * @throws IOException	본 디렉토리의 하위 파일 목록 조회 중 I/O 오류가 발생한 경우.
+	 */
 	public default FStream<FilePath> walkRegularFileTree() throws IOException {
 		return walkTree(false).filterNot(UncheckedPredicate.sneakyThrow(FilePath::isDirectory));
 	}

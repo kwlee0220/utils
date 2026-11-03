@@ -2,6 +2,9 @@ package utils.swing;
 
 
 /**
+ * 화면에 출력할 수 있는 {@link Convas}.
+ * <p>
+ * 버퍼에 그려진 내용은 {@link #updateView()}가 호출될 때 화면에 반영된다.
  * 
  * @author Kang-Woo Lee (ETRI)
  */

@@ -7,6 +7,7 @@ package utils.fostore;
  * 방문자 객체를 정의한다.
  * 각 원소의 실제 클래스 타입은 container 클래스에 따라 달라진다.
  *
+ * @param <K>	방문 대상 원소(식별자) 타입.
  * @author Kang-Woo Lee
  * @version 1.0
  */

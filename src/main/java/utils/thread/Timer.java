@@ -118,6 +118,12 @@ public class Timer {
 		}
 	}
 
+	/**
+	 * 타이머를 생성한다.
+	 * <p>
+	 * 시간을 재는 스케줄러 스레드 1개와 최대 {@value #MAX_CANCELLATION_THREADS}개의 취소 스레드를 쓰며,
+	 * 모두 데몬 스레드다. 사용이 끝나면 {@link #shutdown()}으로 멈춘다.
+	 */
 	public Timer() {
 		m_scheduler = new ScheduledThreadPoolExecutor(1, daemonThreads("execution-timer"));
 		// 예약이 해제되면(실행이 먼저 끝난 경우) 기한까지 기다리지 않고 큐에서 바로 뺀다.

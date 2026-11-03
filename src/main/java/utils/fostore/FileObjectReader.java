@@ -7,7 +7,10 @@ import java.util.concurrent.ExecutionException;
 import javax.tools.FileObject;
 
 /**
+ * 파일의 내용을 읽어 파일 객체를 생성하는 인터페이스.
  *
+ * @param <K>	파일 객체 식별자 타입.
+ * @param <T>	파일 객체 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public interface FileObjectReader<K,T> {

@@ -53,6 +53,11 @@ public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExec
 	private volatile CompletableFuture<? extends T> m_future;
 
 	/**
+	 * 하위 클래스를 위한 기본 생성자.
+	 */
+	public CompletableFutureAsyncExecution() { }
+
+	/**
 	 * 비동기 작업을 시작하고 그 결과를 담을 {@link CompletableFuture}를 반환한다.
 	 * <p>
 	 * 본 메소드는 {@link #start()} 진행 중 {@code STARTING} 상태에서 호출된다.
@@ -131,6 +136,16 @@ public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExec
 		return (future == null) ? "not-started" : future.toString();
 	}
 	
+	/**
+	 * 이미 만들어진 {@link CompletableFuture}를 감싸는 execution을 생성한다.
+	 * <p>
+	 * 반환된 execution은 {@link #start()}를 호출해야 시작된다. 이 execution을 취소하면 주어진 future도
+	 * {@code cancel(true)}로 취소된다.
+	 *
+	 * @param <T>	결과 타입.
+	 * @param future	감쌀 future.
+	 * @return	시작되지 않은 execution.
+	 */
 	public static <T> CompletableFutureAsyncExecution<T> of(CompletableFuture<T> future) {
 		return new CompletableFutureAsyncExecution<T>() {
 			@Override
@@ -140,6 +155,14 @@ public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExec
 		};
 	}
 	
+	/**
+	 * {@link CompletableFuture#runAsync(Runnable)}로 작업을 수행하는 execution을 생성한다.
+	 * <p>
+	 * 작업은 {@link #start()}가 호출될 때 공용 {@link java.util.concurrent.ForkJoinPool}에서 수행되기 시작한다.
+	 *
+	 * @param runnable	수행할 작업.
+	 * @return	시작되지 않은 execution.
+	 */
 	public static CompletableFutureAsyncExecution<Void> runAsync(Runnable runnable) {
 		return new CompletableFutureAsyncExecution<>() {
 			@Override
@@ -149,6 +172,15 @@ public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExec
 		};
 	}
 
+	/**
+	 * {@link CompletableFuture#supplyAsync(Supplier)}로 결과 값을 만드는 execution을 생성한다.
+	 * <p>
+	 * 작업은 {@link #start()}가 호출될 때 공용 {@link java.util.concurrent.ForkJoinPool}에서 수행되기 시작한다.
+	 *
+	 * @param <T>	결과 타입.
+	 * @param supplier	결과 값을 만드는 함수.
+	 * @return	시작되지 않은 execution.
+	 */
 	public static <T> CompletableFutureAsyncExecution<T> supplyAsync(Supplier<T> supplier) {
 		return new CompletableFutureAsyncExecution<T>() {
 			@Override
@@ -158,6 +190,16 @@ public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExec
 		};
 	}
 
+	/**
+	 * 검사 예외를 던질 수 있는 함수로 결과 값을 만드는 execution을 생성한다.
+	 * <p>
+	 * 작업은 {@link #start()}가 호출될 때 공용 {@link java.util.concurrent.ForkJoinPool}에서 수행되기 시작한다.
+	 * {@code supplier}가 던진 예외는 감싸지 않은 채 실패 원인이 된다.
+	 *
+	 * @param <T>	결과 타입.
+	 * @param supplier	결과 값을 만드는 함수.
+	 * @return	시작되지 않은 execution.
+	 */
 	public static <T> CompletableFutureAsyncExecution<T> supplyAsync(CheckedSupplier<T> supplier) {
 		return new CompletableFutureAsyncExecution<T>() {
 			@Override
@@ -167,6 +209,16 @@ public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExec
 		};
 	}
 
+	/**
+	 * 주어진 시간만큼 지연한 뒤 작업을 수행하는 {@link Executor}를 반환한다.
+	 * {@link CompletableFuture#delayedExecutor(long, TimeUnit)}를 그대로 사용한다.
+	 *
+	 * @param delay	지연 시간.
+	 * @param unit	지연 시간 단위.
+	 * @return	지연 executor.
+	 * @throws IllegalArgumentException	{@code delay}가 음수인 경우.
+	 * @throws NullPointerException	{@code unit}이 {@code null}인 경우.
+	 */
 	public static Executor getDelayedExecutor(long delay, TimeUnit unit) {
 		Preconditions.checkArgument(delay >= 0, "delay must be non-negative: %d", delay);
 		Preconditions.checkNotNull(unit, "unit must not be null");

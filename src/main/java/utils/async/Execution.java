@@ -100,6 +100,7 @@ import utils.func.Result;
  * 모든 상태 조회 및 콜백 등록 메소드는 멀티스레드 환경에서 안전하게 호출 가능하다.
  * 콜백 핸들러 본문의 실행 컨텍스트(동기/비동기, lock 보유 여부)는 각 메소드 Javadoc을 참조한다.
  *
+ * @param <T>	연산 결과 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public interface Execution<T> extends Future<T> {
@@ -454,6 +455,7 @@ public interface Execution<T> extends Future<T> {
 	 * 종료될 가능성이 있다면 반드시 {@link #waitForStarted(long, TimeUnit)} 또는
 	 * {@link #waitForStarted(Date)}를 사용한다.
 	 *
+	 * @return	반환 시점의 작업 상태. 작업이 RUNNING에 도달한 뒤 이미 종료되었다면 종료 상태일 수 있다.
 	 * @throws InterruptedException	작업 시작 대기 중 대기 쓰레드가 interrupt된 경우.
 	 */
 	public AsyncState waitForStarted() throws InterruptedException;
@@ -474,6 +476,7 @@ public interface Execution<T> extends Future<T> {
 	 *
 	 * @param timeout	대기시간
 	 * @param unit		대기시간 단위
+	 * @return	반환 시점의 작업 상태. 작업이 RUNNING에 도달한 뒤 이미 종료되었다면 종료 상태일 수 있다.
 	 * @throws InterruptedException	작업 시작 대기 중 대기 쓰레드가 interrupt된 경우.
 	 * @throws TimeoutException	제한 시간까지 작업이 RUNNING에 도달하지 못한 경우.
 	 */
@@ -499,6 +502,7 @@ public interface Execution<T> extends Future<T> {
 	 * 발생하므로, 시작 가능성이 불확실한 작업에는 합리적인 짧은 {@code due}를 설정한다.
 	 *
 	 * @param due	대기 제한 시각
+	 * @return	반환 시점의 작업 상태. 작업이 RUNNING에 도달한 뒤 이미 종료되었다면 종료 상태일 수 있다.
 	 * @throws InterruptedException	작업 시작 대기 중 대기 쓰레드가 interrupt된 경우.
 	 * @throws TimeoutException	제한 시각까지 작업이 RUNNING에 도달하지 못한 경우.
 	 */

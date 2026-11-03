@@ -27,6 +27,13 @@ public interface JpaModule {
 	 */
 	public void setEntityManager(EntityManager em);
 	
+	/**
+	 * {@link EntityManager}가 설정되었는지 검사한다.
+	 * <p>
+	 * <b>주의:</b> 현재 구현은 {@code getEntityManager() != null}의 결과(boolean)를
+	 * {@code checkNotNull}에 넘기므로 항상 통과하며, {@link EntityManager}가 설정되지 않은
+	 * 경우에도 예외를 던지지 않는다.
+	 */
 	public default void checkEntityManager() {
 		Preconditions.checkNotNull(getEntityManager() != null, "EntityManager is not set");
 	}

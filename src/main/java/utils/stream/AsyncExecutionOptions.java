@@ -8,8 +8,9 @@ import utils.Preconditions;
 
 
 /**
- * 비동기 스트림 연산({@link FStream#mapAsync(java.util.function.Function, AsyncExecutionOptions) mapAsync},
- * {@link FStream#flatMapAsync(java.util.function.Function, AsyncExecutionOptions) flatMapAsync} 등)의 실행 옵션.
+ * 비동기 스트림 연산({@link FStream#mapAsync(utils.func.CheckedFunction, AsyncExecutionOptions) mapAsync},
+ * {@link FStream#mapAsyncToTry(utils.func.CheckedFunction, AsyncExecutionOptions) mapAsyncToTry},
+ * {@link FStream#flatMapAsync(utils.func.CheckedFunction, AsyncExecutionOptions) flatMapAsync})의 실행 옵션.
  * <p>
  * 불변 객체다. {@code withXxx()}는 이 객체를 바꾸지 않고 해당 값만 다른 새 객체를 반환한다.
  * 기본값은 {@code keepOrder=false}, {@code workerCount=max(1, 프로세서 수 - 2)}, {@code executor=null}(공용

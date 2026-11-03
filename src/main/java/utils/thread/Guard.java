@@ -133,6 +133,8 @@ public class Guard {
 	 * 시그널을 받거나 interrupt될 때까지 대기한다.
 	 * <p>
 	 * 본 메소드는 반드시 lock을 획득한 상태에서 호출해야 한다.
+	 *
+	 * @throws InterruptedException	대기 중에 현재 쓰레드가 interrupt된 경우.
 	 */
 	public void awaitSignal() throws InterruptedException {
 		m_cond.await();

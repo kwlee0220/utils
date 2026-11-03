@@ -108,6 +108,12 @@ public record Split(String head, Optional<String> tail) {
 					.orElseThrow(() -> new NoSuchElementException("tail is absent"));
 	}
 	
+	/**
+	 * 분할 결과를 {@code head}를 키, {@code tail}을 값으로 하는 {@link KeyValue}로 바꾼다.
+	 *
+	 * @return	{@code (head, tail)} 키-값 쌍.
+	 * @throws IllegalArgumentException	tail이 없는 경우 (즉, 구분자가 발견되지 않았던 경우).
+	 */
 	public KeyValue<String, String> toKeyValue() {
 		String value = tail.orElseThrow(() -> new IllegalArgumentException("invalid split: tail is absent"));
 		return new KeyValue<>(head, value);

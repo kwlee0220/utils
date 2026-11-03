@@ -36,6 +36,7 @@ import utils.async.StartableExecution;
  *	<dd> target_aop를 cancel시키고 본 연산은 취소된 것으로 간주된다.
  * </dl>
  *
+ * @param <T>	대상 연산(곧 본 연산)의 결과 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T> implements CancellableWork {

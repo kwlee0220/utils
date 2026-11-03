@@ -21,7 +21,15 @@ import utils.stream.FStream;
 
 
 /**
- * 
+ * 최상위 디렉토리 아래의 파일들에 파일 객체를 저장하는 기본 {@link FileObjectStore} 구현.
+ * <p>
+ * 식별자와 파일 사이의 대응, 파일 객체의 읽기/쓰기, 유효 파일 판별은 모두
+ * 생성 시 주어진 {@link FileObjectHandler}에 위임한다.
+ * <p>
+ * <b>주의:</b> {@link #getFileObjectAll()}은 읽기에 실패한 파일을 예외 없이 건너뛴다.
+ *
+ * @param <K>	파일 객체 식별자 타입.
+ * @param <T>	파일 객체 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public class DefaultFileObjectStore<K,T> implements FileObjectStore<K,T> {

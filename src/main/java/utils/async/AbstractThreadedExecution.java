@@ -34,6 +34,11 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 	private volatile boolean m_isDaemonThread = true;
 	
 	/**
+	 * 하위 클래스를 위한 기본 생성자. 쓰레드 이름 접두어는 클래스의 단순 이름이고, 데몬 쓰레드를 사용한다.
+	 */
+	public AbstractThreadedExecution() { }
+
+	/**
 	 * 연산이 시작되어 새로운 쓰레드를 생성하고, 작업을 호출하기 전에
 	 * 초기화가 필요한 경우 서브클래스에서 구현한다.
 	 * <p>
@@ -205,10 +210,24 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		}
 	}
 
+	/**
+	 * 작업 쓰레드 이름의 접두어를 반환한다. 기본값은 클래스의 단순 이름이다.
+	 *
+	 * @return	쓰레드 이름 접두어.
+	 */
 	public String getThreadNamePrefix() {
 		return m_threadNamePrefix;
 	}
 	
+	/**
+	 * 작업 쓰레드 이름의 접두어를 설정한다.
+	 * <p>
+	 * 쓰레드 이름은 {@code <접두어>@<identity hash(16진수)>} 형태가 된다.
+	 * {@link #start()}가 새 쓰레드를 만드는 경우에만 쓰이며, {@link #toString()}에도 사용된다.
+	 *
+	 * @param prefix	쓰레드 이름 접두어.
+	 * @throws IllegalArgumentException	{@code prefix}가 {@code null}인 경우.
+	 */
 	public void setThreadNamePrefix(String prefix) {
 		Preconditions.checkNotNullArgument(prefix, "threadNamePrefix must not be null");
 		
@@ -258,9 +277,21 @@ public abstract class AbstractThreadedExecution<T> extends AbstractAsyncExecutio
 		}
 	}
 	
+	/**
+	 * {@link #start()}가 새로 만드는 작업 쓰레드를 데몬 쓰레드로 만들지 여부를 반환한다. 기본값은 {@code true}이다.
+	 *
+	 * @return	데몬 쓰레드 사용 여부.
+	 */
 	public boolean isDaemonThread() {
 		return m_isDaemonThread;
 	}
+	/**
+	 * {@link #start()}가 새로 만드는 작업 쓰레드를 데몬 쓰레드로 만들지 여부를 설정한다.
+	 * <p>
+	 * {@link AbstractAsyncExecution#getExecutor()}가 설정되어 있으면 쓰레드를 만들지 않으므로 적용되지 않는다.
+	 *
+	 * @param isDaemon	데몬 쓰레드 사용 여부.
+	 */
 	public void setDaemonThread(boolean isDaemon) {
 		m_isDaemonThread = isDaemon;
 	}

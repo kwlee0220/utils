@@ -1575,7 +1575,9 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 	 * {@code effect} 수행 중 오류가 발생되면 남은 데이터에 대한 처리를 멈추고 해당
 	 * 예외를 발생시킨다.
 	 * 
+	 * @param <X>		{@code effect}가 던질 수 있는 예외 타입.
 	 * @param effect	Consumer 객체.
+	 * @throws X	{@code effect} 수행 중 예외가 발생한 경우.
 	 */
 	public default <X extends Throwable>
 	void forEachOrThrow(CheckedConsumerX<? super T,X> effect) throws X {

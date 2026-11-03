@@ -19,6 +19,13 @@ package utils.func;
  */
 public class Unchecked {
 	/**
+	 * {@code Unchecked} 객체를 생성한다.
+	 * <p>
+	 * 정적 메소드만 제공하는 유틸리티 클래스이므로 직접 생성할 필요는 없다.
+	 */
+	public Unchecked() { }
+
+	/**
 	 * 주어진 {@link CheckedRunnable}을 실행하고, 예외가 발생하면 무시한다.
 	 *
 	 * @param checked	실행할 {@code CheckedRunnable} 객체.

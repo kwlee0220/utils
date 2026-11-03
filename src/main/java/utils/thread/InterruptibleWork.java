@@ -7,5 +7,10 @@ package utils.thread;
  * @see RecurringWork
  */
 public interface InterruptibleWork {
+	/**
+	 * 수행 중인 작업을 강제로 중단시킨다.
+	 * <p>
+	 * {@link RecurringScheduleThread#stop(boolean)}이 작업 쓰레드가 아닌 쓰레드에서 이 메소드를 호출한다.
+	 */
 	public void interrupt();
 }

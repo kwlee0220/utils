@@ -48,6 +48,7 @@ import utils.func.FOption;
  * 또는 {@link PeriodicLoopExecution#setDue(java.time.Instant) setDue}를 통해 설정한다.
  * 제한 시간 내에 목표 상태가 되지 않으면 {@link java.util.concurrent.TimeoutException}이 발생한다.
  *
+ * @param <R>	polling으로 얻는 최종 결과의 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class AbstractPeriodicPoller<R> extends PeriodicLoopExecution<R> {

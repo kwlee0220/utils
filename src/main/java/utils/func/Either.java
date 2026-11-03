@@ -17,6 +17,9 @@ import utils.Preconditions;
  * 반드시 둘 중 하나는 {@link Optional#empty() empty} 상태여야 한다.
  * 즉, Left 값과 Right 값이 동시에 존재하거나, 둘 다 존재하지 않는 상태는 허용되지 않는다.
  *
+ * @param <T1>	Left 값의 타입.
+ * @param <T2>	Right 값의 타입.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
 public final class Either<T1,T2> {

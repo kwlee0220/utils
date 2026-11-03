@@ -10,6 +10,11 @@ package utils;
 public class UninitializedException extends RuntimeException {
 	private static final long serialVersionUID = -7041730506281758400L;
 
+	/**
+	 * 예외를 생성한다.
+	 *
+	 * @param name	예외 상세 메시지. 보통 초기화되지 않은 대상의 이름을 넣는다.
+	 */
 	public UninitializedException(String name) {
 		super(name);
 	}

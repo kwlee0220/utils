@@ -29,6 +29,11 @@ import utils.Initializable;
 
 
 /**
+ * {@link JFrame} 윈도우에 출력되는 {@link ImageView} 구현 클래스.
+ * <p>
+ * 설정 메소드로 속성을 지정한 뒤 {@link #initialize()}를 호출하여야 하며, 그리기 메소드는 내부
+ * {@link BufferedImageConvas}에 위임된다. 그려진 내용은 {@link #updateView()} 호출 시 화면에 반영된다.
+ * {@link #initialize()} 호출 전에 그리기/출력 관련 메소드를 호출하면 {@link NullPointerException}이 발생한다.
  * 
  * @author Kang-Woo Lee (ETRI)
  */
@@ -60,8 +65,17 @@ public class JFrameConvas implements ImageView, Initializable {
 		}
 	};
 	
+	/**
+	 * 초기화되지 않은 캔버스 객체를 생성한다.
+	 * 사용 전에 {@link #initialize()}를 호출하여야 한다.
+	 */
 	public JFrameConvas() { }
 	
+	/**
+	 * 윈도우 제목을 설정한다. {@link #initialize()} 호출 이후의 변경은 반영되지 않는다.
+	 * 
+	 * @param title	윈도우 제목. {@code null}인 경우 초기화 시 기본 제목이 사용된다.
+	 */
 	public void setTitle(String title) {
 		m_title = title;
 	}
@@ -86,18 +100,42 @@ public class JFrameConvas implements ImageView, Initializable {
 		}
 	}
 	
+	/**
+	 * 내부 이미지 버퍼의 형식을 설정한다 (기본값: {@link BufferedImage#TYPE_INT_RGB}).
+	 * 설정 값은 다음 번 이미지 버퍼 생성 시점부터 반영된다.
+	 * 
+	 * @param type	{@link BufferedImage} 이미지 형식.
+	 */
 	public void setImageType(int type) {
 		m_imageType = type;
 	}
 	
+	/**
+	 * 윈도우의 타이틀바와 테두리를 보여줄지 여부를 설정한다 (기본값: {@code true}).
+	 * {@link #initialize()} 호출 이후의 변경은 반영되지 않는다.
+	 * 
+	 * @param flag	{@code true}인 경우 보이고, {@code false}인 경우 보이지 않는다.
+	 */
 	public void setFrameDecoration(boolean flag) {
 		m_frameDecoration = flag;
 	}
 	
+	/**
+	 * 윈도우를 항상 다른 윈도우 위에 표시할지 여부를 설정한다 (기본값: {@code false}).
+	 * {@link #initialize()} 호출 이후의 변경은 반영되지 않는다.
+	 * 
+	 * @param flag	항상 위에 표시할지 여부.
+	 */
 	public void setAlwaysOnTop(boolean flag) {
 		m_alwaysOnTop = flag;
 	}
 	
+	/**
+	 * 윈도우를 출력할 모니터 번호를 설정한다 (기본값: -1, 기본 모니터).
+	 * {@link #initialize()} 호출 이후의 변경은 반영되지 않는다.
+	 * 
+	 * @param monitorIndex	모니터 번호. 음수인 경우 기본 모니터를 사용한다.
+	 */
 	public void setMonitorIndex(int monitorIndex) {
 		m_monitorIndex = monitorIndex;
 	}
@@ -147,6 +185,11 @@ public class JFrameConvas implements ImageView, Initializable {
 		return m_size;
 	}
 	
+	/**
+	 * 윈도우를 출력할 모니터 번호를 반환한다.
+	 * 
+	 * @return	모니터 번호 (음수인 경우 기본 모니터).
+	 */
 	public int getMonitorIndex() {
 		return m_monitorIndex;
 	}
@@ -167,14 +210,34 @@ public class JFrameConvas implements ImageView, Initializable {
 		m_convas.drawConvas(convas);
 	}
 	
+	/**
+	 * 주어진 이미지를 화면 출력용 버퍼 전체 크기에 맞게 늘이거나 줄여 그린다.
+	 * 
+	 * @param bi	그릴 이미지.
+	 * @see BufferedImageConvas#drawBufferedImage(BufferedImage)
+	 */
 	public void drawBufferedImage(final BufferedImage bi) {
 		m_convas.drawBufferedImage(bi);
 	}
 	
+	/**
+	 * 주어진 이미지를 크기 변환 없이 화면 출력용 버퍼의 원점(좌상단)에 그린다.
+	 * 
+	 * @param bi	그릴 이미지.
+	 * @see BufferedImageConvas#drawRenderedImage(RenderedImage)
+	 */
 	public void drawRenderedImage(final RenderedImage bi) {
 		m_convas.drawRenderedImage(bi);
 	}
 	
+	/**
+	 * 주어진 이미지를 화면 출력용 버퍼의 주어진 위치에 주어진 크기로 늘이거나 줄여 그린다.
+	 * 
+	 * @param bi	그릴 이미지.
+	 * @param pt	그려질 영역의 좌상단 좌표.
+	 * @param size	그려질 영역의 크기.
+	 * @see BufferedImageConvas#drawBufferedImage(BufferedImage, Point, Dimension)
+	 */
 	public synchronized void drawBufferedImage(BufferedImage bi, Point pt, Dimension size) {
 		m_convas.drawBufferedImage(bi, pt, size);
 	}
@@ -209,6 +272,11 @@ public class JFrameConvas implements ImageView, Initializable {
 		m_convas.clear();
 	}
 	
+	/**
+	 * 화면 출력용 버퍼로 사용되는 내부 캔버스를 반환한다.
+	 * 
+	 * @return	내부 캔버스 ({@link #initialize()} 호출 전에는 {@code null}).
+	 */
 	public Convas getConvas() {
 		return m_convas;
 	}
@@ -223,10 +291,22 @@ public class JFrameConvas implements ImageView, Initializable {
 		m_panel.repaint();
 	}
 	
+	/**
+	 * 이미지를 출력하는 {@link JFrame} 객체를 반환한다.
+	 * 
+	 * @return	{@link JFrame} 객체 ({@link #initialize()} 호출 전에는 {@code null}).
+	 */
 	public JFrame getJFrame() {
 		return m_frame;
 	}
 	
+	/**
+	 * 설정된 모니터 번호에 해당하는 모니터 장치 정보를 반환한다.
+	 * 
+	 * @return	모니터 장치 정보.
+	 * @throws IllegalArgumentException	모니터 번호가 설치된 모니터 수 이상인 경우.
+	 * @see SwingUtils#getScreen(int)
+	 */
 	public GraphicsDevice getGraphicsDevice() {
 		return SwingUtils.getScreen(m_monitorIndex);
 	}

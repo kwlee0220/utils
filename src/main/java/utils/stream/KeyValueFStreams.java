@@ -4,10 +4,20 @@ import utils.KeyValue;
 import utils.func.FOption;
 
 /**
- * 
+ * {@link KeyValueFStream} 연산자들의 구현 클래스를 모아 둔 클래스.
+ * <p>
+ * 포함된 구현 클래스들은 모두 패키지 내부용이다.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
 public class KeyValueFStreams {
+	/**
+	 * {@code KeyValueFStreams} 객체를 생성한다.
+	 * <p>
+	 * 이 클래스는 패키지 내부용 구현 클래스만 담고 있으므로 직접 생성할 필요가 없다.
+	 */
+	public KeyValueFStreams() { }
+
 	static abstract class AbstractKeyValueFStream<K,V> implements KeyValueFStream<K,V> {
 		private boolean m_closed = false;
 		private boolean m_eos = false;

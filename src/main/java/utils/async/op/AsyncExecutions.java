@@ -274,6 +274,17 @@ public final class AsyncExecutions {
 		return new DelayedAsyncExecution<>(target, delay, delayExecutor);
 	}
 	
+	/**
+	 * 주어진 시간만큼 지연한 뒤 {@code runnable}을 비동기로 수행하는 실행을 생성한다.
+	 * <p>
+	 * {@code runnable}은 {@link CompletableFutureAsyncExecution#runAsync(Runnable)}로 감싸져
+	 * 지연 후 공용 {@link java.util.concurrent.ForkJoinPool}에서 수행된다. 반환된 실행은 시작되지 않은 상태이다.
+	 *
+	 * @param runnable	지연 후 수행할 작업.
+	 * @param delay		지연 시간 (음수 불가).
+	 * @return	새 {@link DelayedAsyncExecution}.
+	 * @throws IllegalArgumentException	{@code delay}가 {@code null}이거나 음수인 경우.
+	 */
 	public static DelayedAsyncExecution<Void> delay(Runnable runnable, Duration delay) {
 		var exec = CompletableFutureAsyncExecution.runAsync(runnable);
 		return delay(exec, delay, createDelayedExecutor(delay));

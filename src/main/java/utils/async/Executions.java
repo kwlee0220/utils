@@ -116,6 +116,19 @@ public class Executions {
 		return toExecution(task, null);
 	}
 	
+	/**
+	 * 비동기 작업에서 발생한 예외를 종류에 따라 다시 던진다. 이 메소드는 정상 반환하지 않는다.
+	 * <p>
+	 * {@link InterruptedException}은 현재 쓰레드의 interrupt 플래그를 다시 설정한 뒤 던지고,
+	 * {@link CancellationException}, {@link TimeoutException}, {@link Error}는 그대로 던진다.
+	 * 그 밖의 예외({@link RuntimeException} 포함)는 {@link ExecutionException}으로 감싸서 던진다.
+	 *
+	 * @param ex	다시 던질 예외.
+	 * @throws InterruptedException	{@code ex}가 {@link InterruptedException}인 경우.
+	 * @throws CancellationException	{@code ex}가 {@link CancellationException}인 경우.
+	 * @throws TimeoutException	{@code ex}가 {@link TimeoutException}인 경우.
+	 * @throws ExecutionException	그 밖의 예외인 경우. {@code ex}를 원인으로 갖는다.
+	 */
 	public static void rethrowAsyncException(Throwable ex) throws InterruptedException, CancellationException,
 																TimeoutException, ExecutionException {
 		if ( ex instanceof InterruptedException ie ) {

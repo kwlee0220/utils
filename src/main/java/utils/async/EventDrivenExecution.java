@@ -45,6 +45,9 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	private static final Logger s_logger = LoggerFactory.getLogger(EventDrivenExecution.class);
 
 	private long m_cancelTimeoutMillis = TimeUnit.SECONDS.toMillis(3);	// 3 seconds
+	/**
+	 * 상태 전이와 listener 목록을 보호하는 guard. 하위 클래스는 상태와 함께 다뤄야 하는 필드를 이 guard로 보호한다.
+	 */
 	protected final Guard m_aopGuard = Guard.create();
 	@GuardedBy("m_aopGuard") private AsyncState m_aopState = AsyncState.NOT_STARTED;
 	@GuardedBy("m_aopGuard") private boolean m_didStart = false;
@@ -55,6 +58,11 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 													= Lists.newArrayList();
 	
 	private Logger m_logger = s_logger;
+
+	/**
+	 * 기본 생성자. {@link AsyncState#NOT_STARTED} 상태의 execution을 생성한다.
+	 */
+	public EventDrivenExecution() { }
 
 	@Override
 	public AsyncState getState() {

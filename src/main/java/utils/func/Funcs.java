@@ -42,7 +42,7 @@ public class Funcs {
 	 * 목록에 null이 포함되지 않는 것을 가정하고, 그렇지 않은 경우에는
 	 * {@link NullPointerException}이 발생할 수 있다.
 	 *
-	 * @param <T>
+	 * @param <T>	원소 타입.
 	 * @param coll	검색 대상 목록들.
 	 * @param pred	검색 조건
 	 * @return	조건을 만족하는 목록. 만일 조건을 만족하는 것이 없는 경우에는
@@ -66,7 +66,7 @@ public class Funcs {
 	 * 목록에 null이 포함되지 않는 것을 가정하고, 그렇지 않은 경우에는
 	 * {@link NullPointerException}이 발생할 수 있다.
 	 * 
-	 * @param <T>
+	 * @param <T>	원소 타입.
 	 * @param coll	검색 대상 목록들.
 	 * @param pred	검색 조건
 	 * @param defaultVal	조건을 만족하는 목록이 없는 경우 반환할 기본값.
@@ -89,7 +89,7 @@ public class Funcs {
 	 * 목록에 null이 포함되지 않는 것을 가정하고, 그렇지 않은 경우에는
 	 * {@link NullPointerException}이 발생할 수 있다.
 	 *
-	 * @param <T>
+	 * @param <T>	원소 타입.
 	 * @param list	검색 대상 목록들.
 	 * @param pred	검색 조건
 	 * @return	조건을 만족하는 목록. 만일 조건을 만족하는 것이 없는 경우에는
@@ -112,7 +112,7 @@ public class Funcs {
 	 * 목록에 null이 포함되지 않는 것을 가정하고, 그렇지 않은 경우에는
 	 * {@link NullPointerException}이 발생할 수 있다.
 	 *
-	 * @param <T>
+	 * @param <T>	원소 타입.
 	 * @param iterable	목록 리스트.
 	 * @return	첫번째 목록. 리스트가 빈 경우에는 {@code null}이 반환된다.
 	 */
@@ -295,7 +295,7 @@ public class Funcs {
 	 * 목록에 null이 포함되지 않는 것을 가정하고, 그렇지 않은 경우에는
 	 * {@link NullPointerException}이 발생할 수 있다.
 	 *
-	 * @param <T>
+	 * @param <T>	원소 타입.
 	 * @param list		List 객체.
 	 * @param pred		목록의 대체 여부를 판단할 {@link Predicate} 객체.
 	 * @param newValueGenerator	대체할 새 객체를 제공할 Supplier 객체
@@ -327,7 +327,7 @@ public class Funcs {
 	 * 목록에 null이 포함되지 않는 것을 가정하고, 그렇지 않은 경우에는
 	 * {@link NullPointerException}이 발생할 수 있다.
 	 *
-	 * @param <T>
+	 * @param <T>	원소 타입.
 	 * @param list		Iterable 객체.
 	 * @param pred		목록의 대체 여부를 판단할 {@link Predicate} 객체.
 	 * @param newVal	대체할 새 객체.
@@ -360,7 +360,7 @@ public class Funcs {
 	 * 목록에 null이 포함되지 않는 것을 가정하고, 그렇지 않은 경우에는
 	 * {@link NullPointerException}이 발생할 수 있다.
 	 * 
-	 * @param <T>
+	 * @param <T>	원소 타입.
 	 * @param list	목록 객체.
 	 * @param pred	대체 대상을 판단할 {@link Predicate} 객체.
 	 * @param newValueGenerator	대체(추가)할 새 값을 생성하기 위한 함수 객체.
@@ -412,7 +412,7 @@ public class Funcs {
 	 * 목록에 null이 포함되지 않는 것을 가정하고, 그렇지 않은 경우에는
 	 * {@link NullPointerException}이 발생할 수 있다.
 	 *
-	 * @param <T>
+	 * @param <T>	원소 타입.
 	 * @param iterable	Collection 객체.
 	 * @param pred	Element의 삭제 여부를 판달할 Predicate 객체.
 	 * @return	삭제가 성공한 경우는 삭제된 element, 그렇지 않은 경우는 {@code null}.
@@ -457,8 +457,8 @@ public class Funcs {
 	/**
 	 * 주어진 {@link Map}에 등록된 entry들 중에서 주어진 조건 (pred)를 만족하는 것들을 삭제한다.
 	 * 
-	 * @param <K>
-	 * @param <V>
+	 * @param <K>	키 타입.
+	 * @param <V>	값 타입.
 	 * @param map	삭제를 수행할 대상 Map 객체.
 	 * @param pred	삭제 조건.
 	 * @return		삭제된 {@link Map.Entry} 객체들.
@@ -485,6 +485,8 @@ public class Funcs {
 	 * 값이 {@code null}이어도 키가 존재하면 consumer가 호출되며,
 	 * 이 경우 consumer의 두 번째 인자로 {@code null}이 전달된다.
 	 *
+	 * @param <K>	키 타입.
+	 * @param <V>	값 타입.
 	 * @param map 조회 대상 맵.
 	 * @param key 조회할 키.
 	 * @param consumer 키가 존재할 때 호출할 consumer.
@@ -677,6 +679,8 @@ public class Funcs {
 	 * 동일한 최대 key가 여러 개면 가장 먼저 나온 원소의 인덱스를 반환한다.
 	 * {@code keyer}는 비교 가능한 non-null key를 반환해야 한다.
 	 *
+	 * @param <T>	원소 타입.
+	 * @param <K>	비교 key 타입.
 	 * @param list 대상 리스트.
 	 * @param keyer 비교 key 추출 함수.
 	 * @return 최대 key를 갖는 원소의 인덱스. 리스트가 비어 있으면 {@code -1}.
@@ -706,6 +710,8 @@ public class Funcs {
 	 * 동일한 최소 key가 여러 개면 가장 먼저 나온 원소의 인덱스를 반환한다.
 	 * {@code keyer}는 비교 가능한 non-null key를 반환해야 한다.
 	 *
+	 * @param <T>	원소 타입.
+	 * @param <K>	비교 key 타입.
 	 * @param list 대상 리스트.
 	 * @param keyer 비교 key 추출 함수.
 	 * @return 최소 key를 갖는 원소의 인덱스. 리스트가 비어 있으면 {@code -1}.

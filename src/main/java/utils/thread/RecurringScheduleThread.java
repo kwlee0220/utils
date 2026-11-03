@@ -87,6 +87,11 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	/**
 	 * 첫 수행 전 대기 없이 고정 rate 반복 스케줄을 생성한다.
 	 *
+	 * @param threadName	작업 쓰레드 이름. {@code null}이면 기본 이름을 쓴다.
+	 * @param work			반복 수행할 작업 (non-null)
+	 * @param interval		반복 주기 (non-null, 1ms 이상)
+	 * @return	시작되지 않은 스케줄
+	 * @throws IllegalArgumentException	인자가 {@code null}이거나 {@code interval}이 1ms 미만인 경우
 	 * @see #newFixedRateSchedule(String, RecurringWork, Duration, Duration)
 	 */
 	public static RecurringScheduleThread newFixedRateSchedule(String threadName, RecurringWork work,
@@ -114,6 +119,11 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	/**
 	 * 첫 수행 전 대기 없이 고정 delay 반복 스케줄을 생성한다.
 	 *
+	 * @param threadName	작업 쓰레드 이름. {@code null}이면 기본 이름을 쓴다.
+	 * @param work			반복 수행할 작업 (non-null)
+	 * @param interval		반복 주기 (non-null, 1ms 이상)
+	 * @return	시작되지 않은 스케줄
+	 * @throws IllegalArgumentException	인자가 {@code null}이거나 {@code interval}이 1ms 미만인 경우
 	 * @see #newFixedDelaySchedule(String, RecurringWork, Duration, Duration)
 	 */
 	public static RecurringScheduleThread newFixedDelaySchedule(String threadName, RecurringWork work,
@@ -124,6 +134,12 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	/**
 	 * 밀리초 시간 값으로 고정 rate 반복 스케줄을 생성한다.
 	 *
+	 * @param threadName	작업 쓰레드 이름. {@code null}이면 기본 이름을 쓴다.
+	 * @param work			반복 수행할 작업 (non-null)
+	 * @param initialDelay	첫 수행 전 대기 시간 (밀리초, 0 이상)
+	 * @param interval		반복 주기 (밀리초, 1 이상)
+	 * @return	시작되지 않은 스케줄
+	 * @throws IllegalArgumentException	{@code work}가 {@code null}이거나 시간 값이 범위를 벗어난 경우
 	 * @deprecated	{@link #newFixedRateSchedule(String, RecurringWork, Duration, Duration)}을 쓴다. utils 밖
 	 * 				사용처(marmot)를 위해 남겨 두었다.
 	 */
@@ -136,6 +152,11 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	/**
 	 * 밀리초 주기로, 첫 수행 전 대기 없이 고정 rate 반복 스케줄을 생성한다.
 	 *
+	 * @param threadName	작업 쓰레드 이름. {@code null}이면 기본 이름을 쓴다.
+	 * @param work			반복 수행할 작업 (non-null)
+	 * @param interval		반복 주기 (밀리초, 1 이상)
+	 * @return	시작되지 않은 스케줄
+	 * @throws IllegalArgumentException	{@code work}가 {@code null}이거나 {@code interval}이 0 이하인 경우
 	 * @deprecated	{@link #newFixedRateSchedule(String, RecurringWork, Duration)}을 쓴다.
 	 */
 	@Deprecated
@@ -146,6 +167,12 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	/**
 	 * 밀리초 시간 값으로 고정 delay 반복 스케줄을 생성한다.
 	 *
+	 * @param threadName	작업 쓰레드 이름. {@code null}이면 기본 이름을 쓴다.
+	 * @param work			반복 수행할 작업 (non-null)
+	 * @param initialDelay	첫 수행 전 대기 시간 (밀리초, 0 이상)
+	 * @param interval		반복 주기 (밀리초, 1 이상)
+	 * @return	시작되지 않은 스케줄
+	 * @throws IllegalArgumentException	{@code work}가 {@code null}이거나 시간 값이 범위를 벗어난 경우
 	 * @deprecated	{@link #newFixedDelaySchedule(String, RecurringWork, Duration, Duration)}을 쓴다. utils 밖
 	 * 				사용처(marmot)를 위해 남겨 두었다.
 	 */
@@ -158,6 +185,11 @@ public class RecurringScheduleThread implements RecurringSchedule, LoggerSettabl
 	/**
 	 * 밀리초 주기로, 첫 수행 전 대기 없이 고정 delay 반복 스케줄을 생성한다.
 	 *
+	 * @param threadName	작업 쓰레드 이름. {@code null}이면 기본 이름을 쓴다.
+	 * @param work			반복 수행할 작업 (non-null)
+	 * @param interval		반복 주기 (밀리초, 1 이상)
+	 * @return	시작되지 않은 스케줄
+	 * @throws IllegalArgumentException	{@code work}가 {@code null}이거나 {@code interval}이 0 이하인 경우
 	 * @deprecated	{@link #newFixedDelaySchedule(String, RecurringWork, Duration)}을 쓴다.
 	 */
 	@Deprecated

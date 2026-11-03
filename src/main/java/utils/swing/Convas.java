@@ -9,6 +9,7 @@ import java.awt.image.RenderedImage;
 
 
 /**
+ * 이미지 버퍼에 직선, 사각형, 원, 다각형, 문자열 등을 그리는 캔버스 인터페이스.
  * 
  * @author Kang-Woo Lee (ETRI)
  */
@@ -63,6 +64,15 @@ public interface Convas {
 	 */
 	public void drawPolygon(Polygon polygon, Color color, int thickness);
 	
+	/**
+	 * 화면 출력용 버퍼에 주어진 원을 그린다.
+	 * 
+	 * @param center	원의 중심 좌표.
+	 * @param radius	원의 반지름.
+	 * @param color		그려질 원 색.
+	 * @param thickness	원 선 굵기.
+	 * 					만일 음수인 경우는 원 안을 다 채운다.
+	 */
 	public void drawCircle(Point center, int radius, Color color, int thickness);
 	
 	/**

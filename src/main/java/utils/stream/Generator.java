@@ -6,6 +6,7 @@ import utils.Suppliable;
 /**
  * {@code DataGenerator}는 데이터를 생성하는 인터페이스를 정의한다.
  *
+ * @param <T>	생성하는 데이터의 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public interface Generator<T> {

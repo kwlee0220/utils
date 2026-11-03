@@ -16,6 +16,7 @@ import utils.func.FOption;
  * 호출 때 끝까지 읽고 닫는다({@code k}가 0이면 읽지 않는다). 닫으면 남은 큐를 버리고, 이후 {@link #next()}는
  * 다른 스트림과 같이 {@link IllegalStateException}을 던진다.
  *
+ * @param <T>	원소 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public class TopKFStream<T> implements FStream<T> {

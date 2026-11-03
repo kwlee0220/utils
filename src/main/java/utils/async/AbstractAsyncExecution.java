@@ -35,10 +35,32 @@ public abstract class AbstractAsyncExecution<T> extends EventDrivenExecution<T>
 		return executor;
 	}
 	
+	/**
+	 * 하위 클래스를 위한 기본 생성자. 작업 수행용 {@link Executor}는 설정되지 않은 상태로 시작한다.
+	 */
+	public AbstractAsyncExecution() { }
+	
+	/**
+	 * 모든 {@link AbstractAsyncExecution} 객체가 공유하는 기본 스레드 풀을 반환한다.
+	 * <p>
+	 * 처음 호출될 때 데몬 스레드를 쓰는 {@link ScheduledThreadPoolExecutor}를 생성한다.
+	 * {@link #setExecutor(Executor)}로 주입한 executor와는 무관하다.
+	 *
+	 * @return	공유 기본 스레드 풀.
+	 */
 	public ScheduledThreadPoolExecutor getThreadPoolExecutor() {
 		return s_defaultExecutor.get();
 	}
 	
+	/**
+	 * 공유 기본 스레드 풀({@link #getThreadPoolExecutor()})의 스레드 수를 설정한다.
+	 * <p>
+	 * 기본값은 {@code max(2, 가용 프로세서 수)}이며, 스레드 풀이 생성되기 전에만 바꿀 수 있다.
+	 * 인자 값은 검사하지 않는다.
+	 *
+	 * @param count	스레드 수.
+	 * @throws IllegalStateException	스레드 풀이 이미 생성된 경우.
+	 */
 	public static void setExecutorThreadCount(int count) {
 		if ( s_defaultExecutor.isLoaded() ) {
 			throw new IllegalStateException("executor already created");

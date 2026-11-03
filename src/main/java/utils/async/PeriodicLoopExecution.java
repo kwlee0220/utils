@@ -63,6 +63,7 @@ import utils.func.FOption;
  * {@link #setDue(Instant)}로 지정한 마감 시각만은 시스템 시계 기준이며, loop 시작 시점에 남은 시간으로
  * 한 번 환산된 뒤에는 시스템 시계 변경의 영향을 받지 않는다.
  *
+ * @param <T>	loop 수행으로 생성되는 최종 결과의 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> {

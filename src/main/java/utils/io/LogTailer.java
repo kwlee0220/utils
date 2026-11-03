@@ -188,6 +188,11 @@ public class LogTailer implements CheckedRunnable {
 		private boolean m_startAtBeginning = false;
 
 		/**
+		 * 기본 설정으로 빌더를 생성한다. 일반적으로는 {@link LogTailer#builder()}를 사용한다.
+		 */
+		public Builder() {}
+
+		/**
 		 * 감시할 로그 파일을 지정한다.
 		 *
 		 * @param logFile	감시 대상 로그 파일. {@code null}이면 안 된다.

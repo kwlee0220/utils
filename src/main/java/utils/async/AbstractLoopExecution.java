@@ -72,6 +72,11 @@ public abstract class AbstractLoopExecution<T> extends AbstractThreadedExecution
 	private volatile @Nullable AsyncResult<T> m_loopOutcome = null;
 
 	/**
+	 * 하위 클래스를 위한 기본 생성자.
+	 */
+	public AbstractLoopExecution() { }
+
+	/**
 	 * Loop을 수행하기 위해 초기화 작업을 수행한다.
 	 * <p>
 	 * Loop 본체({@link #iterate(long)})가 시작되기 전 1회 호출된다.

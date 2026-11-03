@@ -45,6 +45,9 @@ public interface Initializable {
 	 */
 	public void destroy() throws Exception;
 	
+	/**
+	 * {@link #destroy()}를 호출하되, 발생하는 모든 {@link Throwable}({@link Error} 포함)을 무시한다.
+	 */
 	public default void destroyQuietly() {
 		try {
 			destroy();
@@ -52,6 +55,12 @@ public interface Initializable {
 		catch ( Throwable ignored ) {}
 	}
 	
+	/**
+	 * 주어진 객체들 중 {@link Initializable}인 것에 대해 {@link #destroyQuietly()}를 차례로 호출한다.
+	 * {@link Initializable}이 아니거나 {@code null}인 원소는 건너뛴다.
+	 *
+	 * @param objs	정리할 객체들. 배열 자체가 {@code null}이면 {@link NullPointerException}이 발생한다.
+	 */
 	public static void destroyQuietly(Object... objs) {
 		Arrays.stream(objs)
 				.filter(obj -> obj instanceof Initializable)

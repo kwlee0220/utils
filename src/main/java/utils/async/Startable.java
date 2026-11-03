@@ -3,7 +3,8 @@ package utils.async;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * 
+ * 명시적인 시작({@link #start()})이 필요한 작업을 나타내는 인터페이스.
+ *
  * @author Kang-Woo Lee (ETRI)
  */
 public interface Startable {

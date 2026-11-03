@@ -24,7 +24,16 @@ import utils.stream.FStreamable;
 
 
 /**
+ * 값이 있을 수도 있고 없을 수도 있는 객체를 표현하는 불변(immutable) 옵션 타입.
+ * <p>
+ * {@link Optional}과 달리 {@code null} 값도 '존재하는 값'으로 감쌀 수 있다
+ * ({@code FOption.of(null)}은 {@link #isPresent()}가 {@code true}이고 {@link #get()}은 {@code null}을 반환한다).
+ * 값이 없는 상태는 {@link #empty()}로만 표현되며, {@link FStream}/{@link Iterable}로 순회할 수 있다.
+ * <p>
+ * <b>주의:</b> {@link #equals(Object)}는 재정의되어 있으나 {@code hashCode()}는 재정의되지 않아
+ * {@code equals}가 {@code true}인 두 객체가 서로 다른 해시 값을 가질 수 있다.
  * 
+ * @param <T>	감싸는 값의 타입.
  * @author Kang-Woo Lee (ETRI)
  */
 public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializable {
@@ -33,12 +42,17 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	@SuppressWarnings("rawtypes")
 	private static final FOption EMPTY = new FOption<>(null, false);
 
+	/** 감싸고 있는 값. 값이 존재하는 경우에도 {@code null}일 수 있다. */
 	private final T m_value;
+	/** 값의 존재 여부. */
 	private final boolean m_present;
 
 	/**
 	 * 주어진 객체를 감싸는 {@link FOption} 객체를 생성한다.
+	 * <p>
+	 * {@code value}가 {@code null}이어도 빈 객체가 아닌, {@code null} 값을 갖는 존재 상태의 객체를 생성한다.
 	 * 
+	 * @param <T>	값의 타입.
 	 * @param value 감쌀 객체
 	 * @return {@link FOption} 객체
 	 */
@@ -49,7 +63,8 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	/**
 	 * 값이 없는 {@link FOption} 객체를 생성한다.
 	 * 
-	 * @return 빈 {@link FOption} 객체
+	 * @param <T>	값의 타입.
+	 * @return 빈 {@link FOption} 객체 (공유되는 싱글톤 인스턴스).
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> FOption<T> empty() {
@@ -61,6 +76,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * <p>
 	 * 주어진 객체가 <code>null</code>인 경우 빈 {@link FOption} 객체를 생성한다.
 	 * 
+	 * @param <T>	값의 타입.
 	 * @param value 감쌀 객체
 	 * @return {@link FOption} 객체
 	 */
@@ -71,8 +87,10 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	/**
 	 * 주어진 {@link Optional} 객체를 {@link FOption} 객체로 변환한다.
 	 * 
+	 * @param <T>	값의 타입.
 	 * @param opt 변환할 {@link Optional} 객체
 	 * @return 변환된 {@link FOption} 객체
+	 * @throws IllegalArgumentException	{@code opt}가 {@code null}인 경우.
 	 */
 	public static <T> FOption<T> from(Optional<T> opt) {
 		utils.Preconditions.checkNotNullArgument(opt, "Optional is null");
@@ -80,13 +98,34 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return opt.isPresent() ? of(opt.get()) : empty();
 	}
 
+	/**
+	 * 주어진 값이 0보다 큰 경우에만 해당 값을 감싸는 {@link FOption} 객체를 생성한다.
+	 * 
+	 * @param value	검사할 값.
+	 * @return {@code value > 0}인 경우 값을 감싼 {@link FOption}, 그렇지 않은 경우 {@link #empty()}.
+	 */
 	public static FOption<Long> gtz(long value) {
 		return value > 0 ? of(value) : empty();
 	}
+	/**
+	 * 주어진 값이 0보다 큰 경우에만 해당 값을 감싸는 {@link FOption} 객체를 생성한다.
+	 * 
+	 * @param value	검사할 값.
+	 * @return {@code value > 0}인 경우 값을 감싼 {@link FOption}, 그렇지 않은 경우 {@link #empty()}.
+	 */
 	public static FOption<Integer> gtz(int value) {
 		return value > 0 ? of(value) : empty();
 	}
 
+	/**
+	 * {@code FOption<? extends T>} 타입의 객체를 {@code FOption<T>} 타입으로 변환한다.
+	 * <p>
+	 * 새 객체를 생성하지 않고 동일 객체를 형변환하여 반환한다.
+	 * 
+	 * @param <T>	변환될 값의 타입.
+	 * @param opt	변환할 {@link FOption} 객체.
+	 * @return 형변환된 {@code opt} 객체.
+	 */
 	@SuppressWarnings("unchecked")
 	public static <T> FOption<T> narrow(FOption<? extends T> opt) {
 		return (FOption<T>)opt;
@@ -116,9 +155,10 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	}
 
 	/**
-	 * 값이 존재하는 경우 해당	Optional 객체를 반환하고, 그렇지 않은 경우 빈 Optional 객체를 반환한다.
+	 * 값이 존재하는 경우 감싸고 있는 값을 반환하고, 그렇지 않은 경우 {@link NoSuchValueException}을 발생시킨다.
 	 * 
-	 * @return 값이 존재하는 경우 해당	FOption 객체, 그렇지 않은 경우 {@link FOption#empty()} 객체.
+	 * @return 감싸고 있는 값 ({@code null}일 수 있다).
+	 * @throws NoSuchValueException	값이 존재하지 않는 경우.
 	 */
 	public T get() {
 		if ( m_present ) {
@@ -129,6 +169,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		}
 	}
 
+	/**
+	 * 값의 존재 여부를 확인하지 않고 내부 값을 그대로 반환한다.
+	 * <p>
+	 * 값이 존재하지 않는 경우에는 {@code null}을 반환한다.
+	 * 
+	 * @return 감싸고 있는 값. 값이 없는 경우 {@code null}.
+	 */
 	public T getUnchecked() {
 		return m_value;
 	}
@@ -158,6 +205,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 그렇지 않은 경우 주어진 {@code elseValue} 값을 반환한다.
 	 * 
 	 * @param value		{@code null} 여부를 판단할 값.
+	 * @param <T>	값의 타입.
 	 * @param elseValue 값이 존재하지 않을 경우 반환할 값
 	 * @return	{@code value}  값이 존재하는 경우 해당 객체, 그렇지 않은 경우 주어진 {@code elseValue}
 	 * @see #getOrElse
@@ -171,6 +219,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 
 	 * @param elseSupplier 	값이 존재하지 않을 경우 반환 값을 생성하는 함수.
 	 * @return	존재하는 값. 없는 경우 주어진 {@code elseSupplier}로부터 생성된 값.
+	 * @throws IllegalArgumentException	값이 존재하지 않고 {@code elseSupplier}가 {@code null}인 경우.
 	 * @see #getOrElse
 	 */
 	public T getOrElse(Supplier<? extends T> elseSupplier) {
@@ -187,9 +236,11 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * {@code value} 값이 {@code null}이 아닌 경우는 해당 객체를 반환하고,
 	 * 그렇지 않은 경우 주어진 {@code elseSupplier}로부터 값을 반환한다.
 	 * 
+	 * @param <T>	값의 타입.
 	 * @param value		{@code null} 여부를 판단할 값.
 	 * @param elseSupplier 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
 	 * @return	존재하는 값. 없는 경우 주어진 {@code elseSupplier}로부터 생성된 값.
+	 * @throws IllegalArgumentException	{@code value}가 {@code null}이고 {@code elseSupplier}가 {@code null}인 경우.
 	 * @see #getOrElse
 	 */
 	public static <T> T getOrElse(T value, Supplier<? extends T> elseSupplier) {
@@ -207,8 +258,11 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * <p>
 	 * {@code elseSupplier} 함수가 실행 중 예외가 발생되면 해당 예외를 throw 시킨다.
 	 * 
+	 * @param <X>	{@code elseSupplier}가 던질 수 있는 예외 타입.
 	 * @param elseSupplier 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
 	 * @return 존재하는 값. 없는 경우 주어진 {@code elseSupplier}로부터 생성된 값.
+	 * @throws X	{@code elseSupplier} 함수 실행 중 예외가 발생된 경우.
+	 * @throws IllegalArgumentException	값이 존재하지 않고 {@code elseSupplier}가 {@code null}인 경우.
 	 * @see #getOrElse
 	 */
 	public <X extends Throwable> T getOrElseThrow(CheckedSupplierX<? extends T,X> elseSupplier) throws X {
@@ -226,6 +280,8 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * <p>
 	 * {@code elseSupplier} 함수가 실행 중 예외가 발생되면 해당 예외를 throw 시킨다.
 	 * 
+	 * @param <T>	값의 타입.
+	 * @param <X>	{@code elseSupplier}가 던질 수 있는 예외 타입.
 	 * @param value        {@code null} 여부를 판단할 값.
 	 * @param elseSupplier 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
 	 * @return 존재하는 값. 없는 경우 주어진 {@code elseSupplier}로부터 생성된 값.
@@ -244,11 +300,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 
 	/**
 	 * 값이 존재하는 경우 해당 객체를 반환하고, 그렇지 않은 경우
-	 * 주어진 {@code thrower}를 생성한 예외를 발생시킨다.
+	 * 주어진 {@code thrower}가 생성한 예외를 발생시킨다.
 	 * 
+	 * @param <X>	발생시킬 예외 타입.
 	 * @param thrower	값이 존재하지 않을 경우 발생시킬 예외를 생성하는 함수.
 	 * @return 존재하는 값.
-	 * @throws X	값이 존재하지 않을 경우 발생시킬 예외.
+	 * @throws X	값이 존재하지 않을 경우 {@code thrower}가 생성한 예외.
+	 * @throws IllegalArgumentException	값이 존재하지 않고 {@code thrower}가 {@code null}인 경우.
 	 * @see #getOrElse
 	 */
 	public <X extends Throwable> T getOrThrow(Supplier<X> thrower) throws X {
@@ -266,6 +324,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 
 	 * @param effect	값이 존재하는 경우 호출할 함수.
 	 * @return	{@link FOption} 객체 자신.
+	 * @throws IllegalArgumentException	{@code effect}가 {@code null}인 경우 (값의 존재 여부와 무관).
 	 */
 	public FOption<T> ifPresent(@NotNull Consumer<? super T> effect) {
 		utils.Preconditions.checkNotNullArgument(effect, "present consumer is null");
@@ -280,6 +339,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	/**
 	 * 주어진 {@code value} 값이 {@code null}이 아닌 경우 주어진 {@code effect} 함수를 호출한다.
 	 * 
+	 * @param <T>	값의 타입.
 	 * @param value  {@code null} 여부를 판단할 값.
 	 * @param effect 값이 존재하는 경우 호출할 함수.
 	 */
@@ -294,9 +354,11 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * <p>
 	 * 호출 중 예외가 발생되면 해당 예외를 throw 시킨다.
 	 * 
+	 * @param <X>	{@code effect}가 던질 수 있는 예외 타입.
 	 * @param effect 값이 존재하는 경우 호출할 함수.
 	 * @return {@link FOption} 객체 자신.
 	 * @throws X	{@code effect} 함수 호출 중 예외가 발생된 경우.
+	 * @throws IllegalArgumentException	{@code effect}가 {@code null}인 경우 (값의 존재 여부와 무관).
 	 */
 	public <X extends Throwable> FOption<T> ifPresentOrThrow(CheckedConsumerX<? super T,X> effect) throws X {
 		utils.Preconditions.checkNotNullArgument(effect, "present consumer is null");
@@ -327,8 +389,10 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	/**
 	 * 주어진 {@code value} 값이 {@code null}인 경우 주어진 {@code nullAction} 함수를 호출한다.
 	 * 
+	 * @param <T>	값의 타입.
 	 * @param value      {@code null} 여부를 판단할 값.
 	 * @param nullAction 값이 존재하지 않을 경우 호출할 함수.
+	 * @throws IllegalArgumentException	{@code value}가 {@code null}이고 {@code nullAction}이 {@code null}인 경우.
 	 */
 	public static <T> void ifAbsent(T value, @NotNull Runnable nullAction) {
 		FOption.ofNullable(value).ifAbsent(nullAction);
@@ -339,6 +403,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * <p>
 	 * 호출 중 예외가 발생되면 해당 예외를 throw 시킨다.
 	 * 
+	 * @param <X>	{@code orElse}가 던질 수 있는 예외 타입.
 	 * @param orElse 값이 존재하지 않을 경우 호출할 함수.
 	 * @return {@link FOption} 객체 자신.
 	 * @throws X {@code orElse} 함수 호출 중 예외가 발생된 경우.
@@ -396,7 +461,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 그 결과 값을 반환하고, 그렇지 않은 경우 {@code false}를 반환한다.
 	 * 
 	 * @param pred 값이 존재하는 경우 호출할 {@link Predicate} 함수.
-	 * @return 값이 존재하는 경우 @code pred} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code false}.
+	 * @return 값이 존재하는 경우 {@code pred} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code false}.
 	 */
 	public boolean test(Predicate<? super T> pred) {
 		utils.Preconditions.checkNotNullArgument(pred, "Predicate is null");
@@ -406,11 +471,15 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 
 	/**
 	 * 값이 존재하는 경우 해당 객체를 활용하여 {@code mapper} 함수를 호출하여
-	 * 그 결과 값을 반환하고, 그렇지 않은 경우 객체 자신을 반환한다.
+	 * 그 결과 값을 감싼 {@link FOption}을 반환하고, 그렇지 않은 경우 {@link #empty()}를 반환한다.
+	 * <p>
+	 * {@code mapper}가 {@code null}을 반환하면 {@code null} 값을 갖는 존재 상태의 {@link FOption}을 반환한다.
 	 * 
+	 * @param <S>	매핑 결과 값의 타입.
 	 * @param mapper 값이 존재하는 경우 호출할 매핑 함수.
-	 * @return 값이 존재하는 경우 @code mapper} 함수를 호출한 결과 값,
-	 * 			그렇지 않은 경우는 객체 자신을 반환한다.
+	 * @return 값이 존재하는 경우 {@code mapper} 함수를 호출한 결과 값을 감싼 {@link FOption},
+	 * 			그렇지 않은 경우는 {@link #empty()}.
+	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
 	 */
 	public <S> FOption<S> map(Function<? super T,? extends S> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
@@ -420,14 +489,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 
 	/**
 	 * {@code nullable} 객체 값이 {@code null}이 아닌 경우는 해당 객체를 활용하여 {@code mapper} 함수를 호출하여
-	 * 그 결과 값을 포함한	{@link FOption} 객체를 반환하고, 그렇지 않은 경우 {@code null}을 반환한다.
-	 * <p>
-	 * {@code mapper} 함수 호출 반환 값이 {@code null}인 경우는 {@code null}을 갖는 {@link FOption} 객체를 반환한다.
-	 * 이 값은 {@code FOption#empty()}와는 구별된다
+	 * 그 결과 값을 그대로 반환하고, 그렇지 않은 경우 {@code null}을 반환한다.
 	 * 
+	 * @param <T>	입력 값의 타입.
+	 * @param <S>	매핑 결과 값의 타입.
 	 * @param nullable {@code null} 여부를 판단할 객체.
 	 * @param mapper   값이 존재하는 경우 호출할 매핑 함수.
-	 * @return 값이 존재하는 경우 @code mapper} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code null}.
+	 * @return 값이 존재하는 경우 {@code mapper} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code null}.
 	 */
 	public static <T,S> S map(T nullable, Function<T,S> mapper) {
 		return FOption.mapOrElse(nullable, mapper, (S)null);
@@ -435,16 +503,16 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 
 	/**
 	 * {@code nullable} 객체 값이 {@code null}이 아닌 경우 해당 객체를 활용하여 {@code mapper} 함수를 호출하여,
-	 * 그 결과 값을 포함한	{@link FOption} 객체를 반환하고, 그렇지 않은 경우 {@code elsePart} 값을 반환한다.
+	 * 그 결과 값을 그대로 반환하고, 그렇지 않은 경우 {@code elsePart} 값을 반환한다.
 	 * <p>
-	 * {@code mapper} 함수 호출 반환 값이 {@code null}인 경우는
-	 * {@code null}을 갖는 {@link FOption} 객체를 반환한다.
-	 * 이 값은 {@code FOption#empty()}와는 구별된다
+	 * {@code mapper}가 {@code null}을 반환하면 {@code elsePart}가 아닌 {@code null}이 반환된다.
 	 * 
+	 * @param <T>	입력 값의 타입.
+	 * @param <S>	매핑 결과 값의 타입.
 	 * @param nullable {@code null} 여부를 판단할 객체.
 	 * @param mapper   값이 존재하는 경우 호출할 매핑 함수.
 	 * @param elsePart 값이 존재하지 않을 경우 반환할 값.
-	 * @return 값이 존재하는 경우 @code mapper} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code elsePart}.
+	 * @return 값이 존재하는 경우 {@code mapper} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code elsePart}.
 	 */
 	public static <T,S> S mapOrElse(T nullable, Function<T,S> mapper, S elsePart) {
 		if ( nullable != null ) {
@@ -456,17 +524,18 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	}
 
 	/**
-	 * {@code nullable} 객체 값이 {@code null}이 아닌 경우 해당 객체를 활용하여 {@code mapper} 함수를 호출하여,
-	 * 그 결과 값을 포함한	{@link FOption} 객체를 반환하고,
-	 * 그렇지 않은 경우 {@code elsePart} 함수 결과 값을 생성하여 반환한다.
+	 * {@code nullable} 객체 값이 {@code null}이 아닌 경우 해당 객체를 활용하여 {@code func} 함수를 호출하여,
+	 * 그 결과 값을 그대로 반환하고,
+	 * 그렇지 않은 경우 {@code elsePart} 함수를 호출하여 생성한 값을 반환한다.
 	 * <p>
-	 * {@code mapper} 함수 호출 반환 값이 {@code null}인 경우는 {@code null}을 갖는 {@link FOption} 객체를 반환한다.
-	 * 이 값은 {@code FOption#empty()}와는 구별된다
+	 * {@code elsePart}는 {@code nullable}이 {@code null}인 경우에만 호출된다.
 	 * 
+	 * @param <T>	입력 값의 타입.
+	 * @param <S>	결과 값의 타입.
 	 * @param nullable {@code null} 여부를 판단할 객체.
 	 * @param func   값이 존재하는 경우 호출할 매핑 함수.
 	 * @param elsePart 값이 존재하지 않을 경우 반환할 값 생성 함수.
-	 * @return 값이 존재하는 경우 @code mapper} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code elsePart}.
+	 * @return 값이 존재하는 경우 {@code func} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@code elsePart}가 생성한 값.
 	 */
 	public static <T,S> S mapOrSupply(T nullable, Function<T,S> func, Supplier<? extends S> elsePart) {
 		if ( nullable != null ) {
@@ -480,9 +549,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	/**
 	 * 데이터가 존재하는 경우 주어진 mapper ({@link CheckedFunction})를 적용시킨다.
 	 * <p>
-	 * Mapper 적용 중 예외가 발생되면 해당 예외를 throw 시킨다.
+	 * Mapper 적용 중 예외가 발생되면 해당 예외를 감싸지 않고 그대로 throw 시킨다
+	 * (checked 예외도 선언 없이 전파되는 sneaky throw).
 	 * 
+	 * @param <S>	매핑 결과 값의 타입.
 	 * @param	mapper	변형 함수
+	 * @return	값이 존재하는 경우 {@code mapper} 결과 값을 감싼 {@link FOption}, 그렇지 않은 경우 {@link #empty()}.
+	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
 	 */
 	public <S> FOption<S> mapSneakily(CheckedFunction<? super T,? extends S> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
@@ -505,8 +578,10 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 이 값은 {@code FOption#empty()}와는 구별된다
 	 * {@code mapper} 함수 호출 중 예외가 발생되면 해당 예외를 throw 시킨다.
 	 * 
+	 * @param <S>	매핑 결과 값의 타입.
+	 * @param <X>	{@code mapper}가 던질 수 있는 예외 타입.
 	 * @param mapper 값이 존재하는 경우 호출할 매핑 함수.
-	 * @return 값이 존재하는 경우 @code mapper} 함수를 호출한 결과 값, 그렇지 않은 경우는 {@link FOption#empty()}.
+	 * @return 값이 존재하는 경우 {@code mapper} 함수를 호출한 결과 값을 감싼 {@link FOption}, 그렇지 않은 경우는 {@link FOption#empty()}.
 	 * @throws X	{@code mapper} 함수 호출 중 예외가 발생된 경우.
 	 */
 	public <S,X extends Throwable>
@@ -516,18 +591,46 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return (m_present) ? new FOption<>(mapper.apply(m_value), true) : empty();
 	}
 
+	/**
+	 * 값이 존재하는 경우 {@code mapper}에 {@code src}와 값을 전달하여 호출한 결과를 반환하고,
+	 * 그렇지 않은 경우 {@code src}를 그대로 반환한다.
+	 * 
+	 * @param <S>	변환 대상 객체의 타입.
+	 * @param src	변환 대상 객체.
+	 * @param mapper	{@code src}와 값을 받아 새 결과를 만드는 함수.
+	 * @return 값이 존재하는 경우 {@code mapper.apply(src, value)}, 그렇지 않은 경우 {@code src}.
+	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 */
 	public <S> S transform(S src, BiFunction<S,T,? extends S> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper BiFunction");
 
 		return (m_present) ? mapper.apply(src, m_value) : src;
 	}
 
+	/**
+	 * 값이 존재하는 경우 {@code mapper}를 호출하여 그 결과 {@link FOption}을 그대로 반환하고,
+	 * 그렇지 않은 경우 {@link #empty()}를 반환한다.
+	 * 
+	 * @param <S>	매핑 결과 값의 타입.
+	 * @param mapper	값이 존재하는 경우 호출할 매핑 함수.
+	 * @return {@code mapper}가 반환한 {@link FOption} 또는 {@link #empty()}.
+	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 */
 	public <S> FOption<S> flatMap(Function<? super T,FOption<S>> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return (m_present) ? mapper.apply(m_value) : empty();
 	}
 
+	/**
+	 * 값이 존재하는 경우 {@code mapper}를 호출한 결과를, 그렇지 않은 경우 {@code emptyMapper}를 호출한 결과를 반환한다.
+	 * 
+	 * @param <S>	매핑 결과 값의 타입.
+	 * @param mapper	값이 존재하는 경우 호출할 매핑 함수.
+	 * @param emptyMapper	값이 존재하지 않는 경우 결과를 생성할 함수.
+	 * @return {@code mapper} 또는 {@code emptyMapper}가 반환한 {@link FOption}.
+	 * @throws IllegalArgumentException	{@code mapper} 또는 {@code emptyMapper}가 {@code null}인 경우.
+	 */
 	public <S> FOption<S> flatMapOrElse(Function<? super T,FOption<S>> mapper,
 			Supplier<FOption<S>> emptyMapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
@@ -536,18 +639,48 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return (m_present) ? mapper.apply(m_value) : emptyMapper.get();
 	}
 
+	/**
+	 * 값이 존재하는 경우 {@code mapper}를 호출하여 그 결과를 {@link #ofNullable(Object)}로 감싸 반환한다.
+	 * <p>
+	 * {@link #map(Function)}과 달리 {@code mapper}가 {@code null}을 반환하면 {@link #empty()}가 반환된다.
+	 * 
+	 * @param <S>	매핑 결과 값의 타입.
+	 * @param mapper	값이 존재하는 경우 호출할 매핑 함수.
+	 * @return {@code mapper} 결과를 감싼 {@link FOption}. 값이 없거나 결과가 {@code null}이면 {@link #empty()}.
+	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 */
 	public <S> FOption<S> flatMapNullable(Function<? super T,? extends S> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return (m_present) ? FOption.ofNullable(mapper.apply(m_value)) : empty();
 	}
 
+	/**
+	 * 값이 존재하는 경우 {@code mapper}를 호출하여 생성된 {@link FStream}을 반환하고,
+	 * 그렇지 않은 경우 빈 {@link FStream}을 반환한다.
+	 * 
+	 * @param <S>	스트림 원소의 타입.
+	 * @param mapper	값이 존재하는 경우 호출할 매핑 함수.
+	 * @return {@code mapper}가 반환한 {@link FStream} 또는 {@link FStream#empty()}.
+	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 */
 	public <S> FStream<S> flatMapFStream(Function<? super T,FStream<S>> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		return (m_present) ? mapper.apply(m_value) : FStream.empty();
 	}
 
+	/**
+	 * 값이 존재하는 경우 {@link CheckedFunction} {@code mapper}를 호출하여 그 결과 {@link FOption}을 반환하고,
+	 * 그렇지 않은 경우 {@link #empty()}를 반환한다.
+	 * <p>
+	 * {@code mapper} 호출 중 발생한 예외는 감싸지 않고 그대로 throw된다 (sneaky throw).
+	 * 
+	 * @param <S>	매핑 결과 값의 타입.
+	 * @param mapper	값이 존재하는 경우 호출할 매핑 함수.
+	 * @return {@code mapper}가 반환한 {@link FOption} 또는 {@link #empty()}.
+	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 */
 	public <S> FOption<S> flatMapSneakily(CheckedFunction<? super T,FOption<S>> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
@@ -560,6 +693,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		}
 	}
 
+	/**
+	 * 값이 존재하는 경우 {@code effect}에 값을 전달하여 호출하고, 객체 자신을 반환한다.
+	 * 
+	 * @param effect	값이 존재하는 경우 호출할 함수.
+	 * @return {@link FOption} 객체 자신.
+	 * @throws IllegalArgumentException	{@code effect}가 {@code null}인 경우 (값의 존재 여부와 무관).
+	 */
 	public FOption<T> peek(Consumer<? super T> effect) {
 		utils.Preconditions.checkNotNullArgument(effect, "effect is null");
 
@@ -594,6 +734,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param orElse 값이 존재하지 않을 경우 반환할 객체.
 	 * @return	값이 존재하는 경우 해당 객체, 그렇지 않은 경우 주어진 {@code orElse} 객체로부터
 	 * 			생성된 {@code FOption} 객체.
+	 * @throws IllegalArgumentException	값이 존재하지 않고 {@code orElse}가 {@code null}인 경우.
 	 */
 	public FOption<T> orElse(T orElse) {
 		if ( m_present ) {
@@ -624,14 +765,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 
 	/**
 	 * 값이 존재하는 경우 해당 객체를 그대로 반환하고, 값이 존재하지 않는 경우
-	 * 주어진 {@code orElseSupplier} 함수 호출 결과
-	 * 값을 반환한다.
-	 * <p>
-	 * {@code orElseSupplier} 함수 호출 중 예외가 발생되면 해당 예외를 throw 시킨다.
+	 * 주어진 {@code errorSupplier}가 생성한 예외를 발생시킨다.
 	 * 
-	 * @param errorSupplier 값이 존재하지 않을 경우 반환 값을 생성하는 함수.
-	 * @return 값이 존재하는 경우 해당 객체, 그렇지 않은 경우 주어진 {@code orElseSupplier}로부터 생성된 값.
-	 * @throws X	{@code orElseSupplier} 함수 호출 중 예외가 발생된 경우.
+	 * @param <X>	발생시킬 예외 타입.
+	 * @param errorSupplier 값이 존재하지 않을 경우 발생시킬 예외를 생성하는 함수.
+	 * @return 값이 존재하는 경우 객체 자신.
+	 * @throws X	값이 존재하지 않을 경우 {@code errorSupplier}가 생성한 예외.
+	 * @throws IllegalArgumentException	값이 존재하지 않고 {@code errorSupplier}가 {@code null}인 경우.
 	 */
 	public <X extends Throwable> FOption<T> orThrow(Supplier<X> errorSupplier)
 			throws X {
@@ -648,6 +788,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * 본 {@code FOption}가 포함한 객체로 구성된 길이 1의 {@link List} 객체를 반환한다.
 	 * <p>
 	 * 값이 존재하지 않는 경우는 빈 {@link List} 객체를 반환한다.
+	 * 반환되는 리스트는 크기를 변경할 수 없다.
 	 * 
 	 * @return {@link List} 객체.
 	 */
@@ -655,6 +796,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return (m_present) ? Arrays.asList(m_value) : Collections.emptyList();
 	}
 	
+	/**
+	 * 본 객체를 {@link Optional} 객체로 변환한다.
+	 * <p>
+	 * 값이 존재하더라도 그 값이 {@code null}인 경우에는 {@link Optional#empty()}가 반환된다.
+	 * 
+	 * @return 변환된 {@link Optional} 객체.
+	 */
 	public Optional<T> toOptional() {
 		return (m_present) ? Optional.ofNullable(m_value) : Optional.empty();
 	}
@@ -676,6 +824,17 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return new FStreamImpl();
 	}
 
+	/**
+	 * 값이 존재하고 주어진 클래스의 인스턴스인 경우 해당 타입으로 형변환된 {@link FOption}을 반환하고,
+	 * 그렇지 않은 경우 {@link #empty()}를 반환한다.
+	 * <p>
+	 * 존재하는 값이 {@code null}인 경우에도 {@link #empty()}가 반환된다.
+	 * 
+	 * @param <V>	형변환할 타입.
+	 * @param cls	형변환할 대상 클래스.
+	 * @return 형변환된 {@link FOption} 또는 {@link #empty()}.
+	 * @throws IllegalArgumentException	{@code cls}가 {@code null}인 경우.
+	 */
 	public <V> FOption<V> cast(Class<? extends V> cls) {
 		Preconditions.checkNotNullArgument(cls, "target class is null");
 
@@ -744,6 +903,7 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	/**
 	 * 주어진 {@code nullable}이 {@code null}이 아닌 경우는 주어진 {@code consumer}를 실행한다.
 	 * 
+	 * @param <T>	값의 타입.
 	 * @param nullable	{@code null} 여부를 판단할 객체.
 	 * @param consumer	객체가 {@code null}이 아닌 경우 실행할 작업.
 	 */
@@ -758,6 +918,8 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * <p>
 	 * {@code consumer} 실행 중 예외가 발생되면 해당 예외를 throw 시킨다.
 	 * 
+	 * @param <T>	값의 타입.
+	 * @param <X>	{@code consumer}가 던질 수 있는 예외 타입.
 	 * @param nullable {@code null} 여부를 판단할 객체.
 	 * @param consumer 객체가 {@code null}이 아닌 경우 실행할 작업.
 	 * @throws X {@code consumer} 실행 중 예외가 발생된 경우.

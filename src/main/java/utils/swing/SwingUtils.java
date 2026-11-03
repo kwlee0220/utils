@@ -7,6 +7,7 @@ import java.awt.Rectangle;
 import javax.swing.JFrame;
 
 /**
+ * 모니터 장치 정보 조회 등 Swing/AWT 관련 정적 유틸리티 클래스.
  * 
  * @author Kang-Woo Lee (ETRI)
  */

@@ -21,12 +21,20 @@ import utils.thread.Guard;
  * @author Kang-Woo Lee (ETRI)
  */
 public abstract class AbstractLoopService extends AbstractExecutionThreadService {
+	/**
+	 * 중지 요청 플래그({@link #m_stopRequested})의 변경과 그 대기에 사용하는 guard.
+	 */
 	protected final Guard m_guard = Guard.create();
 	/**
 	 * 중지 요청 여부. 변경은 {@link #m_guard}를 잡은 상태에서 하고(대기 중인 쓰레드를 깨우기 위함),
 	 * 읽기는 lock 없이 할 수 있도록 {@code volatile}로 선언한다.
 	 */
 	protected volatile boolean m_stopRequested = false;
+
+	/**
+	 * 하위 클래스를 위한 기본 생성자.
+	 */
+	public AbstractLoopService() { }
 
 	/**
 	 * 중지 요청 여부를 반환한다.
