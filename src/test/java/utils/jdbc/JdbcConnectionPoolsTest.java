@@ -107,7 +107,8 @@ public class JdbcConnectionPoolsTest {
 	@Test
 	void nonPooledConnectionFailureKeepsCause() {
 		JdbcProcessor jdbc = builder(FAIL_URL, "user").build();
-		JdbcException error = assertThrows(JdbcException.class, jdbc::connect);
+		// 풀 사용 여부와 상관없이 SQLException이다.
+		SQLException error = assertThrows(SQLException.class, jdbc::connect);
 		assertEquals(FakeDriver.FAILURE_MESSAGE, error.getCause().getMessage());
 	}
 
@@ -131,7 +132,7 @@ public class JdbcConnectionPoolsTest {
 		assertFalse(JdbcProcessor.builder(conf).classLoader(getClass().getClassLoader()).build().isPooled());
 
 		String fullUrl = URL + "?user=user&password=passwd&maxPoolSize=6";
-		assertEquals(6, JdbcProcessor.builderFromFullJdbcUrl(fullUrl).driverClassName(FakeDriver.class.getName())
+		assertEquals(6, JdbcProcessor.builder(JdbcConfiguration.parse(fullUrl)).driverClassName(FakeDriver.class.getName())
 											.pooled().build().getMaxPoolSize());
 	}
 

@@ -37,6 +37,7 @@ ext {
 
 	junit_jupiter_version = '5.10.2'
 	mockito_version = '5.17.0'
+	h2_version = '2.3.232'
 	
 	commons_beanutils_version = '1.11.0'
 }
@@ -94,6 +95,9 @@ dependencies {
 
 	// HTTP client integration tests
 	testImplementation "com.squareup.okhttp3:mockwebserver:${okhttp_version}"
+
+	// utils.jdbc tests (in-memory database)
+	testImplementation "com.h2database:h2:${h2_version}"
 }
 
 tasks.named('test') {

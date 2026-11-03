@@ -1,6 +1,10 @@
 package utils.jdbc;
 
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,14 +16,13 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
-import utils.CallHandler;
+import org.jetbrains.annotations.Nullable;
+
 import utils.Preconditions;
-import utils.ProxyUtils;
 import utils.func.CheckedFunctionX;
 import utils.io.IOUtils;
 import utils.stream.FStream;
 
-import net.sf.cglib.proxy.MethodProxy;
 
 
 /**
@@ -90,61 +93,110 @@ public final class JdbcUtils {
 	/**
 	 * 주어진 {@link ResultSet}의 각 행을 {@code trans} 함수로 변환하여 {@link FStream}으로 반환한다.
 	 * <p>
-	 * 생성된 {@link FStream} 객체가 close() 될 때, 주어진 ResultSet 객체도 함께 close()된다.
+	 * 생성된 {@link FStream} 객체가 close() 될 때, 주어진 ResultSet 객체도 함께 close()된다. 종단 연산({@code toList()}
+	 * 등)은 스트림을 닫지만, {@code next()}로 끝까지 읽은 것만으로는 닫히지 않는다.
+	 * <p>
+	 * 행은 스트림을 읽을 때 지연해서 읽으며, 행 읽기나 변환이 {@link SQLException}으로 실패하면 {@link JdbcException}으로
+	 * 감싸 던진다.
 	 *
 	 * @param <T>	각 행을 변환한 결과 객체의 타입.
 	 * @param rs	대상 ResultSet 객체.
 	 * @param trans	{@link ResultSet}의 한 행을 {@code T} 타입 객체로 변환하는 함수.
 	 * @return		변환된 객체들의 {@link FStream}.
-	 * @throws SQLException	ResultSet 순회·변환 준비 중 오류가 발생한 경우.
+	 * @throws SQLException	지금은 던지지 않는다. 호출처와의 호환을 위해 선언만 남겨 두었다.
 	 */
 	public static <T> FStream<T> fstream(ResultSet rs,
 										CheckedFunctionX<ResultSet,T,SQLException> trans)
 		throws SQLException {
-		return FStream.from(new JdbcObjectIterator<T>(rs, trans));
+		return new ResultSetObjectFStream<>(rs, trans);
 	}
 
 	/**
 	 * 주어진 ResultSet 객체에 대해 close() 메소드가 호출될 때, 해당 ResultSet 객체가
-	 * 참조하는 Connection 객체도 함께 close() 되도록 하는 Proxy 객체를 생성하여 반환한다.
+	 * 참조하는 Statement와 Connection 객체도 함께 close() 되도록 하는 Proxy 객체를 생성하여 반환한다.
+	 * <p>
+	 * 닫을 Statement와 Connection은 이 메소드를 호출할 때 {@link ResultSet#getStatement()}와
+	 * {@link Statement#getConnection()}으로 확보해 둔다. 그래서 원본 ResultSet이나 Statement가 먼저 닫혀도
+	 * 프록시의 {@code close()}는 연결까지 닫는다. 그 밖의 동작은
+	 * {@link #bindToConnection(ResultSet, Statement, Connection)}과 같다.
+	 *
+	 * @param rset	대상 ResultSet 객체. 열려 있어야 한다.
+	 * @return	{@link Connection}을 close() 시키는 동작이 포함된 ResultSet proxy 객체.
+	 * @throws IllegalArgumentException	{@code rset}이 {@code null}인 경우.
+	 * @throws SQLException	Statement나 Connection을 얻지 못한 경우(예: {@code rset}이 이미 닫힌 경우).
+	 */
+	public static ResultSet bindToConnection(ResultSet rset) throws SQLException {
+		Preconditions.checkNotNullArgument(rset, "ResultSet is null");
+
+		Statement stmt = rset.getStatement();
+		Connection conn = (stmt != null) ? stmt.getConnection() : null;
+		return bindToConnection(rset, stmt, conn);
+	}
+
+	/**
+	 * 주어진 ResultSet 객체에 대해 close() 메소드가 호출될 때, 주어진 Statement와 Connection도 함께
+	 * close() 되도록 하는 Proxy 객체를 생성하여 반환한다.
+	 * <p>
+	 * 반환되는 객체는 {@link ResultSet} 인터페이스만 구현하는 JDK 동적 프록시다. 프록시 클래스는 한 번만 만들어
+	 * 재사용된다. {@code close()} 외의 호출은 원본에 그대로 위임하며, {@code close()}는 처음 한 번만 원본 ResultSet,
+	 * {@code stmt}, {@code conn}을 차례로 닫는다(닫기 오류는 무시). 닫을 객체를 미리 받으므로 원본 ResultSet이나
+	 * Statement가 먼저 닫혀도 연결은 닫힌다. 드라이버의 구체 클래스가 필요하면 {@link ResultSet#unwrap(Class)}를
+	 * 쓴다.
 	 *
 	 * @param rset	대상 ResultSet 객체.
-	 * @return	{@link Connection}을 close() 시키는 동작이 포함된 ResultSet proxy 객체.
+	 * @param stmt	함께 닫을 Statement. {@code null}이면 닫지 않는다.
+	 * @param conn	함께 닫을 Connection. {@code null}이면 닫지 않는다.
+	 * @return	{@code stmt}와 {@code conn}을 close() 시키는 동작이 포함된 ResultSet proxy 객체.
+	 * @throws IllegalArgumentException	{@code rset}이 {@code null}인 경우.
 	 */
-	public static ResultSet bindToConnection(ResultSet rset) {
-		AtomicBoolean closed = new AtomicBoolean(false);
-		CallHandler replacer = new CallHandler() {
-			@Override
-			public boolean test(Method method) {
-				return method.getName().equals("close")
-					&& method.getDeclaringClass() == ResultSet.class;
-			}
+	public static ResultSet bindToConnection(ResultSet rset, @Nullable Statement stmt,
+											@Nullable Connection conn) {
+		Preconditions.checkNotNullArgument(rset, "ResultSet is null");
 
-			@Override
-			public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
-				throws Throwable {
-				if ( !closed.compareAndSet(false, true) ) {
-					return null;
+		return (ResultSet)Proxy.newProxyInstance(JdbcUtils.class.getClassLoader(), new Class<?>[]{ ResultSet.class },
+												new ConnectionBoundHandler(rset, stmt, conn));
+	}
+
+	// close() 때 ResultSet과 Statement·Connection을 한 번만 닫고, 나머지 호출은 원본에 위임한다.
+	private static final class ConnectionBoundHandler implements InvocationHandler {
+		private final ResultSet m_rset;
+		private final @Nullable Statement m_stmt;
+		private final @Nullable Connection m_conn;
+		private final AtomicBoolean m_closed = new AtomicBoolean(false);
+
+		ConnectionBoundHandler(ResultSet rset, @Nullable Statement stmt, @Nullable Connection conn) {
+			m_rset = rset;
+			m_stmt = stmt;
+			m_conn = conn;
+		}
+
+		@Override
+		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+			String name = method.getName();
+			int nargs = (args != null) ? args.length : 0;
+			if ( name.equals("close") && nargs == 0 ) {
+				if ( m_closed.compareAndSet(false, true) ) {
+					IOUtils.closeQuietly(m_rset, m_stmt, m_conn);
 				}
-
-				Statement stmt = null;
-				Connection conn = null;
-				try {
-					// proxy의 close()를 다시 부르지 않기 위해 원본 rset을 직접 close한다.
-					stmt = rset.getStatement();
-					if ( stmt != null ) {
-						conn = stmt.getConnection();
-					}
-				}
-				catch ( Throwable ignored ) { }
-
-				IOUtils.closeQuietly(rset, stmt, conn);
-
 				return null;
 			}
-		};
+			else if ( name.equals("equals") && nargs == 1 && method.getDeclaringClass() == Object.class ) {
+				return proxy == args[0];
+			}
+			else if ( name.equals("hashCode") && nargs == 0 ) {
+				return System.identityHashCode(proxy);
+			}
+			else if ( name.equals("toString") && nargs == 0 ) {
+				return "ConnectionBoundResultSet[" + m_rset + "]";
+			}
 
-		return (ResultSet)ProxyUtils.replaceActionByteBuddy(rset, replacer);
+			try {
+				return method.invoke(m_rset, args);
+			}
+			catch ( InvocationTargetException e ) {
+				throw e.getCause();
+			}
+		}
 	}
 	
 	/**
@@ -152,6 +204,8 @@ public final class JdbcUtils {
 	 * <p>
 	 * 결과는 {@code "[D days] [H hours] [M minutes] [S seconds]"} 형식이며,
 	 * 0인 단위는 생략된다. 단, 모든 단위가 0인 경우는 {@code "0 seconds"}가 반환된다.
+	 * 초 미만 값은 버리지 않고 소수 초로 표기한다(예: 1500ms → {@code "1.5 seconds"}, 500ms →
+	 * {@code "0.5 seconds"}). PostgreSQL interval의 정밀도는 마이크로초이므로 그보다 작은 값은 PostgreSQL이 반올림한다.
 	 * 음수 Duration은 지원하지 않는다.
 	 *
 	 * @param dur	변환할 Duration 객체. {@code null}이면 안 되며, 음수가 아니어야 한다.
@@ -163,6 +217,7 @@ public final class JdbcUtils {
 		Preconditions.checkArgument(!dur.isNegative(), "Duration must be non-negative: %s", dur);
 
 		long seconds = dur.getSeconds();
+		int nanos = dur.getNano();
 		long days = seconds / 86400;
 		long hours = (seconds % 86400) / 3600;
 		long minutes = (seconds % 3600) / 60;
@@ -178,7 +233,11 @@ public final class JdbcUtils {
 		if ( minutes > 0 ) {
 			sb.append(minutes).append(" minutes ");
 		}
-		if ( secs > 0 || sb.length() == 0 ) {
+		if ( nanos > 0 ) {
+			BigDecimal fraction = BigDecimal.valueOf(secs).add(BigDecimal.valueOf(nanos, 9));
+			sb.append(fraction.stripTrailingZeros().toPlainString()).append(" seconds");
+		}
+		else if ( secs > 0 || sb.length() == 0 ) {
 			sb.append(secs).append(" seconds");
 		}
 		

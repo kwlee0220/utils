@@ -35,7 +35,8 @@ import com.zaxxer.hikari.HikariDataSource;
  * 풀의 연결이 모두 사용 중이면 연결 요청은 최대 {@value #CONNECTION_TIMEOUT_MILLIS}ms 동안 기다린 뒤
  * {@link SQLException}으로 실패한다. 데이터베이스에 접속할 수 없는 경우도 같은 시간만큼 기다린 뒤 실패한다.
  * <p>
- * 등록된 풀은 {@link #closeAll()}로 닫을 수 있으며, JVM 종료 시에도 자동으로 닫힌다.
+ * 등록된 풀은 {@link #close(JdbcProcessor)}(한 풀)나 {@link #closeAll()}(모든 풀)로 닫을 수 있으며, JVM 종료 시에도
+ * 자동으로 닫힌다. 닫힌 풀을 쓰던 processor가 다시 연결을 요청하면 새 풀이 만들어진다.
  * 풀에서 얻은 연결을 {@link Connection#close()}하면 연결은 닫히지 않고 풀로 반환된다. 반환 시
  * auto-commit, read-only, transaction isolation, catalog, schema는 원래 값으로 복원되지만,
  * 그 밖의 세션 상태(예: {@code SET} 문으로 바꾼 세션 변수)는 복원되지 않으므로 다음 사용자에게 남는다.
@@ -84,30 +85,71 @@ public final class JdbcConnectionPools {
 			s_pools.clear();
 		}
 		for ( HikariDataSource pool: pools ) {
-			try {
-				pool.close();
-			}
-			catch ( Exception e ) {
-				s_logger.warn("failed to close JDBC connection pool: name={}, cause={}", pool.getPoolName(), "" + e);
-			}
+			closePool(pool);
+		}
+	}
+	
+	private static void closePool(HikariDataSource pool) {
+		try {
+			pool.close();
+		}
+		catch ( Exception e ) {
+			s_logger.warn("failed to close JDBC connection pool: name={}, cause={}", pool.getPoolName(), "" + e);
 		}
 	}
 
 	/**
+	 * 주어진 processor가 쓰는 풀을 닫고 레지스트리에서 제거한다.
+	 * <p>
+	 * 비밀번호를 바꾸는 등 연결 정보가 바뀌어 더 이상 쓰지 않을 풀을 정리할 때 쓴다(풀은 연결 정보별로 만들어지고
+	 * 이 메소드나 {@link #closeAll()} 말고는 제거되지 않는다). 같은 연결 정보의 다른 processor들도 같은 풀을
+	 * 쓰므로 함께 영향을 받으며, 그들이 다시 연결을 요청하면 새 풀이 만들어진다. 이미 빌려 간 연결은 반환될 때 닫힌다.
+	 *
+	 * @param jdbc	풀을 닫을 processor.
+	 * @return	닫은 풀이 있으면 {@code true}. 풀을 쓰지 않는 processor이거나 아직 풀이 없으면 {@code false}.
+	 */
+	public static boolean close(JdbcProcessor jdbc) {
+		utils.Preconditions.checkNotNullArgument(jdbc, "JdbcProcessor is null");
+		
+		PoolKey key = jdbc.getPoolKey();
+		if ( key == null ) {
+			return false;
+		}
+		HikariDataSource pool;
+		synchronized ( s_pools ) {
+			pool = s_pools.remove(key);
+		}
+		if ( pool == null ) {
+			return false;
+		}
+		closePool(pool);
+		return true;
+	}
+
+	/**
 	 * 주어진 processor의 연결 정보에 해당하는 풀을 반환한다. 없으면 새로 만들어 등록한다.
+	 * <p>
+	 * 처음 풀을 만들 때 JVM 종료 훅을 먼저 등록한다. JVM이 종료하는 중이라 등록할 수 없으면 풀을 만들지 않고
+	 * {@link SQLException}을 던진다.
 	 *
 	 * @param jdbc			연결 정보를 담은 processor. 풀은 이 processor의 직접 연결 기능으로 연결을 만든다.
 	 * @param key			연결 정보 키.
 	 * @param maxPoolSize	풀을 새로 만드는 경우의 최대 크기.
 	 * @return	풀.
+	 * @throws SQLException	JVM이 종료하는 중이라 새 풀을 만들 수 없는 경우.
 	 */
-	static HikariDataSource getOrCreate(JdbcProcessor jdbc, PoolKey key, int maxPoolSize) {
+	static HikariDataSource getOrCreate(JdbcProcessor jdbc, PoolKey key, int maxPoolSize) throws SQLException {
 		synchronized ( s_pools ) {
 			HikariDataSource pool = s_pools.get(key);
 			if ( pool == null ) {
+				try {
+					registerShutdownHookIfNeeded();
+				}
+				catch ( IllegalStateException e ) {
+					throw new SQLException("JVM is shutting down; cannot create a JDBC connection pool: " + key, e);
+				}
 				pool = createPool(jdbc, maxPoolSize);
 				s_pools.put(key, pool);
-				registerShutdownHookIfNeeded();
 			}
 			else if ( pool.getMaximumPoolSize() != maxPoolSize && s_logger.isDebugEnabled() ) {
 				s_logger.debug("reuse the existing JDBC connection pool with a different size: name={}, size={}, "
@@ -151,13 +193,13 @@ public final class JdbcConnectionPools {
 	 */
 	static final class PoolKey {
 		private final String m_jdbcUrl;
-		private final String m_user;
-		private final String m_password;
+		private final @Nullable String m_user;
+		private final @Nullable String m_password;
 		private final String m_driverClassName;
 		private final @Nullable ClassLoader m_classLoader;
 		private final @Nullable String m_jarPath;
 
-		PoolKey(String jdbcUrl, String user, String password, String driverClassName,
+		PoolKey(String jdbcUrl, @Nullable String user, @Nullable String password, String driverClassName,
 				@Nullable ClassLoader classLoader, @Nullable File jarFile) {
 			m_jdbcUrl = jdbcUrl;
 			m_user = user;
@@ -165,7 +207,7 @@ public final class JdbcConnectionPools {
 			m_driverClassName = driverClassName;
 			m_classLoader = classLoader;
 			// ClassLoader가 명시된 경우는 jar 파일을 쓰지 않는다.
-			m_jarPath = (classLoader == null && jarFile != null) ? jarFile.getAbsolutePath() : null;
+			m_jarPath = (classLoader == null && jarFile != null) ? JdbcProcessor.jarLoaderKey(jarFile) : null;
 		}
 
 		@Override
@@ -177,8 +219,8 @@ public final class JdbcConnectionPools {
 				return false;
 			}
 			return m_jdbcUrl.equals(other.m_jdbcUrl)
-				&& m_user.equals(other.m_user)
-				&& m_password.equals(other.m_password)
+				&& Objects.equals(m_user, other.m_user)
+				&& Objects.equals(m_password, other.m_password)
 				&& m_driverClassName.equals(other.m_driverClassName)
 				&& m_classLoader == other.m_classLoader
 				&& Objects.equals(m_jarPath, other.m_jarPath);
@@ -192,7 +234,7 @@ public final class JdbcConnectionPools {
 
 		@Override
 		public String toString() {
-			return String.format("%s?user=%s,driver=%s", JdbcUtils.maskPassword(m_jdbcUrl), m_user,
+			return String.format("PoolKey[url=%s, user=%s, driver=%s]", JdbcUtils.maskPassword(m_jdbcUrl), m_user,
 								m_driverClassName);
 		}
 	}
@@ -213,13 +255,8 @@ public final class JdbcConnectionPools {
 
 		@Override
 		public Connection getConnection() throws SQLException {
-			try {
-				return m_jdbc.connectDirect();
-			}
-			catch ( JdbcException e ) {
-				// 풀은 SQLException인 실패를 연결 요청 시한 초과 예외의 원인으로 붙여 보고한다.
-				throw (e.getCause() instanceof SQLException cause) ? cause : new SQLException(e.getMessage(), e);
-			}
+			// 실패는 SQLException이며, 풀은 이를 연결 요청 시한 초과 예외의 원인으로 붙여 보고한다.
+			return m_jdbc.connectDirect();
 		}
 
 		@Override
