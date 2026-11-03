@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 
 import org.jetbrains.annotations.Nullable;
 
-import utils.func.FOption;
+import utils.func.Nullables;
 
 /**
  * {@link Instant}의 문자열 변환({@link #parse(String)}, {@link #toString(Instant)}, {@link #toUtcString(Instant)})과
@@ -95,7 +95,7 @@ public class Instants {
 	 */
 	@Nullable
 	public static Instant fromTimestamp(@Nullable Timestamp ts) {
-		return FOption.map(ts, Timestamp::toInstant);
+		return Nullables.map(ts, Timestamp::toInstant);
 	}
 	
 	/**
@@ -109,7 +109,7 @@ public class Instants {
 	 */
 	@Nullable
 	public static Timestamp toTimestamp(@Nullable Instant instant) {
-		return FOption.map(instant, Timestamp::from);
+		return Nullables.map(instant, Timestamp::from);
 	}
 	
 	/**

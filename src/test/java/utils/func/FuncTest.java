@@ -95,29 +95,4 @@ public class FuncTest {
 		assertEquals(Tuple.of("a", null), invoked.get());
 	}
 
-	@Test
-	public void testInnerJoin_IncludesRightNullValueWhenKeyExists() throws Exception {
-		Map<String,Integer> left = new HashMap<>();
-		left.put("a", 1);
-		left.put("b", 2);
-
-		Map<String,Integer> right = new HashMap<>();
-		right.put("b", null);
-		right.put("c", 3);
-
-		Map<String,Tuple<Integer,Integer>> joined = Funcs.innerJoin(left, right);
-
-		assertEquals(1, joined.size());
-		assertEquals(Tuple.of(2, null), joined.get("b"));
-	}
-
-	@Test
-	public void testArgmax_EmptyListReturnsMinusOne() throws Exception {
-		assertEquals(-1, Funcs.argmax(List.of(), Integer::intValue));
-	}
-
-	@Test
-	public void testArgmin_EmptyListReturnsMinusOne() throws Exception {
-		assertEquals(-1, Funcs.argmin(List.of(), Integer::intValue));
-	}
 }

@@ -1,6 +1,6 @@
 package utils;
 
-import utils.func.FOption;
+import utils.func.Nullables;
 
 /**
  * 라이브러리 내부에서 예기치 않은 오류가 발생했음을 나타내는 unchecked 예외.
@@ -43,7 +43,7 @@ public class InternalException extends RuntimeException {
 	
 	@Override
 	public String getMessage() {
-		String causeStr = FOption.mapOrElse(getCause(), c -> ", cause=" + c, "");
+		String causeStr = Nullables.mapOrElse(getCause(), c -> ", cause=" + c, "");
 		return String.format("%s%s", super.getMessage(), causeStr);
 	}
 }

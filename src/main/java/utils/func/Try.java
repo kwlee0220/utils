@@ -1,5 +1,6 @@
 package utils.func;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -14,11 +15,11 @@ import utils.stream.FStreamable;
  * <p>
  * 예외를 던질 수 있는 작업은 다음 정적 헬퍼들로 래핑하여 {@code Try}로 캡슐화할 수 있다:
  * <ul>
- *   <li>{@link #get(CheckedSupplier)} — {@link CheckedSupplier} 호출 결과 캡슐화.</li>
+ *   <li>{@link #of(CheckedSupplier)} — {@link CheckedSupplier} 호출 결과 캡슐화.</li>
  *   <li>{@link #run(CheckedRunnable)} — {@link CheckedRunnable} 실행 결과 캡슐화.</li>
  *   <li>{@link #accept(Object, CheckedConsumer)} — {@link CheckedConsumer} 적용 결과 캡슐화.</li>
- *   <li>{@link #lift(CheckedSupplier)} / {@link #lift(CheckedRunnable)} /
- *       {@link #lift(CheckedFunction)} — checked 함수형을 {@code Try} 반환형으로 끌어올림.</li>
+ *   <li>{@link #liftSupplier(CheckedSupplier)} / {@link #liftRunnable(CheckedRunnable)} /
+ *       {@link #liftFunction(CheckedFunction)} — checked 함수형을 {@code Try} 반환형으로 끌어올림.</li>
  * </ul>
  * 위 헬퍼들은 모두 {@link Exception}만 캡슐화하며 {@link Error}는 그대로 전파한다.
  * <p>
@@ -102,7 +103,7 @@ public interface Try<T> extends FStreamable<T> {
 	 * @return 성공 시 결과 값으로 구성된 {@code Success}, 실패 시 {@code Failure(cause)}.
 	 * @throws IllegalArgumentException {@code supplier}가 {@code null}인 경우.
 	 */
-	public static <T> Try<T> get(CheckedSupplier<T> supplier) {
+	public static <T> Try<T> of(CheckedSupplier<T> supplier) {
 		Preconditions.checkNotNullArgument(supplier, "CheckedSupplier is null");
 
 		try {
@@ -124,7 +125,7 @@ public interface Try<T> extends FStreamable<T> {
 	 * @return {@link Try}로 감싼 결과를 반환하는 {@link Supplier}.
 	 * @throws IllegalArgumentException {@code supplier}가 {@code null}인 경우.
 	 */
-	public static <T> Supplier<Try<T>> lift(CheckedSupplier<T> supplier) {
+	public static <T> Supplier<Try<T>> liftSupplier(CheckedSupplier<T> supplier) {
 		Preconditions.checkNotNullArgument(supplier, "CheckedSupplier is null");
 
 		return () -> {
@@ -169,7 +170,7 @@ public interface Try<T> extends FStreamable<T> {
 	 * @return 실행 결과를 {@code Try<Void>}로 감싸 반환하는 {@link Supplier}.
 	 * @throws IllegalArgumentException {@code task}가 {@code null}인 경우.
 	 */
-	public static Supplier<Try<Void>> lift(CheckedRunnable task) {
+	public static Supplier<Try<Void>> liftRunnable(CheckedRunnable task) {
 		Preconditions.checkNotNullArgument(task, "CheckedRunnable is null");
 
 		return () -> {
@@ -195,7 +196,7 @@ public interface Try<T> extends FStreamable<T> {
 	 * @return {@code Function<T, Try<R>>}.
 	 * @throws IllegalArgumentException {@code checked}가 {@code null}인 경우.
 	 */
-	public static <T,R> Function<T,Try<R>> lift(CheckedFunction<T,R> checked) {
+	public static <T,R> Function<T,Try<R>> liftFunction(CheckedFunction<? super T, ? extends R> checked) {
 		Preconditions.checkNotNullArgument(checked, "CheckedFunction is null");
 
 		return (input) -> {
@@ -262,6 +263,9 @@ public interface Try<T> extends FStreamable<T> {
 	 * 작업 수행 결과를 반환한다.
 	 * <p>
 	 * 예외 발생으로 수행이 실패한 경우, 인자로 전달된 대체 객체가 반환된다.
+	 * <p>
+	 * {@code getOrElse(Supplier)}와 오버로드되어 있으므로 {@code getOrElse(null)}은 컴파일되지 않는다(모호함).
+	 * 기본값이 {@code null}이면 {@link #getOrNull()}을 쓴다.
 	 *
 	 * @param elseValue	예외 발생으로 수행 결과가 없는 경우 반환될 객체.
 	 * @return	수행 결과. 수행이 실패된 경우에는 {@code elseValue}.
@@ -301,7 +305,7 @@ public interface Try<T> extends FStreamable<T> {
 	 * @param recovery	실패 원인을 받아 대체 값을 산출하는 {@link Function}.
 	 * @return	수행 결과가 실패한 경우 {@code recovery}의 결과로 대체된 {@link Try} 객체.
 	 */
-	public Try<T> recover(Function<Throwable,T> recovery);
+	public Try<T> recover(Function<? super Throwable, ? extends T> recovery);
 
 	/**
 	 * 작업 수행 결과가 실패한 경우, {@code recovery}를 호출한 결과로 대체된 {@link Try} 객체를 반환한다.
@@ -313,14 +317,15 @@ public interface Try<T> extends FStreamable<T> {
 	 * @param recovery	실패 시 호출되는 대체 값 공급자.
 	 * @return	수행 결과가 실패한 경우 {@code recovery}의 결과로 대체된 {@link Try} 객체.
 	 */
-	public Try<T> recover(CheckedSupplier<T> recovery);
+	public Try<T> recover(CheckedSupplier<? extends T> recovery);
 	
 	/**
 	 * 작업 수행 결과에 {@code mapper}를 적용시킨 값으로 구성된 {@link Try} 객체를 반환한다.
 	 * <p>
 	 * 본 객체가 {@link Success}이면 결과 값에 {@code mapper}를 적용한 {@link Success}를,
 	 * {@link Failure}이면 원래 예외를 그대로 가진 {@link Failure}를 반환한다.
-	 * {@code mapper} 자체가 예외를 던지면 그 예외는 캡슐화되지 않고 호출자에게 그대로 전파된다.
+	 * {@code mapper}가 {@link Exception}을 던지면 그 예외를 담은 {@link Failure}를 반환한다({@link Result#map}과
+	 * 같다). {@link Error}는 잡지 않고 그대로 전파된다.
 	 *
 	 * @param <S>    출력 타입.
 	 * @param mapper 수행 결과 값에 적용할 {@link Function}.
@@ -336,19 +341,20 @@ public interface Try<T> extends FStreamable<T> {
 	 * @param mapper	수행 결과가 실패한 경우 대체할 예외를 생성하는 {@link Function}.
 	 * @return	수행 결과가 실패한 경우 {@code mapper}의 결과로 대체된 {@link Try} 객체.
 	 */
-	public Try<T> mapFailure(Function<Throwable,Throwable> mapper);
+	public Try<T> mapFailure(Function<? super Throwable, ? extends Throwable> mapper);
 	
 	/**
 	 * 작업 수행 결과에 {@code mapper}를 적용시킨 값으로 구성된 {@link Try} 객체를 반환한다.
 	 * <p>
 	 * 본 객체가 {@link Success}인 경우는 {@code mapper}를 적용시킨 결과로 반환되며,
-	 * {@link Failure}인 경우는 원래 예외를 그대로 반환한다.
+	 * {@link Failure}인 경우는 원래 예외를 그대로 반환한다. {@code mapper}가 {@link Exception}을 던지면 그 예외를
+	 * 담은 {@link Failure}를 반환한다. {@link Error}는 잡지 않는다.
 	 *
 	 * @param <S>		출력 타입.
 	 * @param mapper	현재 값을 변형시킬 {@link Function}.
 	 * @return	{@code mapper}를 적용시킨 값으로 구성된 {@link Try} 객체.
 	 */
-	public <S> Try<S> flatMap(Function<? super T, Try<? extends S>> mapper);
+	public <S> Try<S> flatMap(Function<? super T, ? extends Try<? extends S>> mapper);
 	
 	/**
 	 * 현 객체가 성공인 경우에만 주어진 {@link Consumer}를 적용시킨다.
@@ -368,7 +374,7 @@ public interface Try<T> extends FStreamable<T> {
 	 * @param handler	현 객체가 실패인 경우 적용시킬 {@link Consumer}.
 	 * @return	현 객체.
 	 */
-	public Try<T> ifFailed(Consumer<Throwable> handler);
+	public Try<T> ifFailed(Consumer<? super Throwable> handler);
 	
 	/**
 	 * 현 객체의 성공/실패 여부에 따라 {@link FOption} 객체를 반환한다.
@@ -440,17 +446,27 @@ public interface Try<T> extends FStreamable<T> {
 
 		@Override
 		public <S> Try<S> map(Function<? super T, ? extends S> mapper) {
-			return Try.success(mapper.apply(m_value));
+			try {
+				return Try.success(mapper.apply(m_value));
+			}
+			catch ( Exception e ) {
+				return Try.failure(e);
+			}
 		}
 
 		@Override
-		public Try<T> mapFailure(Function<Throwable, Throwable> mapper) {
+		public Try<T> mapFailure(Function<? super Throwable, ? extends Throwable> mapper) {
 			return this;
 		}
 
 		@Override
-		public <S> Try<S> flatMap(Function<? super T, Try<? extends S>> mapper) {
-			return Try.narrow(mapper.apply(m_value));
+		public <S> Try<S> flatMap(Function<? super T, ? extends Try<? extends S>> mapper) {
+			try {
+				return Try.narrow(mapper.apply(m_value));
+			}
+			catch ( Exception e ) {
+				return Try.failure(e);
+			}
 		}
 
 		@Override
@@ -460,17 +476,17 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
-		public Try<T> ifFailed(Consumer<Throwable> handler) {
+		public Try<T> ifFailed(Consumer<? super Throwable> handler) {
 			return this;
 		}
 
 		@Override
-		public Try<T> recover(Function<Throwable, T> recovery) {
+		public Try<T> recover(Function<? super Throwable, ? extends T> recovery) {
 			return this;
 		}
 
 		@Override
-		public Try<T> recover(CheckedSupplier<T> recovery) {
+		public Try<T> recover(CheckedSupplier<? extends T> recovery) {
 			return this;
 		}
 
@@ -487,6 +503,22 @@ public interface Try<T> extends FStreamable<T> {
 		@Override
 		public String toString() {
 			return String.format("Success(%s)", m_value);
+		}
+
+		/**
+		 * 같은 값({@link Objects#equals(Object, Object)})을 가진 {@link Success}이면 {@code true}를 반환한다.
+		 *
+		 * @param obj	비교 대상.
+		 * @return	같으면 {@code true}.
+		 */
+		@Override
+		public boolean equals(Object obj) {
+			return this == obj || (obj instanceof Success<?> other && Objects.equals(m_value, other.m_value));
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(Success.class, m_value);
 		}
 	}
 	
@@ -555,12 +587,12 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
-		public Try<T> mapFailure(Function<Throwable, Throwable> mapper) {
+		public Try<T> mapFailure(Function<? super Throwable, ? extends Throwable> mapper) {
 			return failure(mapper.apply(m_cause));
 		}
 
 		@Override
-		public <S> Try<S> flatMap(Function<? super T, Try<? extends S>> mapper) {
+		public <S> Try<S> flatMap(Function<? super T, ? extends Try<? extends S>> mapper) {
 			return failure(m_cause);
 		}
 
@@ -570,19 +602,19 @@ public interface Try<T> extends FStreamable<T> {
 		}
 
 		@Override
-		public Try<T> ifFailed(Consumer<Throwable> handler) {
+		public Try<T> ifFailed(Consumer<? super Throwable> handler) {
 			handler.accept(m_cause);
 			return this;
 		}
 
 		@Override
-		public Try<T> recover(Function<Throwable, T> recovery) {
-			return Try.get(() -> recovery.apply(m_cause));
+		public Try<T> recover(Function<? super Throwable, ? extends T> recovery) {
+			return Try.of(() -> recovery.apply(m_cause));
 		}
 
 		@Override
-		public Try<T> recover(CheckedSupplier<T> recovery) {
-			return Try.get(recovery);
+		public Try<T> recover(CheckedSupplier<? extends T> recovery) {
+			return Try.of(recovery::get);
 		}
 
 		@Override
@@ -598,6 +630,23 @@ public interface Try<T> extends FStreamable<T> {
 		@Override
 		public String toString() {
 			return String.format("Failure(%s)", m_cause);
+		}
+
+		/**
+		 * 같은 원인을 가진 {@link Failure}이면 {@code true}를 반환한다. 예외는 보통 {@code equals}를 재정의하지
+		 * 않으므로 같은 예외 객체여야 같다.
+		 *
+		 * @param obj	비교 대상.
+		 * @return	같으면 {@code true}.
+		 */
+		@Override
+		public boolean equals(Object obj) {
+			return this == obj || (obj instanceof Failure<?> other && m_cause.equals(other.m_cause));
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(Failure.class, m_cause);
 		}
 	}
 }

@@ -22,7 +22,7 @@ import utils.Throwables;
 import utils.Tuple;
 import utils.func.CheckedFunctionX;
 import utils.func.FOption;
-import utils.func.Optionals;
+import utils.func.Nullables;
 import utils.func.Try;
 import utils.func.Unchecked;
 import utils.io.IOUtils;
@@ -177,7 +177,7 @@ public class FStreams {
 		
 		@Override
 		public Logger getLogger() {
-			return Optionals.getOrElse(m_logger, s_logger);
+			return Nullables.orElse(m_logger, s_logger);
 		}
 		
 		@Override
@@ -224,7 +224,7 @@ public class FStreams {
 			FOption<T> onext;
 			while ( (onext = src.next()).isPresent() ) {
 				try {
-					T next = onext.getUnchecked();
+					T next = onext.getOrNull();
 					return FOption.of(m_mapper.apply(next));
 				}
 				catch ( Throwable e ) {
@@ -319,7 +319,7 @@ public class FStreams {
 			}
 			else {
 				m_current = src.next()
-								.map(v -> m_combine.apply(m_current.getUnchecked(), v));
+								.map(v -> m_combine.apply(m_current.getOrNull(), v));
 			}
 			return m_current;
 		}
@@ -345,7 +345,7 @@ public class FStreams {
 			if ( next.isAbsent() ) {
 				return FOption.empty();
 			}
-			m_accum = m_folder.apply(m_accum, next.getUnchecked());
+			m_accum = m_folder.apply(m_accum, next.getOrNull());
 			return FOption.of(m_accum);
 		}
 	}
@@ -582,7 +582,7 @@ public class FStreams {
 		public FOption<T> getNext(FStream<S> src) {
 			FOption<S> next;
 			while ( (next = src.next()).isPresent() ) {
-				Try<? extends T> mapped = m_mapper.apply(next.getUnchecked());
+				Try<? extends T> mapped = m_mapper.apply(next.getOrNull());
 				if ( mapped.isSuccessful() ) {
 					T value = mapped.getUnchecked();
 					return FOption.of(value);
@@ -612,7 +612,7 @@ public class FStreams {
 		public FOption<T> getNext(FStream<T> src) {
 			FOption<T> next;
 			while ( (next = src.next()).isPresent() ) {
-				T obj = next.getUnchecked();
+				T obj = next.getOrNull();
 				if ( m_pred.test(obj) ) {
 					return FOption.of(m_mapper.apply(obj));
 				}

@@ -96,7 +96,7 @@ public class FOptionTest {
 		FOption<String> opt = FOption.ofNullable("a");
 		assertEquals(true, opt.isPresent());
 		assertEquals("a", opt.get());
-		assertEquals("a", opt.getUnchecked());
+		assertEquals("a", opt.getOrNull());
 
 		opt.ifPresent(v -> m_str = v);
 		assertEquals("a", m_str);
@@ -118,31 +118,12 @@ public class FOptionTest {
 
 	@Test
 	public void testWhen1() throws Exception {
-		Optional<String> opt = Optionals.whenTrue(true, "a");
+		Optional<String> opt = Nullables.whenTrue(true, "a");
 		assertEquals(true, opt.isPresent());
 		assertEquals("a", opt.get());
 
-		opt = Optionals.whenTrue(false, "a");
+		opt = Nullables.whenTrue(false, "a");
 		assertEquals(true, opt.isEmpty());
-	}
-
-	@SuppressWarnings("unchecked")
-	@Test
-	public void testWhen2() throws Exception {
-		Supplier<String> suppl = mock(Supplier.class);
-		when(suppl.get()).thenReturn("a");
-
-		Optional<String> opt = Optionals.whenTrue(true, suppl);
-
-		verify(suppl, times(1)).get();
-		assertEquals(true, opt.isPresent());
-		assertEquals("a", opt.get());
-
-		reset(suppl);
-		opt = Optionals.whenTrue(false, suppl);
-
-		verify(suppl, times(0)).get();
-		assertEquals(false, opt.isPresent());
 	}
 
 	@Test
@@ -295,10 +276,10 @@ public class FOptionTest {
 		FOption<Integer> opt1 = FOption.of(10);
 		FOption<Integer> opt2 = FOption.empty();
 
-		int ret = opt1.transform(5, (s,v) -> s+v);
+		int ret = opt1.fold(5, (s,v) -> s+v);
 		assertEquals(15, ret);
 
-		int ret2 = opt2.transform(5, (s,v) -> s+v);
+		int ret2 = opt2.fold(5, (s,v) -> s+v);
 		assertEquals(5, ret2);
 	}
 
@@ -385,19 +366,19 @@ public class FOptionTest {
 
 		FOption<Integer> opt;
 
-		opt = opt1.orElse(FOption.of(5));
+		opt = opt1.or(FOption.of(5));
 		assertTrue(opt.isPresent());
 		assertEquals(10, (int)opt.get());
 
-		opt = opt1.orElse(FOption.empty());
+		opt = opt1.or(FOption.empty());
 		assertTrue(opt.isPresent());
 		assertEquals(10, (int)opt.get());
 
-		opt = opt2.orElse(FOption.of(5));
+		opt = opt2.or(FOption.of(5));
 		assertTrue(opt.isPresent());
 		assertEquals(5, (int)opt.get());
 
-		opt = opt2.orElse(FOption.empty());
+		opt = opt2.or(FOption.empty());
 		assertTrue(opt.isAbsent());
 	}
 
@@ -408,11 +389,11 @@ public class FOptionTest {
 
 		FOption<Integer> opt;
 
-		opt = opt1.orElse(() -> FOption.of(5));
+		opt = opt1.or(() -> FOption.of(5));
 		assertTrue(opt.isPresent());
 		assertEquals(10, (int)opt.get());
 
-		opt = opt2.orElse(() -> FOption.of(5));
+		opt = opt2.or(() -> FOption.of(5));
 		assertTrue(opt.isPresent());
 		assertEquals(5, (int)opt.get());
 	}
@@ -457,5 +438,54 @@ public class FOptionTest {
 		assertNotEquals(opt1, null);
 		assertEquals(FOption.empty(), opt2);
 		assertNotEquals(opt3, opt2);
+	}
+
+	/**
+	 * equals가 true인 두 FOption은 hashCode도 같으므로 HashSet·HashMap에서 찾을 수 있다.
+	 */
+	@Test
+	public void testHashCodeConsistentWithEquals() {
+		FOption<String> a = FOption.of("a");
+		FOption<String> a2 = FOption.of(new String("a"));
+		assertEquals(a, a2);
+		assertEquals(a.hashCode(), a2.hashCode());
+		assertTrue(new java.util.HashSet<>(List.of(a)).contains(a2));
+
+		assertEquals(FOption.of(null), FOption.of(null));
+		assertEquals(FOption.of(null).hashCode(), FOption.of(null).hashCode());
+		assertEquals(FOption.empty().hashCode(), FOption.empty().hashCode());
+		assertNotEquals(FOption.empty(), FOption.of(null));
+		assertNotEquals(FOption.empty().hashCode(), FOption.of(null).hashCode());
+	}
+
+	@Test
+	public void orElseValueMayBeNull() {
+		FOption<String> r = FOption.<String>empty().orElse((String)null);
+		assertTrue(r.isPresent());
+		assertEquals(null, r.get());
+	}
+
+	@Test
+	public void toListIsUnmodifiable() {
+		List<String> list = FOption.of("a").toList();
+		assertEquals(List.of("a"), list);
+		assertThrows(UnsupportedOperationException.class, () -> list.set(0, "b"));
+	}
+
+	@Test
+	public void deserializedEmptyIsSingleton() throws Exception {
+		java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+		try ( java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(bytes) ) {
+			out.writeObject(FOption.empty());
+		}
+		try ( java.io.ObjectInputStream in
+					= new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray())) ) {
+			assertTrue(in.readObject() == FOption.empty());
+		}
+	}
+
+	@Test
+	public void staticIfPresentRejectsNullEffectEvenForNullValue() {
+		assertThrows(IllegalArgumentException.class, () -> Nullables.ifNotNull(null, (java.util.function.Consumer<Object>)null));
 	}
 }

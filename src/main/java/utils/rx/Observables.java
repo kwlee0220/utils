@@ -179,7 +179,7 @@ public class Observables {
 					else if ( r.isFailed() ) {
 						emitter.onError(r.getCause());
 					}
-					else if ( r.isNone() ) {
+					else if ( r.isCancelled() ) {
 						emitter.onError(new CancellationException());
 					}
 				}

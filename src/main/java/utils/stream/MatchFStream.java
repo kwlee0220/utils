@@ -80,10 +80,10 @@ class MatchFStream<K,V> extends AbstractKeyValueFStream<K,V> {
 				return FOption.empty();
 			}
 
-			K key = onext.getUnchecked();
+			K key = onext.getOrNull();
 			FOption<V> matched = m_matcher.apply(key);
 			if ( matched.isPresent() ) {
-				return FOption.of(KeyValue.of(key, matched.getUnchecked()));
+				return FOption.of(KeyValue.of(key, matched.getOrNull()));
 			}
 			if ( m_keepUnmatched ) {
 				return FOption.of(KeyValue.of(key, null));

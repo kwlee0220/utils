@@ -34,7 +34,7 @@ import utils.LoggerSettable;
 import utils.Preconditions;
 import utils.async.StartableExecution;
 import utils.async.op.AsyncExecutions;
-import utils.func.Optionals;
+import utils.func.Nullables;
 import utils.func.Result;
 import utils.async.command.CommandExecution.Output;
 import utils.thread.Guard;
@@ -190,7 +190,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 	
 	@Override
 	public Logger getLogger() {
-		return Optionals.getOrElse(m_logger, s_logger);
+		return Nullables.orElse(m_logger, s_logger);
 	}
 	
 	@Override
@@ -491,7 +491,7 @@ public class ProgramService extends AbstractService implements LoggerSettable {
 		if ( result.isFailed() ) {
 			return result.getCause();
 		}
-		else if ( result.isNone() ) {
+		else if ( result.isCancelled() ) {
 			return new CancellationException("the command was cancelled before it started");
 		}
 		else {

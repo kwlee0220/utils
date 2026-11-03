@@ -206,7 +206,7 @@ else if ( r.isCancelled() ) { handleCancellation(); }
 exec.whenStarted(() -> log("started"));                       // 리스너 방식
 exec.whenFinished(result -> result.ifSuccessful(this::use)
                                   .ifFailed(this::report)
-                                  .ifNone(this::handleCancellation)); // 취소
+                                  .ifCancelled(this::handleCancellation)); // 취소
 ```
 
 리스너의 실행 스레드와 잠금에 관한 주의 사항은 1.2를 참고한다.

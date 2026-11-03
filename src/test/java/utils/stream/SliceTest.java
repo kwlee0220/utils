@@ -72,4 +72,14 @@ public class SliceTest {
 		r = stream.slice(slice).toList();
 		Assertions.assertEquals(List.of(1, 4), r);
 	}
+
+	@Test
+	public void rejectsNonPositiveStep() {
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+													() -> Slice.builder().step(0).build());
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+													() -> Slice.builder().step(-1).build());
+		Slice slice = Slice.builder().start(1).end(4).step(2).build();
+		org.junit.jupiter.api.Assertions.assertEquals("Slice[start=1, end=4, step=2]", slice.toString());
+	}
 }

@@ -15,7 +15,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
 
 import utils.Preconditions;
-import utils.func.FOption;
+import utils.func.Nullables;
 import utils.http.HttpRESTfulClient;
 import utils.http.JacksonErrorEntityDeserializer;
 import utils.http.RESTfulIOException;
@@ -41,7 +41,7 @@ public class RESTfulRpcClient {
 	private RESTfulRpcClient(Builder builder) {
 		m_operationUrl = builder.m_operationUrl;
 		m_requestMsg = new RpcRequestMessage(builder.m_inputs);
-		m_jsonMapper = FOption.getOrElse(builder.m_jsonMapper, JacksonUtils.newJsonMapper(false));
+		m_jsonMapper = Nullables.orElse(builder.m_jsonMapper, JacksonUtils.newJsonMapper(false));
 		
 		m_restClient = HttpRESTfulClient.builder()
 										.httpClient(builder.m_httpClient)

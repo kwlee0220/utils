@@ -42,7 +42,12 @@ public final class FailureCase<T> {
 	 *
 	 * @return	실패 원인 예외.
 	 */
-	public Throwable getFailureCause() {
+	public Throwable getCause() {
 		return m_cause;
+	}
+
+	@Override
+	public String toString() {
+		return String.format("FailureCase[data=%s, cause=%s]", m_data, m_cause);
 	}
 }

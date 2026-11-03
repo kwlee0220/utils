@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import utils.Preconditions;
 import utils.UnitUtils;
-import utils.func.FOption;
+import utils.func.Nullables;
 import utils.stream.FStream;
 
 
@@ -195,7 +195,7 @@ public final class CommandExecutionDescriptor {
 	
 	@Override
 	public String toString() {
-		String workingDirStr = FOption.mapOrElse(getWorkingDirectory(),
+		String workingDirStr = Nullables.mapOrElse(getWorkingDirectory(),
 												f -> String.format(", working-dir=%s", f), "");
 		String outputsCsv = FStream.from(m_outputVariables).join(", ", "[", "]");
 		return String.format("command=%s%s, outputs=%s", m_commandLine, workingDirStr, outputsCsv);

@@ -18,8 +18,8 @@ public interface CheckedRunnableX<X extends Throwable> {
 	
 	/**
 	 * {@link #run()}를 호출하고 그 결과를 {@link Try}로 감싸 반환한다.
-	 * 호출 중 발생한 모든 {@link Throwable}({@link Error} 포함)은 던지지 않고
-	 * {@link Try#failure(Throwable)}로 반환한다.
+	 * 호출 중 발생한 예외는 던지지 않고 {@link Try#failure(Throwable)}로 반환한다. 단 {@link Error}는 잡지 않고
+	 * 그대로 전파된다.
 	 *
 	 * @return	성공하면 값이 {@code null}인 성공 {@link Try}, 예외가 발생하면 그 예외를 담은 실패 {@link Try}.
 	 */
@@ -29,6 +29,9 @@ public interface CheckedRunnableX<X extends Throwable> {
 			return Try.success(null);
 		}
 		catch ( Throwable e ) {
+			if ( e instanceof Error err ) {
+				throw err;
+			}
 			return Try.failure(e);
 		}
 	}

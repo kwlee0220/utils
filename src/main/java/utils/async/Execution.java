@@ -762,7 +762,7 @@ public interface Execution<T> extends Future<T> {
 	public default Execution<T> whenCancelled(Runnable handler) {
 		Preconditions.checkNotNullArgument(handler, "handler is null");
 
-		return whenFinishedAsync(result -> result.ifNone(handler));
+		return whenFinishedAsync(result -> result.ifCancelled(handler));
 	}
 	
 	/**

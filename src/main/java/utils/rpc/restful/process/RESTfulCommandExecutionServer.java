@@ -22,7 +22,7 @@ import utils.async.StartableExecution;
 import utils.async.command.CommandExecution;
 import utils.async.command.CommandExecution.Output;
 import utils.async.command.CommandVariable;
-import utils.func.FOption;
+import utils.func.Nullables;
 import utils.func.Unchecked;
 import utils.io.FileUtils;
 import utils.json.JacksonUtils;
@@ -97,7 +97,7 @@ public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 		m_opDesc = CommandExecutionDescriptor.load(opDescFile, m_jsonMapper);
 		
 		// 작업 디렉토리가 지정되지 않은 경우는 연산 기술자 파일이 속한 디렉토리로 설정한다.
-		m_workingDir = FOption.getOrElse(m_opDesc.getWorkingDirectory(), opDescFile.getParentFile());
+		m_workingDir = Nullables.orElse(m_opDesc.getWorkingDirectory(), opDescFile.getParentFile());
 		m_envFile = new File(m_workingDir, "env.file");
 		m_serde = serde;
 		
@@ -133,7 +133,7 @@ public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 			// 출력 변수 처리.
 			// 연산 디스크립터에 정의된 출력 변수 중 요청 메시지에 지정된 출력 변수는
 			// 요청 메시지의 값을 사용하고, 지정되지 않은 출력 변수는 빈 문자열을 값으로 사용한다.
-			Map<String,JsonNode> outputValues = FOption.getOrElse(reqMsg.getOutputs(), Map.of());
+			Map<String,JsonNode> outputValues = Nullables.orElse(reqMsg.getOutputs(), Map.of());
 			for ( String outVarName: m_opDesc.getOutputVariables() ) {
 				// 입력 변수 이름과 동일한 출력 변수는 입력 변수를 그대로 사용한다.
 				if ( builder.hasVariable(outVarName) ) {

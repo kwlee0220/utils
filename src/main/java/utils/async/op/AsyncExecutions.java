@@ -25,6 +25,7 @@ import utils.async.Executions;
 import utils.async.StartableExecution;
 import utils.func.CheckedSupplier;
 import utils.func.Result;
+import utils.func.UncheckedSupplier;
 import utils.stream.FStream;
 
 
@@ -165,7 +166,7 @@ public final class AsyncExecutions {
 							.schedule(() -> result, timeout.toMillis(), TimeUnit.MILLISECONDS)
 							.get();
 		};
-		return CompletableFutureAsyncExecution.supplyAsync(supplier.toSneakyThrowSupplier());
+		return CompletableFutureAsyncExecution.supplyAsync(UncheckedSupplier.sneakyThrow(supplier));
 	}
 
 	/**

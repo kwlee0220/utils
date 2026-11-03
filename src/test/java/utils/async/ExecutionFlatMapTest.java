@@ -153,7 +153,7 @@ public class ExecutionFlatMapTest {
 				sleep(1000);
 				return -1;
 			}
-			else if ( r.isNone() ) {
+			else if ( r.isCancelled() ) {
 				sleep(1000);
 				return 0;
 			}
@@ -303,7 +303,7 @@ public class ExecutionFlatMapTest {
 				sleep(1000);
 				return -1;
 			}
-			else if ( r.isNone() ) {
+			else if ( r.isCancelled() ) {
 				sleep(1000);
 				return 0;
 			}

@@ -22,8 +22,8 @@ public interface CheckedBiConsumerX<S,T,X extends Throwable> {
 	
 	/**
 	 * {@link #accept(Object, Object)}를 호출하고 그 결과를 {@link Try}로 감싸 반환한다.
-	 * 호출 중 발생한 모든 {@link Throwable}({@link Error} 포함)은 던지지 않고
-	 * {@link Try#failure(Throwable)}로 반환한다.
+	 * 호출 중 발생한 예외는 던지지 않고 {@link Try#failure(Throwable)}로 반환한다. 단 {@link Error}는 잡지 않고
+	 * 그대로 전파된다.
 	 *
 	 * @param input1	첫 번째 입력 인자.
 	 * @param input2	두 번째 입력 인자.
@@ -35,6 +35,9 @@ public interface CheckedBiConsumerX<S,T,X extends Throwable> {
 			return Try.success(null);
 		}
 		catch ( Throwable e ) {
+			if ( e instanceof Error err ) {
+				throw err;
+			}
 			return Try.failure(e);
 		}
 	}

@@ -192,7 +192,7 @@ public class Executions {
 	 * @return {@link CompletableFutureAsyncExecution} 객체.
 	 */
 	public static <T> CompletableFutureAsyncExecution<T> supplyCheckedAsync(CheckedSupplier<? extends T> supplier) {
-		return supplyAsync(supplier.toSneakyThrowSupplier());
+		return supplyAsync(UncheckedSupplier.sneakyThrow(supplier));
 	}
 	/**
 	 * Checked exception을 던질 수 있는 {@link CheckedSupplier} 작업을 주어진 {@link Executor}에서 비동기로 실행한다.
@@ -282,7 +282,7 @@ public class Executions {
 						}
 					})
 					.ifFailed(this::notifyFailed)
-					.ifNone(this::notifyCancelled)
+					.ifCancelled(this::notifyCancelled)
 		);}
 	}
 	

@@ -8,7 +8,10 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.jetbrains.annotations.Nullable;
+
 import utils.Preconditions;
+import utils.Throwables;
 
 /**
  * 어떤 연산의 수행 결과를 표현하는 클래스이다.
@@ -16,12 +19,13 @@ import utils.Preconditions;
  * {@code Result}는 다음 세 가지 상태 중 하나를 가진다.
  * <ul>
  *   <li><b>성공(Success)</b>: 연산이 정상적으로 완료되어 결과 값을 가진 상태. 결과 값은 {@code null}일 수도 있다.</li>
- *   <li><b>없음(None)</b>: 연산이 취소되었거나 결과 값이 존재하지 않는 상태.</li>
+ *   <li><b>취소(Cancelled)</b>: 연산이 취소되었거나 결과 값이 존재하지 않는 상태({@link #filter(Predicate)}에서
+ *       술어를 만족하지 않은 경우 포함). 값을 꺼내려 하면 {@link CancellationException}이 난다.</li>
  *   <li><b>실패(Failure)</b>: 연산 도중 예외가 발생한 상태로, 발생한 예외 원인을 가진다.</li>
  * </ul>
  * {@code map}/{@code filter}/{@code flatMap} 연산을 통해 결과를 변형/연결할 수 있으며,
- * 변형 도중 예외가 발생하면 자동으로 실패 상태로 전환된다. 비검사 예외로 결과를 다루는 {@link Try}와도
- * {@link #asTry()}를 통해 상호 변환할 수 있다.
+ * 변형 도중 예외가 발생하면 자동으로 실패 상태로 전환된다. {@link #toTry()}로 {@link Try}로 바꿀 수 있다
+ * (None은 {@link CancellationException}을 원인으로 하는 실패가 된다).
  *
  * @param <T>	연산 결과 값의 타입.
  * @author Kang-Woo Lee (ETRI)
@@ -41,24 +45,25 @@ public abstract class Result<T> {
 	}
 
 	/**
-	 * 결과 값이 존재하지 않는 없음(None) 상태의 {@code Result}를 반환한다.
+	 * 결과 값이 존재하지 않는 취소(Cancelled) 상태의 {@code Result}를 반환한다.
 	 *
 	 * @param <T>	결과 값 타입.
 	 * @return	없음 상태의 {@code Result} 객체.
 	 */
     @SuppressWarnings("unchecked")
-	public static <T> Result<T> none() {
-        return (None<T>) None.INSTANCE;
+	public static <T> Result<T> cancelled() {
+        return (Cancelled<T>) Cancelled.INSTANCE;
     }
 
 	/**
 	 * 주어진 예외를 원인으로 갖는 실패(Failure) 상태의 {@code Result}를 생성한다.
 	 *
 	 * @param <T>	결과 값 타입.
-	 * @param cause	실패 원인 예외.
+	 * @param cause	실패 원인 예외. 원인을 알 수 없는 실패면 {@code null}일 수 있다(예: 원인 없이
+	 * 				{@code notifyFailed(null)}로 끝난 {@code EventDrivenExecution}의 결과).
 	 * @return	실패 상태의 {@code Result} 객체.
 	 */
-	public static <T> Result<T> failure(Throwable cause) {
+	public static <T> Result<T> failure(@Nullable Throwable cause) {
 		return new Failure<>(cause);
 	}
 
@@ -72,11 +77,11 @@ public abstract class Result<T> {
 	}
 
 	/**
-	 * 이 결과가 없음(None) 상태인지 여부를 반환한다.
+	 * 이 결과가 취소(Cancelled) 상태인지 여부를 반환한다.
 	 *
 	 * @return	없음 상태이면 {@code true}, 그렇지 않으면 {@code false}.
 	 */
-	public boolean isNone() {
+	public boolean isCancelled() {
 		return false;
 	}
 
@@ -94,18 +99,31 @@ public abstract class Result<T> {
 	 *
 	 * @return	성공 상태인 경우의 결과 값.
 	 * @throws ExecutionException	실패(Failure) 상태인 경우. 실패 원인 예외가 cause로 설정된다.
-	 * @throws CancellationException	없음(None) 상태인 경우.
+	 * @throws CancellationException	취소(Cancelled) 상태인 경우.
 	 */
 	public abstract T get() throws ExecutionException, CancellationException;
 
 	/**
-	 * 결과 값을 반환하되, 성공 상태가 아닌 경우 발생하는 검사 예외를 비검사 예외로 변환하여 던진다.
+	 * 결과 값을 반환하되, 성공 상태가 아닌 경우 비검사 예외를 던진다.
+	 * <p>
+	 * {@link #get()}과 달리 실패 원인을 {@link ExecutionException}으로 감싸지 않는다. 실패 원인이
+	 * {@link RuntimeException}·{@link Error}이면 그대로, 검사 예외이면 {@link RuntimeException}으로 감싸서 던진다
+	 * ({@link Throwables#toRuntimeException(Throwable)}).
 	 *
 	 * @return	성공 상태인 경우의 결과 값.
+	 * @throws CancellationException	취소(Cancelled) 상태인 경우.
 	 * @see #get()
 	 */
 	public T getUnchecked() {
-		return Unchecked.getOrRTE(this::get);
+		if ( isSuccessful() ) {
+			return getOrNull();
+		}
+		else if ( isCancelled() ) {
+			throw new CancellationException();
+		}
+		else {
+			throw Throwables.toRuntimeException(getCause());
+		}
 	}
 
 	/**
@@ -119,6 +137,9 @@ public abstract class Result<T> {
 
 	/**
 	 * 결과 값을 반환하되, 성공 상태가 아닌 경우 주어진 기본 값을 반환한다.
+	 * <p>
+	 * {@code getOrElse(Supplier)}와 오버로드되어 있으므로 {@code getOrElse(null)}은 컴파일되지 않는다(모호함).
+	 * 기본값이 {@code null}이면 {@link #getOrNull()}을 쓴다.
 	 *
 	 * @param other	성공 상태가 아닌 경우 반환할 기본 값.
 	 * @return	성공 상태인 경우의 결과 값. 그렇지 않으면 {@code other}.
@@ -132,11 +153,11 @@ public abstract class Result<T> {
 	 *
 	 * @param <X>				던질 예외 타입.
 	 * @param exceptionProvider	실패 원인을 입력받아 던질 예외를 생성하는 함수.
-	 * 							없음(None) 상태인 경우에는 {@link IllegalStateException}이 인자로 전달된다.
+	 * 							취소(Cancelled) 상태인 경우에는 {@link CancellationException}이 인자로 전달된다.
 	 * @return	성공 상태인 경우의 결과 값.
 	 * @throws X	성공 상태가 아닌 경우 {@code exceptionProvider}가 생성한 예외.
 	 */
-	public abstract <X extends Throwable> T getOrElseThrow(
+	public abstract <X extends Throwable> T getOrThrow(
 							Function<? super Throwable, X> exceptionProvider) throws X;
 
 	/**
@@ -159,7 +180,7 @@ public abstract class Result<T> {
 	 * @return	성공 상태인 경우의 결과 값.
 	 * @throws X	성공 상태가 아닌 경우 {@code supplier}가 생성한 예외.
 	 */
-	public <X extends Throwable> T getOrElseThrow(Supplier<X> supplier) throws X {
+	public <X extends Throwable> T getOrThrow(Supplier<X> supplier) throws X {
         Preconditions.checkNotNullArgument(supplier, "supplier is null");
 
         throw supplier.get();
@@ -204,7 +225,7 @@ public abstract class Result<T> {
 	 * @param action	없음 상태일 때 수행할 동작.
 	 * @return	메소드 연결(chaining)을 위한 이 {@code Result} 객체.
 	 */
-    public Result<T> ifNone(Runnable action) {
+    public Result<T> ifCancelled(Runnable action) {
         Preconditions.checkNotNullArgument(action, "action is null");
         return this;
     }
@@ -228,14 +249,14 @@ public abstract class Result<T> {
 	 *
 	 * @return	변환된 {@code Try} 객체.
 	 */
-    public Try<T> asTry() {
+    public Try<T> toTry() {
     	if ( isSuccessful() ) {
     		return Try.success(getUnchecked());
     	}
     	else if ( isFailed() ) {
     		return Try.failure(getCause());
     	}
-    	else if ( isNone() ) {
+    	else if ( isCancelled() ) {
     		return Try.failure(new CancellationException());
     	}
     	else {
@@ -257,7 +278,7 @@ public abstract class Result<T> {
 	/**
 	 * 성공 상태인 경우 결과 값에 주어진 술어를 적용하여 결과를 걸러낸다.
 	 * <p>
-	 * 술어가 {@code true}를 반환하면 자신을, {@code false}를 반환하면 없음(None) 상태를 반환한다.
+	 * 술어가 {@code true}를 반환하면 자신을, {@code false}를 반환하면 취소(Cancelled) 상태를 반환한다.
 	 * 성공 상태가 아니면 상태가 그대로 유지되며, 술어 평가 도중 예외가 발생하면
 	 * 그 예외를 원인으로 갖는 실패 상태로 전환된다.
 	 *
@@ -324,13 +345,13 @@ public abstract class Result<T> {
 	    }
 
 		@Override
-		public <X extends Throwable> T getOrElseThrow(Supplier<X> supplier) throws X {
+		public <X extends Throwable> T getOrThrow(Supplier<X> supplier) throws X {
 	        Preconditions.checkNotNullArgument(supplier, "supplier is null");
 			return m_value;
 	    }
 
 		@Override
-		public <X extends Throwable> T getOrElseThrow(Function<? super Throwable, X> exceptionProvider) throws X {
+		public <X extends Throwable> T getOrThrow(Function<? super Throwable, X> exceptionProvider) throws X {
 	    	return m_value;
 	    }
 
@@ -359,7 +380,7 @@ public abstract class Result<T> {
 	        Preconditions.checkNotNullArgument(predicate, "predicate is null");
 
 			try {
-				return predicate.test(m_value) ? this : none();
+				return predicate.test(m_value) ? this : cancelled();
 			}
 			catch ( Exception e ) {
 				return Result.failure(e);
@@ -402,13 +423,13 @@ public abstract class Result<T> {
         }
 	}
 	
-	private static class None<T> extends Result<T> {
-        private static final None<?> INSTANCE = new None<>();
+	private static class Cancelled<T> extends Result<T> {
+        private static final Cancelled<?> INSTANCE = new Cancelled<>();
         
-		private None() { }
+		private Cancelled() { }
 
 		@Override
-		public boolean isNone() {
+		public boolean isCancelled() {
 			return true;
 		}
 		
@@ -418,14 +439,14 @@ public abstract class Result<T> {
 		}
 
 		@Override
-		public <X extends Throwable> T getOrElseThrow(Function<? super Throwable, X> exceptionProvider) throws X {
+		public <X extends Throwable> T getOrThrow(Function<? super Throwable, X> exceptionProvider) throws X {
 	        Preconditions.checkNotNullArgument(exceptionProvider, "exceptionProvider is null");
 
-            throw exceptionProvider.apply(new IllegalStateException("get() on None"));
+            throw exceptionProvider.apply(new CancellationException());
 	    }
 
 		@Override
-	    public Result<T> ifNone(Runnable action) {
+	    public Result<T> ifCancelled(Runnable action) {
 	        Preconditions.checkNotNullArgument(action, "action is null");
 
             action.run();
@@ -436,24 +457,24 @@ public abstract class Result<T> {
 		public <U> Result<U> map(Function<? super T, ? extends U> mapper) {
 	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
 	        
-			return none();
+			return cancelled();
 		}
 
 		@Override
 		public Result<T> filter(Predicate<? super T> predicate) {
 	        Preconditions.checkNotNullArgument(predicate, "predicate is null");
-			return none();
+			return cancelled();
 		}
 		
 		@Override
 		public <U> Result<U> flatMap(Function<? super T, ? extends Result<? extends U>> mapper) {
 	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
-			return none();
+			return cancelled();
 		}
 
         @Override
         public String toString() {
-            return "None";
+            return "Cancelled";
         }
         
         @Override
@@ -461,7 +482,7 @@ public abstract class Result<T> {
 			if ( this == obj ) {
 				return true;
 			}
-			else if ( obj == null  || obj.getClass() != None.class ) {
+			else if ( obj == null  || obj.getClass() != Cancelled.class ) {
 				return false;
 			}
 			
@@ -492,7 +513,7 @@ public abstract class Result<T> {
 		}
 
 		@Override
-		public <X extends Throwable> T getOrElseThrow(Function<? super Throwable, X> exceptionProvider) throws X {
+		public <X extends Throwable> T getOrThrow(Function<? super Throwable, X> exceptionProvider) throws X {
 	        Preconditions.checkNotNullArgument(exceptionProvider, "exceptionProvider is null");
 
             throw exceptionProvider.apply(m_cause);
@@ -545,7 +566,7 @@ public abstract class Result<T> {
 			}
 			
 			Failure<?> other = (Failure<?>)obj;
-			return m_cause.equals(other.m_cause);
+			return Objects.equals(m_cause, other.m_cause);
         }
         
         @Override

@@ -10,7 +10,7 @@ import com.google.common.util.concurrent.Service;
 
 import utils.LoggerSettable;
 import utils.Preconditions;
-import utils.func.Optionals;
+import utils.func.Nullables;
 
 /**
  * Guava {@link Service}를 JVM 종료 시 자동으로 정리하는 shutdown hook.
@@ -100,7 +100,7 @@ public final class ServiceShutdownHook implements Runnable, LoggerSettable {
 
 	@Override
 	public Logger getLogger() {
-		return Optionals.getOrElse(m_logger, s_logger);
+		return Nullables.orElse(m_logger, s_logger);
 	}
 
 	@Override

@@ -440,7 +440,7 @@ try ( CompletionFStream<Report> results = new CompletionFStream<>(16) ) {
 
     results.forEach(result -> result.ifSuccessful(this::handle)
                                     .ifFailed(e -> log.warn("job failed", e))
-                                    .ifNone(() -> log.info("job cancelled")));
+                                    .ifCancelled(() -> log.info("job cancelled")));
 }
 ```
 

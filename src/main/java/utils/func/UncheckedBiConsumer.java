@@ -11,7 +11,7 @@ import utils.Tuple;
  * 검사 예외(checked exception)를 던질 수 있는 {@link CheckedBiConsumer}를
  * 표준 {@link java.util.function.BiConsumer} 인터페이스로 감싸는 어댑터 클래스이다.
  * <p>
- * {@link #accept(Object, Object)} 수행 중 발생한 모든 예외({@link Throwable})는 두 입력 값을 묶은 {@link utils.Tuple}과 함께
+ * {@link #accept(Object, Object)} 수행 중 발생한 예외({@link Error} 제외)는 두 입력 값을 묶은 {@link utils.Tuple}과 함께
  * {@link FailureCase}로 묶여 생성 시 지정된 {@link FailureHandler}에게 전달된다.
  *
  * @param <S>	첫번째 입력 데이터 타입.
@@ -38,6 +38,9 @@ public class UncheckedBiConsumer<S,T> implements BiConsumer<S,T> {
 			m_checked.accept(input1, input2);
 		}
 		catch ( Throwable e ) {
+			if ( e instanceof Error err ) {
+				throw err;		// Error는 실패 처리기에 넘기지 않는다.
+			}
 			m_handler.handle(new FailureCase<>(Tuple.of(input1, input2), e));
 		}
 	}
@@ -81,6 +84,6 @@ public class UncheckedBiConsumer<S,T> implements BiConsumer<S,T> {
 	 * @throws IllegalArgumentException	{@code checked}가 {@code null}인 경우.
 	 */
 	public static <S,T> UncheckedBiConsumer<S,T> sneakyThrow(CheckedBiConsumer<? super S, ? super T> checked) {
-		return lift(checked, FailureHandlers.throwSneakly());
+		return lift(checked, FailureHandlers.throwSneakily());
 	}
 }

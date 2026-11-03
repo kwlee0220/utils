@@ -17,9 +17,9 @@ import com.google.common.util.concurrent.Service;
 import utils.LoggerSettable;
 import utils.RuntimeInterruptedException;
 import utils.Preconditions;
+import utils.func.Nullables;
 import utils.func.CheckedConsumer;
 import utils.func.CheckedRunnable;
-import utils.func.Optionals;
 
 
 /**
@@ -392,7 +392,7 @@ public class PeriodicLoopService extends AbstractLoopService implements LoggerSe
 
 	@Override
 	public Logger getLogger() {
-		return Optionals.getOrElse(m_logger, s_logger);
+		return Nullables.orElse(m_logger, s_logger);
 	}
 
 	@Override

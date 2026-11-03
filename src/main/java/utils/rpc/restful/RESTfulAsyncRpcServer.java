@@ -22,7 +22,7 @@ import utils.Throwables;
 import utils.async.AsyncResult;
 import utils.async.StartableExecution;
 import utils.async.op.AsyncExecutions;
-import utils.func.FOption;
+import utils.func.Nullables;
 import utils.thread.Guard;
 
 /**
@@ -165,7 +165,7 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 			execution.whenFinished(result -> {
 				releaseSession(session);
 
-				Duration retainTimeout = FOption.getOrElse(getSessionRetainTimeout(),
+				Duration retainTimeout = Nullables.orElse(getSessionRetainTimeout(),
 															DEFAULT_SESSION_RETAIN_TIMEOUT);
     			StartableExecution<Void> delayedSessionClose
 						    			= AsyncExecutions.delay(() -> removeSession(session.getSessionEndpoint()),
@@ -176,7 +176,7 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 			// 연산시작을 요청하고 완전히 시작될 때까지 대기한다.
 			execution.start();
 			try {
-				Duration startTimeout = FOption.getOrElse(getStartTimeout(), DEFAULT_START_TIMEOUT);
+				Duration startTimeout = Nullables.orElse(getStartTimeout(), DEFAULT_START_TIMEOUT);
 				execution.waitWhileStarting(startTimeout.toMillis(), TimeUnit.MILLISECONDS);
 			}
 			catch ( TimeoutException | InterruptedException e ) {
@@ -276,7 +276,7 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 	
 	@Override
 	public Logger getLogger() {
-		return FOption.getOrElse(m_logger, s_logger);
+		return Nullables.orElse(m_logger, s_logger);
 	}
 	
 	private AsyncRpcSession removeSession(String sessionEndpooint) {

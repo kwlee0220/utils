@@ -2,12 +2,10 @@ package utils.func;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -194,35 +192,6 @@ public class Funcs {
 	}
 	
 	/**
-	 * 주어진 목록에서 모든 목록이 주어진 조건을 만족하는지 여부를 반환한다.
-	 *
-	 * @param <T>	목록의 원소 타입.
-	 * @param iterable 검색 대상 목록들.
-	 * @param pred     검색 조건
-	 * @return 모든 목록이 조건을 만족하는 경우에는 {@code true}, 그렇지 않은 경우에는 {@code false}.
-	 */
-	public static <T> boolean all(Iterable<T> iterable, Predicate<? super T> pred) {
-		for ( T v : iterable ) {
-			if ( !pred.test(v) ) {
-				return false;
-			}
-		}
-		return true;
-	}
-	
-	/**
-	 * 주어진 iterable에서 {@link Slice} 조건에 해당하는 구간만 잘라 리스트로 반환한다.
-	 *
-	 * @param <T> 원소 타입.
-	 * @param iterable 대상 iterable.
-	 * @param slice 추출할 구간 정보.
-	 * @return 잘라낸 원소들의 리스트.
-	 */
-	public static <T> List<T> slice(List<T> iterable, Slice slice) {
-		return FStream.from(iterable).slice(slice).toList();
-	}
-	
-	/**
 	 * 주어진 목록들에 대해 주어진 조건을 만족하는 element로 구성된 목록들을 반환한다.
 	 *
 	 * @param <T>  목록의 원소 타입.
@@ -357,8 +326,8 @@ public class Funcs {
 	 * 만일 조건을 만족하는 원소가 없는 경우에는 {@code null}을 인자로하는 {@link Function}의
 	 * 결과 값을 사용한다.
 	 * <p>
-	 * 목록에 null이 포함되지 않는 것을 가정하고, 그렇지 않은 경우에는
-	 * {@link NullPointerException}이 발생할 수 있다.
+	 * 일치 여부는 위치로 판단하므로 목록에 {@code null} 원소가 있어도 된다. 다만 반환 값만으로는 "일치한 원소가
+	 * {@code null}이었음"과 "일치한 원소가 없어 추가했음"을 구분할 수 없다.
 	 * 
 	 * @param <T>	원소 타입.
 	 * @param list	목록 객체.
@@ -372,12 +341,15 @@ public class Funcs {
 		Preconditions.checkNotNullArgument(pred, "Predicate was null");
 		Preconditions.checkNotNullArgument(newValueGenerator, "New value generator was null");
 
-		T old = replaceFirst(list, pred, newValueGenerator);
-		if ( old == null ) {
-			list.add(newValueGenerator.apply(null));
+		for ( int i =0; i < list.size(); ++i ) {
+			T v = list.get(i);
+			if ( pred.test(v) ) {
+				list.set(i, newValueGenerator.apply(v));
+				return v;
+			}
 		}
-		
-		return old;
+		list.add(newValueGenerator.apply(null));
+		return null;
 	}
 	
 	/**
@@ -498,97 +470,6 @@ public class Funcs {
 	}
 	
 	/**
-	 * 두 개의 {@link Map} 객체를 내부 조인(inner join)한다.
-	 * 
-	 * @param <K>      키 타입
-	 * @param <V1>     왼쪽 맵의 값 타입
-	 * @param <V2>     오른쪽 맵의 값 타입
-	 * @param leftMap  왼쪽 맵 객체
-	 * @param rightMap 오른쪽 맵 객체
-	 * @return 두 맵에 공통으로 존재하는 키만 포함하는 조인된 맵 객체.
-	 *         오른쪽 맵의 값이 {@code null}이어도 키만 존재하면 결과에 포함된다.
-	 */
-	public static <K,V1,V2> Map<K,Tuple<V1,V2>> innerJoin(Map<K,V1> leftMap, Map<K,V2> rightMap) {
-		Map<K, Tuple<V1, V2>> joined = new HashMap<>();
-		for ( Map.Entry<K, V1> leftEnt : leftMap.entrySet() ) {
-			if ( rightMap.containsKey(leftEnt.getKey()) ) {
-				joined.put(leftEnt.getKey(), Tuple.of(leftEnt.getValue(), rightMap.get(leftEnt.getKey())));
-			}
-		}
-
-		return joined;
-	}
-	
-	/**
-	 * 두 개의 {@link Map} 객체를 왼쪽 외부 조인(left outer join)한다.
-	 * 
-	 * @param <K>      키 타입
-	 * @param <V1>     왼쪽 맵의 값 타입
-	 * @param <V2>     오른쪽 맵의 값 타입
-	 * @param leftMap  왼쪽 맵 객체
-	 * @param rightMap 오른쪽 맵 객체
-	 * @return 왼쪽 맵의 모든 키를 포함하는 조인된 맵 객체.
-	 *         오른쪽 맵에 키가 없거나 값이 {@code null}인 경우 두 번째 원소는 {@code null}이다.
-	 */
-	public static <K, V1, V2> Map<K, Tuple<V1, V2>> leftOuterJoin(Map<K, V1> leftMap, Map<K, V2> rightMap) {
-		Map<K, Tuple<V1, V2>> joined = new HashMap<>();
-		for ( Map.Entry<K, V1> leftEnt : leftMap.entrySet() ) {
-			V2 rightVal = rightMap.get(leftEnt.getKey());
-			joined.put(leftEnt.getKey(), Tuple.of(leftEnt.getValue(), rightVal));
-		}
-
-		return joined;
-	}
-	
-	/**
-	 * 두 개의 {@link Map} 객체를 오른쪽 외부 조인(right outer join)한다.
-	 * 
-	 * @param <K>      키 타입
-	 * @param <V1>     왼쪽 맵의 값 타입
-	 * @param <V2>     오른쪽 맵의 값 타입
-	 * @param leftMap  왼쪽 맵 객체
-	 * @param rightMap 오른쪽 맵 객체
-	 * @return 오른쪽 맵의 모든 키를 포함하는 조인된 맵 객체.
-	 *         왼쪽 맵에 키가 없거나 값이 {@code null}인 경우 첫 번째 원소는 {@code null}이다.
-	 */
-	public static <K, V1, V2> Map<K, Tuple<V1, V2>> rightOuterJoin(Map<K, V1> leftMap, Map<K, V2> rightMap) {
-		Map<K, Tuple<V1, V2>> joined = new HashMap<>();
-		for ( Map.Entry<K, V2> rightEnt : rightMap.entrySet() ) {
-			V1 leftVal = leftMap.get(rightEnt.getKey());
-			joined.put(rightEnt.getKey(), Tuple.of(leftVal, rightEnt.getValue()));
-		}
-
-		return joined;
-	}
-	
-	/**
-	 * 두 개의 {@link Map} 객체를 완전 외부 조인(full outer join)한다.
-	 * 
-	 * @param <K>      키 타입
-	 * @param <V1>     왼쪽 맵의 값 타입
-	 * @param <V2>     오른쪽 맵의 값 타입
-	 * @param leftMap  왼쪽 맵 객체
-	 * @param rightMap 오른쪽 맵 객체
-	 * @return 양쪽 맵의 모든 키를 포함하는 조인된 맵 객체.
-	 *         어느 한쪽 값이 없거나 {@code null}인 경우 해당 tuple 원소는 {@code null}이다.
-	 */
-	public static <K, V1, V2> Map<K, Tuple<V1, V2>> fullOuterJoin(Map<K, V1> leftMap, Map<K, V2> rightMap) {
-		Map<K, Tuple<V1, V2>> joined = new HashMap<>();
-		for ( Map.Entry<K, V1> leftEnt : leftMap.entrySet() ) {
-			V2 rightVal = rightMap.get(leftEnt.getKey());
-			joined.put(leftEnt.getKey(), Tuple.of(leftEnt.getValue(), rightVal));
-		}
-		for ( Map.Entry<K, V2> rightEnt : rightMap.entrySet() ) {
-			if ( !joined.containsKey(rightEnt.getKey()) ) {
-				V1 leftVal = leftMap.get(rightEnt.getKey());
-				joined.put(rightEnt.getKey(), Tuple.of(leftVal, rightEnt.getValue()));
-			}
-		}
-
-		return joined;
-	}
-	
-	/**
 	 * 주어진 집합을 복사한 뒤 원소 하나를 추가한 새 집합을 반환한다.
 	 *
 	 * @param <T> 원소 타입.
@@ -673,68 +554,6 @@ public class Funcs {
 	}
 	
 	/**
-	 * 주어진 리스트에서 key가 최대가 되는 원소의 인덱스를 반환한다.
-	 * <p>
-	 * 리스트가 비어 있으면 {@code -1}을 반환한다.
-	 * 동일한 최대 key가 여러 개면 가장 먼저 나온 원소의 인덱스를 반환한다.
-	 * {@code keyer}는 비교 가능한 non-null key를 반환해야 한다.
-	 *
-	 * @param <T>	원소 타입.
-	 * @param <K>	비교 key 타입.
-	 * @param list 대상 리스트.
-	 * @param keyer 비교 key 추출 함수.
-	 * @return 최대 key를 갖는 원소의 인덱스. 리스트가 비어 있으면 {@code -1}.
-	 */
-	public static <T,K extends Comparable<K>>
-	int argmax(List<? extends T> list, Function<? super T,? extends K> keyer) {
-		int maxIdx = -1;
-		K maxValue = null;
-		for ( int i =0; i < list.size(); ++i ) {
-			K key = keyer.apply(list.get(i));
-			if ( maxValue == null ) {
-				maxValue = key;
-				maxIdx = 0;
-			}
-			else if ( key.compareTo(maxValue) > 0 ) {
-				maxValue = key;
-				maxIdx = i;
-			}
-		}
-		return maxIdx;
-	}
-	
-	/**
-	 * 주어진 리스트에서 key가 최소가 되는 원소의 인덱스를 반환한다.
-	 * <p>
-	 * 리스트가 비어 있으면 {@code -1}을 반환한다.
-	 * 동일한 최소 key가 여러 개면 가장 먼저 나온 원소의 인덱스를 반환한다.
-	 * {@code keyer}는 비교 가능한 non-null key를 반환해야 한다.
-	 *
-	 * @param <T>	원소 타입.
-	 * @param <K>	비교 key 타입.
-	 * @param list 대상 리스트.
-	 * @param keyer 비교 key 추출 함수.
-	 * @return 최소 key를 갖는 원소의 인덱스. 리스트가 비어 있으면 {@code -1}.
-	 */
-	public static <T,K extends Comparable<K>>
-	int argmin(List<? extends T> list, Function<? super T,? extends K> keyer) {
-		int minIdx = -1;
-		K minValue = null;
-		for ( int i =0; i < list.size(); ++i ) {
-			K key = keyer.apply(list.get(i));
-			if ( minValue == null ) {
-				minValue = key;
-				minIdx = 0;
-			}
-			else if ( key.compareTo(minValue) < 0 ) {
-				minValue = key;
-				minIdx = i;
-			}
-		}
-		return minIdx;
-	}
-	
-	/**
 	 * 두 컬렉션이 공통 원소를 하나라도 가지는지 여부를 반환한다.
 	 *
 	 * @param <T> 원소 타입.
@@ -746,24 +565,6 @@ public class Funcs {
 		return FStream.from(set1).exists(v -> set2.contains(v));
 	}
 	
-	/**
-	 * 주어진 컬렉션들을 순서대로 이어 붙인 리스트를 반환한다.
-	 * <p>
-	 * 이름이 "union"이지만 <b>중복은 제거하지 않으며</b>, set 의미의 합집합이 아닌 concat에 가깝다.
-	 *
-	 * @param <T> 원소 타입.
-	 * @param clArray 이어 붙일 컬렉션들.
-	 * @return 모든 컬렉션의 원소를 순서대로 담은 새 리스트.
-	 */
-	@SafeVarargs
-	public static <T> List<T> union(Collection<? extends T>... clArray) {
-		List<T> union = new ArrayList<>();
-		for ( Collection<? extends T> cl: clArray ) {
-			union.addAll(cl);
-		}
-		return union;
-	}
-
 	/**
 	 * 조건을 만족하는 원소와 만족하지 않는 원소를 두 리스트로 분할하여 반환한다.
 	 *
@@ -788,66 +589,6 @@ public class Funcs {
 	}
 	
 	/**
-	 * 리스트를 좌측에서 우측으로 순회하며 누적한다.
-	 * <p>
-	 * 결과 = {@code fold(...fold(fold(init, e0), e1)..., eN)}.
-	 * 빈 리스트는 {@code init}을 그대로 반환한다.
-	 *
-	 * @param <T> 입력 원소 타입.
-	 * @param <U> 누적 결과 타입.
-	 * @param list 대상 리스트.
-	 * @param init 초기 누적 값.
-	 * @param fold 누적 함수 (현재 누적, 다음 원소) → 새 누적.
-	 * @return 누적된 최종 값.
-	 */
-	public static <T,U> U foldLeft(List<? extends T> list, U init, BiFunction<? super U, ? super T, ? extends U> fold) {
-		U accum = init;
-		for ( T t: list ) {
-			accum = fold.apply(accum, t);
-		}
-		return accum;
-	}
-
-	/**
-	 * 누적 값이 {@code stopper}와 같아지면 즉시 중단하는 left-fold.
-	 * <p>
-	 * 동등성은 {@link Object#equals(Object)}로 비교한다. 누적 값이 {@code null}이 될 수 있으면
-	 * NPE가 발생할 수 있으므로 caller가 보장해야 한다.
-	 *
-	 * @param <T> 입력 원소 타입.
-	 * @param <U> 누적 결과 타입.
-	 * @param list 대상 리스트.
-	 * @param init 초기 누적 값.
-	 * @param stopper 일치 시 즉시 중단할 sentinel 값.
-	 * @param fold 누적 함수.
-	 * @return 중단 시 {@code stopper}, 끝까지 진행 시 최종 누적 값.
-	 */
-	public static <T,U> U foldLeft(List<T> list, U init, U stopper, BiFunction<U, T, U> fold) {
-		U accum = init;
-		for ( T t: list ) {
-			accum = fold.apply(accum, t);
-			if ( Objects.equals(accum, stopper) ) {
-				return accum;
-			}
-		}
-		return accum;
-	}
-
-	/**
-	 * 커링된 함수형 인자를 받는 {@link #foldLeft(List, Object, BiFunction)} 변형.
-	 *
-	 * @param <T> 입력 원소 타입.
-	 * @param <U> 누적 결과 타입.
-	 * @param list 대상 리스트.
-	 * @param identity 초기 누적 값.
-	 * @param fold {@code u -> t -> u'} 형태의 커링된 누적 함수.
-	 * @return 누적된 최종 값.
-	 */
-	public static <T,U> U foldLeft(List<T> list, U identity, Function<U, Function<T, U>> fold) {
-		return foldLeft(list, identity, (u, t)->fold.apply(u).apply(t));
-	}
-
-	/**
 	 * 리스트를 우측에서 좌측으로 순회하며 누적한다.
 	 * <p>
 	 * 결과 = {@code fold(e0, fold(e1, fold(..., fold(eN, init))))}.
@@ -871,82 +612,6 @@ public class Funcs {
 	}
 
 	/**
-	 * 누적 값이 {@code stopper}와 같아지면 즉시 중단하는 right-fold.
-	 * <p>
-	 * 동등성은 {@link Object#equals(Object)}로 비교한다. 누적 값이 {@code null}이 될 수 있으면
-	 * NPE가 발생할 수 있으므로 caller가 보장해야 한다.
-	 *
-	 * @param <T> 입력 원소 타입.
-	 * @param <U> 누적 결과 타입.
-	 * @param list 대상 리스트.
-	 * @param init 초기 누적 값.
-	 * @param stopper 일치 시 즉시 중단할 sentinel 값.
-	 * @param fold 누적 함수.
-	 * @return 중단 시 {@code stopper}, 끝까지 진행 시 최종 누적 값.
-	 */
-	public static <T,U> U foldRight(List<T> list, U init, U stopper, BiFunction<T, U, U> fold) {
-		U accum = init;
-		for ( int i = list.size()-1; i >= 0; --i ) {
-			final T t = list.get(i);
-			accum = fold.apply(t, accum);
-			if ( Objects.equals(accum, stopper) ) {
-				return accum;
-			}
-		}
-		return accum;
-	}
-
-	/**
-	 * 커링된 함수형 인자를 받는 {@link #foldRight(List, Object, BiFunction)} 변형.
-	 *
-	 * @param <T> 입력 원소 타입.
-	 * @param <U> 누적 결과 타입.
-	 * @param list 대상 리스트.
-	 * @param identity 초기 누적 값.
-	 * @param fold {@code t -> u -> u'} 형태의 커링된 누적 함수.
-	 * @return 누적된 최종 값.
-	 */
-	public static <T,U> U foldRight(List<T> list, U identity,
-									Function<T, Function<U, U>> fold) {
-		return foldRight(list, identity, (t,u) -> fold.apply(t).apply(u));
-	}
-
-	/**
-	 * 리스트를 좌측에서 우측으로 순회하며 binary 연산으로 축약한다.
-	 * <p>
-	 * 첫 원소를 초기값으로 사용하고 두 번째 원소부터 누적한다. 빈 리스트면 {@code null}.
-	 *
-	 * @param <T> 원소 타입.
-	 * @param list 대상 리스트.
-	 * @param fold 두 원소를 결합하는 함수.
-	 * @return 축약된 단일 값, 또는 빈 리스트면 {@code null}.
-	 */
-	public static <T> T reduce(List<T> list, BiFunction<? super T, ? super T, ? extends T> fold) {
-		if ( list.isEmpty() ) {
-			return null;
-		}
-		
-		T accum = list.get(0);
-		for ( int i =1; i < list.size(); ++i ) {
-			final T t = list.get(i);
-			accum = fold.apply(accum, t);
-		}
-		return accum;
-	}
-	
-	/**
-	 * 커링된 함수형 인자를 받는 {@link #reduce(List, BiFunction)} 변형.
-	 *
-	 * @param <T> 원소 타입.
-	 * @param list 대상 리스트.
-	 * @param fold {@code t -> t -> t} 형태의 커링된 결합 함수.
-	 * @return 축약된 단일 값, 또는 빈 리스트면 {@code null}.
-	 */
-	public static <T> T reduce(List<T> list, Function<T, Function<T, T>> fold) {
-		return reduce(list, (accum,t) -> fold.apply(accum).apply(t));
-	}
-
-	/**
 	 * 리스트를 여러 guard로 분기하여 각각의 guard에 대응되는 sub-list로 묶어 반환한다.
 	 * <p>
 	 * 각 원소는 <b>처음으로 매치되는 guard</b>의 분기에만 들어가며, 어느 guard에도 매치되지 않는
@@ -958,7 +623,7 @@ public class Funcs {
 	 * @return 각 guard 인덱스에 대응되는 sub-list들의 리스트(길이 = {@code guards.length}).
 	 */
 	@SafeVarargs
-	public static <T> List<List<T>> branch(List<T> list, Predicate<T>... guards) {
+	public static <T> List<List<T>> branch(List<T> list, Predicate<? super T>... guards) {
 		List<List<T>> branches = new ArrayList<>(guards.length);
 		for ( int i =0; i < guards.length; ++i ) {
 			branches.add(new ArrayList<>());

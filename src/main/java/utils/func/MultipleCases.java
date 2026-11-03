@@ -1,6 +1,6 @@
 package utils.func;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -16,22 +16,22 @@ import utils.stream.TriConsumer;
 /**
  * Map을 switch-like fluent DSL로 다루는 빌더.
  * <p>
- * {@link #switching(Map)}으로 시작해 {@link #ifCase(Object)}/{@link #ifCase(Object, Object)}로 키별 처리,
+ * {@link #of(Map)}으로 시작해 {@link #when(Object)}/{@link #when(Object, Object)}로 키별 처리,
  * {@link #otherwise()}/{@link #otherwise(Object)}로 남은 키-값을 일괄 처리한다.
  * <pre>{@code
- * MultipleCases.switching(map)
- *     .ifCase("k1").consume(v1Handler)
- *     .ifCase("k2").consume(v2Handler)
+ * MultipleCases.of(map)
+ *     .when("k1").then(v1Handler)
+ *     .when("k2").then(v2Handler)
  *     .otherwise().forEach((k, v) -> defaultHandler(k, v));
  * }</pre>
  * <p>
- * 키 부재와 {@code key → null}을 구분한다. 키가 없으면 {@code consume}이 호출되지 않고,
+ * 키 부재와 {@code key → null}을 구분한다. 키가 없으면 {@code then}의 consumer가 호출되지 않고,
  * 키가 존재하지만 값이 {@code null}이면 {@code consumer.accept(null)}이 호출된다.
  * <p>
- * Context-bearing 변형({@link #ifCase(Object, Object)} / {@link #otherwise(Object)})은 매번 호출에서
+ * Context-bearing 변형({@link #when(Object, Object)} / {@link #otherwise(Object)})은 매번 호출에서
  * 추가 인자를 함께 전달한다.
  * <p>
- * 본 클래스는 thread-safe하지 않다. {@link #switching(Map)} 시점에 입력 map을 방어적으로 복사하므로
+ * 본 클래스는 thread-safe하지 않다. {@link #of(Map)} 시점에 입력 map을 방어적으로 복사하므로
  * 호출 이후 외부 변경은 영향을 주지 않는다.
  *
  * @param <K>	key 타입.
@@ -46,15 +46,16 @@ public class MultipleCases<K,V> {
 	 * 주어진 map에 대한 switch-like 빌더를 생성한다.
 	 * <p>
 	 * 입력 map은 방어적으로 복사되므로, 빌더 생성 후 외부에서 map을 변경해도 빌더에는 영향이 없다.
+	 * 복사본은 입력 map의 순회 순서를 유지하므로 {@link #otherwise()}가 남은 case를 내보내는 순서도 입력 map과 같다.
 	 *
 	 * @param <K>	key 타입.
 	 * @param <V>	value 타입.
 	 * @param cases	switch 대상 map. {@code null}이면 {@link IllegalArgumentException}이 발생한다.
 	 * @return		새 {@link MultipleCases} 인스턴스.
 	 */
-	public static <K,V> MultipleCases<K,V> switching(Map<K,V> cases) {
+	public static <K,V> MultipleCases<K,V> of(Map<K,V> cases) {
 		Preconditions.checkNotNullArgument(cases, "cases is null");
-		return new MultipleCases<>(new HashMap<>(cases));
+		return new MultipleCases<>(new LinkedHashMap<>(cases));
 	}
 
 	private MultipleCases(Map<K,V> cases) {
@@ -65,13 +66,13 @@ public class MultipleCases<K,V> {
 	 * 지정된 키에 대응하는 case를 시작한다.
 	 *
 	 * @param key	조회할 key.
-	 * @return		key의 존재 여부와 값을 담은 {@link Case}. 후속 {@code consume(...)}을 통해 처리한다.
+	 * @return		key의 존재 여부와 값을 담은 {@link Case}. 후속 {@code then(...)}을 통해 처리한다.
 	 */
-	public Case<K,V> ifCase(K key) {
-		Map<K,V> remains = new HashMap<>(m_cases);
+	public Case<K,V> when(K key) {
+		Map<K,V> remains = new LinkedHashMap<>(m_cases);
 		boolean present = remains.containsKey(key);
 
-		return new Case<>(key, remains.remove(key), present, remains);
+		return new Case<>(remains.remove(key), present, remains);
 	}
 
 	/**
@@ -91,11 +92,11 @@ public class MultipleCases<K,V> {
 	 * @param context	consumer에 함께 전달될 context 객체.
 	 * @return			context-bearing {@link ContextedCase}.
 	 */
-	public <X> ContextedCase<K,V,X> ifCase(K key, X context) {
-		Map<K,V> remains = new HashMap<>(m_cases);
+	public <X> ContextedCase<K,V,X> when(K key, X context) {
+		Map<K,V> remains = new LinkedHashMap<>(m_cases);
 		boolean present = remains.containsKey(key);
 
-		return new ContextedCase<>(context, key, remains.remove(key), present, remains);
+		return new ContextedCase<>(context, remains.remove(key), present, remains);
 	}
 
 	/**
@@ -116,22 +117,20 @@ public class MultipleCases<K,V> {
 	}
 	
 	/**
-	 * {@link MultipleCases#ifCase(Object)}로 선택된 하나의 case이다.
+	 * {@link MultipleCases#when(Object)}로 선택된 하나의 case이다.
 	 * <p>
 	 * 선택된 key의 존재 여부와 값, 그리고 해당 key를 제외한 나머지 case들을 보유하며,
-	 * {@link #consume(Consumer)}로 처리한 뒤 나머지 case들로 다음 단계를 이어간다.
+	 * {@link #then(Consumer)}로 처리한 뒤 나머지 case들로 다음 단계를 이어간다.
 	 *
 	 * @param <K>	key 타입.
 	 * @param <V>	value 타입.
 	 */
 	public static final class Case<K,V> {
-		private final K m_key;
 		@Nullable private final V m_value;
 		private final boolean m_present;
 		private final Map<K,V> m_others;
 
-		private Case(K key, V value, boolean present, Map<K,V> others) {
-			m_key = key;
+		private Case(V value, boolean present, Map<K,V> others) {
 			m_value = value;
 			m_present = present;
 			m_others = others;
@@ -146,7 +145,7 @@ public class MultipleCases<K,V> {
 		 * @param consumer	value를 처리하는 consumer.
 		 * @return			남은 case들을 이용한 새 {@link MultipleCases} 인스턴스.
 		 */
-		public MultipleCases<K,V> consume(Consumer<V> consumer) {
+		public MultipleCases<K,V> then(Consumer<? super V> consumer) {
 			if ( m_present ) {
 				consumer.accept(m_value);
 			}
@@ -157,9 +156,9 @@ public class MultipleCases<K,V> {
 	}
 
 	/**
-	 * {@link MultipleCases#ifCase(Object, Object)}로 선택된, context를 동반하는 하나의 case이다.
+	 * {@link MultipleCases#when(Object, Object)}로 선택된, context를 동반하는 하나의 case이다.
 	 * <p>
-	 * {@link #consume(BiConsumer)}로 처리한 뒤 나머지 case들로 다음 단계를 이어간다.
+	 * {@link #then(BiConsumer)}로 처리한 뒤 나머지 case들로 다음 단계를 이어간다.
 	 *
 	 * @param <K>	key 타입.
 	 * @param <V>	value 타입.
@@ -167,14 +166,12 @@ public class MultipleCases<K,V> {
 	 */
 	public static class ContextedCase<K,V,X> {
 		private final X m_context;
-		private final K m_key;
 		@Nullable private final V m_value;
 		private final boolean m_present;
 		private final Map<K,V> m_remains;
 
-		private ContextedCase(X context, K key, V value, boolean present, Map<K,V> remains) {
+		private ContextedCase(X context, V value, boolean present, Map<K,V> remains) {
 			m_context = context;
-			m_key = key;
 			m_value = value;
 			m_present = present;
 			m_remains = remains;
@@ -189,7 +186,7 @@ public class MultipleCases<K,V> {
 		 * @param consumer	value와 context를 처리하는 consumer.
 		 * @return			남은 case들을 이용한 새 {@link MultipleCases} 인스턴스.
 		 */
-		public MultipleCases<K,V> consume(BiConsumer<V,X> consumer) {
+		public MultipleCases<K,V> then(BiConsumer<? super V, ? super X> consumer) {
 			if ( m_present ) {
 				consumer.accept(m_value, m_context);
 			}
@@ -215,7 +212,7 @@ public class MultipleCases<K,V> {
 		 *
 		 * @param consumer	각 key-value 쌍을 처리하는 consumer.
 		 */
-		public void forEach(BiConsumer<K,V> consumer) {
+		public void forEach(BiConsumer<? super K, ? super V> consumer) {
 			m_remaining.forEach(kv -> consumer.accept(kv.key(), kv.value()));
 		}
 	}
@@ -242,7 +239,7 @@ public class MultipleCases<K,V> {
 		 *
 		 * @param consumer	각 key-value-context 조합을 처리하는 consumer.
 		 */
-		public void forEach(TriConsumer<K,V,X> consumer) {
+		public void forEach(TriConsumer<? super K, ? super V, ? super X> consumer) {
 			m_remaining.forEach(kv -> consumer.accept(kv.key(), kv.value(), m_context));
 		}
 	}

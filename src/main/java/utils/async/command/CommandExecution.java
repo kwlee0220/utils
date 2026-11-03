@@ -41,10 +41,10 @@ import utils.async.AbstractThreadedExecution;
 import utils.async.AsyncState;
 import utils.async.CancellableWork;
 import utils.async.Executions;
-import utils.func.Optionals;
 import utils.io.EnvironmentFileLoader;
 import utils.io.FileUtils;
 import utils.stream.FStream;
+import utils.func.Nullables;
 
 
 /**
@@ -310,7 +310,7 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		m_successExitCodes = builder.m_successExitCodes;
 		
 		// Builder.workingDirectory()에서 isDirectory 검증을 수행하므로 여기서는 fallback만 처리한다.
-		m_workingDirectory = Optionals.getOrElse(builder.m_workingDirectory, FileUtils::getCurrentWorkingDirectory);
+		m_workingDirectory = Nullables.orElseGet(builder.m_workingDirectory, FileUtils::getCurrentWorkingDirectory);
 
 		setLogger(s_logger);
 	}

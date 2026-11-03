@@ -114,7 +114,7 @@ public class CompletionFStreamTest {
 		m_completions.register(exec);
 
 		Result<Integer> result = m_completions.next().get();
-		assertTrue(result.isNone(), "a cancelled result is expected: " + result);
+		assertTrue(result.isCancelled(), "a cancelled result is expected: " + result);
 	}
 
 	@Test
@@ -146,7 +146,7 @@ public class CompletionFStreamTest {
 		assertThrows(IllegalStateException.class, () -> m_completions.submit(failing));
 		m_completions.finishSubmissions();
 
-		assertTrue(m_completions.next().get().isNone());
+		assertTrue(m_completions.next().get().isCancelled());
 		assertTrue(m_completions.next(1, TimeUnit.SECONDS).isAbsent());
 	}
 

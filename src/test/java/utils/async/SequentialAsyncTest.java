@@ -102,7 +102,7 @@ public class SequentialAsyncTest {
 		Assertions.assertEquals(true, cancelled);
 		MILLISECONDS.sleep(50);
 
-		verify(m_doneListener, times(1)).accept(Result.none());
+		verify(m_doneListener, times(1)).accept(Result.cancelled());
 		Assertions.assertEquals(2, exec.getCurrentExecutionIndex());
 		Assertions.assertTrue(m_execList.get(2).isCancelled());
 	}
@@ -136,7 +136,7 @@ public class SequentialAsyncTest {
 		Assertions.assertEquals(true, m_cancelled.isCancelled());
 		Assertions.assertEquals(true, exec.isCancelled());
 		
-		verify(m_doneListener, times(1)).accept(Result.none());
+		verify(m_doneListener, times(1)).accept(Result.cancelled());
 		Assertions.assertEquals(5, exec.getCurrentExecutionIndex());
 	}
 }

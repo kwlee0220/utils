@@ -234,7 +234,7 @@ public class TimedAsyncTest {
 		Thread.sleep(50);
 
 		Assertions.assertNotNull(received.get());
-		Assertions.assertEquals(true, received.get().isNone());
+		Assertions.assertEquals(true, received.get().isCancelled());
 		Assertions.assertEquals(true, exec.isTimedoutCancelled());
 	}
 
@@ -253,7 +253,7 @@ public class TimedAsyncTest {
 		Thread.sleep(50);
 
 		Assertions.assertNotNull(received.get());
-		Assertions.assertEquals(true, received.get().isNone());
+		Assertions.assertEquals(true, received.get().isCancelled());
 	}
 
 	@Test

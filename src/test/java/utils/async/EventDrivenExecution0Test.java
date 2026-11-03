@@ -37,7 +37,7 @@ public class EventDrivenExecution0Test {
 		m_exec.whenFinishedAsync(ret -> {
 			ret.ifSuccessful(m_completeListener)
 				.ifFailed(m_failureListener)
-				.ifNone(m_cancelListener);
+				.ifCancelled(m_cancelListener);
 		});
 	}
 	

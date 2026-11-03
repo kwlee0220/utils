@@ -177,6 +177,6 @@ public class KeyedGroups<K,V> implements FStreamable<KeyValue<K,List<V>>> {
 	 * @return	{@link MultipleCases} 객체.
 	 */
 	public MultipleCases<K,List<V>> switcher() {
-		return MultipleCases.switching(asMap());
+		return MultipleCases.of(asMap());
 	}
 }

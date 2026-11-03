@@ -215,7 +215,7 @@ class UnorderedMapAsyncStream<S,T> extends AbstractFStream<MappingResult<S,T>> {
 					// m_guard 안에서 호출하면 채널이 full + 소비자가 close 시도 시
 					// (closeInGuard도 m_guard를 획득해야 함) deadlock이 발생할 수 있다.
 					try {
-						m_outChannel.supply(MappingResult.of(input, ret.asTry()));
+						m_outChannel.supply(MappingResult.of(input, ret.toTry()));
 					}
 					catch ( IllegalStateException ignored ) {
 						// close()가 호출되어 채널이 닫힌 경우,

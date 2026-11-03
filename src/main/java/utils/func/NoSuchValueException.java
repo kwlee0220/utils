@@ -1,12 +1,14 @@
 package utils.func;
 
+import java.util.NoSuchElementException;
+
 
 /**
  * 요청한 값이 존재하지 않을 때 발생하는 예외이다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
-public class NoSuchValueException extends RuntimeException {
+public class NoSuchValueException extends NoSuchElementException {
 	private static final long serialVersionUID = -2571121760322447470L;
 
 	/**

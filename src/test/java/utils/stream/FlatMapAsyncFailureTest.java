@@ -32,7 +32,7 @@ public class FlatMapAsyncFailureTest {
 				if ( next.isAbsent() ) {
 					return null;
 				}
-				received.add(next.getUnchecked());
+				received.add(next.getOrNull());
 			}
 		}
 		catch ( Throwable e ) {

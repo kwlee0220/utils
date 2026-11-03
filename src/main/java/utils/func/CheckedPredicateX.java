@@ -21,19 +21,22 @@ public interface CheckedPredicateX<T,X extends Throwable> {
 	
 	/**
 	 * {@link #test(Object)}를 호출하고 그 결과를 {@link Try}로 감싸 반환한다.
-	 * 호출 중 발생한 모든 {@link Throwable}({@link Error} 포함)은 던지지 않고
-	 * {@link Try#failure(Throwable)}로 반환한다.
+	 * 호출 중 발생한 예외는 던지지 않고 {@link Try#failure(Throwable)}로 반환한다. 단 {@link Error}는 잡지 않고
+	 * 그대로 전파된다.
 	 * <b>주의:</b> 반환 타입이 {@code Try<? super T>}로 선언되어 있으나 성공 시 담기는 값은
 	 * 입력 타입 {@code T}가 아니라 판정 결과인 {@link Boolean}이다.
 	 *
 	 * @param input	입력 인자.
 	 * @return	성공하면 판정 결과를 담은 성공 {@link Try}, 예외가 발생하면 그 예외를 담은 실패 {@link Try}.
 	 */
-	public default Try<? super T> tryTest(T input) {
+	public default Try<Boolean> tryTest(T input) {
 		try {
 			return Try.success(test(input));
 		}
 		catch ( Throwable e ) {
+			if ( e instanceof Error err ) {
+				throw err;
+			}
 			return Try.failure(e);
 		}
 	}

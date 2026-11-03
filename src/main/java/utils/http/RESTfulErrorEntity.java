@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import utils.InternalException;
 import utils.ReflectionUtils;
 import utils.Throwables;
-import utils.func.Optionals;
+import utils.func.Nullables;
 
 /**
  * RESTful 서버의 구조화된 에러 응답을 표현하는 DTO.
@@ -79,7 +79,7 @@ public final class RESTfulErrorEntity {
 	 * @return 생성된 에러 엔티티.
 	 */
 	public static RESTfulErrorEntity of(Throwable e) {
-		String msg = Optionals.getOrElse(e.getMessage(), "");
+		String msg = Nullables.orElse(e.getMessage(), "");
 		return new RESTfulErrorEntity(e.getClass().getName(), msg);
 	}
 

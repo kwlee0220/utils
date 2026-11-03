@@ -223,7 +223,7 @@ public class SequentialAsyncExecution extends AbstractAsyncExecution<Object>
 						}
 					});
 		}
-		else if ( result.isNone() ) {
+		else if ( result.isCancelled() ) {
 			getLogger().debug("element cancelled at index={}; cancel composite", m_aopGuard.get(() -> m_index));
 			notifyCancelled();
 		}

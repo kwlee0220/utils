@@ -2,7 +2,6 @@ package utils.func;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
@@ -18,10 +17,11 @@ import utils.Preconditions;
  * 경우에도 supplier를 호출하여 적재한다.
  * <p>
  * <b>Thread-safety:</b> 모든 메소드는 thread-safe하다. 재적재가 필요한 시점에 다수의 스레드가
- * 동시에 {@link #get()}을 호출하면 supplier가 여러 번 호출될 수 있으므로 (재적재는 직렬화되지만
- * 중복 호출은 차단하지 않음), supplier는 idempotent한 것이 권장된다.
+ * 동시에 {@link #get()}을 호출해도 재적재는 한 번만 일어난다. 먼저 잠금을 얻은 스레드가 다시 적재하고, 기다리던
+ * 스레드들은 잠금을 얻은 뒤 다시 확인하여 새로 적재된 값을 그대로 반환한다. {@link #reload()}는 이와 달리 호출할
+ * 때마다 무조건 다시 적재한다.
  * <p>
- * {@link #peek()} / {@link #peekUnchecked()} 는 supplier 호출 없이 현재 적재된 값을 그대로 반환하므로
+ * {@link #peek()} / {@link #peekOrNull()} 는 supplier 호출 없이 현재 적재된 값을 그대로 반환하므로
  * 부수효과·고비용을 피하고 싶은 상황(예: {@code toString()})에서 유용하다. {@link #set(Object)}로
  * 외부에서 받은 값을 캐시에 직접 주입할 수 있으며, 이 경우 적재 시각도 같이 갱신된다.
  *
@@ -96,7 +96,7 @@ public class TimedLazy<T> {
 	 * 유효한 적재 값을 반환한다.
 	 * <p>
 	 * 적재된 값이 없거나 TTL이 만료된 경우 supplier를 호출하여 값을 재적재한 후 반환한다.
-	 * 다수의 스레드가 동시에 호출하여 재적재가 필요한 시점에도 supplier는 한 번만 호출된다.
+	 * 다수의 스레드가 동시에 만료를 보더라도 supplier는 한 번만 호출된다(잠금을 얻은 뒤 다시 확인한다).
 	 *
 	 * @return 적재된 값. supplier가 {@code null}을 반환한 경우 {@code null}이 적재되며 그대로 반환된다
 	 *         (이 경우 다음 호출 시 TTL이 만료되기 전까지는 supplier를 다시 호출하지 않는다).
@@ -104,23 +104,31 @@ public class TimedLazy<T> {
 	@Nullable
 	public T get() {
 		Holder<T> h = m_holder;
-		Instant now = Instant.now();
-		if ( h != null && !isExpired(h, now) ) {
+		if ( h != null && !isExpired(h, Instant.now()) ) {
 			return h.value();
 		}
-		return reload();
+
+		synchronized ( this ) {
+			// 잠금을 기다리는 동안 다른 스레드가 이미 다시 적재했을 수 있다.
+			h = m_holder;
+			if ( h != null && !isExpired(h, Instant.now()) ) {
+				return h.value();
+			}
+			return reload();
+		}
 	}
 
 	/**
 	 * 현재 적재된 값을 반환한다. TTL 만료 여부와 무관하게 supplier를 호출하지 않는다.
 	 * <p>
-	 * 적재된 값이 없는 경우 빈 {@link Optional}을 반환한다.
+	 * 적재된 값이 없는 경우 빈 {@link FOption}을 반환한다. supplier가 {@code null}을 적재했으면 {@code null} 값을
+	 * 가진 존재 상태({@code FOption.of(null)})를 반환하므로 "적재 안 됨"과 구분된다.
 	 *
-	 * @return 현재 적재된 값을 담은 {@link Optional}. 적재된 값이 없으면 {@link Optional#empty()}.
+	 * @return 현재 적재된 값을 담은 {@link FOption}. 적재된 값이 없으면 {@link FOption#empty()}.
 	 */
-	public Optional<T> peek() {
+	public FOption<T> peek() {
 		Holder<T> h = m_holder;
-		return ( h != null ) ? Optional.ofNullable(h.value()) : Optional.empty();
+		return ( h != null ) ? FOption.of(h.value()) : FOption.empty();
 	}
 
 	/**
@@ -129,7 +137,7 @@ public class TimedLazy<T> {
 	 * @return 현재 적재된 값. 적재된 값이 없으면 {@code null}.
 	 */
 	@Nullable
-	public T peekUnchecked() {
+	public T peekOrNull() {
 		Holder<T> h = m_holder;
 		return ( h != null ) ? h.value() : null;
 	}

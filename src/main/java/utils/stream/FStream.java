@@ -45,6 +45,7 @@ import utils.func.FOption;
 import utils.func.Funcs;
 import utils.func.Slice;
 import utils.func.Try;
+import utils.func.UncheckedFunction;
 import utils.io.IOUtils;
 import utils.stream.FStreams.AbstractFStream;
 import utils.stream.FStreams.FlatMapDataSupplier;
@@ -374,7 +375,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			@Override
 			protected FOption<T> getNext(FStream<T> src) {
 				for ( FOption<T> next = src.next(); next.isPresent(); next = src.next() ) {
-					if ( pred.test(next.getUnchecked()) ) {
+					if ( pred.test(next.getOrNull()) ) {
 						return next;
 					}
 				}
@@ -425,7 +426,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 				FOption<T> next;
 				while ( (next = src.next()).isPresent() ) {
 					try {
-						return FOption.of(mapper.apply(next.getUnchecked()));
+						return FOption.of(mapper.apply(next.getOrNull()));
 					}
 					catch ( Throwable ignored ) { }
 				}
@@ -449,7 +450,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			public FOption<Try<S>> getNext(FStream<T> src) {
 				FOption<T> onext;
 				while ( (onext = src.next()).isPresent() ) {
-					T next = onext.getUnchecked();
+					T next = onext.getOrNull();
 					try {
 						return FOption.of(Try.success(mapper.apply(next)));
 					}
@@ -694,7 +695,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			public FOption<R> getNext(FStream<T> src) {
 				FOption<T> next;
 				while ( (next = src.next()).isPresent() ) {
-					FOption<R> mapped = mapper.apply(next.getUnchecked());
+					FOption<R> mapped = mapper.apply(next.getOrNull());
 					if ( mapped.isPresent() ) {
 						return mapped;
 					}
@@ -768,7 +769,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 					.flatMap(MappingResult::get);
 		}
 		else {
-			Function<? super T, ? extends FStream<V>> asyncMapper = mapper.toSneakyThrowFunction();
+			Function<? super T, ? extends FStream<V>> asyncMapper = UncheckedFunction.sneakyThrow(mapper);
 			FStream<FStream<V>> strmOfStreams = this.map(t -> new FlatMapDataSupplier<T,V>(t, asyncMapper));
 			return FStream.mergeParallel(strmOfStreams, options.getWorkerCount(), options.getExecutor());
 		}
@@ -872,7 +873,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 							return FOption.empty();
 						}
 
-						m_tail.addLast(next.getUnchecked());
+						m_tail.addLast(next.getOrNull());
 					}
 				}
 
@@ -881,7 +882,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 					return FOption.empty();
 				}
 
-				m_tail.addLast(next.getUnchecked());
+				m_tail.addLast(next.getOrNull());
 				return FOption.of(m_tail.pollFirst());
 			}
 		};
@@ -1252,7 +1253,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			T accum = initial.get();
 			FOption<T> n;
 			while ( (n = next()).isPresent() ) {
-				accum = reducer.apply(accum, n.getUnchecked());
+				accum = reducer.apply(accum, n.getOrNull());
 			}
 			return FOption.of(accum);
 		}
@@ -1307,7 +1308,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		try {
 			FOption<T> next;
 			while ( (next = next()).isPresent() ) {
-				accum = folder.apply(accum, next.getUnchecked());
+				accum = folder.apply(accum, next.getOrNull());
 			}
 
 			return accum;
@@ -1508,10 +1509,10 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 			FOption<T> next;
 			while ( (next = next()).isPresent() ) {
 				if ( ring.size() < count ) {
-					ring.add(next.getUnchecked());
+					ring.add(next.getOrNull());
 				}
 				else if ( count > 0 ) {
-					ring.set(head, next.getUnchecked());
+					ring.set(head, next.getOrNull());
 					head = (head + 1) % count;
 				}
 			}
@@ -1559,7 +1560,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		try {
 			FOption<T> next;
 			while ( (next = next()).isPresent() ) {
-				T input = next.getUnchecked();
+				T input = next.getOrNull();
 				Try.run(() -> effect.accept(input));
 			}
 		}
@@ -1714,7 +1715,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		try {
 			FOption<T> next;
 			while ( (next = next()).isPresent() ) {
-				if ( !pred.test(next.getUnchecked()) ) {
+				if ( !pred.test(next.getOrNull()) ) {
 					return false;
 				}
 			}
@@ -1740,7 +1741,7 @@ public interface FStream<T> extends Iterable<T>, AutoCloseable {
 		try {
 			FOption<T> next;
 			while ( (next = next()).isPresent() ) {
-				if ( pred.test(next.getUnchecked()) ) {
+				if ( pred.test(next.getOrNull()) ) {
 					return false;
 				}
 			}

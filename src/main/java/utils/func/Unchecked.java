@@ -1,5 +1,7 @@
 package utils.func;
 
+import utils.Throwables;
+
 
 /**
  * 검사 예외(checked exception)를 던질 수 있는 {@code Checked*} 함수형 객체를
@@ -11,19 +13,16 @@ package utils.func;
  *   <li>{@code *OrDefault}: 발생한 예외를 무시하고 지정된 기본 값을 반환한다.
  *          (반환 값이 있는 연산에만 제공된다.)</li>
  *   <li>{@code *OrThrowSneakily}: 발생한 예외를 검사 예외 선언 없이 그대로(sneaky throw) 다시 던진다.</li>
- *   <li>{@code *OrRTE}: 발생한 예외가 {@link RuntimeException}이면 그대로,
- *          그렇지 않으면 {@link RuntimeException}으로 감싸서 던진다.</li>
+ *   <li>{@code *OrRTE}: 발생한 예외가 {@link RuntimeException}이면 그대로, {@link Error}이면 감싸지 않고 그대로,
+ *          그 밖의 검사 예외는 {@link RuntimeException}으로 감싸서 던진다({@link Throwables#toRuntimeException(Throwable)}).</li>
  * </ul>
  *
  * @author Kang-Woo Lee (ETRI)
  */
 public class Unchecked {
-	/**
-	 * {@code Unchecked} 객체를 생성한다.
-	 * <p>
-	 * 정적 메소드만 제공하는 유틸리티 클래스이므로 직접 생성할 필요는 없다.
-	 */
-	public Unchecked() { }
+	private Unchecked() {
+		throw new AssertionError("Should not be called: class=" + Unchecked.class);
+	}
 
 	/**
 	 * 주어진 {@link CheckedRunnable}을 실행하고, 예외가 발생하면 무시한다.
@@ -50,14 +49,12 @@ public class Unchecked {
 	 * @param checked	실행할 {@code CheckedRunnable} 객체.
 	 */
 	public static void runOrRTE(CheckedRunnable checked) {
-		checked.tryRun().mapFailure(cause -> {
-			if ( cause instanceof RuntimeException ) {
-				return (RuntimeException)cause;
-			}
-			else {
-				return new RuntimeException(cause);
-			}
-		}).get();
+		try {
+			checked.run();
+		}
+		catch ( Throwable e ) {
+			throw Throwables.toRuntimeException(e);
+		}
 	}
 
 	/**
@@ -91,14 +88,12 @@ public class Unchecked {
 	 * @param checked	실행할 {@code CheckedConsumer} 객체.
 	 */
 	public static <T> void acceptOrRTE(T data, CheckedConsumer<? super T> checked) {
-		checked.tryAccept(data).mapFailure(cause -> {
-			if ( cause instanceof RuntimeException ) {
-				return (RuntimeException)cause;
-			}
-			else {
-				return new RuntimeException(cause);
-			}
-		}).get();
+		try {
+			checked.accept(data);
+		}
+		catch ( Throwable e ) {
+			throw Throwables.toRuntimeException(e);
+		}
 	}
 
 	/**
@@ -139,14 +134,12 @@ public class Unchecked {
 	 * @return	{@code checked}가 생성한 값.
 	 */
 	public static <T> T getOrRTE(CheckedSupplier<? extends T> checked) {
-		return checked.tryGet().mapFailure(cause -> {
-			if ( cause instanceof RuntimeException ) {
-				return (RuntimeException)cause;
-			}
-			else {
-				return new RuntimeException(cause);
-			}
-		}).get();
+		try {
+			return checked.get();
+		}
+		catch ( Throwable e ) {
+			throw Throwables.toRuntimeException(e);
+		}
 	}
 
 	/**
@@ -196,14 +189,12 @@ public class Unchecked {
 	 * @return	함수 적용 결과.
 	 */
 	public static <T,R> R applyOrRTE(T input, CheckedFunction<? super T, ? extends R> checked) {
-		return checked.tryApply(input).mapFailure(cause -> {
-			if ( cause instanceof RuntimeException ) {
-				return (RuntimeException)cause;
-			}
-			else {
-				return new RuntimeException(cause);
-			}
-		}).get();
+		try {
+			return checked.apply(input);
+		}
+		catch ( Throwable e ) {
+			throw Throwables.toRuntimeException(e);
+		}
 	}
 
 	/**
@@ -249,13 +240,11 @@ public class Unchecked {
 	 * @return	술어 평가 결과.
 	 */
 	public static <T> boolean testOrRTE(T input, CheckedPredicate<? super T> checked) {
-		return checked.tryTest(input).mapFailure(cause -> {
-			if ( cause instanceof RuntimeException ) {
-				return (RuntimeException)cause;
-			}
-			else {
-				return new RuntimeException(cause);
-			}
-		}).get();
+		try {
+			return checked.test(input);
+		}
+		catch ( Throwable e ) {
+			throw Throwables.toRuntimeException(e);
+		}
 	}
 }

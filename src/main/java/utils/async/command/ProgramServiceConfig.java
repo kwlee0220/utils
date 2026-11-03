@@ -15,8 +15,7 @@ import com.google.common.collect.Maps;
 
 import utils.Preconditions;
 import utils.UnitUtils;
-import utils.func.FOption;
-import utils.func.Optionals;
+import utils.func.Nullables;
 import utils.io.FileUtils;
 
 
@@ -148,7 +147,7 @@ public class ProgramServiceConfig {
 	 * @param workingDirectory 작업 디렉터리, 또는 {@code null}.
 	 */
 	public void setWorkingDirectory(@Nullable File workingDirectory) {
-		m_workingDirectory = Optionals.getOrElse(workingDirectory,
+		m_workingDirectory = Nullables.orElseGet(workingDirectory,
 												FileUtils::getCurrentWorkingDirectory);
 	}
 
@@ -187,7 +186,7 @@ public class ProgramServiceConfig {
 	 * @param environments 환경 변수 맵, 또는 {@code null}.
 	 */
 	public void setEnvironments(@Nullable Map<String,String> environments) {
-		m_environments = Optionals.getOrElse(environments, Maps::newHashMap);
+		m_environments = Nullables.orElseGet(environments, Maps::newHashMap);
 	}
 
 	/**
@@ -205,7 +204,7 @@ public class ProgramServiceConfig {
 	 * @param restartPolicy 재시작 정책, 또는 {@code null}.
 	 */
 	public void setRestartPolicy(RestartPolicy restartPolicy) {
-		m_restartPolicy = Optionals.getOrElse(restartPolicy, RestartPolicy.ALWAYS);
+		m_restartPolicy = Nullables.orElse(restartPolicy, RestartPolicy.ALWAYS);
 	}
 
 	/**
@@ -263,7 +262,7 @@ public class ProgramServiceConfig {
 	public void setRestartDelay(Duration restartDelay) {
 		Preconditions.checkArgument(restartDelay == null || !restartDelay.isNegative(),
 									"restartDelay must be non-negative");
-		m_restartDelay = Optionals.getOrElse(restartDelay, DEFAULT_RESTART_DELAY);
+		m_restartDelay = Nullables.orElse(restartDelay, DEFAULT_RESTART_DELAY);
 	}
 
 	/**
@@ -274,7 +273,7 @@ public class ProgramServiceConfig {
 	 */
 	@JsonProperty("restartDelay")
 	public void setRestartDelayString(String restartDelay) {
-		Duration parsedDelay = FOption.mapOrElse(restartDelay, UnitUtils::parseDuration,
+		Duration parsedDelay = Nullables.mapOrElse(restartDelay, UnitUtils::parseDuration,
 												DEFAULT_RESTART_DELAY);
 		Preconditions.checkArgument(parsedDelay == null || !parsedDelay.isNegative(),
 									"restartDelay must be non-negative");
@@ -375,7 +374,7 @@ public class ProgramServiceConfig {
 	public void setRestartLimitInterval(@Nullable Duration interval) {
 		Preconditions.checkArgument(interval == null || (!interval.isNegative() && !interval.isZero()),
 									"restartLimitInterval must be positive: %s", interval);
-		m_restartLimitInterval = Optionals.getOrElse(interval, DEFAULT_RESTART_LIMIT_INTERVAL);
+		m_restartLimitInterval = Nullables.orElse(interval, DEFAULT_RESTART_LIMIT_INTERVAL);
 	}
 
 	@JsonProperty("restartLimitInterval")
@@ -384,12 +383,12 @@ public class ProgramServiceConfig {
 	}
 
 	private static @Nullable Duration parse(@Nullable String str) {
-		return FOption.map(str, UnitUtils::parseDuration);
+		return Nullables.map(str, UnitUtils::parseDuration);
 	}
 
 	private static Duration nonNegative(@Nullable Duration value, Duration defaultValue, String name) {
 		Preconditions.checkArgument(value == null || !value.isNegative(), "%s must be non-negative: %s", name, value);
-		return Optionals.getOrElse(value, defaultValue);
+		return Nullables.orElse(value, defaultValue);
 	}
 	
 	@Override

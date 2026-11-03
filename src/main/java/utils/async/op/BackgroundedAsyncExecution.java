@@ -121,6 +121,6 @@ public class BackgroundedAsyncExecution<T> extends EventDrivenExecution<T>
 		Try.run(() -> m_bgAsync.cancel(true));
 		result.ifSuccessful(this::notifyCompleted)
 				.ifFailed(this::notifyFailed)
-				.ifNone(this::notifyCancelled);
+				.ifCancelled(this::notifyCancelled);
 	}
 }

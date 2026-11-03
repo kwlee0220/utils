@@ -28,7 +28,7 @@ import utils.LoggerSettable;
 import utils.Preconditions;
 import utils.Throwables;
 import utils.Tuple;
-import utils.func.Optionals;
+import utils.func.Nullables;
 
 
 /**
@@ -444,7 +444,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 
 	@Override
 	public Logger getLogger() {
-		return Optionals.getOrElse(m_logger, s_logger);
+		return Nullables.orElse(m_logger, s_logger);
 	}
 
 	@Override
@@ -485,7 +485,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 		public HttpRESTfulClient build() {
 			// getOrElse(T, T)는 두 번째 인자를 즉시 평가하므로, 커스텀 클라이언트가 지정된 경우에도
 			// 버려질 OkHttpClient가 매번 하나씩 생성된다. Supplier 오버로드로 지연 평가한다.
-			OkHttpClient client = Optionals.getOrElse(m_httpClient, OkHttpClientUtils::newClient);
+			OkHttpClient client = Nullables.orElseGet(m_httpClient, OkHttpClientUtils::newClient);
 			JsonMapper mapper = (m_mapper != null) ? m_mapper : new JsonMapper();
 			ErrorEntityDeserializer deser = (m_deser != null)
 											? m_deser

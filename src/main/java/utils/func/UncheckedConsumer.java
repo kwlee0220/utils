@@ -9,7 +9,7 @@ import com.google.common.base.Preconditions;
  * 검사 예외(checked exception)를 던질 수 있는 {@link CheckedConsumer}를
  * 표준 {@link java.util.function.Consumer} 인터페이스로 감싸는 어댑터 클래스이다.
  * <p>
- * {@link #accept(Object)} 수행 중 발생한 모든 예외({@link Throwable})는 입력 값과 함께
+ * {@link #accept(Object)} 수행 중 발생한 예외({@link Error} 제외)는 입력 값과 함께
  * {@link FailureCase}로 묶여 생성 시 지정된 {@link FailureHandler}에게 전달된다.
  *
  * @param <T>	입력 데이터 타입.
@@ -34,6 +34,9 @@ public class UncheckedConsumer<T> implements Consumer<T> {
 			m_checked.accept(data);
 		}
 		catch ( Throwable e ) {
+			if ( e instanceof Error err ) {
+				throw err;		// Error는 실패 처리기에 넘기지 않는다.
+			}
 			m_handler.handle(new FailureCase<>(data, e));
 		}
 	}
@@ -74,6 +77,6 @@ public class UncheckedConsumer<T> implements Consumer<T> {
 	 * @throws IllegalArgumentException	{@code checked}가 {@code null}인 경우.
 	 */
 	public static <T> UncheckedConsumer<T> sneakyThrow(CheckedConsumer<? super T> checked) {
-		return lift(checked, FailureHandlers.throwSneakly());
+		return lift(checked, FailureHandlers.throwSneakily());
 	}
 }

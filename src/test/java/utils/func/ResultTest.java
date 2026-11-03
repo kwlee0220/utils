@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
@@ -19,7 +20,7 @@ import utils.Throwables;
  */
 public class ResultTest {
 	private static final Result<String> R1 = Result.success("a");
-	private static final Result<String> R2 = Result.none();
+	private static final Result<String> R2 = Result.cancelled();
 	private static final Result<String> R3 = Result.failure(new IOException("IOException"));
 	private static final Result<String> R4 = Result.failure(new IllegalArgumentException("IllegalArgumentException"));
 
@@ -27,13 +28,13 @@ public class ResultTest {
 	public void testIs() throws Exception {
 		assertEquals(true, R1.isSuccessful());
 		assertEquals(false, R1.isFailed());
-		assertEquals(false, R1.isNone());
+		assertEquals(false, R1.isCancelled());
 		assertEquals(false, R2.isSuccessful());
 		assertEquals(false, R2.isFailed());
-		assertEquals(true, R2.isNone());
+		assertEquals(true, R2.isCancelled());
 		assertEquals(false, R3.isSuccessful());
 		assertEquals(true, R3.isFailed());
-		assertEquals(false, R3.isNone());
+		assertEquals(false, R3.isCancelled());
 	}
 
 	@Test
@@ -58,33 +59,44 @@ public class ResultTest {
 	@Test
 	public void testGetOrElseThrow1() throws Exception {
 		IllegalStateException ex = new IllegalStateException();
-		assertEquals("a", R1.getOrElseThrow(() -> ex));
-		assertThrows(IllegalStateException.class, () -> R2.getOrElseThrow(() -> ex));
-		assertThrows(IllegalStateException.class, () -> R3.getOrElseThrow(() -> ex));
-		assertThrows(IllegalStateException.class, () -> R4.getOrElseThrow(() -> ex));
+		assertEquals("a", R1.getOrThrow(() -> ex));
+		assertThrows(IllegalStateException.class, () -> R2.getOrThrow(() -> ex));
+		assertThrows(IllegalStateException.class, () -> R3.getOrThrow(() -> ex));
+		assertThrows(IllegalStateException.class, () -> R4.getOrThrow(() -> ex));
 	}
 
 	@Test
 	public void testGetOrElseThrow2() throws Exception {
 		Function<Throwable,ExecutionException> prvd = (exc) -> new ExecutionException(exc);
 
-		assertEquals("a", R1.getOrElseThrow(prvd));
+		assertEquals("a", R1.getOrThrow(prvd));
 
-		ExecutionException r2Ex = assertThrows(ExecutionException.class, () -> R2.getOrElseThrow(prvd));
-		assertEquals(IllegalStateException.class, Throwables.unwrapThrowable(r2Ex).getClass());
+		ExecutionException r2Ex = assertThrows(ExecutionException.class, () -> R2.getOrThrow(prvd));
+		assertEquals(CancellationException.class, Throwables.unwrapThrowable(r2Ex).getClass());	// 취소 상태
 
-		ExecutionException r3Ex = assertThrows(ExecutionException.class, () -> R3.getOrElseThrow(prvd));
+		ExecutionException r3Ex = assertThrows(ExecutionException.class, () -> R3.getOrThrow(prvd));
 		assertEquals(IOException.class, Throwables.unwrapThrowable(r3Ex).getClass());
 
-		ExecutionException r4Ex = assertThrows(ExecutionException.class, () -> R4.getOrElseThrow(prvd));
+		ExecutionException r4Ex = assertThrows(ExecutionException.class, () -> R4.getOrThrow(prvd));
 		assertEquals(IllegalArgumentException.class, Throwables.unwrapThrowable(r4Ex).getClass());
 	}
 
 	@Test
 	public void testFilter() throws Exception {
 		assertEquals("a", R1.filter(s -> s.length() == 1).get());
-		assertEquals(true, R1.filter(s -> s.length() == 2).isNone());
-		assertEquals(true, R2.filter(s -> s.length() == 1).isNone());
+		assertEquals(true, R1.filter(s -> s.length() == 2).isCancelled());
+		assertEquals(true, R2.filter(s -> s.length() == 1).isCancelled());
 		assertEquals(true, R3.filter(s -> s.length() == 1).isFailed());
+	}
+
+	/**
+	 * 원인을 모르는 실패(null 원인)도 만들 수 있고, equals·hashCode가 NPE 없이 동작한다.
+	 */
+	@Test
+	public void failureWithNullCauseIsComparable() {
+		Result<Object> f = Result.failure(null);
+		org.junit.jupiter.api.Assertions.assertTrue(f.isFailed());
+		org.junit.jupiter.api.Assertions.assertEquals(f, Result.failure(null));
+		org.junit.jupiter.api.Assertions.assertEquals(f.hashCode(), Result.failure(null).hashCode());
 	}
 }

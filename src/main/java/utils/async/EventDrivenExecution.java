@@ -617,7 +617,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 	 * <ul>
 	 *   <li>{@code COMPLETED} → {@link Result#success(Object)}</li>
 	 *   <li>{@code FAILED} → {@link Result#failure(Throwable)}</li>
-	 *   <li>{@code CANCELLED} → {@link Result#none()}</li>
+	 *   <li>{@code CANCELLED} → {@link Result#cancelled()}</li>
 	 * </ul>
 	 *
 	 * @return	종료 상태에 대응하는 {@link Result}
@@ -631,7 +631,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 				case FAILED:
 					return Result.failure(m_asyncResult.getFailureCause());
 				case CANCELLED:
-					return Result.none();
+					return Result.cancelled();
 				default:
 					throw new IllegalStateException("invalid execution state: " + m_asyncResult.getState());
 			}
@@ -739,7 +739,7 @@ public class EventDrivenExecution<T> implements Execution<T>, LoggerSettable {
 		exec.whenFinished(ret -> {
 			ret.ifSuccessful(r -> this.notifyCompleted(result))
 				.ifFailed(this::notifyFailed)
-				.ifNone(this::notifyCancelled);
+				.ifCancelled(this::notifyCancelled);
 		});
 	}
 

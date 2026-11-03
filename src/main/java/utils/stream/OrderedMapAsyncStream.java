@@ -255,7 +255,7 @@ class OrderedMapAsyncStream<S,T> extends AbstractFStream<MappingResult<S,T>> {
 				return MappingResult.of(input, Try.success(ret.getUnchecked()));
 			}
 			if ( ret.isFailed() ) {
-				// 원본 cause를 그대로 노출 — MapUnorderedAsyncStream의 Result.asTry()와 일관.
+				// 원본 cause를 그대로 노출 — MapUnorderedAsyncStream의 Result.toTry()와 일관.
 				// {@code ret.get()} 을 호출하면 ExecutionException으로 한 번 래핑되므로 사용하지 않는다.
 				return MappingResult.of(input, Try.<T>failure(ret.getFailureCause()));
 			}

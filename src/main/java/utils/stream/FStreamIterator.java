@@ -57,7 +57,7 @@ class FStreamIterator<T> implements Iterator<T>, AutoCloseable {
 			throw new NoSuchElementException();
 		}
 
-		T next = m_next.getUnchecked();
+		T next = m_next.getOrNull();
 		m_next = null;
 		return next;
 	}

@@ -40,7 +40,7 @@ class ExecutionProgressReport<T> implements ObservableOnSubscribe<ExecutionProgr
 					emitter.onNext(new ExecutionProgress.Failed<>(r.getCause()));
 					emitter.onError(r.getCause());
 				}
-				else if ( r.isNone() ) {
+				else if ( r.isCancelled() ) {
 					emitter.onNext(new ExecutionProgress.Cancelled<>());
 					emitter.onComplete();
 				}

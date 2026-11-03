@@ -3,6 +3,7 @@ package utils.func;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import utils.Preconditions;
 import utils.Throwables;
@@ -14,12 +15,9 @@ import utils.Throwables;
  * @author Kang-Woo Lee (ETRI)
  */
 public class FailureHandlers {
-	/**
-	 * {@code FailureHandlers} 객체를 생성한다.
-	 * <p>
-	 * 정적 메소드만 제공하는 유틸리티 클래스이므로 직접 생성할 필요는 없다.
-	 */
-	public FailureHandlers() { }
+	private FailureHandlers() {
+		throw new AssertionError("Should not be called: class=" + FailureHandlers.class);
+	}
 
 	/**
 	 * 전달된 실패를 아무 처리 없이 무시하는 처리기를 반환한다.
@@ -35,17 +33,17 @@ public class FailureHandlers {
 	}
 	
 	/**
-	 * 전달된 실패의 원인 예외({@link FailureCase#getFailureCause()})를 검사 예외 선언 없이
+	 * 전달된 실패의 원인 예외({@link FailureCase#getCause()})를 검사 예외 선언 없이
 	 * 그대로 다시 던지는(sneaky throw) 처리기를 반환한다.
 	 *
 	 * @param <T>	실패한 입력 데이터 타입.
 	 * @return	원인 예외를 다시 던지는 처리기.
 	 */
-	public static <T> FailureHandler<T> throwSneakly() {
+	public static <T> FailureHandler<T> throwSneakily() {
 		return new FailureHandler<T>() {
 			@Override
 			public void handle(FailureCase<T> fcase) {
-				Throwables.sneakyThrow(fcase.getFailureCause());
+				Throwables.sneakyThrow(fcase.getCause());
 			}
 		};
 	}
@@ -53,21 +51,21 @@ public class FailureHandlers {
 	/**
 	 * 전달된 실패의 횟수만 세는 처리기이다.
 	 * <p>
-	 * 실패 정보 자체는 보관하지 않으며, 동기화되지 않으므로 thread-safe하지 않다.
+	 * 실패 정보 자체는 보관하지 않는다. 횟수는 {@link AtomicLong}으로 세므로 여러 스레드에서 함께 써도 된다.
 	 *
 	 * @param <T>	실패한 입력 데이터 타입.
 	 */
-	public static class CountingErrorHandler<T> implements FailureHandler<T> {
-		private long m_count = 0;
+	public static class CountingFailureHandler<T> implements FailureHandler<T> {
+		private final AtomicLong m_count = new AtomicLong();
 
 		/**
 		 * 실패 횟수가 0인 처리기를 생성한다.
 		 */
-		public CountingErrorHandler() { }
+		public CountingFailureHandler() { }
 
 		@Override
 		public void handle(FailureCase<T> fcase) {
-			++m_count;
+			m_count.incrementAndGet();
 		}
 		
 		/**
@@ -76,17 +74,17 @@ public class FailureHandlers {
 		 * @return	실패 횟수.
 		 */
 		public long getErrorCount() {
-			return m_count;
+			return m_count.get();
 		}
 	}
 	/**
-	 * 실패 횟수를 세는 새 {@link CountingErrorHandler}를 생성한다.
+	 * 실패 횟수를 세는 새 {@link CountingFailureHandler}를 생성한다.
 	 *
 	 * @param <T>	실패한 입력 데이터 타입.
-	 * @return	새 {@code CountingErrorHandler} 객체.
+	 * @return	새 {@code CountingFailureHandler} 객체.
 	 */
-	public static <T> CountingErrorHandler<T> count() {
-		return new CountingErrorHandler<>();
+	public static <T> CountingFailureHandler<T> count() {
+		return new CountingFailureHandler<>();
 	}
 
 	/**
@@ -96,13 +94,13 @@ public class FailureHandlers {
 	 *
 	 * @param <T>	실패한 입력 데이터 타입.
 	 */
-	public static class CollectingErrorHandler<T> implements FailureHandler<T> {
+	public static class CollectingFailureHandler<T> implements FailureHandler<T> {
 		private final List<FailureCase<T>> m_fcases;
 		
 		/**
 		 * 내부에 새 {@link ArrayList}를 저장소로 사용하는 처리기를 생성한다.
 		 */
-		public CollectingErrorHandler() {
+		public CollectingFailureHandler() {
 			m_fcases = new ArrayList<>();
 		}
 		
@@ -114,7 +112,7 @@ public class FailureHandlers {
 		 * @param store	실패 정보를 저장할 리스트.
 		 * @throws IllegalArgumentException	{@code store}가 {@code null}인 경우.
 		 */
-		public CollectingErrorHandler(List<FailureCase<T>> store) {
+		public CollectingFailureHandler(List<FailureCase<T>> store) {
 			Preconditions.checkNotNullArgument(store, "store is null");
 			m_fcases = store;
 		}
@@ -138,16 +136,12 @@ public class FailureHandlers {
 		}
 	}
 	/**
-	 * 실패 정보를 수집하는 새 {@link CollectingErrorHandler}를 생성한다.
+	 * 실패 정보를 수집하는 새 {@link CollectingFailureHandler}를 생성한다.
 	 *
 	 * @param <T>	실패한 입력 데이터 타입.
-	 * @return	새 {@code CollectingErrorHandler} 객체.
+	 * @return	새 {@code CollectingFailureHandler} 객체.
 	 */
-	public static <T> CollectingErrorHandler<T> collect() {
-		return new CollectingErrorHandler<>();
+	public static <T> CollectingFailureHandler<T> collect() {
+		return new CollectingFailureHandler<>();
 	}
-	
-//	public static <T> CollectingErrorHandler<T> collect(List<FailureCase<T>> store) {
-//		return new CollectingErrorHandler<>(store);
-//	}
 }

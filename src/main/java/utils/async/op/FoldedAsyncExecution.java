@@ -147,7 +147,7 @@ public class FoldedAsyncExecution<T,S> extends AbstractAsyncExecution<T>
 						}
 					});
 		}
-		else if ( result.isNone() ) {
+		else if ( result.isCancelled() ) {
 			notifyCancelled();
 		}
 		else if ( result.isFailed() ) {

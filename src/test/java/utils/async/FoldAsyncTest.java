@@ -81,7 +81,7 @@ public class FoldAsyncTest {
 
 		exec.cancel(true);
 		MILLISECONDS.sleep(50);
-		verify(m_doneListener, times(1)).accept(Result.none());
+		verify(m_doneListener, times(1)).accept(Result.cancelled());
 	}
 
 	@Test
@@ -108,6 +108,6 @@ public class FoldAsyncTest {
 		
 		Assertions.assertEquals(true, exec.isCancelled());
 		MILLISECONDS.sleep(50);
-		verify(m_doneListener, times(1)).accept(Result.none());
+		verify(m_doneListener, times(1)).accept(Result.cancelled());
 	}
 }

@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 import utils.Preconditions;
 import utils.Throwables;
 import utils.func.CheckedSupplier;
+import utils.func.UncheckedSupplier;
 
 
 /**
@@ -204,7 +205,7 @@ public abstract class CompletableFutureAsyncExecution<T> extends EventDrivenExec
 		return new CompletableFutureAsyncExecution<T>() {
 			@Override
 			protected CompletableFuture<? extends T> startExecution() {
-				return CompletableFuture.supplyAsync(supplier.toSneakyThrowSupplier());
+				return CompletableFuture.supplyAsync(UncheckedSupplier.sneakyThrow(supplier));
 			}
 		};
 	}

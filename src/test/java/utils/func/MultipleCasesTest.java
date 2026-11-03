@@ -37,7 +37,7 @@ public class MultipleCasesTest {
 
 	@Test
 	public void testSwitchingNullRejected() {
-		assertThrows(IllegalArgumentException.class, () -> MultipleCases.switching(null));
+		assertThrows(IllegalArgumentException.class, () -> MultipleCases.of(null));
 	}
 
 	@Test
@@ -46,13 +46,13 @@ public class MultipleCasesTest {
 		Map<String,Integer> input = new HashMap<>();
 		input.put("a", 1);
 
-		MultipleCases<String,Integer> mc = MultipleCases.switching(input);
+		MultipleCases<String,Integer> mc = MultipleCases.of(input);
 		input.clear();
 		input.put("z", 99);
 
 		List<Integer> consumed = new ArrayList<>();
-		mc.ifCase("a").consume(consumed::add)
-		  .ifCase("z").consume(consumed::add)
+		mc.when("a").then(consumed::add)
+		  .when("z").then(consumed::add)
 		  .otherwise().forEach((k, v) -> consumed.add(v));
 
 		assertEquals(Arrays.asList(1), consumed);
@@ -63,8 +63,8 @@ public class MultipleCasesTest {
 	@Test
 	public void testIfCaseConsumeWithExistingKey() {
 		List<Integer> consumed = new ArrayList<>();
-		MultipleCases.switching(sample())
-				.ifCase("b").consume(consumed::add)
+		MultipleCases.of(sample())
+				.when("b").then(consumed::add)
 				.otherwise().forEach((k, v) -> { /* discard */ });
 
 		assertEquals(Arrays.asList(2), consumed);
@@ -73,8 +73,8 @@ public class MultipleCasesTest {
 	@Test
 	public void testIfCaseConsumeWithAbsentKeyDoesNotCall() {
 		AtomicInteger callCount = new AtomicInteger(0);
-		MultipleCases.switching(sample())
-				.ifCase("missing").consume(v -> callCount.incrementAndGet())
+		MultipleCases.of(sample())
+				.when("missing").then(v -> callCount.incrementAndGet())
 				.otherwise().forEach((k, v) -> { });
 
 		assertEquals(0, callCount.get());
@@ -88,9 +88,9 @@ public class MultipleCasesTest {
 		// "absent" 키는 추가하지 않음
 
 		List<String> log = new ArrayList<>();
-		MultipleCases.switching(m)
-				.ifCase("present-but-null").consume(v -> log.add("called: " + v))
-				.ifCase("absent").consume(v -> log.add("called: " + v))
+		MultipleCases.of(m)
+				.when("present-but-null").then(v -> log.add("called: " + v))
+				.when("absent").then(v -> log.add("called: " + v))
 				.otherwise().forEach((k, v) -> { });
 
 		// present-but-null 은 consumer 호출됨 (null 인자), absent 는 미호출
@@ -102,9 +102,9 @@ public class MultipleCasesTest {
 	@Test
 	public void testChainConsumesSequentiallyAndRemovesKeys() {
 		List<String> log = new ArrayList<>();
-		MultipleCases.switching(sample())
-				.ifCase("a").consume(v -> log.add("a=" + v))
-				.ifCase("c").consume(v -> log.add("c=" + v))
+		MultipleCases.of(sample())
+				.when("a").then(v -> log.add("a=" + v))
+				.when("c").then(v -> log.add("c=" + v))
 				.otherwise().forEach((k, v) -> log.add("other: " + k + "=" + v));
 
 		// a 와 c 가 consume되고, 남은 b는 otherwise로 흘러간다.
@@ -119,9 +119,9 @@ public class MultipleCasesTest {
 		AtomicInteger firstCalls = new AtomicInteger(0);
 		AtomicInteger secondCalls = new AtomicInteger(0);
 
-		MultipleCases.switching(sample())
-				.ifCase("a").consume(v -> firstCalls.incrementAndGet())
-				.ifCase("a").consume(v -> secondCalls.incrementAndGet())
+		MultipleCases.of(sample())
+				.when("a").then(v -> firstCalls.incrementAndGet())
+				.when("a").then(v -> secondCalls.incrementAndGet())
 				.otherwise().forEach((k, v) -> { });
 
 		assertEquals(1, firstCalls.get());
@@ -134,8 +134,8 @@ public class MultipleCasesTest {
 	@Test
 	public void testOtherwiseIteratesRemaining() {
 		List<KeyValue<String,Integer>> remaining = new ArrayList<>();
-		MultipleCases.switching(sample())
-				.ifCase("a").consume(v -> { })
+		MultipleCases.of(sample())
+				.when("a").then(v -> { })
 				.otherwise().forEach((k, v) -> remaining.add(KeyValue.of(k, v)));
 
 		assertEquals(2, remaining.size());
@@ -146,7 +146,7 @@ public class MultipleCasesTest {
 	@Test
 	public void testOtherwiseOnEmptyMap() {
 		AtomicInteger callCount = new AtomicInteger(0);
-		MultipleCases.switching(new HashMap<String,Integer>())
+		MultipleCases.of(new HashMap<String,Integer>())
 				.otherwise().forEach((k, v) -> callCount.incrementAndGet());
 
 		assertEquals(0, callCount.get());
@@ -155,10 +155,10 @@ public class MultipleCasesTest {
 	@Test
 	public void testOtherwiseAfterAllConsumed() {
 		AtomicInteger callCount = new AtomicInteger(0);
-		MultipleCases.switching(sample())
-				.ifCase("a").consume(v -> { })
-				.ifCase("b").consume(v -> { })
-				.ifCase("c").consume(v -> { })
+		MultipleCases.of(sample())
+				.when("a").then(v -> { })
+				.when("b").then(v -> { })
+				.when("c").then(v -> { })
 				.otherwise().forEach((k, v) -> callCount.incrementAndGet());
 
 		assertEquals(0, callCount.get());
@@ -169,8 +169,8 @@ public class MultipleCasesTest {
 	@Test
 	public void testIfCaseWithContextPassesValueAndContext() {
 		List<String> log = new ArrayList<>();
-		MultipleCases.switching(sample())
-				.ifCase("a", "ctx").consume((v, ctx) -> log.add(ctx + ":" + v))
+		MultipleCases.of(sample())
+				.when("a", "ctx").then((v, ctx) -> log.add(ctx + ":" + v))
 				.otherwise().forEach((k, v) -> { });
 
 		assertEquals(Arrays.asList("ctx:1"), log);
@@ -179,8 +179,8 @@ public class MultipleCasesTest {
 	@Test
 	public void testIfCaseWithContextAbsentKeyNotCalled() {
 		AtomicInteger callCount = new AtomicInteger(0);
-		MultipleCases.switching(sample())
-				.ifCase("missing", "ctx").consume((v, ctx) -> callCount.incrementAndGet())
+		MultipleCases.of(sample())
+				.when("missing", "ctx").then((v, ctx) -> callCount.incrementAndGet())
 				.otherwise().forEach((k, v) -> { });
 
 		assertEquals(0, callCount.get());
@@ -192,9 +192,9 @@ public class MultipleCasesTest {
 		m.put("present-but-null", null);
 
 		List<String> log = new ArrayList<>();
-		MultipleCases.switching(m)
-				.ifCase("present-but-null", "C").consume((v, ctx) -> log.add(ctx + "=" + v))
-				.ifCase("absent", "C").consume((v, ctx) -> log.add(ctx + "=" + v))
+		MultipleCases.of(m)
+				.when("present-but-null", "C").then((v, ctx) -> log.add(ctx + "=" + v))
+				.when("absent", "C").then((v, ctx) -> log.add(ctx + "=" + v))
 				.otherwise().forEach((k, v) -> { });
 
 		assertEquals(Arrays.asList("C=null"), log);
@@ -205,8 +205,8 @@ public class MultipleCasesTest {
 	@Test
 	public void testOtherwiseWithContextPassesContext() {
 		List<String> log = new ArrayList<>();
-		MultipleCases.switching(sample())
-				.ifCase("a", "X").consume((v, ctx) -> log.add(ctx + ":" + v))
+		MultipleCases.of(sample())
+				.when("a", "X").then((v, ctx) -> log.add(ctx + ":" + v))
 				.otherwise("X").forEach((k, v, ctx) -> log.add(ctx + "/" + k + "=" + v));
 
 		assertEquals(3, log.size());
@@ -218,7 +218,7 @@ public class MultipleCasesTest {
 	@Test
 	public void testOtherwiseWithContextOnEmpty() {
 		AtomicInteger callCount = new AtomicInteger(0);
-		MultipleCases.switching(new HashMap<String,Integer>())
+		MultipleCases.of(new HashMap<String,Integer>())
 				.otherwise("ctx").forEach((k, v, ctx) -> callCount.incrementAndGet());
 
 		assertEquals(0, callCount.get());
@@ -231,16 +231,31 @@ public class MultipleCasesTest {
 		// without-context와 with-context 분기는 서로 다른 Case 타입을 반환하므로
 		// 한 체인 안에서 자유롭게 섞을 수는 없다(타입 시스템상). 각자 독립 체인은 동작한다.
 		List<String> log1 = new ArrayList<>();
-		MultipleCases.switching(sample())
-				.ifCase("a").consume(v -> log1.add("a=" + v))
+		MultipleCases.of(sample())
+				.when("a").then(v -> log1.add("a=" + v))
 				.otherwise().forEach((k, v) -> log1.add("o:" + k));
 
 		List<String> log2 = new ArrayList<>();
-		MultipleCases.switching(sample())
-				.ifCase("a", "ctx").consume((v, ctx) -> log2.add(ctx + "/a=" + v))
+		MultipleCases.of(sample())
+				.when("a", "ctx").then((v, ctx) -> log2.add(ctx + "/a=" + v))
 				.otherwise("ctx").forEach((k, v, ctx) -> log2.add(ctx + "/o:" + k));
 
 		assertTrue(log1.contains("a=1"));
 		assertTrue(log2.contains("ctx/a=1"));
+	}
+
+	/**
+	 * otherwise()는 남은 case를 입력 map의 순서대로 내보낸다.
+	 */
+	@Test
+	public void otherwiseKeepsInputOrder() {
+		Map<String,Integer> cases = new LinkedHashMap<>();
+		for ( String k: List.of("z", "y", "x", "w", "v", "u", "t", "s", "r", "q") ) {
+			cases.put(k, cases.size());
+		}
+		List<String> keys = new ArrayList<>();
+		MultipleCases.of(cases).when("x").then(v -> { })
+					.otherwise().forEach((k, v) -> keys.add(k));
+		assertEquals(List.of("z", "y", "w", "v", "u", "t", "s", "r", "q"), keys);
 	}
 }

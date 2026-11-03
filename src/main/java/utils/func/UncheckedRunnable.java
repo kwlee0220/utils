@@ -7,7 +7,7 @@ import com.google.common.base.Preconditions;
  * 검사 예외(checked exception)를 던질 수 있는 {@link CheckedRunnable}를
  * 표준 {@link java.lang.Runnable} 인터페이스로 감싸는 어댑터 클래스이다.
  * <p>
- * {@link #run()} 수행 중 발생한 모든 예외({@link Throwable})는 데이터 {@code null}과 함께
+ * {@link #run()} 수행 중 발생한 예외({@link Error} 제외)는 데이터 {@code null}과 함께
  * {@link FailureCase}로 묶여 생성 시 지정된 {@link FailureHandler}에게 전달된다.
  *
  * @author Kang-Woo Lee (ETRI)
@@ -39,6 +39,9 @@ public class UncheckedRunnable implements Runnable {
 			m_checked.run();
 		}
 		catch ( Throwable e ) {
+			if ( e instanceof Error err ) {
+				throw err;		// Error는 실패 처리기에 넘기지 않는다.
+			}
 			m_handler.handle(new FailureCase<>(null, e));
 		}
 	}
@@ -75,6 +78,6 @@ public class UncheckedRunnable implements Runnable {
 	 * @throws IllegalArgumentException	{@code checked}가 {@code null}인 경우.
 	 */
 	public static UncheckedRunnable sneakyThrow(CheckedRunnable checked) {
-		return lift(checked, FailureHandlers.throwSneakly());
+		return lift(checked, FailureHandlers.throwSneakily());
 	}
 }

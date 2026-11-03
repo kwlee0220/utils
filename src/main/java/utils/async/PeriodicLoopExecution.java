@@ -14,6 +14,7 @@ import com.google.common.math.LongMath;
 
 import utils.Preconditions;
 import utils.func.FOption;
+import utils.func.Nullables;
 
 
 /**
@@ -235,7 +236,7 @@ public abstract class PeriodicLoopExecution<T> extends AbstractLoopExecution<T> 
 		Instant started = Instant.now();
 
 		if ( m_due == null ) {
-			m_due = FOption.map(m_timeout, to -> plusSaturated(started, to));
+			m_due = Nullables.map(m_timeout, to -> plusSaturated(started, to));
 			m_deadlineNanos = (m_timeout != null) ? toNanosSaturated(m_timeout) : null;
 			m_deadlineDesc = (m_timeout != null) ? "timeout=" + m_timeout : null;
 		}

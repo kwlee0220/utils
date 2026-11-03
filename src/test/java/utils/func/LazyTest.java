@@ -28,7 +28,7 @@ public class LazyTest {
 
 	@Test
 	public void testOfValue() {
-		Lazy<String> lazy = Lazy.of("hello");
+		Lazy<String> lazy = Lazy.ofValue("hello");
 		assertTrue(lazy.isLoaded());
 		assertEquals("hello", lazy.get());
 	}
@@ -43,7 +43,7 @@ public class LazyTest {
 
 	@Test
 	public void testOfNullValueRejected() {
-		assertThrows(IllegalArgumentException.class, () -> Lazy.of((String)null));
+		assertThrows(IllegalArgumentException.class, () -> Lazy.ofValue((String)null));
 	}
 
 	@Test
@@ -59,7 +59,7 @@ public class LazyTest {
 		assertFalse(lazy.isLoaded());
 		lazy.get();
 		assertTrue(lazy.isLoaded());
-		lazy.unload();
+		lazy.invalidate();
 		assertFalse(lazy.isLoaded());
 	}
 
@@ -82,73 +82,69 @@ public class LazyTest {
 		Lazy<Integer> lazy = Lazy.of(() -> callCount.incrementAndGet());
 
 		assertEquals(Integer.valueOf(1), lazy.get());
-		lazy.unload();
+		lazy.invalidate();
 		assertEquals(Integer.valueOf(2), lazy.get());
 		assertEquals(2, callCount.get());
 	}
 
 	@Test
 	public void testGetThrowsAfterUnloadOnValueLazy() {
-		Lazy<String> lazy = Lazy.of("init");
-		lazy.unload();
+		Lazy<String> lazy = Lazy.ofValue("init");
+		lazy.invalidate();
 		assertThrows(IllegalStateException.class, lazy::get);
 	}
 
 	@Test
-	public void testGetWithSupplierReturningNullKeepsRetrying() {
+	public void testGetWithSupplierReturningNullFails() {
 		AtomicInteger callCount = new AtomicInteger(0);
 		Lazy<String> lazy = Lazy.of(() -> {
 			callCount.incrementAndGet();
 			return null;
 		});
 
-		assertNull(lazy.get());
-		assertNull(lazy.get());
-		assertNull(lazy.get());
-		// supplier가 매번 다시 호출되어야 한다 (null은 "적재 안 됨"으로 취급).
-		assertEquals(3, callCount.get());
+		// null은 "적재 안 됨"과 구분할 수 없으므로 적재하지 않고 IllegalStateException을 던진다.
+		assertThrows(IllegalStateException.class, lazy::get);
 		assertFalse(lazy.isLoaded());
+		assertThrows(IllegalStateException.class, lazy::get);
+		assertEquals(2, callCount.get());
 	}
 
 	// ----- set -----
 
 	@Test
-	public void testSetReplacesValueAndReturnsPrevious() {
-		Lazy<String> lazy = Lazy.of("a");
-		String prev = lazy.set("b");
-		assertEquals("a", prev);
+	public void testSetReplacesValue() {
+		Lazy<String> lazy = Lazy.ofValue("a");
+		lazy.set("b");
 		assertEquals("b", lazy.get());
 	}
 
 	@Test
-	public void testSetReturnsNullWhenUnloaded() {
+	public void testSetBeforeFirstGetSkipsSupplier() {
 		Lazy<String> lazy = Lazy.of(() -> "lazy-value");
 		// 첫 get 전에 set
-		String prev = lazy.set("explicit");
-		assertNull(prev);
+		lazy.set("explicit");
 		assertEquals("explicit", lazy.get());
 	}
 
 	@Test
-	public void testSetReturnsNullAfterUnload() {
-		Lazy<String> lazy = Lazy.of("init");
-		lazy.unload();
-		String prev = lazy.set("new");
-		assertNull(prev);
+	public void testSetAfterInvalidate() {
+		Lazy<String> lazy = Lazy.ofValue("init");
+		lazy.invalidate();
+		lazy.set("new");
 		assertEquals("new", lazy.get());
 	}
 
 	@Test
 	public void testSetNullRejected() {
-		Lazy<String> lazy = Lazy.of("init");
+		Lazy<String> lazy = Lazy.ofValue("init");
 		assertThrows(IllegalArgumentException.class, () -> lazy.set(null));
 	}
 
 	@Test
 	public void testSetRehydratesUnloadedValueLazy() {
 		// 값-Lazy를 unload한 뒤 set으로 다시 채우면 get()이 정상 동작해야 한다.
-		Lazy<String> lazy = Lazy.of("init");
-		lazy.unload();
+		Lazy<String> lazy = Lazy.ofValue("init");
+		lazy.invalidate();
 		lazy.set("rehydrated");
 		assertTrue(lazy.isLoaded());
 		assertEquals("rehydrated", lazy.get());
@@ -158,24 +154,24 @@ public class LazyTest {
 
 	@Test
 	public void testUnloadClearsValue() {
-		Lazy<String> lazy = Lazy.of("x");
-		lazy.unload();
+		Lazy<String> lazy = Lazy.ofValue("x");
+		lazy.invalidate();
 		assertFalse(lazy.isLoaded());
 	}
 
 	@Test
 	public void testUnloadIsIdempotent() {
-		Lazy<String> lazy = Lazy.of("x");
-		lazy.unload();
-		lazy.unload();   // 예외 없이 통과해야 한다.
+		Lazy<String> lazy = Lazy.ofValue("x");
+		lazy.invalidate();
+		lazy.invalidate();   // 예외 없이 통과해야 한다.
 		assertFalse(lazy.isLoaded());
 	}
 
 	@Test
 	public void testUnloadWithDtorCallsDtor() {
 		List<String> destroyed = new ArrayList<>();
-		Lazy<String> lazy = Lazy.of("alive");
-		lazy.unload(destroyed::add);
+		Lazy<String> lazy = Lazy.ofValue("alive");
+		lazy.invalidate(destroyed::add);
 
 		assertEquals(1, destroyed.size());
 		assertEquals("alive", destroyed.get(0));
@@ -187,16 +183,16 @@ public class LazyTest {
 		AtomicInteger called = new AtomicInteger(0);
 		Lazy<String> lazy = Lazy.of(() -> "value");
 
-		lazy.unload(v -> called.incrementAndGet());
+		lazy.invalidate(v -> called.incrementAndGet());
 
 		assertEquals(0, called.get());
 	}
 
 	@Test
 	public void testUnloadWithDtorPropagatesExceptionAfterUnloading() {
-		Lazy<String> lazy = Lazy.of("x");
+		Lazy<String> lazy = Lazy.ofValue("x");
 		RuntimeException ex = assertThrows(RuntimeException.class,
-											() -> lazy.unload(v -> { throw new RuntimeException("boom"); }),
+											() -> lazy.invalidate(v -> { throw new RuntimeException("boom"); }),
 											"dtor 예외가 전파되어야 한다");
 		assertEquals("boom", ex.getMessage());
 		// 예외가 던져졌더라도 unload는 이미 적용되어야 한다.
@@ -207,7 +203,7 @@ public class LazyTest {
 
 	@Test
 	public void testToStringWhenLoaded() {
-		Lazy<Integer> lazy = Lazy.of(42);
+		Lazy<Integer> lazy = Lazy.ofValue(42);
 		assertEquals("Lazy[42]", lazy.toString());
 	}
 
@@ -217,7 +213,7 @@ public class LazyTest {
 		assertEquals("Lazy[unloaded]", lazy.toString());
 		lazy.get();
 		assertEquals("Lazy[1]", lazy.toString());
-		lazy.unload();
+		lazy.invalidate();
 		assertEquals("Lazy[unloaded]", lazy.toString());
 	}
 
@@ -283,19 +279,28 @@ public class LazyTest {
 		assertEquals(1, called.get());
 	}
 
+	public interface LoudGreet extends Greet {
+		String shout();
+		default String helloTwice() { return hello() + hello(); }
+	}
+
 	@Test
 	public void testWrapInterfaceMethodFromSuperInterfaceTriggersSupplier() {
-		// 인터페이스 메소드(super-interface에서 상속된 것 포함)는 supplier를 호출하고 캐시로 위임된다.
+		// 상위 인터페이스(Greet)에서 상속한 메소드와 default 메소드도 backing 객체로 위임된다.
 		AtomicInteger called = new AtomicInteger(0);
-		Greet g = Lazy.wrap(() -> {
+		LoudGreet g = Lazy.wrap(() -> {
 			called.incrementAndGet();
-			return new Greet() {
+			return new LoudGreet() {
 				@Override public String hello() { return "hi"; }
 				@Override public String bye() { return "bye"; }
+				@Override public String shout() { return "HI"; }
 			};
-		}, Greet.class);
+		}, LoudGreet.class);
 
 		assertEquals("hi", g.hello());
+		assertEquals("bye", g.bye());
+		assertEquals("HI", g.shout());
+		assertEquals("hihi", g.helloTwice());
 		assertEquals(1, called.get());
 	}
 
@@ -343,14 +348,7 @@ public class LazyTest {
 	}
 
 	/**
-	 * wrap 의 Object 메소드(toString/hashCode/equals) 동작을 관찰한다.
-	 * <p>
-	 * Lazy 클래스 javadoc 은 "Object 메소드는 supplier를 호출하지 않고 프록시의 super(=Object)
-	 * 구현으로 처리된다"고 명시하고 있다. 그러나 현재 Interceptor의 조건
-	 * {@code declaring.isAssignableFrom(m_intfc)}은 Object에 대해서도 true 이므로
-	 * 실제로는 supplier가 호출되고 backing 객체의 Object 메소드로 위임된다.
-	 * 본 테스트는 javadoc 약속대로 동작하는지 (= supplier 미호출) 검증한다.
-	 * 현재 구현에서는 실패할 가능성이 있으며, 그 경우 코드 또는 javadoc 중 하나를 수정해야 한다.
+	 * wrap 의 Object 메소드(toString/hashCode/equals)는 supplier를 호출하지 않는다.
 	 */
 	@Test
 	public void testWrapObjectMethodsDoNotTriggerSupplier() {
@@ -370,5 +368,77 @@ public class LazyTest {
 
 		assertEquals(0, called.get(),
 					"Object 메소드만 호출했을 때 supplier는 호출되지 않아야 한다");
+	}
+
+	/**
+	 * 프록시의 equals는 프록시 동일성, hashCode는 identity hash, toString은 내부 Lazy의 표현이다.
+	 */
+	@Test
+	public void testWrapObjectMethodSemantics() {
+		Greet backing = new Greet() {
+			@Override public String hello() { return "hi"; }
+			@Override public String bye() { return "bye"; }
+		};
+		Greet g = Lazy.wrap(() -> backing, Greet.class);
+		Greet other = Lazy.wrap(() -> backing, Greet.class);
+
+		assertTrue(g.equals(g));
+		assertFalse(g.equals(other));
+		assertFalse(g.equals(backing));
+		assertEquals(System.identityHashCode(g), g.hashCode());
+		assertEquals("Lazy[unloaded]", g.toString());
+		g.hello();
+		assertTrue(g.toString().startsWith("Lazy["));
+		assertFalse(g.toString().equals("Lazy[unloaded]"));
+	}
+
+	interface PackagePrivateGreet {
+		String hello();
+	}
+
+	/**
+	 * 같은 인터페이스의 프록시 클래스는 재사용되고, public이 아닌 인터페이스도 감쌀 수 있다.
+	 */
+	@Test
+	public void testWrapReusesProxyClassAndAcceptsNonPublicInterface() {
+		Supplier<Greet> supplier = () -> new Greet() {
+			@Override public String hello() { return "hi"; }
+			@Override public String bye() { return "bye"; }
+		};
+		Class<?> proxyClass = Lazy.wrap(supplier, Greet.class).getClass();
+		assertTrue(proxyClass == Lazy.wrap(supplier, Greet.class).getClass());
+
+		PackagePrivateGreet g = Lazy.wrap(() -> () -> "pp", PackagePrivateGreet.class);
+		assertEquals("pp", g.hello());
+	}
+
+	@Test
+	public void testWrapRejectsNonInterface() {
+		assertThrows(IllegalArgumentException.class, () -> Lazy.wrap(() -> "x", String.class));
+	}
+
+	/**
+	 * {@link UnsafeLazy}는 {@link Lazy}와 같은 API를 가진다(동기화만 하지 않는다).
+	 */
+	@Test
+	public void testUnsafeLazyMirrorsLazy() {
+		AtomicInteger calls = new AtomicInteger();
+		UnsafeLazy<String> lazy = UnsafeLazy.of(() -> "v" + calls.incrementAndGet());
+		assertFalse(lazy.isLoaded());
+		assertEquals("v1", lazy.get());
+		assertEquals("v1", lazy.get());
+		lazy.invalidate();
+		assertEquals("v2", lazy.get());
+		lazy.set("x");
+		assertEquals("x", lazy.get());
+
+		List<String> destroyed = new ArrayList<>();
+		lazy.invalidate(destroyed::add);
+		assertEquals(List.of("x"), destroyed);
+
+		UnsafeLazy<String> value = UnsafeLazy.ofValue("a");
+		value.invalidate();
+		assertThrows(IllegalStateException.class, value::get);
+		assertThrows(IllegalStateException.class, () -> UnsafeLazy.of(() -> null).get());
 	}
 }

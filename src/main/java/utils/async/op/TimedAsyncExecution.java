@@ -130,7 +130,7 @@ public class TimedAsyncExecution<T> extends AbstractAsyncExecution<T> implements
 			}
 			result.ifSuccessful(this::notifyCompleted)
 				.ifFailed(this::notifyFailed)
-				.ifNone(this::onTargetCancelled);
+				.ifCancelled(this::onTargetCancelled);
 		});
 
 		m_target.start();

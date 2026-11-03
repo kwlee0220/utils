@@ -73,7 +73,7 @@ public class FlatMapAsyncExecution<T,S> extends EventDrivenExecution<S> {
 			
 			follower.whenFinished(ret2 -> ret2.ifSuccessful(this::notifyCompleted)
 												.ifFailed(this::notifyFailed)
-												.ifNone(this::notifyCancelled));
+												.ifCancelled(this::notifyCancelled));
 			if ( !follower.isStarted() ) {
 				if ( follower instanceof StartableExecution startable ) {
 					startable.start();

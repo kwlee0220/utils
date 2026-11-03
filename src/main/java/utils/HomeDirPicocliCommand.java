@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory;
 
 import org.jetbrains.annotations.Nullable;
 
-import utils.func.Optionals;
 import utils.io.FileUtils;
+import utils.func.Nullables;
 
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Model.CommandSpec;
@@ -123,7 +123,7 @@ public abstract class HomeDirPicocliCommand implements Runnable, LoggerSettable 
 
 	@Override
 	public Logger getLogger() {
-		return Optionals.getOrElse(m_logger, s_logger);
+		return Nullables.orElse(m_logger, s_logger);
 	}
 
 	@Override

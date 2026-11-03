@@ -27,7 +27,7 @@ public class UncheckedTest {
 	public void test0() throws Exception {
 		CheckedRunnable cr = () -> {
 			m_result = FAILED;
-			throw new AssertionError();
+			throw new IOException("ignored");
 		};
 
 		m_result = INIT;
@@ -35,6 +35,10 @@ public class UncheckedTest {
 		Assertions.assertEquals(INIT, m_result);
 		r.run();
 		Assertions.assertEquals(FAILED, m_result);
+
+		// Error는 무시하지 않고 그대로 전파한다.
+		Runnable err = UncheckedRunnable.ignore(() -> { throw new AssertionError(); });
+		Assertions.assertThrows(AssertionError.class, err::run);
 	}
 
 	@Test

@@ -222,7 +222,7 @@ public class BackgroundedAsyncTest {
 		Thread.sleep(50);
 
 		Assertions.assertNotNull(received.get());
-		Assertions.assertEquals(true, received.get().isNone());
+		Assertions.assertEquals(true, received.get().isCancelled());
 	}
 
 	@Test

@@ -15,7 +15,7 @@ import com.google.common.collect.Lists;
 
 import org.jetbrains.annotations.Nullable;
 
-import utils.func.FOption;
+import utils.func.Nullables;
 
 /**
  * 비동기 작업과 관련된 정적 유틸리티.
@@ -55,7 +55,7 @@ public class AsyncUtils {
 	public static <T> void pollUntilAllTrue(List<T> list, Predicate<T> pred, Duration pollInterval,
 												@Nullable Duration timeout, @Nullable Executor exector)
 		throws InterruptedException, ExecutionException, TimeoutException {
-		Instant due = FOption.map(timeout, to -> (Instant)to.addTo(Instant.now()));
+		Instant due = Nullables.map(timeout, to -> (Instant)to.addTo(Instant.now()));
 		List<T> remains = Lists.newArrayList(list);
 		
 		while ( remains.size() > 0 ) {
@@ -67,7 +67,7 @@ public class AsyncUtils {
 			List<CompletableFuture<Boolean>> jobs = Lists.newArrayList();
 			for ( T element: remains ) {
 				Supplier<Boolean> poll = () -> pred.test(element);
-				CompletableFuture<Boolean> job = FOption.mapOrSupply(exector,
+				CompletableFuture<Boolean> job = Nullables.mapOrElseGet(exector,
 																	ext -> CompletableFuture.supplyAsync(poll, ext),
 																	() -> CompletableFuture.supplyAsync(poll));
 				jobs.add(job);
