@@ -349,6 +349,8 @@ public interface Try<T> extends FStreamable<T> {
 	 * 본 객체가 {@link Success}인 경우는 {@code mapper}를 적용시킨 결과로 반환되며,
 	 * {@link Failure}인 경우는 원래 예외를 그대로 반환한다. {@code mapper}가 {@link Exception}을 던지면 그 예외를
 	 * 담은 {@link Failure}를 반환한다. {@link Error}는 잡지 않는다.
+	 * <p>
+	 * {@code mapper}가 컨테이너 대신 {@code null}을 반환하면 {@link IllegalStateException}을 원인으로 하는 실패가 된다.
 	 *
 	 * @param <S>		출력 타입.
 	 * @param mapper	현재 값을 변형시킬 {@link Function}.
@@ -462,7 +464,7 @@ public interface Try<T> extends FStreamable<T> {
 		@Override
 		public <S> Try<S> flatMap(Function<? super T, ? extends Try<? extends S>> mapper) {
 			try {
-				return Try.narrow(mapper.apply(m_value));
+				return Try.narrow(FOption.checkMapped(mapper.apply(m_value)));
 			}
 			catch ( Exception e ) {
 				return Try.failure(e);

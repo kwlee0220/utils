@@ -245,7 +245,8 @@ public abstract class Result<T> {
 	 * 이 결과를 {@link Try}로 변환한다.
 	 * <p>
 	 * 성공 상태는 성공 {@code Try}로, 실패 상태는 실패 {@code Try}로 변환되며,
-	 * 없음 상태는 {@link CancellationException}을 원인으로 갖는 실패 {@code Try}로 변환된다.
+	 * 취소 상태는 {@link CancellationException}을 원인으로 갖는 실패 {@code Try}로 변환된다.
+	 * 원인 없는 실패({@code failure(null)})는 {@link IllegalStateException}을 원인으로 하는 실패가 된다.
 	 *
 	 * @return	변환된 {@code Try} 객체.
 	 */
@@ -254,7 +255,9 @@ public abstract class Result<T> {
     		return Try.success(getUnchecked());
     	}
     	else if ( isFailed() ) {
-    		return Try.failure(getCause());
+    		// Result는 원인 없는 실패를 허용하지만 Try.failure는 null을 받지 않으므로 대체 예외로 바꾼다.
+    		Throwable cause = getCause();
+    		return Try.failure((cause != null) ? cause : new IllegalStateException("failed without a cause"));
     	}
     	else if ( isCancelled() ) {
     		return Try.failure(new CancellationException());
@@ -291,6 +294,8 @@ public abstract class Result<T> {
 	 * <p>
 	 * 성공 상태가 아니면 상태가 그대로 유지된 새 {@code Result}를 반환하며,
 	 * 함수 적용 도중 예외가 발생하면 그 예외를 원인으로 갖는 실패 상태로 전환된다.
+	 * <p>
+	 * {@code mapper}가 컨테이너 대신 {@code null}을 반환하면 {@link IllegalStateException}을 원인으로 하는 실패가 된다.
 	 *
 	 * @param <U>		변환된 결과 값 타입.
 	 * @param mapper	결과 값에 적용할, {@code Result}를 반환하는 변환 함수.
@@ -392,7 +397,7 @@ public abstract class Result<T> {
 	        Preconditions.checkNotNullArgument(mapper, "mapper is null");
 	        
 			try {
-				return (Result<U>)mapper.apply(m_value);
+				return (Result<U>)FOption.checkMapped(mapper.apply(m_value));
 			}
 			catch ( Exception e ) {
 				return failure(e);

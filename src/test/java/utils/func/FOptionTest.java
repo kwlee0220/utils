@@ -117,16 +117,6 @@ public class FOptionTest {
 	}
 
 	@Test
-	public void testWhen1() throws Exception {
-		Optional<String> opt = Nullables.whenTrue(true, "a");
-		assertEquals(true, opt.isPresent());
-		assertEquals("a", opt.get());
-
-		opt = Nullables.whenTrue(false, "a");
-		assertEquals(true, opt.isEmpty());
-	}
-
-	@Test
 	public void testNarrow() throws Exception {
 		ArrayList<String> list = new ArrayList<>();
 		FOption<ArrayList<String>> opt = FOption.of(list);
@@ -486,6 +476,6 @@ public class FOptionTest {
 
 	@Test
 	public void staticIfPresentRejectsNullEffectEvenForNullValue() {
-		assertThrows(IllegalArgumentException.class, () -> Nullables.ifNotNull(null, (java.util.function.Consumer<Object>)null));
+		assertThrows(IllegalArgumentException.class, () -> Nullables.accept(null, (java.util.function.Consumer<Object>)null));
 	}
 }

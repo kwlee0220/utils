@@ -196,6 +196,7 @@ public final class Either<L,R> {
 	 * @param <U>		변환된 Left 값의 타입.
 	 * @param mapper	Left 값에 적용할 함수.
 	 * @return			변환된 {@link Either}.
+	 * @throws IllegalStateException	{@code mapper}가 컨테이너 대신 {@code null}을 반환한 경우.
 	 */
 	@SuppressWarnings("unchecked")
 	public <U> Either<U,R>
@@ -204,7 +205,7 @@ public final class Either<L,R> {
 
 		if ( m_left.isPresent() ) {
 			// Either는 불변이라 Either<? extends U, ? extends R>를 Either<U,R>로 보아도 안전하다.
-			return (Either<U,R>)mapper.apply(m_left.get());
+			return (Either<U,R>)FOption.checkMapped(mapper.apply(m_left.get()));
 		}
 		else {
 			return Either.right(m_right.get());
@@ -217,6 +218,7 @@ public final class Either<L,R> {
 	 * @param <U>		변환된 Right 값의 타입.
 	 * @param mapper	Right 값에 적용할 함수.
 	 * @return			변환된 {@link Either}.
+	 * @throws IllegalStateException	{@code mapper}가 컨테이너 대신 {@code null}을 반환한 경우.
 	 */
 	@SuppressWarnings("unchecked")
 	public <U> Either<L,U>
@@ -224,7 +226,7 @@ public final class Either<L,R> {
 		Preconditions.checkNotNullArgument(mapper, "mapper cannot be null");
 
 		if ( m_right.isPresent() ) {
-			return (Either<L,U>)mapper.apply(m_right.get());
+			return (Either<L,U>)FOption.checkMapped(mapper.apply(m_right.get()));
 		}
 		else {
 			return Either.left(m_left.get());

@@ -11,7 +11,7 @@
 | 필요한 것 | 사용할 타입 | 선택 기준 |
 |---|---|---|
 | 값이 있을 수도 없을 수도 있음 | [`FOption`](FOption.java) | `Optional`과 달리 `null` 값도 "있음"으로 담을 수 있다. `FStream`으로 순회 가능 |
-| `null`일 수 있는 값을 감싸지 않고 바로 처리 | [`Nullables`](Nullables.java) | `Nullables.orElse(x, y)`처럼 static 도우미. `java.util.Optional` 도우미도 여기에 있다 |
+| `null`일 수 있는 값을 감싸지 않고 바로 처리 | [`Nullables`](Nullables.java) | `Nullables.orElse(x, y)`처럼 static 도우미 |
 | 성공 또는 예외 | [`Try`](Try.java) | 검사 예외를 던지는 작업의 결과를 값으로 다룬다 |
 | 성공·실패·취소 | [`Result`](Result.java) | 비동기 실행(`Execution`)의 결과. 취소 상태가 따로 있다 |
 | 둘 중 하나의 값 | [`Either`](Either.java) | Left/Right 중 정확히 하나를 가진다 |
@@ -42,31 +42,31 @@ item.ifPresent(this::register)
   - `getOrElse(null)`은 오버로드가 모호해 컴파일되지 않는다. 기본값이 `null`이면 `getOrNull()`을 쓴다.
 - 대체: `or(FOption)`, `or(Supplier<FOption>)`은 `FOption`을, `orElse(T)`는 그 값을 감싼 `FOption`을 돌려준다.
 - 변환: `map`(결과가 `null`이면 `null` 값을 가진 존재 상태), `mapNotNull`(결과가 `null`이면 빈 값), `flatMap`, `filter`, `fold(초기값, 함수)`, `cast(Class)`.
+- `flatMap` 계열의 mapper가 컨테이너 대신 `null`을 돌려주면 `IllegalStateException`이다(`Try`·`Result`의 `flatMap`은 그 예외를 원인으로 하는 실패). 값이 `null`인 컨테이너(`FOption.of(null)`, `Try.success(null)`)는 정상이다.
 - `equals`·`hashCode`는 값으로 비교하므로 `HashMap`의 키로 쓸 수 있다.
 
 ### 2.2 `Nullables`
 
-`FOption`으로 감싸지 않고 `null`일 수 있는 값을 바로 다루는 static 도우미다. 이름은 JDK를 따른다.
+`FOption`으로 감싸지 않고 `null`일 수 있는 값을 바로 다루는 static 도우미다. 
 
 | 메소드 | 하는 일 |
 |---|---|
 | `orElse(value, elseValue)` | `value`가 `null`이면 `elseValue`(`null`이어도 됨) |
-| `orElseGet(value, supplier)` | `value`가 `null`일 때만 `supplier` 호출 |
-| `getOrElseThrow(value, checkedSupplier)` | `orElseGet`과 같고, `supplier`가 검사 예외를 던질 수 있다 |
-| `ifNotNull(value, consumer)` / `ifNotNullOrThrow(value, checkedConsumer)` | `null`이 아니면 그 값으로 호출 |
-| `ifNotNullRun(value, runnable)` | `null`이 아니면 실행(값은 넘기지 않음) |
-| `ifNull(value, runnable)` | `null`이면 실행 |
-| `map(value, f)` / `mapOrElse(value, f, elseValue)` / `mapOrElseGet(value, f, supplier)` | `null`이 아니면 `f` 적용 |
+| `orGet(value, supplier)` | `value`가 `null`일 때만 `supplier` 호출 |
+| `orGetOrThrow(value, checkedSupplier)` | `orGet`과 같고, `supplier`가 검사 예외를 던질 수 있다 |
+| `accept(value, consumer)` / `acceptOrThrow(value, checkedConsumer)` | `null`이 아니면 그 값으로 호출 |
+| `run(value, runnable)` | `null`이 아니면 실행(값은 넘기지 않음) |
+| `runIfNull(value, runnable)` | `null`이면 실행 |
+| `map(value, f)` / `mapOrElse(value, f, elseValue)` / `mapOrGet(value, f, supplier)` | `null`이 아니면 `f` 적용 |
 
 ```java
 m_logger = Nullables.orElse(logger, s_defaultLogger);
-m_dir = Nullables.orElseGet(dir, FileUtils::getCurrentWorkingDirectory);
-Nullables.ifNotNull(m_codecName, upload::compressionCodecName);
+m_dir = Nullables.orGet(dir, FileUtils::getCurrentWorkingDirectory);
+Nullables.accept(m_codecName, upload::compressionCodecName);
 ```
 
-`ifNotNullRun`을 `ifNotNull`의 오버로드로 두지 않은 것은 getter·setter가 같은 이름인 메소드 참조(위의 `upload::compressionCodecName`)가 `Runnable`과 `Consumer` 양쪽에 맞아 모호해지기 때문이다.
+`run`을 `accept`의 오버로드로 두지 않은 것은 getter·setter가 같은 이름인 메소드 참조(위의 `upload::compressionCodecName`)가 `Runnable`과 `Consumer` 양쪽에 맞아 모호해지기 때문이다.
 
-`java.util.Optional`을 다루는 도우미 `orElse(Optional, Supplier)`, `doIfPresent`, `mapOrThrow`, `whenTrue`, `transform`도 이 클래스에 있다.
 
 ---
 
@@ -102,7 +102,7 @@ exec.whenFinished(r -> r.ifSuccessful(this::use)
 - `getOrThrow(Supplier)`, `getOrThrow(Function<Throwable,X>)`: 성공이 아니면 그 예외. 취소 상태에서는 함수에 `CancellationException`이 전달된다.
 - `map`·`flatMap`·`filter`는 함수가 던진 `Exception`을 실패로 바꾼다. `filter`가 거짓이면 취소 상태가 된다.
 - `toTry()`: 취소는 `CancellationException`을 원인으로 하는 실패가 된다.
-- `failure(null)`도 허용한다(원인을 모르는 실패).
+- `failure(null)`도 허용한다(원인을 모르는 실패). `toTry()`하면 `IllegalStateException`을 원인으로 하는 실패가 된다.
 
 ---
 
@@ -131,7 +131,8 @@ e.left().ifPresent(...);          // left()·right()는 FOption
 
 - `ofValue(v)`로 만든 인스턴스를 `invalidate()`한 뒤 `get()`하면 supplier가 없으므로 `IllegalStateException`이다.
 - `TimedLazy.reload()`는 TTL과 상관없이 바로 다시 적재한다.
-- `Lazy.wrap(supplier, Interface.class)`는 그 인터페이스의 메소드가 처음 불릴 때 실제 객체를 만드는 JDK 동적 프록시를 돌려준다. 상위 인터페이스·default 메소드도 위임된다. `equals`는 프록시 동일성, `hashCode`는 identity hash, `toString`은 `Lazy[...]`이며 셋 다 supplier를 부르지 않는다.
+- `TimedLazy`의 적재·`set`·`invalidate`는 같은 잠금으로 직렬화된다. 적재 중에 `set`하면 적재가 끝난 뒤 적용되어 새 값이 남는다. TTL은 `System.nanoTime()` 경과 시간으로 판단한다(시스템 시각 변경과 무관).
+- `Lazy.wrap(supplier, Interface.class)`는 그 인터페이스의 메소드가 처음 불릴 때 실제 객체를 만드는 JDK 동적 프록시를 돌려준다. 상위 인터페이스·default 메소드도 위임된다. 다른 패키지의 public이 아닌 인터페이스는 reflection 접근 허용이 필요하며, 허용할 수 없는 환경이면 `wrap`이 `IllegalArgumentException`을 던진다. `equals`는 프록시 동일성, `hashCode`는 identity hash, `toString`은 `Lazy[...]`이며 셋 다 supplier를 부르지 않는다.
 
 ---
 
@@ -163,14 +164,14 @@ e.left().ifPresent(...);          // left()·right()는 FOption
 | 이름 | 뜻 |
 |---|---|
 | `getOrThrow(Supplier<X>)` | 값이 없으면 그 예외를 던진다(`FOption`·`Try`·`Result`) |
-| `…OrThrow(Checked*X)` | 검사 예외를 던질 수 있는 함수를 받는다(`mapOrThrow`, `ifPresentOrThrow`, `getOrElseThrow`, `ifNotNullOrThrow`) |
+| `…OrThrow(Checked*X)` | 검사 예외를 던질 수 있는 함수를 받는다(`mapOrThrow`, `ifPresentOrThrow`, `getOrElseThrow`, `acceptOrThrow`) |
 | `getUnchecked()` | 실패 원인을 비검사 예외로 바꿔 던진다(`Try`·`Result`) |
-| `orElse` / `orElseGet` | 대체값을 바로 / 함수로 준다(`Nullables`) |
+| `…OrElse` / `…OrGet` | 대체값을 바로 / 함수로 준다(`Nullables`의 `orElse`/`orGet`, `mapOrElse`/`mapOrGet`) |
 | `ToTry`, `toFOption`, `toTry` | 결과를 `Try`·`FOption`으로 바꾼다 |
 
 ### 7.3 인자 검증
 
-항상 쓰는 인자(`ifPresent`·`ifNotNull`의 consumer, `map`의 mapper)는 항상 검사하고, 대체(fallback) 인자(`getOrElse`·`orElseGet`의 supplier, `ifAbsent`·`ifNull`의 action)는 쓸 때만 검사한다. 위반하면 `IllegalArgumentException`이다.
+항상 쓰는 인자(`ifPresent`·`accept`의 consumer, `map`의 mapper)는 항상 검사하고, 대체(fallback) 인자(`getOrElse`·`orGet`의 supplier, `ifAbsent`·`runIfNull`의 action)는 쓸 때만 검사한다. 위반하면 `IllegalArgumentException`이다.
 
 ---
 

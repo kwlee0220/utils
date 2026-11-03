@@ -147,7 +147,7 @@ public class ProgramServiceConfig {
 	 * @param workingDirectory 작업 디렉터리, 또는 {@code null}.
 	 */
 	public void setWorkingDirectory(@Nullable File workingDirectory) {
-		m_workingDirectory = Nullables.orElseGet(workingDirectory,
+		m_workingDirectory = Nullables.orGet(workingDirectory,
 												FileUtils::getCurrentWorkingDirectory);
 	}
 
@@ -186,7 +186,7 @@ public class ProgramServiceConfig {
 	 * @param environments 환경 변수 맵, 또는 {@code null}.
 	 */
 	public void setEnvironments(@Nullable Map<String,String> environments) {
-		m_environments = Nullables.orElseGet(environments, Maps::newHashMap);
+		m_environments = Nullables.orGet(environments, Maps::newHashMap);
 	}
 
 	/**

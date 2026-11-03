@@ -3,6 +3,7 @@ package utils.func;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -85,7 +86,9 @@ public class Lazy<T> {
 	 * 호출될 수 있으므로 idempotent한 것이 권장된다.
 	 * <p>
 	 * 구현은 JDK 동적 프록시({@link Proxy})이므로 {@code intfc}는 인터페이스여야 한다. 프록시 클래스는
-	 * {@code intfc}의 classloader에 정의되며 인터페이스별로 재사용된다. public이 아닌 인터페이스도 감쌀 수 있다.
+	 * {@code intfc}의 classloader에 정의되며 인터페이스별로 재사용된다. public이 아닌 인터페이스(다른 패키지에 선언된
+	 * 것 포함)도 감쌀 수 있다. 이때는 reflection 접근 허용({@link Method#trySetAccessible()})이 필요하므로, 모듈 경계 등으로
+	 * 허용할 수 없으면 {@code wrap}이 {@link IllegalArgumentException}을 던진다.
 	 *
 	 * @param <T>      프록시가 구현할 인터페이스 타입.
 	 * @param supplier 백킹 객체를 생성하는 supplier. {@code null}이면 안 된다.
@@ -98,6 +101,13 @@ public class Lazy<T> {
 		Preconditions.checkNotNullArgument(supplier, "supplier is null");
 		Preconditions.checkNotNullArgument(intfc, "interface is null");
 		Preconditions.checkArgument(intfc.isInterface(), "not an interface: %s", intfc);
+		if ( !isPublicType(intfc) ) {
+			// public이 아닌 인터페이스의 메소드는 이 패키지에서 바로 호출할 수 없으므로 접근 허용이 가능한지 미리 확인한다.
+			for ( Method m: intfc.getMethods() ) {
+				Preconditions.checkArgument(isPublicType(m.getDeclaringClass()) || m.trySetAccessible(),
+											"cannot access non-public interface method: %s", m);
+			}
+		}
 
 		Object proxy = Proxy.newProxyInstance(intfc.getClassLoader(), new Class<?>[] { intfc },
 												new Interceptor<>(supplier));
@@ -139,16 +149,20 @@ public class Lazy<T> {
 	 * 			경우({@code null}은 "적재 안 됨"과 구분할 수 없으므로 적재하지 않는다).
 	 */
 	public T get() {
-		T cached = m_ref.getAcquire();
-		if ( cached == null ) {
-			Preconditions.checkState(m_supplier != null, "Value supplier is null");
-			cached = m_supplier.get();
-			Preconditions.checkState(cached != null, "supplier returned null value");
-			if ( !m_ref.compareAndSet(null, cached) ) {
-				cached = m_ref.getAcquire();
+		while ( true ) {
+			T cached = m_ref.getAcquire();
+			if ( cached != null ) {
+				return cached;
 			}
+
+			Preconditions.checkState(m_supplier != null, "Value supplier is null");
+			T loaded = m_supplier.get();
+			Preconditions.checkState(loaded != null, "supplier returned null value");
+			if ( m_ref.compareAndSet(null, loaded) ) {
+				return loaded;
+			}
+			// 다른 스레드가 먼저 적재했다. 그 사이에 invalidate()로 다시 비었을 수 있으므로 처음부터 다시 확인한다.
 		}
-		return cached;
 	}
 	
 	/**
@@ -194,6 +208,16 @@ public class Lazy<T> {
 		return String.format("Lazy[%s]", vstr);
 	}
 
+	// 바깥 클래스까지 모두 public이어야 다른 패키지에서 바로 접근할 수 있다.
+	private static boolean isPublicType(Class<?> cls) {
+		for ( Class<?> c = cls; c != null; c = c.getEnclosingClass() ) {
+			if ( !Modifier.isPublic(c.getModifiers()) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	private static class Interceptor<T> implements InvocationHandler {
 		private final Lazy<T> m_cache;
 
@@ -212,8 +236,16 @@ public class Lazy<T> {
 				}
 			}
 
+			if ( !isPublicType(method.getDeclaringClass()) ) {
+				// 다른 패키지의 public이 아닌 인터페이스는 접근 허용 없이는 이 핸들러에서 호출할 수 없다.
+				// Method 객체는 프록시 클래스가 재사용하므로 한 번 허용하면 유지된다. 가능 여부는 wrap()에서 확인했다.
+				method.trySetAccessible();
+			}
 			try {
 				return method.invoke(m_cache.get(), args);
+			}
+			catch ( IllegalAccessException e ) {
+				throw new IllegalStateException("cannot access " + method, e);
 			}
 			catch ( InvocationTargetException e ) {
 				throw e.getCause();

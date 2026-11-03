@@ -22,5 +22,3 @@ hs_err_pid*
 /bin/
 .apt_generated*/
 
-# review tracking docs kept locally
-/docs/reviews/func-review.md

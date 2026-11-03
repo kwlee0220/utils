@@ -1,7 +1,6 @@
 package utils.func;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
@@ -21,6 +20,12 @@ import utils.Preconditions;
  * 스레드들은 잠금을 얻은 뒤 다시 확인하여 새로 적재된 값을 그대로 반환한다. {@link #reload()}는 이와 달리 호출할
  * 때마다 무조건 다시 적재한다.
  * <p>
+ * 적재·{@link #set(Object)}·{@link #invalidate()}는 같은 잠금으로 직렬화된다. 그래서 적재가 진행 중일 때 호출한
+ * {@code set}·{@code invalidate}는 적재가 끝난 뒤 적용되며, 진행 중이던 적재 결과가 그 뒤의 {@code set} 값을 덮어쓰지
+ * 않는다(진행 중인 적재 자체를 취소하지는 않는다).
+ * <p>
+ * TTL은 시스템 시각이 아니라 {@link System#nanoTime()}으로 잰 경과 시간으로 판단하므로 시각 변경의 영향을 받지 않는다.
+ * <p>
  * {@link #peek()} / {@link #peekOrNull()} 는 supplier 호출 없이 현재 적재된 값을 그대로 반환하므로
  * 부수효과·고비용을 피하고 싶은 상황(예: {@code toString()})에서 유용하다. {@link #set(Object)}로
  * 외부에서 받은 값을 캐시에 직접 주입할 수 있으며, 이 경우 적재 시각도 같이 갱신된다.
@@ -31,10 +36,11 @@ import utils.Preconditions;
  */
 public class TimedLazy<T> {
 	private final Duration m_ttl;
+	private final long m_ttlNanos;
 	private final Supplier<? extends T> m_supplier;
 	@Nullable private volatile Holder<T> m_holder;
 
-	private record Holder<T>(T value, Instant loadedAt) {}
+	private record Holder<T>(T value, long loadedNanos) {}
 
 	/**
 	 * 주어진 TTL과 {@link Supplier}로 {@link TimedLazy} 인스턴스를 생성한다.
@@ -56,6 +62,7 @@ public class TimedLazy<T> {
 		Preconditions.checkNotNullArgument(supplier, "supplier is null");
 
 		m_ttl = ttl;
+		m_ttlNanos = toNanosSaturated(ttl);
 		m_supplier = supplier;
 		m_holder = null;
 	}
@@ -89,7 +96,7 @@ public class TimedLazy<T> {
 	 */
 	public boolean isExpired() {
 		Holder<T> h = m_holder;
-		return h == null || isExpired(h, Instant.now());
+		return h == null || isExpired(h);
 	}
 
 	/**
@@ -104,14 +111,14 @@ public class TimedLazy<T> {
 	@Nullable
 	public T get() {
 		Holder<T> h = m_holder;
-		if ( h != null && !isExpired(h, Instant.now()) ) {
+		if ( h != null && !isExpired(h) ) {
 			return h.value();
 		}
 
 		synchronized ( this ) {
 			// 잠금을 기다리는 동안 다른 스레드가 이미 다시 적재했을 수 있다.
 			h = m_holder;
-			if ( h != null && !isExpired(h, Instant.now()) ) {
+			if ( h != null && !isExpired(h) ) {
 				return h.value();
 			}
 			return reload();
@@ -149,8 +156,8 @@ public class TimedLazy<T> {
 	 *
 	 * @param value 적재할 값.
 	 */
-	public void set(@Nullable T value) {
-		m_holder = new Holder<>(value, Instant.now());
+	public synchronized void set(@Nullable T value) {
+		m_holder = new Holder<>(value, System.nanoTime());
 	}
 
 	/**
@@ -158,7 +165,7 @@ public class TimedLazy<T> {
 	 * <p>
 	 * 이후 {@link #get()} 호출 시 supplier를 통해 값이 다시 적재된다.
 	 */
-	public void invalidate() {
+	public synchronized void invalidate() {
 		m_holder = null;
 	}
 
@@ -168,7 +175,7 @@ public class TimedLazy<T> {
 		if ( h == null ) {
 			return "TimedLazy[unloaded]";
 		}
-		String state = isExpired(h, Instant.now()) ? "expired" : "fresh";
+		String state = isExpired(h) ? "expired" : "fresh";
 		return String.format("TimedLazy[%s, %s]", state, h.value());
 	}
 
@@ -183,11 +190,21 @@ public class TimedLazy<T> {
 	@Nullable
 	public synchronized T reload() {
 		T value = m_supplier.get();
-		m_holder = new Holder<>(value, Instant.now());
+		m_holder = new Holder<>(value, System.nanoTime());
 		return value;
 	}
 
-	private boolean isExpired(Holder<T> h, Instant now) {
-		return Duration.between(h.loadedAt(), now).compareTo(m_ttl) > 0;
+	// nanoTime 차이는 오버플로가 나도 뺄셈으로 비교하면 맞다(JDK nanoTime 문서의 권장 방식).
+	private boolean isExpired(Holder<T> h) {
+		return System.nanoTime() - h.loadedNanos() > m_ttlNanos;
+	}
+
+	private static long toNanosSaturated(Duration dur) {
+		try {
+			return dur.toNanos();
+		}
+		catch ( ArithmeticException e ) {
+			return Long.MAX_VALUE;		// 약 292년 이상: 사실상 만료되지 않음
+		}
 	}
 }

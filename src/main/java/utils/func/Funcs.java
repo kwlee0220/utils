@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -604,9 +605,10 @@ public class Funcs {
 	public static <T,U> U foldRight(List<? extends T> list, U init,
 									BiFunction<? super T, ? super U, ? extends U> fold) {
 		U accum = init;
-		for ( int i = list.size()-1; i >= 0; --i ) {
-			final T t = list.get(i);
-			accum = fold.apply(t, accum);
+		// 인덱스 접근은 LinkedList에서 O(n²)이므로 끝에서부터 ListIterator로 거슬러 간다.
+		ListIterator<? extends T> iter = list.listIterator(list.size());
+		while ( iter.hasPrevious() ) {
+			accum = fold.apply(iter.previous(), accum);
 		}
 		return accum;
 	}

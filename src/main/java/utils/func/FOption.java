@@ -111,6 +111,14 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 		return (FOption<T>)opt;
 	}
 
+	// flatMap 계열의 mapper가 컨테이너 대신 null을 돌려주면 다음 호출에서 원인을 알기 어려운 NPE가 나므로 경계에서 막는다.
+	static <C> C checkMapped(C mapped) {
+		if ( mapped == null ) {
+			throw new IllegalStateException("flatMap mapper returned null instead of a container");
+		}
+		return mapped;
+	}
+
 	private FOption(T value, boolean present) {
 		m_value = value;
 		m_present = present;
@@ -445,11 +453,12 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param mapper	값이 존재하는 경우 호출할 매핑 함수.
 	 * @return {@code mapper}가 반환한 {@link FOption} 또는 {@link #empty()}.
 	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 * @throws IllegalStateException	{@code mapper}가 컨테이너 대신 {@code null}을 반환한 경우.
 	 */
 	public <S> FOption<S> flatMap(Function<? super T,? extends FOption<? extends S>> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
-		return (m_present) ? narrow(mapper.apply(m_value)) : empty();
+		return (m_present) ? narrow(checkMapped(mapper.apply(m_value))) : empty();
 	}
 
 	/**
@@ -460,13 +469,14 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param emptyMapper	값이 존재하지 않는 경우 결과를 생성할 함수.
 	 * @return {@code mapper} 또는 {@code emptyMapper}가 반환한 {@link FOption}.
 	 * @throws IllegalArgumentException	{@code mapper} 또는 {@code emptyMapper}가 {@code null}인 경우.
+	 * @throws IllegalStateException	{@code mapper}가 컨테이너 대신 {@code null}을 반환한 경우.
 	 */
 	public <S> FOption<S> flatMapOrElse(Function<? super T,? extends FOption<? extends S>> mapper,
 										Supplier<? extends FOption<? extends S>> emptyMapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 		utils.Preconditions.checkNotNullArgument(emptyMapper, "emptyMapper is null");
 
-		return narrow((m_present) ? mapper.apply(m_value) : emptyMapper.get());
+		return narrow(checkMapped((m_present) ? mapper.apply(m_value) : emptyMapper.get()));
 	}
 
 	/**
@@ -493,13 +503,14 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param mapper	값이 존재하는 경우 호출할 매핑 함수.
 	 * @return {@code mapper}가 반환한 {@link FStream} 또는 {@link FStream#empty()}.
 	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 * @throws IllegalStateException	{@code mapper}가 컨테이너 대신 {@code null}을 반환한 경우.
 	 */
 	@SuppressWarnings("unchecked")
 	public <S> FStream<S> flatMapFStream(Function<? super T,? extends FStream<? extends S>> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		// FStream은 원소를 내보내기만 하므로 FStream<? extends S>를 FStream<S>로 보아도 안전하다.
-		return (m_present) ? (FStream<S>)mapper.apply(m_value) : FStream.empty();
+		return (m_present) ? (FStream<S>)checkMapped(mapper.apply(m_value)) : FStream.empty();
 	}
 
 	/**
@@ -512,12 +523,13 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	 * @param mapper	값이 존재하는 경우 호출할 매핑 함수.
 	 * @return {@code mapper}가 반환한 {@link FOption} 또는 {@link #empty()}.
 	 * @throws IllegalArgumentException	{@code mapper}가 {@code null}인 경우.
+	 * @throws IllegalStateException	{@code mapper}가 컨테이너 대신 {@code null}을 반환한 경우.
 	 */
 	public <S> FOption<S> flatMapSneakily(CheckedFunction<? super T,? extends FOption<? extends S>> mapper) {
 		utils.Preconditions.checkNotNullArgument(mapper, "mapper is null");
 
 		try {
-			return (m_present) ? narrow(mapper.apply(m_value)) : empty();
+			return (m_present) ? narrow(checkMapped(mapper.apply(m_value))) : empty();
 		}
 		catch ( Throwable e ) {
 			Throwables.sneakyThrow(e);
@@ -543,8 +555,10 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 	}
 
 	/**
-	 * 값이 존재하는 경우 해당 객체를 그대로 반환하고, 값이 존재하지 않는 경우 주어진
-	 * {@code orElse} 객체를 wrapping한 {@code FOption} 객체를 반환한다.
+	 * 값이 없으면 {@code orElse}를 감싼 <b>{@code FOption}을</b> 반환한다(값이 있으면 이 객체 자신).
+	 * <p>
+	 * 값을 꺼내는 {@link #getOrElse(Object)}와 달리 결과가 여전히 {@code FOption}이므로 체인을 이어갈 때 쓴다.
+	 * 값 자체가 필요하면 {@link #getOrElse(Object)}를 쓴다.
 	 * 
 	 * @param orElse 값이 존재하지 않을 경우 반환할 객체.
 	 * @return	값이 존재하는 경우 해당 객체, 그렇지 않은 경우 주어진 {@code orElse} 객체로부터
@@ -652,11 +666,18 @@ public final class FOption<T> implements FStreamable<T>, Iterable<T>, Serializab
 
 	private class FStreamImpl implements FStream<T> {
 		private boolean m_first = true;
+		private boolean m_closed = false;
 
-		@Override public void close() throws Exception { }
+		// 다른 FStream 구현(AbstractFStream)처럼 닫은 뒤의 next()는 IllegalStateException이다.
+		@Override public void close() {
+			m_closed = true;
+		}
 
 		@Override
 		public FOption<T> next() {
+			if ( m_closed ) {
+				throw new IllegalStateException("already closed: " + this);
+			}
 			if ( m_first ) {
 				m_first = false;
 				return FOption.this;

@@ -67,7 +67,7 @@ public class AsyncUtils {
 			List<CompletableFuture<Boolean>> jobs = Lists.newArrayList();
 			for ( T element: remains ) {
 				Supplier<Boolean> poll = () -> pred.test(element);
-				CompletableFuture<Boolean> job = Nullables.mapOrElseGet(exector,
+				CompletableFuture<Boolean> job = Nullables.mapOrGet(exector,
 																	ext -> CompletableFuture.supplyAsync(poll, ext),
 																	() -> CompletableFuture.supplyAsync(poll));
 				jobs.add(job);
