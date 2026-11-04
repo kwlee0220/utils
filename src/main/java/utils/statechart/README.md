@@ -124,6 +124,7 @@ class RunningState extends AbstractState<JobContext> {
 |---|---|---|
 | [`DefaultState`](DefaultState.java) | 신호별 전이만 등록하는 일반 상태 | 하위 클래스 없이 `new DefaultState<>(path, ctx).on(...)`. `enter()`·`exit()`는 아무 일도 하지 않음 |
 | [`AbstractState`](AbstractState.java) | 진입·진출 작업이 있거나 전이를 직접 계산하는 상태 | `on(...)`으로 신호별 전이를 등록하거나 `selectTransition()`을 재정의. 필요에 따라 `enter()`·`exit()` 재정의 |
+| [`AbstractTimedState`](AbstractTimedState.java) | 머무는 시간에 제한이 있는 상태(응답 대기, 연결 대기 등) | `getTimeout()`·`onTimeout()` 구현. 진입·진출 작업은 `onEnter()`·`onExit()`에 둔다([6.3절](#63-상태별-제한-시간)) |
 | [`TriggeredState`](TriggeredState.java) | 지정한 trigger 신호에 반응하는 상태 | 등록한 신호와 `equals()`로 비교. 고정 전이나 `Supplier<Transition<C>>` 지정 가능. 다른 신호는 `on(...)`으로 추가 |
 | [`TerminalState`](TerminalState.java) | 더 이상 나가지 않는 정상 종료 상태 | `exit()`·`selectTransition()`·`on(...)`은 `UnsupportedOperationException`. 등록하면 자동으로 최종 상태 |
 | [`FailureState`](FailureState.java) | 실패 원인을 보관하는 종료 상태 | 진입 전 실패 원인 설정(`Transitions.fail`, [5.3절](#53-실패-원인을-상태에-전달)). 등록하면 자동으로 최종 상태 |
@@ -337,6 +338,7 @@ if (signal instanceof JobFailed) {
 - 예를 들어 전이 작업에서 취소하면 목표 상태에 진입하지 않는다.
 - 취소는 진입해 있는 상태를 자식부터 부모 순으로 모두 `exit()`한 뒤 확정한다. `enter()`가 반환된 상태는 진입한 것으로 보므로, 자기 `enter()`에서 취소한 상태도 자식부터 `exit()`된다.
 - `complete()`·`fail()` 직접 호출은 상태를 `exit()`하지 않는다.
+- `complete(ctx)`(결과값을 받는 오버로드)도 `complete()`와 같이 처리한다. 결과값은 항상 컨텍스트이며 다른 값은 `IllegalArgumentException`이다. 부모에게서 물려받은 `notifyCompleted()`·`notifyFailed()` 등 `notify*` 메소드는 차트 내부용이므로 직접 호출하지 않는다.
 - 처음 접수된 요청만 유효하며, 이후 요청은 거부된다(`cancel(true)`는 `false`, `complete()`·`fail()`은 `IllegalStateException`). 그래서 실패 정리 중 `exit()`에서 종료를 요청해도 원래 실패가 그대로 확정된다.
 - 정리 중 `VirtualMachineError`가 나면 종료를 확정한 뒤 다시 던진다.
 
@@ -410,6 +412,36 @@ public void enter() {
 반대로 `enter()`에서 그 작업이나 콜백의 종료를 기다리면 안 된다. 콜백이 보낸 신호는 `enter()`가 끝나야 처리되므로, `enter()`가 그 결과를 기다리면 교착된다. 작업 완료 대기는 상태 콜백 밖에서 한다.
 
 상태를 벗어난 뒤 도착하는 늦은 결과는 새 상태로 전달되거나 차트 종료 후 무시된다. 이전 작업의 결과가 새 작업에 섞이면 안 되는 경우 신호에 작업 ID를 넣어 확인하고, 상태 이탈 시 작업 취소도 함께 설계한다.
+
+### 6.3 상태별 제한 시간
+
+응답을 기다리는 상태처럼 일정 시간 안에 다음 일이 일어나야 하는 상태는 [`AbstractTimedState`](AbstractTimedState.java)를 상속한다. 진입하면 `getTimeout()`만큼의 타이머를 걸고, 진출하면 취소한다. 시간이 지나면 `onTimeout()`이 고른 전이를 수행한다.
+
+```java
+class WaitingReply extends AbstractTimedState<Ctx> {
+    WaitingReply(Ctx ctx, ScheduledExecutorService scheduler, Executor signalExecutor) {
+        super("/WaitingReply", ctx, scheduler, signalExecutor);
+        on(Reply.class, Transitions.to("/Done"));
+        // 진행 보고를 받으면 제한 시간을 다시 잰다.
+        on(Progress.class, Transitions.internal((c, sig) -> restartTimeout()));
+    }
+
+    @Override protected Duration getTimeout() { return Duration.ofSeconds(30); }
+
+    @Override protected Transition<Ctx> onTimeout(Duration timeout) {
+        return Transitions.fail("/Failed", sig -> new TimeoutException("no reply within " + timeout));
+    }
+
+    @Override protected void onEnter() { sendRequest(); }
+}
+```
+
+- **진입·진출 작업**: `enter()`·`exit()`는 타이머를 빠뜨리지 않도록 `final`이다. 진입 작업은 `onEnter()`에 둔다(타이머를 건 뒤 호출). `onEnter()`가 예외를 던지면 타이머를 취소한다.
+- **재시작은 직접 한다**: 신호를 받는다고 타이머가 저절로 다시 시작되지 않는다. "메시지가 없는 시간"을 재려면 의미 있는 진행을 확인한 곳에서 `restartTimeout()`을 호출한다. 응답 하나만 기다리는 상태는 재시작하지 않는다. 상태를 벗어난 뒤(예: 비동기 작업의 완료 콜백에서) 호출한 `restartTimeout()`은 아무 일도 하지 않는다.
+- **만료 신호 전달**: 차트는 만료 신호를 다른 상태에게 묻지 않고 타이머를 건 상태에게 바로 전달한다. 자식 상태의 포괄 전이(`on(Signal.class, ...)` 등)가 부모의 만료를 가로채지 않으며, `selectTransition()`을 재정의해도 만료 처리에는 영향이 없다.
+- **실행 스레드**: 만료 작업은 `scheduler`에서 실행된다. 차트는 신호를 보낸 스레드가 전이까지 실행하므로([6.1절](#61-직렬-처리와-실행-스레드)), 전이가 오래 걸릴 수 있으면 `signalExecutor`를 주어 신호를 그 실행기에서 보낸다. `signalExecutor`가 작업을 거부하면 만료가 사라지지 않도록 경고를 남기고 스케줄러 스레드에서 직접 보낸다. 두 실행기는 호출자가 소유하고 종료한다.
+- **늦은 신호**: 타이머는 상태 객체마다 따로 있어 부모와 자식이 각자 타이머를 가질 수 있다. 진입·재시작마다 세대 번호가 바뀌어, 이미 취소된 타이머의 신호는 머무르기만 한다. 상태를 벗어난 뒤 도착한 만료 신호(`AbstractTimedState.TimedOut`)는 `onUnhandledSignal()`로 간다.
+- **직접 종료**: `complete()`·`fail()`을 직접 호출하면 `exit()`가 실행되지 않는다. 상태는 처음 진입할 때 차트에 종료 리스너를 한 번 등록해, 이 경우에도 차트가 끝나면 타이머를 취소한다.
 
 ## 7. 복합 상태
 
@@ -499,4 +531,4 @@ UML 상태 차트의 병렬 영역(orthogonal region), 이력 상태(history), �
 - [utils.thread](../thread/README.md) — `Guard`와 실행기, 신호 큐를 구현한 `CallerRunsSerialExecutor`
 - [CLAUDE.md](CLAUDE.md) — 구현 구조와 설계 결정(영문)
 - [`StateChartTest`](../../../../test/java/utils/statechart/StateChartTest.java) — 구성, 상태 전이, 완료·실패와 취소 정리, 종료 요청 순서 검증
-- [`StatesTest`](../../../../test/java/utils/statechart/StatesTest.java), [`TransitionsTest`](../../../../test/java/utils/statechart/TransitionsTest.java), [`TransitionTableTest`](../../../../test/java/utils/statechart/TransitionTableTest.java), [`StatePathTest`](../../../../test/java/utils/statechart/StatePathTest.java), [`AbstractStateContextTest`](../../../../test/java/utils/statechart/AbstractStateContextTest.java) — 상태별 동작, 전이 생성, 전이 표, 경로, 컨텍스트 검증
+- [`StatesTest`](../../../../test/java/utils/statechart/StatesTest.java), [`TransitionsTest`](../../../../test/java/utils/statechart/TransitionsTest.java), [`TransitionTableTest`](../../../../test/java/utils/statechart/TransitionTableTest.java), [`StatePathTest`](../../../../test/java/utils/statechart/StatePathTest.java), [`AbstractStateContextTest`](../../../../test/java/utils/statechart/AbstractStateContextTest.java), [`AbstractTimedStateTest`](../../../../test/java/utils/statechart/AbstractTimedStateTest.java) — 상태별 동작, 전이 생성, 전이 표, 경로, 컨텍스트 검증

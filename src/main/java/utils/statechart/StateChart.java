@@ -21,7 +21,6 @@ import utils.Throwables;
 import utils.async.AbstractAsyncExecution;
 import utils.async.AsyncState;
 import utils.async.CancellableWork;
-import utils.func.Unchecked;
 import utils.thread.CallerRunsSerialExecutor;
 import utils.thread.CallerRunsSerialExecutor.Invocation;
 import utils.thread.Guard;
@@ -78,6 +77,11 @@ import utils.thread.Guard;
  * 동기 종료 리스너({@code whenFinished})도 시작 전 취소를 제외한 모든 종료 경로에서 이 lock과 부모의
  * 실행 상태 lock을 함께 보유한 채 실행된다. lock은 항상 이 차트의 lock → 실행 상태 lock 순서로 잡는다.
  * 리스너에서 블록될 수 있는 작업은 {@code whenFinishedAsync}로 등록한다.
+ * <p>
+ * 부모에게서 물려받은 {@code notifyStarting()}/{@code notifyStarted()}/{@code notifyCompleted(...)}/
+ * {@code notifyFailed(...)}/{@code notifyCancelling()}/{@code notifyCancelled()}는 차트가 내부에서 쓰는 메소드다.
+ * 직접 호출하면 차트 lock과 상태 정리를 거치지 않으므로, 차트를 끝낼 때는 {@link #complete()},
+ * {@link #fail(Throwable)}, {@code cancel(true)}를 쓴다.
  *
  * @param <C>	상태 컨텍스트 타입. (CRTP self-bound)
  *
@@ -353,8 +357,9 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 	 * 복합 상태가 최종 상태로 지정되었으면 시작을 거부한다.
 	 * <p>
 	 * 시작 상태(또는 그 안의 하위 상태)의 {@code enter()}가 예외를 던지면, 진입을 마친 바깥 상태들을 안쪽부터
-	 * 진출시킨 뒤 차트는 실패 상태로 종료되고, 그 원인을 담은 {@link IllegalStateException}이 호출자에게 전파된다. {@link Error}도 같은 방식으로 처리하되,
-	 * {@link VirtualMachineError}는 차트를 실패시킨 뒤 감싸지 않고 그대로 다시 던진다.
+	 * 진출시킨 뒤 차트는 실패 상태로 종료되고, 그 원인을 담은 {@link IllegalStateException}이 호출자에게
+	 * 전파된다. {@link Error}도 같은 방식으로 처리하되, {@link VirtualMachineError}는 차트를 실패시킨 뒤 감싸지 않고
+	 * 그대로 다시 던진다.
 	 * <p>
 	 * 시작 상태(또는 그 안의 하위 상태)의 {@code enter()} 안에서 {@code cancel(true)}나 {@link #complete()}를 호출하면
 	 * 요청만 접수된다. 진입이 끝난 뒤 시작을 확정({@code RUNNING}, {@code whenStarted} 리스너 실행)하고 곧바로
@@ -432,12 +437,21 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 			}
 
 			if ( !notifyStarted() ) {
-				while ( !m_activeStateChain.isEmpty() ) {
-					Unchecked.runOrIgnore(m_currentState::exit);
-					removeInnermostState();
+				// 시작 중에 다른 곳에서 notify*로 차트를 끝냈다. 다른 종료 경로와 같이 진출도 콜백 구간으로 다뤄,
+				// exit() 안의 종료 요청이 결과를 바꾸지 못하게 한다.
+				VirtualMachineError fatal;
+				++m_callbackDepth;
+				try {
+					fatal = exitActiveStatesQuietly("failing to start");
 				}
-				
-	            notifyFailed(new IllegalStateException("failed to start the StateChart"));
+				finally {
+					--m_callbackDepth;
+				}
+
+				notifyFailed(new IllegalStateException("failed to start the StateChart"));
+				if ( fatal != null ) {
+					throw fatal;
+				}
 				throw new IllegalStateException("failed to start the StateChart");
 			}
 		}
@@ -536,7 +550,8 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 	 * <p>
 	 * 큐에 넣은 신호는 반환된 future와 관계없이 반드시 처리된다. future를 취소하거나 {@code orTimeout()} 등으로
 	 * 직접 완료시켜도 결과를 받지 않게 될 뿐, 신호 처리를 철회하지 않는다. 반환된 future는 내부 future의 사본이므로,
-	 * {@code whenComplete()}/{@code handle()}이 받는 예외는 원래 예외를 원인으로 갖는 {@link java.util.concurrent.CompletionException}이다.
+	 * {@code whenComplete()}/{@code handle()}이 받는 예외는 원래 예외를 원인으로 갖는
+	 * {@link java.util.concurrent.CompletionException}이다.
 	 *
 	 * @param signal	처리할 신호.
 	 * @return	신호 처리 결과를 받을 future. {@link SignalResult.Status#QUEUED}로 완료되지는 않는다.
@@ -702,6 +717,24 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
         }
 	}
 	
+	/**
+	 * 차트를 정상 완료 상태로 종료시킨다. {@link #complete()}와 같다.
+	 * <p>
+	 * 부모에게서 물려받은 오버로드를 재정의한 것이다. 차트의 결과값은 항상 상태 컨텍스트이므로 그 외의 값은
+	 * 받지 않는다. 재정의하지 않으면 차트 lock과 콜백 중 접수를 거치지 않고 바로 종료되어, 종료 리스너가 진행 중인
+	 * 전이나 콜백보다 먼저 실행된다.
+	 *
+	 * @param result	차트의 결과값. {@link #getContext()}여야 한다.
+	 * @throws IllegalArgumentException	{@code result}가 이 차트의 상태 컨텍스트가 아닌 경우.
+	 * @throws IllegalStateException	{@link #complete()}와 같다.
+	 */
+	@Override
+	public void complete(C result) {
+		utils.Preconditions.checkArgument(result == m_context,
+										"result of a StateChart must be its StateContext: %s", result);
+		complete();
+	}
+
 	/**
 	 * 차트를 실패 상태로 종료시킨다.
 	 * <p>
@@ -993,16 +1026,33 @@ public class StateChart<C extends StateContext<C>> extends AbstractAsyncExecutio
 	}
 
 	/**
-	 * 현재 진입해 있는 상태들에게 가장 안쪽부터 차례로 전이를 묻는다.
+	 * 현재 진입해 있는 상태들에게 가장 안쪽부터 차례로 전이를 묻는다. 단 {@link AbstractTimedState}의 만료
+	 * 신호는 타이머를 건 상태에게만 묻는다.
 	 *
 	 * @param signal	처리할 신호.
 	 * @return	처음 선택된 전이. 아무 상태도 선택하지 않으면 {@link Optional#empty()}.
 	 */
 	private Optional<Transition<C>> selectTransition(Signal signal) {
+		if ( signal instanceof AbstractTimedState.TimedOut timedOut ) {
+			// 만료 신호는 다른 상태(자식의 포괄 전이 등)가 가로채지 않도록 타이머를 건 상태에게만 묻는다.
+			// 그 상태를 이미 벗어났으면 처리되지 않은 신호가 된다.
+			return selectTimeoutTransition(timedOut);
+		}
 		for ( int i = m_activeStateChain.size() - 1; i >= 0; --i ) {
 			Optional<Transition<C>> selected = m_activeStateChain.get(i).selectTransition(signal);
 			if ( selected.isPresent() ) {
 				return selected;
+			}
+		}
+		return Optional.empty();
+	}
+
+	@SuppressWarnings("unchecked")
+	private Optional<Transition<C>> selectTimeoutTransition(AbstractTimedState.TimedOut timedOut) {
+		for ( utils.statechart.State<C> state: m_activeStateChain ) {
+			if ( state == timedOut.getState() ) {
+				// 진입해 있는 상태는 이 차트의 상태이므로 컨텍스트 타입이 같다.
+				return Optional.of(((AbstractTimedState<C>)state).selectTimeoutTransition(timedOut));
 			}
 		}
 		return Optional.empty();

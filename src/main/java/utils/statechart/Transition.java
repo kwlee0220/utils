@@ -50,11 +50,10 @@ public interface Transition<C extends StateContext<C>> {
 	 * 본 메소드는 {@link StateChart}가 보유한 lock을 획득한 상태에서 호출된다.
 	 * 목표 상태가 있으면 진출과 진입 사이에, 내부 전이이면 상태 변경 없이 호출된다.
 	 * <p>
-	 * <b>예외 처리</b>: 본 메소드가 예외(런타임/{@link Error})를 던지면 호출 중인
-	 * {@link StateChart}는 fail 상태로 전이되며 ({@code notifyFailed(cause)} 호출),
-	 * 예외는 호출 스택을 통해 전파되지 않고 차트 내부에서 흡수된다. 따라서 액션 실행의
-	 * 성공/실패 여부는 {@link StateChart}의 상태(또는 {@code FinishListener})를 통해
-	 * 관찰해야 한다.
+	 * <b>예외 처리</b>: 본 메소드가 예외(런타임/{@link Error})를 던지면 호출 중인 {@link StateChart}는 실패
+	 * 상태로 종료되며, 예외는 호출 스택을 통해 전파되지 않고 차트 내부에서 흡수된다. 단 {@link VirtualMachineError}는
+	 * 차트를 실패시킨 뒤 다시 던진다. 따라서 액션 실행의 성공/실패 여부는 {@link StateChart}의 상태(또는
+	 * {@code whenFinished} 리스너)로 확인한다.
 	 *
 	 * @param context	상태 컨텍스트
 	 * @param signal	전이를 유발한 신호

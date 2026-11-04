@@ -13,7 +13,8 @@ import java.util.function.BiConsumer;
  * ({@link Transitions#to(String, TransitionAction)})에서는 현재 상태의 {@code exit()}와 목표 상태의
  * {@code enter()} <b>사이</b>에, 내부 전이({@link Transitions#internal(TransitionAction)})에서는 상태의
  * {@code exit()}/{@code enter()} 없이 호출된다. 오래 걸리는 작업을 넣으면 그동안 차트의 신호 처리 전체가
- * 지연된다. 동작이 예외를 던지면 차트는 실패 상태로 전이되며 예외는 호출자에게 전파되지 않는다.
+ * 지연된다. 동작이 예외를 던지면 차트는 실패 상태로 종료되며 예외는 호출자에게 전파되지 않는다
+ * ({@link VirtualMachineError}는 차트를 실패시킨 뒤 다시 던진다).
  * 자세한 계약은 {@link Transition#execute(StateContext, Signal)}를 참조한다.
  * <p>
  * 액션이 없는 전이는 {@link Transitions#to(String)}(상태 이동만)과 {@link Transitions#stay()}(아무것도

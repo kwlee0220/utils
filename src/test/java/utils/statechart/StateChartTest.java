@@ -2199,6 +2199,55 @@ public class StateChartTest {
 		}
 	}
 
+	// ---- 상속된 종료 메소드 ----
+
+	@Test
+	public void complete_with_context_inside_callback_is_applied_after_callback_returns() {
+		Signal go = new Signal() { public String toString() { return "go"; } };
+		m_chart.addState(new LogState("a").on(go, Transitions.to("b", (ctx, sig) -> {
+			m_chart.complete(m_ctx);
+			m_log.add("action-end");
+		})));
+		m_chart.addState(new LogState("b"));
+		m_chart.addState(new TerminalState<>("done", m_ctx));
+		m_chart.setInitialState("a");
+		m_chart.whenFinished(r -> m_log.add("finished"));
+		m_chart.start();
+
+		m_chart.handleSignal(go);
+
+		// 부모의 complete(T)를 그대로 쓰면 종료 리스너가 액션보다 먼저 실행되었다.
+		Assertions.assertEquals(List.of("enter:a", "exit:a", "action-end", "finished"), m_log);
+		Assertions.assertEquals(AsyncState.COMPLETED, m_chart.getState());
+	}
+
+	@Test
+	public void complete_with_other_value_is_rejected() {
+		startSimpleChart();
+
+		Assertions.assertThrows(IllegalArgumentException.class, () -> m_chart.complete(new TestCtx()));
+		Assertions.assertEquals(AsyncState.RUNNING, m_chart.getState());
+	}
+
+	@Test
+	public void start_exits_entered_states_when_finished_externally_during_start() {
+		m_chart.addState(new LogComposite("/P", "/P/C"));
+		m_chart.addState(new LogState("/P/C") {
+			@Override public void enter() {
+				super.enter();
+				// 차트 내부용 notify*를 직접 불러 시작 중에 차트를 끝낸다.
+				m_chart.notifyFailed(new IllegalStateException("external"));
+			}
+		});
+		m_chart.addState(new TerminalState<>("/Done", m_ctx));
+		m_chart.setInitialState("/P");
+
+		Assertions.assertThrows(IllegalStateException.class, m_chart::start);
+		Assertions.assertEquals(List.of("enter:/P", "enter:/P/C", "exit:/P/C", "exit:/P"), m_log);
+		Assertions.assertEquals(AsyncState.FAILED, m_chart.getState());
+		Assertions.assertTrue(m_chart.getActiveStates().isEmpty());
+	}
+
 	// ---- helpers ----
 
 	/**
