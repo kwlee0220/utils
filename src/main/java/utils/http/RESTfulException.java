@@ -1,5 +1,11 @@
 package utils.http;
 
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+import org.jetbrains.annotations.Nullable;
+
 /**
  * RESTful 호출 과정에서 발생하는 모든 오류의 공통 상위 unchecked 예외.
  * <p>
@@ -19,6 +25,9 @@ public class RESTfulException extends RuntimeException {
 	public static final int UNKNOWN_STATUS_CODE = -1;
 
 	private int m_httpStatusCode = UNKNOWN_STATUS_CODE;
+	private @Nullable String m_responseBody;
+	// 헤더 이름은 대소문자를 구분하지 않는다.
+	private transient Map<String,List<String>> m_responseHeaders = Map.of();
 
 	/**
 	 * 이 오류를 발생시킨 HTTP 응답의 상태 코드를 반환한다.
@@ -44,6 +53,39 @@ public class RESTfulException extends RuntimeException {
 	 */
 	void setHttpStatusCode(int statusCode) {
 		m_httpStatusCode = statusCode;
+	}
+
+	/**
+	 * 이 오류를 발생시킨 HTTP 응답의 본문을 반환한다.
+	 * <p>
+	 * 에러 엔티티로 변환하면서 버려지는 필드(예: {@code error.details})나 형식을 알 수 없는 본문을 호출부가
+	 * 직접 읽을 때 쓴다.
+	 *
+	 * @return 응답 본문. HTTP 응답에서 비롯되지 않은 오류이거나 본문이 없으면 {@code null}.
+	 */
+	public @Nullable String getResponseBody() {
+		return m_responseBody;
+	}
+
+	/**
+	 * 이 오류를 발생시킨 HTTP 응답의 헤더 값(첫 번째)을 반환한다. (예: {@code Retry-After})
+	 *
+	 * @param name	헤더 이름. 대소문자를 구분하지 않는다.
+	 * @return 헤더 값. 없거나 HTTP 응답에서 비롯되지 않은 오류이면 {@code null}.
+	 */
+	public @Nullable String getResponseHeader(String name) {
+		List<String> values = m_responseHeaders.get(name);
+		return (values == null || values.isEmpty()) ? null : values.get(0);
+	}
+
+	/**
+	 * 이 오류를 발생시킨 HTTP 응답의 본문과 헤더를 설정한다. {@link HttpRESTfulClient}가 상태 코드와 함께 설정한다.
+	 */
+	void setHttpResponse(@Nullable String body, Map<String,List<String>> headers) {
+		m_responseBody = body;
+		Map<String,List<String>> copy = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		headers.forEach((k, v) -> copy.put(k, List.copyOf(v)));
+		m_responseHeaders = copy;
 	}
 
 	/**

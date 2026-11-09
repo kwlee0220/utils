@@ -38,7 +38,7 @@ public class TypedServerErrorMessageTest {
 
 	@Test
 	public void toExceptionDoesNotThrowAndDoesNotLoadRemoteClass() {
-		// code가 Throwable이 아닌 클래스여도 더 이상 로딩/복원하지 않으므로 안전하게 RemoteException을 반환한다.
+		// code가 Throwable이 아닌 클래스여도 로딩/복원하지 않으므로 안전하게 RemoteException을 반환한다.
 		TypedServerErrorMessage entity = new TypedServerErrorMessage("java.lang.String", "boom");
 
 		Throwable ex = assertDoesNotThrow(() -> entity.toException());

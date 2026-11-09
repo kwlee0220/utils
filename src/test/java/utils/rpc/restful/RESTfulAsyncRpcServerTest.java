@@ -147,6 +147,24 @@ public class RESTfulAsyncRpcServerTest {
 		Assertions.assertNull(server.status(sessionUrl));
 	}
 
+	@Test
+	public void testStartOfFastExecutionReturnsRunning() throws Exception {
+		// 시작 대기 중에 이미 끝난 연산도 시작 응답은 RUNNING이고, 결과는 status로 한 번 회수한다.
+		// 끝나는 시점이 경쟁이므로 여러 번 시도한다.
+		Map<String,JsonNode> outputs = Map.of("r", MAPPER.readTree("3"));
+		for ( int i = 0; i < 20; ++i ) {
+			TestServer server = new TestServer(AsyncExecutions.idle(Duration.ZERO), false, outputs);
+
+			RpcResponseMessage started = server.start(emptyRequest());
+			Assertions.assertEquals(RpcState.RUNNING, started.getState());
+			Assertions.assertNotNull(started.getSessionEndpoint());
+
+			RpcResponseMessage resp = waitForTermination(server, server.status(started.getSessionEndpoint()));
+			Assertions.assertEquals(RpcState.COMPLETED, resp.getState());
+			Assertions.assertEquals(outputs, resp.getOutputs());
+		}
+	}
+
 	// ----- 진행 중 조회 / 취소 -----
 
 	@Test

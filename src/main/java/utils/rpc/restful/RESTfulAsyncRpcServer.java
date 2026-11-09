@@ -3,6 +3,7 @@ package utils.rpc.restful;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -131,9 +132,13 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 	 * <p>
 	 * 연산 생성 중 입출력 오류가 나거나, 시작 도중 예외가 발생하거나, 제한 시간 내에 시작되지 못하면
 	 * 실패({@code FAILED}) 응답을 반환한다.
+	 * <p>
+	 * 연산이 시작되면 그 사이에 이미 종료되었더라도 항상 {@code RUNNING}과 세션 endpoint를 반환하고, 결과는
+	 * {@link #status}로만 돌려준다. 비동기 클라이언트(mdtpy 등)는 시작 응답으로 {@code RUNNING}·{@code FAILED}만
+	 * 받기 때문이다. 시작 응답이 {@code COMPLETED}이면 세션이 그때 회수되어, 그런 클라이언트는 결과를 잃는다.
 	 *
 	 * @param reqMsg	연산 시작 요청 메시지. ({@code null} 불가)
-	 * @return	연산의 현재 상태를 담은 응답 메시지.
+	 * @return	{@code RUNNING}(세션 endpoint 포함) 또는 {@code FAILED}(시작하지 못한 경우) 응답 메시지.
 	 * @throws IllegalArgumentException	{@code reqMsg}가 {@code null}인 경우.
 	 */
 	public RpcResponseMessage start(RpcRequestMessage reqMsg) {
@@ -186,9 +191,10 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 			}
 
 			// 연산의 시작 여부에 따라 응답 메시지를 생성한다.
+			// 시작되었으면 이미 종료되었더라도 RUNNING으로 응답하고, 결과는 status()로 회수하게 한다.
 			AsyncRpcSession hold = sessionHolder.get();
 			if ( hold != null ) {
-				return buildResponseMessage(hold);
+				return RpcResponseMessage.running(hold.getSessionEndpoint());
 			}
 			else {
 				// 연산 시작을 요청했지만 실패한 경우.
@@ -267,6 +273,54 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 	 */
 	@Nullable public AsyncRpcSession getSession(String sessionEndpoint) {
 		return m_guard.get(() -> m_sessions.get(sessionEndpoint));
+	}
+	
+	/**
+	 * 등록된 세션이 하나라도 있는지 반환한다.
+	 * <p>
+	 * 수행 중인 세션과, 종료되었지만 아직 결과가 회수되지 않고 보존 기간 안에 있는 세션을 모두 포함한다.
+	 * 이 서버를 다른 서버로 교체할 때 기존 세션이 모두 정리되었는지 확인하는 데 쓴다.
+	 *
+	 * @return	세션이 있으면 {@code true}.
+	 */
+	public boolean hasSessions() {
+		return m_guard.get(() -> !m_sessions.isEmpty());
+	}
+	
+	/**
+	 * 수행 중인 모든 세션의 연산을 취소하고, 주어진 시간까지 종료되기를 기다린다.
+	 * <p>
+	 * 서버를 종료할 때 쓴다. 취소된 연산은 종료 처리({@link #releaseSession})를 거치므로, 하위 클래스가
+	 * 연산에 묶인 자원(외부 프로세스, 세션 디렉토리 등)을 정리할 수 있다. 제한 시간 안에 끝나지 않은 연산은
+	 * 경고만 남기고 기다리지 않는다. 이미 종료된 세션은 건드리지 않는다.
+	 *
+	 * @param timeout	모든 연산의 종료를 기다릴 최대 시간.
+	 */
+	public void cancelAllSessions(Duration timeout) {
+		Preconditions.checkNotNullArgument(timeout, "timeout is null");
+		
+		List<AsyncRpcSession> sessions = m_guard.get(() -> List.copyOf(m_sessions.values()));
+		List<AsyncRpcSession> running = sessions.stream()
+												.filter(s -> !s.getExecution().isDone())
+												.toList();
+		for ( AsyncRpcSession session: running ) {
+			session.getExecution().cancel(true);
+		}
+		
+		long due = System.currentTimeMillis() + timeout.toMillis();
+		for ( AsyncRpcSession session: running ) {
+			long remains = Math.max(due - System.currentTimeMillis(), 0);
+			try {
+				session.getExecution().waitForFinished(remains, TimeUnit.MILLISECONDS);
+			}
+			catch ( TimeoutException e ) {
+				getLogger().warn("session did not finish after cancel: session={}", session.getSessionEndpoint());
+			}
+			catch ( InterruptedException e ) {
+				Thread.currentThread().interrupt();
+				return;
+			}
+		}
 	}
 	
 	@Override

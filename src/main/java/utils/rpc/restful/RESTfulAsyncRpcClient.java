@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,19 +52,31 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	private final RpcRequestMessage m_requestMsg;
 	private final JsonMapper m_jsonMapper;
 	
-	private String m_sessionUrl;
+	// 세션 URL과 세션 확보 전에 접수한 취소 요청. 폴러 스레드(initializePoller)와 취소하는 스레드가 함께 쓴다.
+	private final Object m_sessionLock = new Object();
+	private @Nullable String m_sessionUrl;		// m_sessionLock
+	private boolean m_cancelPending;			// m_sessionLock
+	private boolean m_finishedAtStart;			// m_sessionLock. 시작 응답이 곧 종료 상태였다(세션 없음).
+	// 이미 시작된 세션에 붙을 때의 세션 endpoint. 있으면 시작 POST를 보내지 않는다.
+	private final @Nullable String m_attachedEndpoint;
+	// 시작 응답이 곧 종료 상태(COMPLETED/CANCELLED)였을 때의 응답. 폴러 스레드만 쓴다.
+	private @Nullable RpcResponseMessage m_terminalStart;
 	
 	RESTfulAsyncRpcClient(Builder builder) {
 		super(builder.m_pollInterval, IntervalMode.FIXED_RATE);
 
 		Preconditions.checkNotNullArgument(builder.m_httpClient, "httpClient is not specified");
 		Preconditions.checkNotNullArgument(builder.m_baseUrl, "baseUrl is not specified");
-		Preconditions.checkNotNullArgument(builder.m_opEndpoint, "operationUrl is not specified");
-		Preconditions.checkNotNullArgument(builder.m_requestMsg, "requestMsg is not specified");
+		if ( builder.m_sessionEndpoint == null ) {
+			Preconditions.checkNotNullArgument(builder.m_opEndpoint, "operationUrl is not specified");
+			Preconditions.checkNotNullArgument(builder.m_requestMsg, "requestMsg is not specified");
+		}
 		Preconditions.checkNotNullArgument(builder.m_jsonMapper, "jsonMapper is not specified");
 		
 		m_baseUrl = builder.m_baseUrl;
-		m_opEndpoint = concatUrl(m_baseUrl, builder.m_opEndpoint);
+		m_attachedEndpoint = builder.m_sessionEndpoint;
+		m_opEndpoint = builder.m_opEndpoint != null ? concatUrl(m_baseUrl, builder.m_opEndpoint)
+													: concatUrl(m_baseUrl, builder.m_sessionEndpoint);
 		m_requestMsg = builder.m_requestMsg;
 		m_jsonMapper = builder.m_jsonMapper;
 		setTimeout(builder.m_timeout);
@@ -83,12 +96,25 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	 * 연산 시작 POST 요청을 보내고, 응답이 {@code RUNNING}이면 세션 endpoint로부터 세션 상태 조회 URL을
 	 * 구성하여 이후 폴링 대상으로
 	 * 삼는다. 응답이 {@code FAILED}이면 복원된 원인을 cause로 갖는 {@link ExecutionException}을 던진다.
+	 * 응답이 곧 종료 상태({@code COMPLETED}/{@code CANCELLED})이면(동기 연산을 비동기로 호출한 경우) 그 응답을
+	 * 결과로 삼고 폴링하지 않는다. 세션이 없으므로 이후의 취소는 거부된다.
+	 * {@link Builder#setSessionEndpoint(String)}로 기존 세션에 붙은 경우에는 POST 없이 그 세션을 폴링한다.
 	 *
 	 * @throws ExecutionException	연산이 {@code FAILED}로 시작 실패한 경우.
 	 * @throws Exception			HTTP 통신 또는 JSON 처리 중 오류가 발생한 경우.
 	 */
 	@Override
 	protected void initializePoller() throws Exception {
+		if ( m_attachedEndpoint != null ) {
+			s_logger.info("attaching to rpc session: {}", m_opEndpoint);
+			boolean deliver;
+			synchronized ( m_sessionLock ) {
+				m_sessionUrl = m_opEndpoint;
+				deliver = m_cancelPending;
+			}
+			if ( deliver ) { deliverPendingCancel(); }
+			return;
+		}
 		s_logger.info("calling rpc: {}, inputs={}", m_opEndpoint, m_requestMsg.getInputs());
 		
 		String requestJson = m_jsonMapper.writeValueAsString(m_requestMsg);
@@ -96,14 +122,33 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 		String respStr = m_restClient.post(m_opEndpoint, reqBody);
 		RpcResponseMessage resp = m_jsonMapper.readValue(respStr, RpcResponseMessage.class);
 
-		// 비동기 연산인 경우에는 RUNNING, FAILED 상태만 가능함.											
 		switch ( resp.getState() ) {
 			case RUNNING:
-				m_sessionUrl = concatUrl(m_baseUrl, resp.getSessionEndpoint());
+				boolean deliver;
+				synchronized ( m_sessionLock ) {
+					m_sessionUrl = concatUrl(m_baseUrl, resp.getSessionEndpoint());
+					deliver = m_cancelPending;
+				}
+				if ( deliver ) {
+					// POST 응답을 기다리는 동안 접수한 취소를 세션이 생기자마자 보낸다. 폴링은 계속하여
+					// 원격 연산의 최종 상태(CANCELLED 등)를 확인한다.
+					deliverPendingCancel();
+				}
 				break;
 			case FAILED:
 				Throwable cause = resp.getJavaException();
 				throw new ExecutionException("operation failed: " + cause.getMessage(), cause);
+			case COMPLETED:
+			case CANCELLED:
+				// 동기 연산을 비동기로 호출하면 POST 응답이 곧 종료 상태다. 첫 tryPoll()이 이 응답으로 끝낸다.
+				s_logger.warn("rpc finished at start (synchronous operation?): {}, status={}", m_opEndpoint,
+								resp.getState());
+				m_terminalStart = resp;
+				synchronized ( m_sessionLock ) {
+					m_cancelPending = false;
+					m_finishedAtStart = true;
+				}
+				break;
 			default:
 				throw new AssertionError("unexpected status: " + resp.getState());
 		}
@@ -124,6 +169,13 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	@Override
 	protected FOption<Map<String,JsonNode>> tryPoll() throws InterruptedException, CancellationException,
 															ExecutionException {
+		if ( m_terminalStart != null ) {
+			RpcResponseMessage start = m_terminalStart;
+			if ( start.getState() == RpcState.CANCELLED ) {
+				throw new CancellationException("rpc is cancelled at start: " + m_opEndpoint);
+			}
+			return FOption.of(start.getOutputs());
+		}
 		String respStr = m_restClient.get(m_sessionUrl);
 		RpcResponseMessage resp;
 		try {
@@ -151,6 +203,29 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	}
 
 	/**
+	 * 원격 연산 세션의 URL을 반환한다.
+	 *
+	 * @return	세션 URL. 연산 시작 POST의 응답을 아직 받지 못했거나 시작이 실패했으면 {@code null}.
+	 */
+	public @Nullable String getSessionUrl() {
+		synchronized ( m_sessionLock ) {
+			return m_sessionUrl;
+		}
+	}
+
+	private void deliverPendingCancel() {
+		try {
+			boolean accepted = cancelWork();
+			getLogger().info("delivered a cancel requested before the session existed: session={}, accepted={}",
+							getSessionUrl(), accepted);
+		}
+		catch ( RuntimeException e ) {
+			// 취소 전달 실패로 폴링을 멈추지 않는다. 원격 연산의 최종 상태는 폴링으로 확인한다.
+			getLogger().warn("failed to deliver a pending cancel: session={}, cause={}", getSessionUrl(), e.toString());
+		}
+	}
+
+	/**
 	 * 원격 세션에 취소를 요청한다.
 	 * <p>
 	 * 세션 URL로 HTTP DELETE를 보내 원격 연산을 취소시키고, 그 응답으로 취소 접수 여부를 판단한다.
@@ -161,6 +236,11 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	 *       ({@code 202 Accepted}, {@code phase: CANCELING}) 원격 연산은 아직 정지 중일 수 있으며,
 	 *       최종 {@code CANCELLED}는 이후의 세션 조회로만 확인된다.</li>
 	 * </ul>
+	 * <p>
+	 * 연산 시작 POST의 응답을 아직 받지 못해 세션이 없으면, 취소를 기록하고 {@code true}를 반환한다.
+	 * 세션을 받는 즉시 폴러 스레드가 DELETE를 보내고 폴링을 이어 가 최종 상태를 확인한다. 그 사이 시작이
+	 * 실패하면(POST 거부) 보낼 대상이 없으므로 기록은 버려진다.
+	 * 시작 응답이 곧 종료 상태였으면(세션 없음) {@code false}를 반환한다.
 	 * 대상 세션이 이미 종료 상태여서 취소가 허용되지 않으면 {@code 409 Conflict}가 온다.
 	 * 이 경우 취소할 대상이 없다는 뜻이므로 예외 대신 {@code false}를 반환한다.
 	 * <p>
@@ -173,14 +253,27 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	 */
 	@Override
 	public boolean cancelWork() {
+		String sessionUrl;
+		synchronized ( m_sessionLock ) {
+			sessionUrl = m_sessionUrl;
+			if ( m_finishedAtStart ) {
+				return false;	// 시작 응답에서 이미 종료되어 취소할 세션이 없다.
+			}
+			if ( sessionUrl == null ) {
+				// 연산 시작 POST의 응답(세션)을 아직 받지 못했다. 취소를 기록해 두고, 세션을 받는 즉시
+				// initializePoller()가 DELETE를 보낸다.
+				m_cancelPending = true;
+				return true;
+			}
+		}
 		RpcResponseMessage resp;
 		try {
-			resp = m_restClient.delete(m_sessionUrl, RpcResponseMessage.newDeserializer(m_jsonMapper));
+			resp = m_restClient.delete(sessionUrl, RpcResponseMessage.newDeserializer(m_jsonMapper));
 		}
 		catch ( RESTfulException e ) {
 			if ( e.getHttpStatusCode() == HttpURLConnection.HTTP_CONFLICT ) {
 				// 대상 세션이 이미 종료 상태여서 취소가 허용되지 않는 경우.
-				getLogger().info("rpc is already finished, cannot cancel: session={}", m_sessionUrl);
+				getLogger().info("rpc is already finished, cannot cancel: session={}", sessionUrl);
 				return false;
 			}
 			throw e;
@@ -192,7 +285,7 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 				return true;
 			case RUNNING:
 				getLogger().info("rpc cancel is accepted, remote operation is still stopping: session={}",
-								m_sessionUrl);
+								sessionUrl);
 				return true;
 			default:
 				throw new AssertionError("unexpected rpc status: " + resp.getState());
@@ -239,6 +332,22 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 		private RpcRequestMessage m_requestMsg;
 		private Duration m_pollInterval = Duration.ofSeconds(3);
 		private Duration m_timeout;
+		private String m_sessionEndpoint;
+
+		/**
+		 * 이미 시작된 원격 연산 세션에 붙는다. 설정하면 시작 POST를 보내지 않고 이 세션을 폴링하며,
+		 * {@code operationEndpoint}와 {@code requestMessage}는 필요 없다.
+		 * <p>
+		 * 동기 호출이 {@code RUNNING}을 받은 경우({@link UnexpectedRpcStateException})처럼 세션 endpoint만 아는
+		 * 연산의 결과를 기다리거나 취소할 때 쓴다.
+		 *
+		 * @param endpoint	서버가 돌려준 {@code session_endpoint}. 기본 URL에 붙여 폴링 URL을 만든다.
+		 * @return	이 빌더.
+		 */
+		public Builder setSessionEndpoint(String endpoint) {
+			m_sessionEndpoint = endpoint;
+			return this;
+		}
 
 		/**
 		 * 설정된 값으로 {@link RESTfulAsyncRpcClient}를 생성한다.

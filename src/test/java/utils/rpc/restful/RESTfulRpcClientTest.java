@@ -89,7 +89,11 @@ public class RESTfulRpcClientTest {
 		// 동기 클라이언트는 RUNNING 응답을 처리하지 못하므로 IllegalStateException을 던진다.
 		enqueue(RpcResponseMessage.running("/sessions/1"));
 
-		Assertions.assertThrows(IllegalStateException.class, () -> client(Map.of()).call());
+		UnexpectedRpcStateException e = Assertions.assertThrows(UnexpectedRpcStateException.class,
+																() -> client(Map.of()).call());
+		// 원격 연산은 이미 시작됐으므로 세션 endpoint를 넘겨 붙거나 취소할 수 있게 한다.
+		Assertions.assertEquals(RpcState.RUNNING, e.getResponse().getState());
+		Assertions.assertNotNull(e.getResponse().getSessionEndpoint());
 	}
 
 	@Test

@@ -222,8 +222,6 @@ public class KeyValue<K,V> implements Keyed<K> {
 	 * {@code a=1";2} → 키 {@code a}, 값 {@code 1;2}). 각 항목은
 	 * {@link #parse(String)}로 파싱하므로 키·값의 앞뒤 공백은 제거된다. 같은 키가 여러 번 나와도 모두 유지한다.
 	 * 빈 항목(예: 끝에 붙은 구분자)도 항목으로 보므로 {@code '='}가 없어 예외가 난다.
-	 * <p>
-	 * 2026-11-02 이전에는 {@code Utilities.parseKeyValues(String, char)}였다(별칭 없이 옮김).
 	 *
 	 * @param expr	파싱할 문자열 (예: {@code "a=1; b=2"}).
 	 * @param delim	항목 구분 문자.
@@ -244,9 +242,6 @@ public class KeyValue<K,V> implements Keyed<K> {
 	 * <p>
 	 * 항목은 {@link #parseList(String, char)}와 같이 나누고 파싱한다. 맵은 입력 순서를 유지한다. 같은 키가 두 번
 	 * 이상 나오면 어느 값을 쓸지 정할 수 없으므로 예외를 던진다.
-	 * <p>
-	 * 2026-11-02 이전에는 {@code Utilities.parseKeyValueMap(String, char)}였다(별칭 없이 옮김). 그때는 같은 키가 나오면
-	 * 나중 값이 앞의 값을 덮어썼다.
 	 *
 	 * @param expr	파싱할 문자열 (예: {@code "a=1; b=2"}).
 	 * @param delim	항목 구분 문자.

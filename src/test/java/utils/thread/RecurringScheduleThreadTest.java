@@ -115,7 +115,7 @@ public class RecurringScheduleThreadTest {
 		};
 		RecurringScheduleThread schedule = RecurringScheduleThread.newFixedDelaySchedule("test", work, java.time.Duration.ofSeconds(1));
 
-		assertEquals(State.STOPPED, schedule.getState());	// 시작 전 (이전에는 STARTING)
+		assertEquals(State.STOPPED, schedule.getState());	// 시작 전
 		schedule.start();
 		performing.await();
 		assertEquals(State.WORKING, schedule.getState());
@@ -143,7 +143,7 @@ public class RecurringScheduleThreadTest {
 		self.set(schedule);
 		schedule.start();
 
-		assertTrue(rejected.get(5, TimeUnit.SECONDS) instanceof IllegalStateException);	// 2026-10-31 이전에는 RuntimeException
+		assertTrue(rejected.get(5, TimeUnit.SECONDS) instanceof IllegalStateException);
 		// lock이 풀렸다면 다른 스레드의 호출이 막히지 않는다.
 		CompletableFuture<State> state = CompletableFuture.supplyAsync(schedule::getState);
 		state.get(2, TimeUnit.SECONDS);

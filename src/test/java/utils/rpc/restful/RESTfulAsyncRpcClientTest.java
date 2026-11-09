@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -102,6 +103,45 @@ public class RESTfulAsyncRpcClientTest {
 	}
 
 	@Test
+	public void testCompletedAtStartIsTheResult() throws Exception {
+		// 동기 연산을 비동기로 호출하면 POST 응답이 곧 COMPLETED다. 폴링 없이 그 출력을 결과로 삼는다.
+		Map<String,JsonNode> outputs = Map.of("r", json("1"));
+		m_server.enqueue(new MockResponse().setBody(MAPPER.writeValueAsString(RpcResponseMessage.completed(null, outputs))));
+
+		RESTfulAsyncRpcClient client = client();
+		client.start();
+		AsyncResult<Map<String,JsonNode>> result = client.waitForFinished(5, TimeUnit.SECONDS);
+
+		Assertions.assertTrue(result.isCompleted());
+		Assertions.assertEquals(outputs, result.getUnchecked());
+		Assertions.assertEquals(1, m_server.getRequestCount(), "no polling");
+		Assertions.assertNull(client.getSessionUrl());
+		Assertions.assertFalse(client.cancelWork(), "nothing to cancel");
+	}
+
+	@Test
+	public void testAttachedSessionIsPolledWithoutStarting() throws Exception {
+		Map<String,JsonNode> outputs = Map.of("r", json("2"));
+		enqueue(RpcResponseMessage.completed("/sessions/9", outputs));
+
+		RESTfulAsyncRpcClient client = RESTfulAsyncRpcClient.builder()
+									.setHttpClient(new OkHttpClient())
+									.setBaseUrl(m_baseUrl)
+									.setSessionEndpoint("/sessions/9")
+									.setJsonMapper(MAPPER)
+									.setPollInterval(Duration.ofMillis(100))
+									.build();
+		client.start();
+		AsyncResult<Map<String,JsonNode>> result = client.waitForFinished(5, TimeUnit.SECONDS);
+
+		Assertions.assertTrue(result.isCompleted());
+		Assertions.assertEquals(outputs, result.getUnchecked());
+		RecordedRequest req = m_server.takeRequest();
+		Assertions.assertEquals("GET", req.getMethod());
+		Assertions.assertEquals("/sessions/9", req.getPath());
+	}
+
+	@Test
 	public void testFailedDuringPolling() throws Exception {
 		enqueue(RpcResponseMessage.running("/sessions/1"));
 		enqueue(RpcResponseMessage.failed("/sessions/1", new IllegalStateException("boom")));
@@ -171,6 +211,60 @@ public class RESTfulAsyncRpcClientTest {
 		Assertions.assertEquals("POST", m_server.takeRequest(5, TimeUnit.SECONDS).getMethod());
 		Assertions.assertEquals("GET", m_server.takeRequest(5, TimeUnit.SECONDS).getMethod());
 		return client;
+	}
+
+	/**
+	 * POST 응답을 {@code postDelayMs}만큼 늦게 주고, DELETE를 받은 뒤의 세션 조회에는 CANCELLED를 돌려준다.
+	 */
+	private AtomicBoolean dispatchWithSlowStart(long postDelayMs) throws IOException {
+		String running = MAPPER.writeValueAsString(RpcResponseMessage.running("/sessions/1"));
+		String cancelled = MAPPER.writeValueAsString(RpcResponseMessage.cancelled("/sessions/1"));
+		AtomicBoolean deleted = new AtomicBoolean();
+		m_server.setDispatcher(new Dispatcher() {
+			@Override
+			public MockResponse dispatch(RecordedRequest req) {
+				switch ( req.getMethod() ) {
+					case "POST":
+						return new MockResponse().setBody(running).setHeadersDelay(postDelayMs, TimeUnit.MILLISECONDS);
+					case "DELETE":
+						deleted.set(true);
+						return new MockResponse().setBody(cancelled);
+					default:
+						return new MockResponse().setBody(deleted.get() ? cancelled : running);
+				}
+			}
+		});
+		return deleted;
+	}
+
+	@Test
+	public void testCancelWorkBeforeSessionIsDeliveredOnceTheSessionExists() throws Exception {
+		// 시작 POST의 응답을 기다리는 동안의 취소: 기록해 두었다가 세션을 받자마자 DELETE를 보낸다.
+		AtomicBoolean deleted = dispatchWithSlowStart(500);
+		RESTfulAsyncRpcClient client = client();
+		client.start();
+		Assertions.assertEquals("POST", m_server.takeRequest(5, TimeUnit.SECONDS).getMethod());
+		Assertions.assertNull(client.getSessionUrl());
+
+		Assertions.assertTrue(client.cancelWork());
+
+		Assertions.assertTrue(client.waitForFinished(5, TimeUnit.SECONDS).isCancelled());
+		Assertions.assertTrue(deleted.get());
+		Assertions.assertEquals(m_baseUrl + "/sessions/1", client.getSessionUrl());
+	}
+
+	@Test
+	public void testCancelBeforeSessionStillSendsDelete() throws Exception {
+		// cancel(true)로 끝내도 이미 나간 POST의 세션에는 DELETE를 보낸다(원격 연산이 남지 않게).
+		AtomicBoolean deleted = dispatchWithSlowStart(500);
+		RESTfulAsyncRpcClient client = client();
+		client.start();
+		Assertions.assertEquals("POST", m_server.takeRequest(5, TimeUnit.SECONDS).getMethod());
+
+		Assertions.assertTrue(client.cancel(true));
+
+		Assertions.assertTrue(client.waitForFinished(5, TimeUnit.SECONDS).isCancelled());
+		Assertions.assertTrue(deleted.get());
 	}
 
 	@Test

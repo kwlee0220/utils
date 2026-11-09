@@ -29,7 +29,7 @@ JsonMapper pretty = JacksonUtils.newJsonMapper(true);        // 같은 설정 + 
 두 매퍼의 설정은 같다.
 
 - `java.time` 지원: `JavaTimeModule`을 항상 등록하고, 클래스패스의 다른 모듈도 찾아 등록한다.
-- 날짜·시각(`Instant`, `LocalDateTime` 등)은 ISO-8601 문자열로 쓴다. 읽을 때는 예전 숫자 형식도 받는다.
+- 날짜·시각(`Instant`, `LocalDateTime` 등)은 ISO-8601 문자열로 쓴다. 읽을 때는 숫자 형식도 받는다.
 
 **`MAPPER`의 설정은 바꾸지 않는다.** `configure`·`enable`·`registerModule`로 바꾸면 이 매퍼를 쓰는 JVM 안의 모든 코드가 영향을 받는다. 설정이 다른 매퍼가 필요하면 `newJsonMapper(...)`로 새로 만든 뒤 바꾼다(`rebuild()`도 된다).
 
@@ -49,7 +49,7 @@ JsonMapper pretty = JacksonUtils.newJsonMapper(true);        // 같은 설정 + 
 |---|---|---|
 | (없음) | 모든 노드 | `JsonNode` / `JsonNode` |
 | `String` | 문자열과 숫자·불리언 같은 스칼라(텍스트로 읽음). 객체·배열은 거부 | `String` |
-| `Text` | **JSON 문자열만**. 숫자·불리언도 거부한다(식별자처럼 스키마상 문자열인 필드용, 2026-11-01 추가) | `String` |
+| `Text` | **JSON 문자열만**. 숫자·불리언도 거부한다(식별자처럼 스키마상 문자열인 필드용) | `String` |
 | `Boolean` | JSON 불리언, 대소문자 무관 `"true"`/`"false"` | `boolean` / `Boolean` |
 | `Int` | `int` 범위의 JSON 정수. 문자열·소수는 거부 | `int` / `Integer` |
 | `Long` | `long` 범위의 JSON 정수 | `long` / `Long` |
@@ -105,8 +105,6 @@ BigDecimal d = JsonScalars.toDecimal(node, JsonScalars.Policy.TEXT_TOLERANT);
 | 타입 이름 필드 누락 | `'@type' field is missing: base=Shape, available fields=[radius]` |
 | 타입 이름이 문자열이 아님 | `invalid field '@type': string expected, but number` |
 | 미등록 타입 | `Unregistered Shape type: triangle (registered: [circle, square])` |
-
-2026-11-01 이전에는 이 예외가 `RuntimeException`이었고, 필드 누락만 일반 `IOException`이었다.
 
 ---
 

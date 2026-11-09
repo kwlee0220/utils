@@ -39,9 +39,13 @@ import utils.stream.FStream;
  * ({@code ${name:path}} 등)을 통해 명령에 전달되고, 출력 변수는 명령이 기록한 파일을 JSON으로 읽어 연산
  * 출력으로 반환한다.
  * <p>
- * 요청마다 작업 디렉토리 아래에 {@code session-<UUID>-<seq>} 형태의 세션 디렉토리를 만들어 입력·출력
+ * 요청마다 세션 식별자 {@code <UUID>-<seq>}를 발급한다. UUID는 서버 객체마다 새로 만들고, seq는 JVM 안에서
+ * 요청마다 증가한다. 작업 디렉토리 아래에 {@code session-<UUID>-<seq>} 형태의 세션 디렉토리를 만들어 입력·출력
  * 파일을 격리하며, 세션 종료 시 {@link #releaseSession}에서 해당 디렉토리를 삭제한다. 세션 endpoint는
- * {@code <baseUrl>/sessions/<seq>} 형태로 발급된다.
+ * {@code /api/v1/sessions/<UUID>-<seq>} 형태로 발급된다.
+ * <p>
+ * seq는 프로세스를 다시 시작하면 1부터 다시 쓰이므로 endpoint에 서버 인스턴스별 UUID를 넣는다. 그래야 재시작 전부터
+ * polling하던 클라이언트가 같은 번호를 받은 다른 연산의 결과를 가져가지 않는다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -55,7 +59,7 @@ public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 	private final File m_envFile;
 	private final JsonMapper m_jsonMapper = JacksonUtils.MAPPER;
 	private final CommandVariableSerDe m_serde;
-	private final String m_sessionPrefix;
+	private final String m_serverId;	// 세션 식별자의 앞부분. 서버 객체마다 다른 UUID.
 	
 	/**
 	 * 세션 식별자 및 세션 디렉토리를 {@link CommandExecution}에 결합한 연산 단위.
@@ -101,15 +105,37 @@ public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 		m_envFile = new File(m_workingDir, "env.file");
 		m_serde = serde;
 		
-		m_sessionPrefix = "session-" + UUID.randomUUID().toString();
+		m_serverId = UUID.randomUUID().toString();
 		setLogger(s_logger);
+	}
+	
+	/**
+	 * 이 서버가 읽은 명령 실행 디스크립터를 반환한다.
+	 * <p>
+	 * 반환된 객체는 서버가 요청마다 참조하는 객체 자체이므로 수정하지 않는다.
+	 *
+	 * @return	명령 실행 디스크립터.
+	 */
+	public CommandExecutionDescriptor getDescriptor() {
+		return m_opDesc;
+	}
+	
+	/**
+	 * 명령의 작업 디렉토리를 반환한다. 디스크립터에 지정되지 않았으면 디스크립터 파일이 있는 디렉토리다.
+	 * 세션 디렉토리({@code session-<UUID>-<seq>})도 이 디렉토리 아래에 만들어진다.
+	 *
+	 * @return	작업 디렉토리.
+	 */
+	public File getWorkingDirectory() {
+		return m_workingDir;
 	}
 	
 	@Override
 	protected StartableExecution<Void> createExecution(RpcRequestMessage reqMsg) throws IOException {
-		String sessionId = String.valueOf(s_sessionIdGen.incrementAndGet());
+		// 세션 endpoint와 세션 디렉토리가 같은 식별자를 쓴다. UUID를 붙여 재시작 후에도 겹치지 않게 한다.
+		String sessionId = m_serverId + "-" + s_sessionIdGen.incrementAndGet();
 		
-		File sessionDir = new File(m_workingDir, m_sessionPrefix + "-" + sessionId);
+		File sessionDir = new File(m_workingDir, "session-" + sessionId);
 		if ( !sessionDir.mkdirs() ) {
 			throw new IOException("failed to create CommandExecution session-dir: " + sessionDir.getAbsolutePath());
 		}
@@ -140,15 +166,17 @@ public class RESTfulCommandExecutionServer extends RESTfulAsyncRpcServer {
 					continue;
 				}
 				
+				// 출력 변수는 deserializeOutput으로 만든다. SerDe가 출력 자리에 지정된 원격 값을 미리 읽지 않도록
+				// 입력(deserialize)과 구분한다.
 				JsonNode outValueNode = outputValues.get(outVarName);
 				if ( outValueNode != null) {
-					CommandVariable var = m_serde.deserialize(outVarName, sessionDir, outValueNode);
+					CommandVariable var = m_serde.deserializeOutput(outVarName, sessionDir, outValueNode);
 					builder.addVariable(var);
 				}
 				else {
 					// 요청 메시지에 출력 변수가 지정되지 않은 경우,
 					// 디스크립터에 정의된 출력 변수만을 사용한다.
-					CommandVariable var = m_serde.deserialize(outVarName, sessionDir, new TextNode(""));
+					CommandVariable var = m_serde.deserializeOutput(outVarName, sessionDir, new TextNode(""));
 					builder.addVariable(var);
 				}
 			}

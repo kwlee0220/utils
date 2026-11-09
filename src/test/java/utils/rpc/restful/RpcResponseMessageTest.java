@@ -158,7 +158,7 @@ public class RpcResponseMessageTest {
 
 	@Test
 	public void testLegacyStateFieldRejected() {
-		// 이름 변경 이전의 구버전 'state' 필드는 지원하지 않는다. 알려지지 않은 필드로 무시되어
+		// 'state' 필드는 지원하지 않는다. 알려지지 않은 필드로 무시되어
 		// 'status'가 없는 것과 같아지므로, 조용히 통과하지 않고 역직렬화가 실패해야 한다.
 		String legacy = "{\"session_endpoint\":\"/sessions/1\",\"state\":\"RUNNING\"}";
 

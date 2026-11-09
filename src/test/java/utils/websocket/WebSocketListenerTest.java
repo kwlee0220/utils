@@ -244,7 +244,7 @@ public class WebSocketListenerTest {
 		listener.startReceiving(ws);
 		verify(ws, org.mockito.Mockito.timeout(1000).atLeast(2)).sendPing(org.mockito.ArgumentMatchers.any());
 		Assertions.assertEquals("websocket-scheduler", pingThread.get());
-		// 차트마다 만들던 java.util.Timer 스레드는 더 이상 없다.
+		// 차트마다 java.util.Timer 스레드를 만들지 않는다.
 		Assertions.assertTrue(Thread.getAllStackTraces().keySet().stream()
 									.noneMatch(t -> t.getName().startsWith("WebSocket-Ping-Timer")));
 

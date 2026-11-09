@@ -186,7 +186,7 @@ FOption<SQLDataType<?>> byClass = SQLDataTypes.findByClass(int.class);   // INTE
 | `BINARY`, `VARBINARY`, `LONGVARBINARY`, `BLOB` | `BINARY` (`Binary`) | `byte[]` | `getBytes`/`setBytes` |
 | — | `DURATION` (`Duration`) | `Duration` | ISO-8601 문자열(`PT1M30S`)로 문자열 컬럼에 저장. 빈 문자열은 `null`, 형식 오류는 `SQLException` |
 
-- **시간대:** `INSTANT`는 시간대 없는 `TIMESTAMP` 컬럼에 **UTC 벽시계 시각**을 저장한다. 그래서 쓰는 JVM과 읽는 JVM의 기본 시간대가 달라도 같은 `Instant`가 나온다. 2026-11-03 이전에는 JVM 기본 시간대의 로컬 시각으로 저장했으므로, 그 전에 저장한 값은 시간대 차이(KST면 9시간)만큼 어긋나게 읽힌다.
+- **시간대:** `INSTANT`는 시간대 없는 `TIMESTAMP` 컬럼에 **UTC 벽시계 시각**을 저장한다. 그래서 쓰는 JVM과 읽는 JVM의 기본 시간대가 달라도 같은 `Instant`가 나온다.
 - **`TIMESTAMP WITH TIME ZONE` 컬럼에는 `INSTANT_TZ`를 쓴다.** 두 컬럼 종류에 모두 맞는 쓰기 방법이 드라이버마다 달라서 핸들러를 나눴다. `findByClass(Instant.class)`는 `INSTANT`다.
 - `fromSqlType(Types.DATE)`는 호환을 위해 `DATE`를 돌려준다. `LOCAL_DATE`는 `findByClass(LocalDate.class)`·`findByName("LocalDate")`로 찾는다.
 - `findByClass`는 원시 타입(`int.class` 등)과 `java.sql.Date`도 찾는다. `java.sql.Timestamp`·`java.sql.Time`은 어떤 핸들러의 Java 타입도 아니므로 빈 값이다.

@@ -19,7 +19,7 @@ public class UtilitiesTest {
 	// --- shuffle / selectRandomly ---
 
 	/**
-	 * 입력을 바꾸지 않고, null 원소도 보존한다(2026-11-02 이전에는 입력을 null로 덮어쓰고 null 원소를 버렸다).
+	 * 입력을 바꾸지 않고, null 원소도 보존한다.
 	 */
 	@Test
 	public void shuffle_keepsInputAndNulls() {
@@ -71,7 +71,7 @@ public class UtilitiesTest {
 	// --- isWindowsOS ---
 
 	/**
-	 * os.name이 "windows"로 시작할 때만 Windows로 본다(2026-11-02 이전에는 "win"이 포함되면 참이었다).
+	 * os.name이 "windows"로 시작할 때만 Windows로 본다("Darwin"처럼 "win"이 들어간 이름은 아니다).
 	 */
 	@Test
 	public void isWindowsOS_checksPrefix() {

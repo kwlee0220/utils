@@ -18,7 +18,9 @@
 | 적합한 연산 | 수 초 이내 | 수 분 이상, 중간 취소가 필요한 경우 |
 
 두 클라이언트는 **서버가 어느 방식으로 응답하도록 구현되어 있는지**에 맞춰 골라야 한다. 동기 클라이언트가
-`RUNNING` 응답을 받으면 `IllegalStateException` 이 발생한다.
+`RUNNING` 응답을 받으면 `UnexpectedRpcStateException`(`IllegalStateException` 의 하위 타입)이 발생한다. 이때 원격 연산은
+이미 시작되었으므로, 예외의 `getResponse().getSessionEndpoint()` 로 세션에 붙어(`setSessionEndpoint`) 결과를 기다리거나
+취소할 수 있다. 반대로 비동기 클라이언트가 시작 응답으로 곧바로 `COMPLETED`/`CANCELLED` 를 받으면 그 응답을 결과로 삼는다.
 
 ---
 
@@ -48,7 +50,7 @@ Map<String,JsonNode> outputs = client.call();
 | `FAILED` | `ExecutionException` — cause 는 서버가 보낸 원인 예외를 복원한 것 |
 | `FAILED` (원인이 `RESTfulIOException`) | 그 예외를 그대로 던짐 |
 | `CANCELLED` | `CancellationException` (unchecked) |
-| `RUNNING` | `IllegalStateException` — 동기 endpoint 가 아님 |
+| `RUNNING` | `UnexpectedRpcStateException` — 동기 endpoint 가 아님. `getResponse()` 에 세션 endpoint 가 있다 |
 
 ### 실패 원인 다루기
 
@@ -117,6 +119,7 @@ start()
   └ POST {baseUrl}/{operationEndpoint}   ← RpcRequestMessage
       응답 RUNNING  → session_endpoint 를 기억
       응답 FAILED   → ExecutionException
+      응답 COMPLETED/CANCELLED → 폴링 없이 그 응답으로 종료 (동기 연산을 비동기로 부른 경우. 취소는 false)
 
 [pollInterval 마다]
   └ GET {baseUrl}{session_endpoint}
@@ -127,6 +130,9 @@ start()
 ```
 
 폴링 대상은 **세션 endpoint 그 자체**다. `/state` 같은 하위 경로를 붙이지 않는다.
+
+이미 시작된 세션에 붙으려면 `operationEndpoint`·`requestMessage` 대신 `setSessionEndpoint(endpoint)` 를 준다.
+그러면 POST 없이 그 세션을 폴링하고, `cancel` 도 그 세션에 DELETE 를 보낸다.
 
 `setBaseUrl` 과 세션 endpoint 는 이어 붙여져(`baseUrl + session_endpoint`) 폴링 URL 이 되므로,
 서버는 base URL 기준의 **절대 경로**를 돌려주어야 한다 (전체 URL 이 아니라).
@@ -181,8 +187,8 @@ RpcResponseMessage.failed(sessionEndpoint, cause);
 RpcResponseMessage.cancelled(sessionEndpoint);
 ```
 
-> **호환성 주의** — `status` / `session_endpoint` 는 이전 버전에서 `state` / `sessionEndpoint` 였다.
-> alias 를 두지 않았으므로 **구버전과 신버전은 통신할 수 없다.** 서버와 클라이언트를 함께 배포해야 한다.
+> **필드 이름 주의** — 응답 필드 이름은 `status` / `session_endpoint` 다. `state` / `sessionEndpoint` 를 쓰는 상대와는
+> **통신할 수 없다.**
 > 모르는 필드는 무시하므로(`ignoreUnknown`) 서버가 필드를 *추가* 하는 것은 안전하다.
 
 ---
@@ -254,9 +260,13 @@ var server = new RESTfulCommandExecutionServer(descriptorFile, new DefaultComman
 - 연산 입력은 `CommandVariable` 로 등록되어 명령줄 변수 치환으로 전달된다. `${name:path}` 는 값을
   파일로 만들어 그 절대 경로를 넘긴다.
 - `outputVariables` 에 나열된 변수는 명령이 기록한 파일을 읽어 연산 출력이 된다.
-- 요청마다 작업 디렉토리 아래 `session-<UUID>-<seq>` 디렉토리를 만들어 입출력 파일을 격리하고,
-  세션 종료 시 삭제한다. 세션 endpoint 는 `/api/v1/sessions/<seq>` 형태다.
-- 값과 파일 사이의 변환 규칙을 바꾸려면 `CommandVariableSerDe` 를 구현해 넘긴다.
+- 요청마다 세션 식별자 `<UUID>-<seq>` 를 발급한다. UUID 는 서버 객체마다 새로 만들고, seq 는 요청마다 증가한다.
+  작업 디렉토리 아래 `session-<UUID>-<seq>` 디렉토리를 만들어 입출력 파일을 격리하고, 세션 종료 시 삭제한다.
+  세션 endpoint 는 `/api/v1/sessions/<UUID>-<seq>` 형태다. 서버를 다시 시작하면 UUID 가 달라지므로 재시작 전에 발급한 endpoint 와
+  겹치지 않는다.
+- 값과 파일 사이의 변환 규칙을 바꾸려면 `CommandVariableSerDe` 를 구현해 넘긴다. 입력 변수는 `deserialize`, 출력 변수는
+  `deserializeOutput` 으로 만든다. `deserializeOutput` 의 기본 구현은 `deserialize` 와 같으며, 출력 위치를 미리 읽지 않아야
+  하는 경우(예: 결과를 올릴 원격 파일)에 재정의한다.
 
 **명령줄에 해석되지 않는 `${X}` 가 남아 있으면 연산이 실패한다.** 원본 토큰이 그대로 셸에 전달되지
 않으므로, 변수 이름 오타는 조용히 넘어가지 않고 바로 드러난다.

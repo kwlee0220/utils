@@ -649,6 +649,7 @@ public class HttpRESTfulClient implements LoggerSettable {
 				// 반환하지만, 재정의된 구현이 다른 예외를 반환하더라도 안전하도록 타입을 확인한다.
 				if ( error instanceof RESTfulException rex ) {
 					rex.setHttpStatusCode(cresp.code());
+					rex.setHttpResponse(respBody, headers.toMultimap());
 				}
 				throw error;
 			}

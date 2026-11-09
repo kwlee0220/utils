@@ -151,6 +151,21 @@ public class HttpRESTfulClientCallTest {
 		assertTrue(thrown.getMessage().contains("403"), thrown.getMessage());
 	}
 
+	@Test
+	public void errorResponseKeepsBodyAndHeaders() {
+		// 에러 엔티티로 바꾸며 버려지는 필드(error.details)와 헤더(Retry-After)를 호출부가 읽을 수 있다.
+		String body = "{\"error\":{\"code\":\"RESOURCE_BUSY\",\"message\":\"busy\","
+					+ "\"details\":{\"occupied_by\":\"/s/1\"}}}";
+		m_server.enqueue(new MockResponse().setResponseCode(409).setHeader("Retry-After", "3").setBody(body));
+
+		RESTfulException thrown = assertThrows(RESTfulException.class,
+												() -> HttpRESTfulClient.newDefaultClient().get(url("/x"), STRING));
+		assertEquals(409, thrown.getHttpStatusCode());
+		assertEquals(body, thrown.getResponseBody());
+		assertEquals("3", thrown.getResponseHeader("retry-after"));
+		assertNull(thrown.getResponseHeader("X-None"));
+	}
+
 	// ----- deserializer -----
 
 	@Test

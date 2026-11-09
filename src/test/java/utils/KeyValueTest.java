@@ -302,7 +302,7 @@ public class KeyValueTest {
 		Assertions.assertNotSame(kv, mapped);
 	}
 
-	// --- parseList / parseMap (2026-11-02에 Utilities에서 옮김) ---
+	// --- parseList / parseMap ---
 
 	@Test
 	public void parseList_keepsOrderAndDuplicates() {

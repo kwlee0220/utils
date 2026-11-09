@@ -18,10 +18,6 @@ import java.util.stream.StreamSupport;
 /**
  * 환경 변수 조회, {@link Iterable}·{@link Iterator}의 {@link Stream} 변환, 무작위 선택,
  * OS 판별 등 여러 곳에서 쓰는 잡다한 정적 유틸리티.
- * <p>
- * 2026-11-02에 {@code getLineSeparator()}(→ {@link System#lineSeparator()})와 사용처가 없던
- * {@code getAndAppendLoggerName(Object, String)}을 지웠고, key-value 문자열 파싱({@code parseKeyValues},
- * {@code parseKeyValueMap})은 {@link KeyValue#parseList(String, char)}·{@link KeyValue#parseMap(String, char)}로 옮겼다.
  *
  * @author Kang-Woo Lee
  */
@@ -99,8 +95,6 @@ public class Utilities {
 	 * 컬렉션의 원소를 무작위 순서로 섞은 새 리스트를 반환한다. 입력은 바꾸지 않으며 {@code null} 원소도 그대로 포함한다.
 	 * <p>
 	 * 난수 생성기는 매번 새로 만든 {@link Random}이다. 결과를 재현하려면 {@link #shuffle(Collection, Random)}을 쓴다.
-	 * 2026-11-02 이전에는 입력 리스트의 원소를 {@code null}로 바꾸며 골랐기 때문에 입력이 변경되고 {@code null}
-	 * 원소가 빠졌으며, 시드가 현재 시각(밀리초)이라 같은 밀리초 안의 두 호출은 같은 순서를 냈다.
 	 *
 	 * @param <T>	원소의 타입.
 	 * @param coll	섞을 원소들.
@@ -134,7 +128,6 @@ public class Utilities {
 	 * <p>
 	 * 입력은 바꾸지 않으며 {@code null} 원소도 고를 수 있다. 같은 원소를 두 번 고르지 않는다(위치 기준). {@code count}가
 	 * 원소 수보다 크면 모든 원소를 무작위 순서로 반환한다. 난수 생성기는 매번 새로 만든 {@link Random}이다.
-	 * 2026-11-02 이전의 동작은 {@link #shuffle(Collection)}의 설명을 참조한다.
 	 *
 	 * @param <T>	원소의 타입.
 	 * @param coll	원소를 고를 컬렉션.
@@ -174,9 +167,6 @@ public class Utilities {
 
 	/**
 	 * 시스템 속성 {@code os.name}이 {@code "windows"}로 시작하는지(대소문자 무시)로 Windows 여부를 판단한다.
-	 * <p>
-	 * 2026-11-02 이전에는 기본 로케일로 소문자로 바꾼 뒤 {@code "win"}이 포함되는지 보았기 때문에, 이름에
-	 * {@code "win"}이 들어간 다른 OS(예: {@code "Darwin"})도 Windows로 판단했다.
 	 *
 	 * @return	Windows이면 {@code true}. {@code os.name}이 없으면 {@code false}.
 	 */

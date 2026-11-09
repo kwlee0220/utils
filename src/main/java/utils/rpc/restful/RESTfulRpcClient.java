@@ -59,7 +59,8 @@ public class RESTfulRpcClient {
 	 * @throws ExecutionException         원격 연산이 {@code FAILED} 상태로 종료된 경우.
 	 *                                    (복원된 원인 예외가 cause로 설정된다)
 	 * @throws CancellationException      원격 연산이 {@code CANCELLED} 상태로 종료된 경우. (unchecked)
-	 * @throws IllegalStateException      예상치 못한 연산 상태가 반환된 경우. (unchecked)
+	 * @throws UnexpectedRpcStateException	{@code RUNNING}이 반환된 경우(비동기 연산을 동기로 호출함). 원격 연산은
+	 *                                    이미 시작되었으며, 예외의 응답에 세션 endpoint가 있다. (unchecked)
 	 */
 	public Map<String,JsonNode> call() throws IOException, ExecutionException {
 		s_logger.info("calling operation: {} with inputs={}", m_operationUrl, m_requestMsg.getInputs());
@@ -82,7 +83,8 @@ public class RESTfulRpcClient {
 			case CANCELLED:
 				throw new CancellationException("operation is cancelled");
 			default:
-				throw new IllegalStateException("unexpected status: " + resp.getState());
+				throw new UnexpectedRpcStateException("unexpected status: " + resp.getState()
+													+ ", session=" + resp.getSessionEndpoint(), resp);
 		}
 	}
 	

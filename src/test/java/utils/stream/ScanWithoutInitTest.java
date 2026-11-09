@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import utils.func.FOption;
 
 /**
- * {@link FStream#scan(java.util.function.BiFunction)}(초기값 없는 scan, 옛 이름 {@code reduceLeak})을 검증한다.
+ * {@link FStream#scan(java.util.function.BiFunction)}(초기값 없는 scan)을 검증한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */

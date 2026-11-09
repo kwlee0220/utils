@@ -58,7 +58,7 @@ int count = m_guard.getChecked(() -> readCount());
 
 `awaitCondition(...)`에는 **작업을 진행해도 되는 조건**을 전달한다. 이 메서드만 호출하면 빌더가 만들어질 뿐이며, `andReturn()`·`andRun()`·`andGet()` 등을 호출해야 실제 대기가 시작된다.
 
-조건의 타입은 `java.util.function.BooleanSupplier`다. 람다와 메서드 참조는 그대로 쓸 수 있다. (2026-10-31 이전에는 `Supplier<Boolean>`이어서 평가할 때마다 박싱이 일어났고, 조건이 `null`을 돌려주면 언박싱에서 `NullPointerException`이 났다.)
+조건의 타입은 `java.util.function.BooleanSupplier`다. 람다와 메서드 참조는 그대로 쓸 수 있으며, 평가할 때마다 박싱이 일어나지 않는다. `Supplier<Boolean>` 변수를 넘기려면 `sup::get`으로 바꿔 전달한다.
 
 ```java
 // 준비될 때까지 기다린 뒤 반환
@@ -114,11 +114,11 @@ m_guard.awaitCondition(() -> m_done, Duration.ofSeconds(5))
        .andReturn();
 ```
 
-제한 시간 안에 조건이 충족되지 않으면 `TimeoutException`, 대기 중 인터럽트되면 `InterruptedException`이 발생한다. `InterruptedException`을 던질 때 인터럽트 플래그는 다시 켜지 않는다(Java 관례; 2026-10-31 이전에는 켜 두어, 예외를 잡아 정리하며 다시 기다리면 곧바로 또 인터럽트되었다). 기간·기한 모두 시간이 다 되어 깨어나도 조건을 한 번 더 확인하므로, 기한에 맞춰 조건이 충족되면 시간 초과가 아니다. 기간이 0일 때는 조건을 먼저 확인하고, 만족되지 않으면 바로 `TimeoutException`을 던진다. 음수 기간은 허용하지 않는다.
+제한 시간 안에 조건이 충족되지 않으면 `TimeoutException`, 대기 중 인터럽트되면 `InterruptedException`이 발생한다. `InterruptedException`을 던질 때 인터럽트 플래그는 다시 켜지 않는다(Java 관례. 그래서 예외를 잡아 정리하며 다시 기다려도 곧바로 또 인터럽트되지 않는다). 기간·기한 모두 시간이 다 되어 깨어나도 조건을 한 번 더 확인하므로, 기한에 맞춰 조건이 충족되면 시간 초과가 아니다. 기간이 0일 때는 조건을 먼저 확인하고, 만족되지 않으면 바로 `TimeoutException`을 던진다. 음수 기간은 허용하지 않는다.
 
 `Duration`과 `TimeUnit` 방식은 남은 대기 시간을 나노초 단위로 계산하며, 나노초 범위(약 292년)를 넘는 값은 최댓값으로 제한한다. 이 제한은 **메서드 호출 전체의 실행 시간 제한이 아니다.** 잠금 획득, 사전 작업, 조건 충족 후의 작업을 강제로 중단하지 않는다. `Date` 방식은 지정한 절대 시각을 기준으로 판단하며, 빌더를 만들 때 기한을 복사하므로 이후 원본 `Date`를 바꿔도 영향이 없다.
 
-종결 메서드는 잠금을 바로 얻을 수 있으면 그대로 얻고, 다른 스레드가 잠금을 쥐고 있으면 인터럽트 가능하게 기다린다. 잠금을 기다리는 동안 인터럽트되면 `InterruptedException`을 던지고 후속 작업은 실행하지 않는다(2026-10-31 이전에는 인터럽트를 무시하고 계속 기다렸다). 인터럽트 플래그가 이미 켜져 있어도 잠금이 비어 있고 조건이 참이면 기다리지 않으므로 그대로 진행한다.
+종결 메서드는 잠금을 바로 얻을 수 있으면 그대로 얻고, 다른 스레드가 잠금을 쥐고 있으면 인터럽트 가능하게 기다린다. 잠금을 기다리는 동안 인터럽트되면 `InterruptedException`을 던지고 후속 작업은 실행하지 않는다. 인터럽트 플래그가 이미 켜져 있어도 잠금이 비어 있고 조건이 참이면 기다리지 않으므로 그대로 진행한다.
 
 ### 2.4 대기 전에 한 번 실행하기 — `preAction`
 
@@ -130,7 +130,7 @@ m_guard.preAction(() -> sendRequest())
        .andGet(() -> m_response);
 ```
 
-`preAction`이 끝나면 성공·실패와 관계없이 `signalAll()`을 호출한다. 따라서 사전 작업이 바꾼 상태(예: 등록한 요청)를 기다리는 다른 스레드가 깨어나며, 사전 작업 안에서 직접 알릴 필요가 없다(2026-10-31 이전에는 실패할 때만 알려, 요청을 기다리던 쪽과 응답을 기다리는 쪽이 함께 멈출 수 있었다). 예외를 던진 경우에는 잠금을 해제한 뒤 원래 예외를 전파한다.
+`preAction`이 끝나면 성공·실패와 관계없이 `signalAll()`을 호출한다. 따라서 사전 작업이 바꾼 상태(예: 등록한 요청)를 기다리는 다른 스레드가 깨어나며, 사전 작업 안에서 직접 알릴 필요가 없다. 예외를 던진 경우에는 잠금을 해제한 뒤 원래 예외를 전파한다.
 
 위 예제의 `sendRequest()`는 요청만 보내고 반환해야 한다. 같은 `Guard`가 필요한 다른 스레드의 응답 처리까지 여기서 기다리면 서로 잠금을 기다리게 될 수 있다. 응답을 받는 쪽에서는 `m_guard.run(() -> m_response = response)`처럼 상태를 갱신하고 대기자에게 알려야 한다.
 
@@ -268,7 +268,7 @@ schedule.waitForStopped();  // 정리를 마치고 STOPPED가 될 때까지 대�
 
 전용 스레드 구현은 대기 지연을 `LongVariableSmoother`로 보정한다. `RecurringSchedule`의 고정 주기는 **매 작업의 실제 시작 시점**을 기준으로 계산하므로, 최초 시작 시점에 맞춰 밀린 작업 횟수를 따라잡는 방식과는 차이가 있다. 원격 호출 사이에 충분한 간격을 두려면 고정 지연을 사용한다.
 
-`RecurringSchedule`의 구현은 `RecurringScheduleThread` 하나다. (2026-10-31까지 있던 `CamusExecutor` 기반 구현 `RecurringScheduleImpl`과 `CamusExecutor.createScheduleWithFixedRate/Delay`는 지웠다. `CamusExecutor`도 이후 지웠다. 사용처가 없고 교착, 잘못된 대기 시간 계산 등 결함이 많았다. 공유 풀에서 주기 작업이 필요하면 JDK `ScheduledExecutorService`를 쓴다.)
+`RecurringSchedule`의 구현은 `RecurringScheduleThread` 하나다. 공유 풀에서 주기 작업이 필요하면 JDK `ScheduledExecutorService`를 쓴다.
 
 ### 4.3 상태 확인과 종료
 
@@ -282,7 +282,7 @@ schedule.waitForStopped();  // 정리를 마치고 STOPPED가 될 때까지 대�
 | `waitForStopped()` | `STOPPED`가 될 때까지 대기 |
 | `waitForStopped(Duration)` | 시간 제한 종료 대기. 정상 종료 시 `true`, 시간 만료 시 `false` |
 
-시간 값은 `java.time.Duration`으로 주고받는다. 2026-10-31 이전에는 `long` 밀리초였다. 팩토리의 `long` 버전과 `setInterval(long)`, `waitForStopped(long)`은 utils 밖 사용처(marmot)를 위해 `@Deprecated`로 남겨 두었다. `getInterval()`만 반환형이 `Duration`으로 바뀌었다. 작업 스레드가 자기 스케줄의 `waitForStopped`를 부르면 `IllegalStateException`을 던진다(이전에는 `RuntimeException`).
+시간 값은 `java.time.Duration`으로 주고받는다. 팩토리의 `long` 밀리초 버전과 `setInterval(long)`, `waitForStopped(long)`은 utils 밖 사용처(marmot)를 위해 `@Deprecated`로 남아 있다. 작업 스레드가 자기 스케줄의 `waitForStopped`를 부르면 `IllegalStateException`을 던진다.
 
 `stop()`은 언제나 즉시 반환하는 메서드가 아니다. 사용자 정의 `interrupt()`나 내부 취소 처리에 시간이 걸릴 수 있다. 초기화 중이어도 초기화를 기다리지 않으며, 사용자 정의 `interrupt()`와 스레드 인터럽트를 lock 밖에서 한 번만 요청한다(작업 스레드 자신이 `stop()`을 부른 경우에는 요청하지 않는다). 그래서 `interrupt()`가 `perform()`이 끝나기를 기다려도 교착되지 않는다.
 
@@ -295,8 +295,6 @@ schedule.waitForStopped();  // 정리를 마치고 STOPPED가 될 때까지 대�
 ### 5.1 지연 실행과 외부 실행기 주입
 
 이 패키지에는 지연 실행 전용 실행기가 없다. 지연 실행과 주기 실행이 필요하면 JDK `ScheduledExecutorService`(`Executors.newScheduledThreadPool(...)`)를 쓴다. 전용 스레드의 주기 작업은 `RecurringScheduleThread`를 쓴다.
-
-(2026-10-31까지는 실행기 인터페이스 `CamusExecutor`와 구현 `CamusExecutorImpl`이 있었다. 사용처가 없었고, 직접 구현한 지연 실행의 future가 작업 예외를 `ClassCastException`으로 바꾸고, 실행 중 `cancel(true)`가 항상 `false`를 반환하며 호출자를 막는 등 결함이 많아 모두 지웠다. 함께 쓰이던 주기 작업 팩토리(`createScheduleWithFixedRate/Delay`)와 `RecurringScheduleImpl`도 지웠다.)
 
 컴포넌트가 외부에서 실행기를 전달받도록 하려면 [`ExecutorAware`](ExecutorAware.java)를 구현한다. 일반적인 순서는 속성 설정, `setExecutor(...)`, `Initializable.initialize()`다. 인터페이스를 구현하는 것만으로 실행기가 자동 설정되지는 않으며, 컴포넌트 관리자가 해당 메서드를 호출해야 한다.
 
@@ -340,15 +338,15 @@ executor.shutdownNow();     // 실행 중·대기 중 작업 모두 취소 요�
 
 화면 갱신처럼 최신 요청만 처리하면 되는 작업에 적합하다.
 
-**제출 계약**: 아직 시작하지 않은 `StartableExecution`을 **한 번만** 제출한다. 제출한 뒤에는 실행기가 시작을 관리하므로 직접 `start()`하지 않는다. 실행 중이거나 대기 중인 작업을 다시 제출하면 `IllegalArgumentException`으로 거부한다(2026-10-31 이전에는 대기 중인 작업을 다시 제출하면 교체 과정에서 그 작업 자체가 취소되었다).
+**제출 계약**: 아직 시작하지 않은 `StartableExecution`을 **한 번만** 제출한다. 제출한 뒤에는 실행기가 시작을 관리하므로 직접 `start()`하지 않는다. 실행 중이거나 대기 중인 작업을 다시 제출하면 `IllegalArgumentException`으로 거부한다.
 
 이 클래스는 Java의 `Executor`를 구현하지 않으며 `submit()`도 결과를 반환하지 않는다. 실제 완료·실패·취소는 제출한 작업의 `whenFinished(...)` 등으로 확인한다. 실행기는 제출된 모든 작업이 결국 종료 상태가 되도록 하므로 종료 콜백은 반드시 온다. 단, 작업의 `start()`가 작업을 끝내지 않은 채 예외를 던지면 실행기가 그 작업을 `cancel(true)`하므로 결과는 실패가 아니라 **취소**로 나타난다.
 
-`shutdownNow()`는 실행 중인 작업과 대기 중인 작업 모두에 취소를 요청하며, 이후에는 작업을 제출할 수 없다(`isShutdown()`으로 확인). 취소 요청과 실제 종료는 구분해야 한다. 한 작업의 취소가 예외를 던져도 다른 작업의 취소를 시도한 뒤 예외를 던진다. (2026-10-31 이전 이름은 `stop()`이었고, 대기 작업의 취소가 던지면 실행 중인 작업을 취소하지 못했다.) 교체된 대기 작업의 취소가 실패하면 새 작업은 이미 접수되었으므로 `submit()`은 실패로 알리지 않고 로그만 남긴다.
+`shutdownNow()`는 실행 중인 작업과 대기 중인 작업 모두에 취소를 요청하며, 이후에는 작업을 제출할 수 없다(`isShutdown()`으로 확인). 취소 요청과 실제 종료는 구분해야 한다. 한 작업의 취소가 예외를 던져도 다른 작업의 취소를 시도한 뒤 예외를 던진다. 교체된 대기 작업의 취소가 실패하면 새 작업은 이미 접수되었으므로 `submit()`은 실패로 알리지 않고 로그만 남긴다.
 
 **실행 스레드**: 전용 작업 스레드가 없다. 첫 작업의 `start()`는 `submit()`을 호출한 스레드에서, 다음 작업의 `start()`는 앞 작업의 종료 콜백 스레드에서 실행된다. `start()`가 오래 걸리는 작업이면 `submit()`도 그만큼 늦게 반환한다.
 
-작업의 `start()`가 예외를 던져도 실행기는 멈추지 않는다. 시작에 실패한 작업은 실행 자리에서 내리고, 대기 중인 작업이 있으면 그것을 시작한다. `submit()`에서 바로 시작한 작업이 실패하면 그 예외가 `submit()` 호출자에게 전달되고, 앞 작업이 끝난 뒤 이어서 시작한 작업이 실패하면 받을 곳이 없으므로 로그로 남긴다. 작업의 `start()`와 `cancel(true)`는 실행기의 내부 잠금 밖에서 호출하므로, 작업 쪽 잠금과 순서가 뒤집혀 교착하지 않는다. (2026-10-31 이전에는 `start()`가 예외를 던지면 실행 자리가 그대로 남아 이후 작업이 영원히 대기했고, `start()`와 `cancel(true)`를 잠금 안에서 호출했다.)
+작업의 `start()`가 예외를 던져도 실행기는 멈추지 않는다. 시작에 실패한 작업은 실행 자리에서 내리고, 대기 중인 작업이 있으면 그것을 시작한다. `submit()`에서 바로 시작한 작업이 실패하면 그 예외가 `submit()` 호출자에게 전달되고, 앞 작업이 끝난 뒤 이어서 시작한 작업이 실패하면 받을 곳이 없으므로 로그로 남긴다. 작업의 `start()`와 `cancel(true)`는 실행기의 내부 잠금 밖에서 호출하므로, 작업 쪽 잠금과 순서가 뒤집혀 교착하지 않는다.
 
 ### 5.4 `Timer` — 마감 시각에 취소 요청
 
@@ -376,8 +374,6 @@ Timer.TimeoutHandle timeout = Executions.getTimer().setTimer(execution, 30, Time
 | 예약 해제 | `handle.cancel()`, `handle.isCancelled()` | 기한 전에 해제하면 실행을 취소하지 않는다. 실행을 취소하는 기능이 아니다 |
 | 취소 요청 접수 | `handle.isExpired()` | 기한이 되어 `cancel(true)` 요청을 취소 스레드에 넘겼다. 이후에는 철회할 수 없고, 처리되었다는 뜻도 아니다 |
 | 대상 실행 종료 | `execution.waitForFinished()` 등 | 취소 요청이 정상 종료와 경합하면 실행이 취소되지 않고 정상 종료할 수 있다(이때 `cancel(true)`의 거부는 DEBUG로만 기록) |
-
-(2026-10-31 이전 구현은 예약을 64개까지만 보관해 넘치면 마감이 가장 늦은 항목을 알림 없이 버렸고, 끝난 실행을 기한까지 남겨 두었으며, 타이머 lock을 쥔 채 `cancel(true)`를 불렀다.)
 
 ---
 
@@ -407,7 +403,7 @@ Sample current = queue.peek();            // 꺼내지 않고 확인. 비어 있
 | `peek()` | B | B |
 | `take()` | 비어 있음 | B |
 
-꺼내는 메서드는 `BlockingQueue`의 관례를 따른다. `take()`는 값이 올 때까지 기다리고, `poll()`은 값 도착을 기다리지 않으며, `poll(Duration)`은 시간 안에 오지 않으면 `null`을 반환한다. 제한 시간은 값 도착을 기다리는 시간에 적용되고 내부 잠금을 얻는 시간은 포함하지 않는다(잠금 구간이 값 하나를 읽고 쓰는 동안뿐이라 실질적인 차이는 없다). 이미 인터럽트된 스레드가 `take()`나 `poll(Duration)`을 부르면 값이 있어도 꺼내지 않고 `InterruptedException`을 던진다. 값을 꺼낼 때는 대기자를 깨우지 않고, `add()`만 깨운다. (2026-10-31 이전에는 `poll()`이 값이 올 때까지 기다렸고 `poll(Duration)`은 `TimeoutException`을 던졌다. 사용처가 없어 별칭 없이 바꾸었다.) 모든 값을 빠짐없이 전달해야 한다면 `BlockingQueue`나 `SuppliableFStream`을 사용한다.
+꺼내는 메서드는 `BlockingQueue`의 관례를 따른다. `take()`는 값이 올 때까지 기다리고, `poll()`은 값 도착을 기다리지 않으며, `poll(Duration)`은 시간 안에 오지 않으면 `null`을 반환한다. 제한 시간은 값 도착을 기다리는 시간에 적용되고 내부 잠금을 얻는 시간은 포함하지 않는다(잠금 구간이 값 하나를 읽고 쓰는 동안뿐이라 실질적인 차이는 없다). 이미 인터럽트된 스레드가 `take()`나 `poll(Duration)`을 부르면 값이 있어도 꺼내지 않고 `InterruptedException`을 던진다. 값을 꺼낼 때는 대기자를 깨우지 않고, `add()`만 깨운다. 모든 값을 빠짐없이 전달해야 한다면 `BlockingQueue`나 `SuppliableFStream`을 사용한다.
 
 ### 6.2 `CompletionFStream` — 도착하는 완료 결과부터 처리
 
@@ -456,8 +452,6 @@ try ( CompletionFStream<Report> results = new CompletionFStream<>(16) ) {
 
 스트림을 닫는다고 등록한 작업까지 취소되지는 않는다. 작업도 멈춰야 한다면 실행 참조를 보관하고 따로 취소한다. `submit(StartableExecution)`에서 작업의 `start()`가 작업을 끝내지 않은 채 예외를 던지면, 스트림이 그 작업을 취소해 취소 결과가 수집되게 하고 예외를 다시 던진다(그래야 `finishSubmissions()` 뒤에 스트림이 끝난다).
 
-(2026-10-31에 다시 설계했다. 이전에는 `SuppliableFStream`을 상속해 `supply()`·`endOfSupply()`가 공개되어 있었다. `submit(Execution)`은 `isStarted()`로 시작 여부를 잘못 판단해 시작 전에 취소된 실행을 거부했다. 공급 종료는 미완료 작업의 결과를 버리는 `endOfSupply()`뿐이었고, 완료 콜백이 작업의 잠금을 쥔 채 가득 찬 버퍼를 기다렸다. 사용처가 테스트뿐이라 옛 API는 남기지 않았다.)
-
 ### 6.3 `CoalescingSupplier` — 겹치는 값 생성 요청 공유
 
 한 스레드가 값을 만드는 동안 다른 스레드에서도 같은 요청이 들어오면, 새로 생성하지 않고 진행 중인 결과를 함께 사용하도록 만든 클래스다. 호출이 겹치지 않으면 매번 새 값을 생성하므로 장기 캐시와는 용도가 다르다.
@@ -480,8 +474,6 @@ Token token2 = supplier.get(Duration.ofSeconds(5));   // 합류해 기다리는 
 - 생성 함수가 예외로 끝나면 생성한 호출과 기다린 호출 모두 원인이 같은 `ExecutionException`을 받는다. 생성 함수가 던진 `CancellationException`도 같다. 단, 생성하던 스레드 자신이 인터럽트되어 끝났으면 그 호출은 `InterruptedException`을 받고, 기다리던 호출은 그 예외를 원인으로 한 `ExecutionException`을 받는다.
 - 모든 호출자가 **같은 객체**를 받는다. 가변 객체를 돌려준다면 그 객체를 고치는 호출자가 다른 호출자에 대한 영향을 책임져야 한다.
 - **재진입은 지원하지 않는다.** 생성 함수 안에서 같은 supplier의 `get()`을 다시 부르면 자기 결과를 기다리게 되므로 `IllegalStateException`으로 즉시 거부한다.
-
-(2026-10-31 이전에는 이름이 `InterThreadShareSupplier`였고, 대기 제한을 공유 설정 `setWaitTimeout()`으로 정했다. 그 구현은 대기 제한을 지정하지 않으면 기다리지 않아 낡은 값을 돌려주거나 `NullPointerException`이 났고, `null` 결과를 실패로 처리했으며, 다음 생성까지 기다리는 경우가 있었다.)
 
 같은 값을 생성 후 계속 재사용하려는 경우에는 [`utils.func.Lazy`](../func/Lazy.java) 계열을 검토한다.
 

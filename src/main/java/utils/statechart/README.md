@@ -165,8 +165,6 @@ chart.addState(new DefaultState<>("/Idle", ctx)
 | `Transitions.stay()` | 현재 상태 유지 | 없음 | 호출하지 않음 |
 | `Transitions.fail("error", signal -> cause)` | `error`(`FailureState`)로 이동 | 원인을 계산해 목표 상태에 설정 | 호출 |
 
-2026-10-31 이전 이름은 `Transitions.create(path, action)`과 `Transitions.noop(path)`였으며 지금은 삭제되었다. 특히 `noop`은 "아무것도 하지 않는다"로 읽히지만 실제로는 상태를 이동해서 이름을 바꿨다.
-
 `internal()`과 `stay()`는 목표 경로가 없는 **내부 전이**다. 차트는 `exit()`·`enter()` 없이 `Transition.execute()`만 호출하며, `stay()`의 `execute()`는 아무 일도 하지 않는다. 사용자 정의 전이에서 목표를 `Optional.empty()`로 반환해도 같은 규칙이 적용된다. 내부 전이의 작업이 예외를 던지면 다른 전이처럼 차트가 실패한다. 최종 상태 판정은 하지 않는다.
 
 ```java
@@ -176,7 +174,7 @@ if (signal instanceof Progress progress) {
 }
 ```
 
-반면 현재 상태의 경로를 목표로 명시하면(UML의 자기 전이, self-transition) `exit()` → 전이 작업 → `enter()`를 모두 수행한다. 예를 들어 `running`에서 `Transitions.to("running")`을 선택하면 같은 상태의 `exit()`와 `enter()`를 다시 호출한다. **현재 상태로 다시 진입하는 전이와 내부 전이는 다르다.** 전이가 내부 전이인지는 `Transition.isInternal()`로 확인한다(예전 이름 `isSelfTransition()`은 UML 용어와 뜻이 반대여서 이름을 바꿨고 삭제되었다).
+반면 현재 상태의 경로를 목표로 명시하면(UML의 자기 전이, self-transition) `exit()` → 전이 작업 → `enter()`를 모두 수행한다. 예를 들어 `running`에서 `Transitions.to("running")`을 선택하면 같은 상태의 `exit()`와 `enter()`를 다시 호출한다. **현재 상태로 다시 진입하는 전이와 내부 전이는 다르다.** 전이가 내부 전이인지는 `Transition.isInternal()`로 확인한다.
 
 신호를 무시하는 `Optional.empty()`와 달리 `Optional.of(Transitions.stay())`는 전이를 선택한 결과로 반환되므로, 바깥쪽 복합 상태나 하위 클래스의 기본 신호 처리(`onUnhandledSignal()`)로 넘어가지 않는다.
 
@@ -200,7 +198,7 @@ if (signal instanceof Progress progress) {
 - 경로 형식이 잘못된 상태(빈 경로, `/`로 끝나는 경로, 빈 구간 `//`가 있는 경로. [7.1절](#71-계층-구성)).
 - 차트와 다른 컨텍스트로 만든 상태. 상태 콜백은 `state.getContext()`를, 전이 작업은 차트의 컨텍스트를 쓰므로 둘이 다르면 서로 다른 데이터를 보게 된다.
 
-등록된 상태를 경로로 찾을 때는 `findState(path)`를 쓴다. 결과는 `Optional`이며, 인자 없는 `getState()`(차트의 실행 상태)와 구분하려고 이름을 따로 두었다. 예전 `getState(path)`는 삭제되었다.
+등록된 상태를 경로로 찾을 때는 `findState(path)`를 쓴다. 결과는 `Optional`이며, 인자 없는 `getState()`(차트의 실행 상태)와 구분하려고 이름을 따로 두었다.
 
 ### 4.2 전이 처리 순서
 
@@ -244,7 +242,7 @@ sequenceDiagram
 | 상태 | 의미 |
 |---|---|
 | `TRANSITIONED` | 전이를 선택해 예외 없이 수행했다. `internal()`·`stay()` 선택도 포함한다. 최종 상태(`FailureState` 포함)에 도달해 차트가 끝난 경우와, 콜백 안에서 종료가 요청되어 전이가 중간에 멈춘 경우도 이 값이다. |
-| `FAILED` | 전이를 선택했지만 수행 중(`exit()`, 전이 작업, `enter()`) 예외가 나서 차트가 실패했다. 원인은 차트 결과로 확인한다. (2026-10-31 이전에는 이 경우도 `TRANSITIONED`였다.) |
+| `FAILED` | 전이를 선택했지만 수행 중(`exit()`, 전이 작업, `enter()`) 예외가 나서 차트가 실패했다. 원인은 차트 결과로 확인한다. |
 | `UNHANDLED` | 차트는 실행 중이었지만 어떤 상태도 전이를 선택하지 않았다. 이때 하위 클래스의 `onUnhandledSignal(signal)`이 호출된다. |
 | `IGNORED` | 처리할 때 차트가 `RUNNING`이 아니어서(시작 전, 취소 중, 종료 후) 신호를 버렸다. `selectTransition()` 안에서 종료가 요청되어 선택한 전이를 수행하지 않은 경우도 이 값이다. |
 | `QUEUED` | 상태 콜백 안처럼 다른 신호를 처리하는 중에 같은 스레드가 보낸 신호라서, 현재 처리가 끝난 뒤 처리하도록 큐에 넣었다. `processSignal()`만 반환한다. |

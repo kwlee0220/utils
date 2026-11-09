@@ -615,7 +615,7 @@ public class AbstractPeriodicPollerTest {
 
 	@Test
 	public void testCleanupPollerOutcomeWithFOptionResultType() throws Exception {
-		// 결과 타입이 FOption인 하위 클래스도 정리 hook을 override할 수 있어야 한다(이전 오버로드의 name clash 회귀 방지).
+		// 결과 타입이 FOption인 하위 클래스도 정리 hook을 override할 수 있어야 한다(오버로드 name clash 방지).
 		AtomicReference<AsyncResult<FOption<String>>> finalized = new AtomicReference<>();
 		AbstractPeriodicPoller<FOption<String>> poller = new AbstractPeriodicPoller<FOption<String>>(INTERVAL_50MS) {
 			@Override
