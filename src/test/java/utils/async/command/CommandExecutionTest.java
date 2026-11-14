@@ -174,6 +174,27 @@ public class CommandExecutionTest {
 	}
 
 	@Test
+	public void testVariableNamedLikeBuiltinLookupPrefix() throws Exception {
+		// 명령 변수 이름이 내장 lookup 접두어(date, env, file, sys; 대소문자 무시)와 같아도 명령 변수로 치환된다.
+		// 같은 명령행의 ${env:...} 내장 lookup은 그대로 동작한다.
+		CommandExecution exec = CommandExecution.builder()
+												.addCommand("/bin/echo", "${Date:value}", "${env:value}",
+															"${FILE:value}", "${sys}", "${env:PATH}")
+												.addVariable(CommandVariable.input("Date", "2026-10-19"))
+												.addVariable(CommandVariable.input("env", "E"))
+												.addVariable(CommandVariable.input("FILE", "F"))
+												.addVariable(CommandVariable.input("sys", "S"))
+												.stdout(Output.file(m_outFile))
+												.build();
+		exec.start();
+		AsyncResult<Void> result = exec.waitForFinished();
+
+		Assertions.assertEquals(AsyncState.COMPLETED, result.getState(),
+								() -> "cause: " + result.getFailureCause());
+		Assertions.assertEquals("2026-10-19 E F sys " + System.getenv("PATH"), readOutput());
+	}
+
+	@Test
 	public void testWORKING_DIRSubstitution() throws Exception {
 		CommandExecution exec = CommandExecution.builder()
 												.addCommand("/bin/echo", "wd=${WORKING_DIR}")

@@ -24,6 +24,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.commons.lang3.time.DurationUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.commons.text.lookup.StringLookup;
+import org.apache.commons.text.lookup.StringLookupFactory;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,6 @@ import utils.Preconditions;
 import utils.ProcessTree;
 import utils.RuntimeInterruptedException;
 import utils.Split;
-import utils.StrSubstitutor;
 import utils.async.AbstractThreadedExecution;
 import utils.async.AsyncState;
 import utils.async.CancellableWork;
@@ -55,10 +55,15 @@ import utils.func.Nullables;
  * <h2>변수 치환</h2>
  * Command line의 각 argument에는 두 단계의 변수 치환이 순차로 적용된다:
  * <ol>
- *   <li>일반 변수 치환 — 예약어 {@code ${WORKING_DIR}} 등 미리 정의된 시스템 변수를 치환한다.</li>
+ *   <li>일반 변수 치환 — 예약어 {@code ${WORKING_DIR}}와 Apache Commons Text 내장 lookup
+ *       ({@code ${env:...}}, {@code ${sys:...}}, {@code ${date:...}} 등)을 치환한다.</li>
  *   <li>명령 변수 치환 — {@link Builder#addVariable(CommandVariable)}로 등록된
  *       {@link CommandVariable}을 {@code ${name}} 또는 {@code ${name:modifier}} 형태로 치환한다.</li>
  * </ol>
+ * 등록된 명령 변수를 가리키는 참조({@code ${name}}, 또는 수식어가 {@code name}/{@code value}/{@code path}인
+ * {@code ${name:modifier}})는 1단계에서 건드리지 않는다. 그래서 명령 변수 이름이 내장 lookup 접두어와 같아도
+ * (예: {@code Date} — 접두어는 대소문자를 구분하지 않는다) 명령 변수로 치환된다. 수식어가 명령 변수 수식어가
+ * 아니면({@code ${env:PATH}}) 같은 이름의 명령 변수가 있어도 내장 lookup으로 치환한다.
  * 1단계에서 매칭되지 않은 {@code ${X}}는 그대로 2단계로 넘어가지만, 2단계에서도 매칭되지 않으면
  * {@link IllegalArgumentException}이 발생하여 sub-process가 실행되지 않고 작업이 실패한다.
  * 변수 이름 오타가 원본 토큰 그대로 sub-process에 전달되어 조용히 잘못 동작하는 것을 막기 위함이다.
@@ -606,11 +611,13 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 												.setEnableUndefinedVariableException(true)
 												.setDisableSubstitutionInValues(true);
 		
-		// Command line에 포함된 일반 변수들을 실제 값으로 치환한다.
+		// Command line에 포함된 일반 변수들을 실제 값으로 치환한다. 이름이 등록된 명령 변수와 같은 참조
+		// (${Date:value} 등)는 내장 lookup의 접두어(대소문자 무시: date, env, file...)와 겹쳐도 이 단계에서
+		// 건드리지 않고 다음 단계의 명령 변수 치환에 맡긴다. 그 밖의 설정은 StrSubstitutor의 중첩 치환과 같다.
 		Map<String,String> initMapping = Map.of("WORKING_DIR", m_workingDirectory.getAbsolutePath());
-		StrSubstitutor subst = StrSubstitutor.with(initMapping)
-									.failOnUndefinedVariable(false)
-									.enableNestedSubstitution(true);
+		StringSubstitutor subst = new StringSubstitutor(new GeneralVariableLookup(initMapping, m_variables))
+												.setEnableSubstitutionInVariables(true)
+												.setEnableUndefinedVariableException(false);
 		List<String> command = FStream.from(m_command)
 										.map(cmd -> {
 											cmd = subst.replace(cmd);
@@ -978,6 +985,46 @@ public class CommandExecution extends AbstractThreadedExecution<Void> implements
 		}
 	}
 	
+	/**
+	 * 일반 변수 치환 단계의 lookup. {@code initMapping}과 내장 interpolator lookup({@code env}, {@code sys},
+	 * {@code date} 등)으로 치환하되, 명령 변수 참조({@code ${이름}}, {@code ${이름:name}}, {@code ${이름:value}},
+	 * {@code ${이름:path}}이고 {@code 이름}이 등록된 명령 변수)는 미정의({@code null})로 두어 원본 토큰이
+	 * 명령 변수 치환 단계로 넘어가게 한다. 명령 변수 이름이 접두어와 같아도 수식어가 명령 변수 수식어가
+	 * 아니면({@code ${env:PATH}}) 내장 lookup으로 치환한다.
+	 */
+	private static final class GeneralVariableLookup implements StringLookup {
+		// CommandVariable.getValueByModifier()가 받는 수식어.
+		private static final Set<String> COMMAND_VARIABLE_MODIFIERS = Set.of("name", "value", "path");
+
+		private final StringLookup m_interpolator;
+		private final Map<String,CommandVariable> m_varMap;
+
+		private GeneralVariableLookup(Map<String,String> initMapping, Map<String,CommandVariable> vars) {
+			StringLookupFactory factory = StringLookupFactory.INSTANCE;
+			m_interpolator = factory.interpolatorStringLookup(Map.of(), factory.mapStringLookup(initMapping),
+																true);
+			m_varMap = vars;
+		}
+
+		// CommandVariableLookup과 같은 이유로 @Deprecated를 붙인다.
+		@Override
+		@Deprecated
+		public String lookup(String key) {
+			if ( key != null && isCommandVariableReference(key) ) {
+				return null;
+			}
+			return m_interpolator.apply(key);
+		}
+
+		private boolean isCommandVariableReference(String key) {
+			Split split = Split.split(key, ":");
+			if ( !m_varMap.containsKey(split.head()) ) {
+				return false;
+			}
+			return split.tail().map(COMMAND_VARIABLE_MODIFIERS::contains).orElse(true);
+		}
+	}
+
 	private static final class CommandVariableLookup implements StringLookup {
 		private final Map<String,CommandVariable> m_varMap;
 		
