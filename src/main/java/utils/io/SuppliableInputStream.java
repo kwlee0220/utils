@@ -2,9 +2,10 @@ package utils.io;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.nio.ByteBuffer;
 import java.util.Date;
-import java.util.List;
+import java.util.ArrayDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -13,8 +14,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-
+import utils.Preconditions;
 import utils.Throwables;
 import utils.UnitUtils;
 import utils.thread.Guard;
@@ -57,7 +57,7 @@ public class SuppliableInputStream extends InputStream {
 	private final int m_maxQueueLength;
 	
 	private final Guard m_guard = Guard.create();
-	@GuardedBy("m_guard") private final List<ByteBuffer> m_chunkQueue;
+	@GuardedBy("m_guard") private final ArrayDeque<ByteBuffer> m_chunkQueue = new ArrayDeque<>();
 	@GuardedBy("m_guard") private int m_current = 0;
 	@GuardedBy("m_guard") private boolean m_closed = false;
 	@GuardedBy("m_guard") private boolean m_eos = false;
@@ -92,14 +92,13 @@ public class SuppliableInputStream extends InputStream {
 	}
 	
 	private SuppliableInputStream(int chunkQLength) {
+		Preconditions.checkArgument(chunkQLength > 0, "invalid chunk queue length: " + chunkQLength);
 		m_maxQueueLength = chunkQLength;
-		m_chunkQueue = Lists.newArrayListWithCapacity(chunkQLength);
 		m_buffer = null;
 	}
 	
 	private SuppliableInputStream() {
 		m_maxQueueLength = Integer.MAX_VALUE;
-		m_chunkQueue = Lists.newArrayList();
 		m_buffer = null;
 	}
 	
@@ -241,6 +240,27 @@ public class SuppliableInputStream extends InputStream {
 	}
 
 	/**
+	 * 대기 없이 읽을 수 있는 바이트 수를 반환한다. 현재 소비 중인 chunk에 남은 바이트 수이며, 아직 소비를
+	 * 시작하지 않은 뒤쪽 chunk는 세지 않는다.
+	 *
+	 * @return	대기 없이 읽을 수 있는 바이트 수.
+	 * @throws IOException	스트림이 닫힌 경우.
+	 */
+	@Override
+	public int available() throws IOException {
+		m_guard.lock();
+		try {
+			if ( m_closed ) {
+				throw new IOException("closed already");
+			}
+			return (m_buffer != null) ? m_buffer.remaining() : 0;
+		}
+		finally {
+			m_guard.unlock();
+		}
+	}
+
+	/**
 	 * 최대 {@code len} 바이트를 {@code b}의 {@code off} 위치부터 채워 읽는다.
 	 * <p>
 	 * 소비할 데이터가 없으면 새 chunk가 공급되거나 스트림이 종료될 때까지 대기한다.
@@ -278,39 +298,25 @@ public class SuppliableInputStream extends InputStream {
 	 * 주어진 데이터 chunk를 스트림에 추가한다.
 	 * <p>
 	 * 큐가 가득 차 있으면({@link #getMaxQueueLength()}) 빈자리가 생길 때까지 무한 대기한다.
-	 * 이미 {@link #endOfSupply()}가 호출된 상태라면 chunk를 추가하지 않고 조용히 반환한다.
+	 * 이미 {@link #endOfSupply()}가 호출된 상태라면 chunk를 추가하지 않고 {@code false}를 반환한다.
 	 *
 	 * @param chunk	추가할 데이터 chunk. 복사하지 않고 참조로 보관하므로 이후 외부에서 변경하면 안 된다.
+	 * @return	추가했으면 {@code true}, 공급이 이미 끝나 버렸으면 {@code false}.
 	 * @throws InterruptedException	큐 포화로 대기하던 중 쓰레드가 인터럽트된 경우.
 	 * @throws StreamClosedException	스트림이 이미 닫힌 경우.
 	 */
-	public void supply(ByteBuffer chunk) throws InterruptedException, StreamClosedException {
-		m_guard.lock();
+	public boolean supply(ByteBuffer chunk) throws InterruptedException, StreamClosedException {
 		try {
-			while ( true ) {
-				if ( m_closed ) {
-					throw new StreamClosedException("Stream is closed already");
-				}
-				if ( m_eos ) {
-					return;
-				}
-				if ( m_chunkQueue.size() < m_maxQueueLength ) {
-					m_chunkQueue.add(chunk);
-					m_guard.signalAll();
-					
-					return;
-				}
-				
-				m_guard.awaitSignal();
-			}
+			return supply(chunk, -1, TimeUnit.MILLISECONDS);
 		}
-		finally {
-			m_guard.unlock();
+		catch ( TimeoutException neverHappens ) {
+			throw new AssertionError("unbounded supply timed out", neverHappens);
 		}
 	}
 	
 	/**
-	 * 주어진 데이터를 입력 스트림에 추가시킨다.
+	 * 주어진 데이터를 입력 스트림에 추가시킨다. 큐가 가득 차 있으면 주어진 시간만큼 대기한다.
+	 * 이미 {@link #endOfSupply()}가 호출된 상태라면 chunk를 추가하지 않고 {@code false}를 반환한다.
 	 * 
 	 * @param chunk		제공할 데이터 chunk
 	 * @param timeout	시간제한 시간
@@ -318,13 +324,14 @@ public class SuppliableInputStream extends InputStream {
 	 * 					양수이면 지정된 시간만큼만 대기 후 {@link TimeoutException} 발생,
 	 * 					음수이면 무한 대기
 	 * @param unit		제한 시간 단위
+	 * @return	추가했으면 {@code true}, 공급이 이미 끝나 버렸으면 {@code false}.
 	 * @throws InterruptedException	데이터 추가 과정에서 대기가 발생한 상태에서 대기 쓰레드가
 	 * 					중단된 경우.
 	 * @throws StreamClosedException	입력 스트림이 닫힌 경우
 	 * @throws TimeoutException		데이터 추가 과정에서 대기가 발생한 상태에서
 	 * 								지정된 시간이 경과한 경우.
 	 */
-	public void supply(ByteBuffer chunk, long timeout, TimeUnit unit)
+	public boolean supply(ByteBuffer chunk, long timeout, TimeUnit unit)
 		throws InterruptedException, StreamClosedException, TimeoutException {
 		Date due = (timeout > 0) ? new Date(System.currentTimeMillis() + unit.toMillis(timeout)) : null;
 		
@@ -335,13 +342,14 @@ public class SuppliableInputStream extends InputStream {
 					throw new StreamClosedException("Stream is closed already");
 				}
 				if ( m_eos ) {
-					return;
+					s_logger.debug("drop a chunk supplied after the end of supply: {}", this);
+					return false;
 				}
 				if ( m_chunkQueue.size() < m_maxQueueLength ) {
-					m_chunkQueue.add(chunk);
+					m_chunkQueue.addLast(chunk);
 					m_guard.signalAll();
 					
-					return;
+					return true;
 				}
 				
 				if ( timeout < 0 ) {
@@ -393,6 +401,11 @@ public class SuppliableInputStream extends InputStream {
 	
 	@Override
 	public String toString() {
+		return m_guard.get(this::toStringInGuard);
+	}
+	
+	@GuardedBy("m_guard")
+	private String toStringInGuard() {
 		String chunkStr = String.format("[%d:%d]", m_current, m_chunkQueue.size());
 		return String.format("%s[chunks%s, %s, %s, offset=%d]",
 								getClass().getSimpleName(), chunkStr,
@@ -415,7 +428,10 @@ public class SuppliableInputStream extends InputStream {
 			return m_buffer;
 		}
 		catch ( InterruptedException e ) {
-			throw new IOException("" + e);
+			Thread.currentThread().interrupt();
+			InterruptedIOException iioe = new InterruptedIOException("interrupted while waiting for a chunk");
+			iioe.initCause(e);
+			throw iioe;
 		}
 		finally {
 			m_guard.unlock();
@@ -424,15 +440,15 @@ public class SuppliableInputStream extends InputStream {
 	
 	private ByteBuffer getNextChunkInGuard() throws InterruptedException, IOException {
 		if ( !m_chunkQueue.isEmpty() && m_current > 0 ) {
-			m_chunkQueue.remove(0);
+			m_chunkQueue.removeFirst();
 		}
 
 		while ( true ) {
 			// 데이터가 없는 빈 chunk는 소비할 것이 없으므로 건너뛴다. 이를 그대로 활성 chunk로
 			// 반환하면 read()에서 BufferUnderflowException, read(byte[])에서 0 반환 루프가 발생한다.
 			boolean skipped = false;
-			while ( !m_chunkQueue.isEmpty() && !m_chunkQueue.get(0).hasRemaining() ) {
-				m_chunkQueue.remove(0);
+			while ( !m_chunkQueue.isEmpty() && !m_chunkQueue.peekFirst().hasRemaining() ) {
+				m_chunkQueue.removeFirst();
 				skipped = true;
 			}
 			if ( skipped ) {
@@ -459,9 +475,11 @@ public class SuppliableInputStream extends InputStream {
 			m_guard.awaitSignal();
 		}
 
-		ByteBuffer head = m_chunkQueue.get(0);
+		ByteBuffer head = m_chunkQueue.peekFirst();
 		++m_current;
-		s_logger.debug("get_next_chunk: {}", this);
+		if ( s_logger.isDebugEnabled() ) {
+			s_logger.debug("get_next_chunk: {}", toStringInGuard());
+		}
 		m_guard.signalAll();
 
 		return head;

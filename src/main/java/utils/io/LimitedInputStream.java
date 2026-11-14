@@ -3,7 +3,8 @@ package utils.io;
 import java.io.IOException;
 import java.io.InputStream;
 
-import com.google.common.base.Preconditions;
+import utils.Preconditions;
+
 
 
 /**
@@ -25,8 +26,8 @@ public class LimitedInputStream extends InputStream {
 	 * @throws IllegalArgumentException	{@code src}가 {@code null}이거나 {@code limit}이 음수인 경우.
 	 */
 	public LimitedInputStream(InputStream src, int limit) {
-		utils.Preconditions.checkNotNullArgument(src, "Source InputStream");
-		Preconditions.checkArgument(limit >= 0, "limit >= 0");
+		Preconditions.checkNotNullArgument(src, "src is null");
+		Preconditions.checkArgument(limit >= 0, "limit is negative: " + limit);
 		
 		m_src = src;
 		m_remains = limit;
@@ -38,8 +39,11 @@ public class LimitedInputStream extends InputStream {
 			return -1;
 		}
 		
-		--m_remains;
-		return m_src.read();
+		int b = m_src.read();
+		if ( b >= 0 ) {
+			--m_remains;
+		}
+		return b;
 	}
 
 	@Override

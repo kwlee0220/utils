@@ -13,9 +13,11 @@ import java.time.Duration;
  * 	<li>로그 파일에 변화가 없는 경우: {@link #handleLogFileSilence(Duration)}. 변화가 없는 기간의 길이는
  *         {@link LogTailer.Builder#sampleInterval(Duration)}로 설정된다.
  * </ul>
+ * 새 줄 처리만 필수이고 나머지 두 콜백은 기본 구현이 {@code true}(계속)를 반환하므로, 람다로 줄 수 있다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
+@FunctionalInterface
 public interface LogTailerListener {
 	/**
 	 * 새로 추가된 로그 한 줄을 처리한다.
@@ -34,22 +36,26 @@ public interface LogTailerListener {
 	 * Log file이 rewind되었음을 알린다.
 	 * <p>
 	 * Log file이 rewind되면, 이 메소드가 호출된다.
-	 * 추후 로그 파일 처리 계속 여부를 반환 값으로 결정하게 한다.
+	 * 추후 로그 파일 처리 계속 여부를 반환 값으로 결정하게 한다. 기본 구현은 {@code true}를 반환한다.
 	 * 
 	 * @param file	rewind된 로그 파일.
 	 * @return	로그 파일 처리 계속 여부. {@code false}이면 로그 파일의 처리를 중단한다.
 	 * @throws Exception	처리 중 오류가 발생한 경우.
 	 */
-	public boolean logFileRewinded(File file) throws Exception;
+	public default boolean logFileRewinded(File file) throws Exception {
+		return true;
+	}
 	
 	/**
 	 * 주어진 시간 동안 로그 파일에 변화가 없음을 알린다.
 	 * <p>
-	 * 일정 기간동안 로그 파일에 변화가 없을 경우 호출된다.
+	 * 한 폴링 주기 동안 로그 파일의 크기가 변하지 않았을 때 호출된다. 기본 구현은 {@code true}를 반환한다.
 	 * 
 	 * @param interval	로그 파일 변화가 없었던 구간.
 	 * @return	로그 파일 처리 계속 여부. {@code false}이면 로그 파일의 처리를 중단한다.
 	 * @throws Exception	처리 중 오류가 발생한 경우.
 	 */
-	public boolean handleLogFileSilence(Duration interval) throws Exception;
+	public default boolean handleLogFileSilence(Duration interval) throws Exception {
+		return true;
+	}
 }

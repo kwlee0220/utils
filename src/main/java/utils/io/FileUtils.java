@@ -8,10 +8,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.FileTime;
 
-import com.google.common.base.Preconditions;
 
+import utils.Preconditions;
+import utils.func.FOption;
 import utils.stream.FStream;
 
 
@@ -27,7 +27,6 @@ import utils.stream.FStream;
  *   <li>디렉토리 트리 탐색({@link #walk(File) walk}) — 결과를 {@link FStream}으로 반환하여
  *       함수형 파이프라인과 자연스럽게 연결된다.</li>
  *   <li>{@code PATH} 환경변수 기반 실행 파일 검색({@link #findExecutable(String)})</li>
- *   <li>{@link #touch(File, boolean) touch} — 파일이 없으면 생성하고, 있으면 접근/수정 시간을 갱신.</li>
  * </ul>
  * 인스턴스화할 수 없으며, 모든 메소드는 {@code static}이다.
  *
@@ -82,7 +81,7 @@ public final class FileUtils {
 	 * @throws IllegalArgumentException {@code names}가 비어 있는 경우.
 	 */
 	public static File path(String... names) {
-		Preconditions.checkArgument(names.length > 0);
+		Preconditions.checkArgument(names.length > 0, "names is empty");
 		return FStream.of(names)
 						.drop(1)
 						.fold(new File(names[0]), File::new);
@@ -171,25 +170,14 @@ public final class FileUtils {
 	}
 	
 	/**
-	 * 주어진 파일을 삭제한다. 만일 파일이 디렉토리인 경우 해당 디렉토리를 삭제한다.
-	 * 
-	 * @param file 삭제할 파일 객체
-	 * @throws IOException 파일 삭제 중 오류가 발생된 경우.
-	 */
-	public static void deleteAnyway(File file) throws IOException {
-		if ( file.isDirectory() ) {
-			deleteDirectory(file);
-		}
-		else {
-			file.delete();
-		}
-	}
-	
-	/**
 	 * 주어진 디렉토리 아래를 재귀적으로 순회하며 glob 패턴과 일치하는 파일들의 스트림을 반환한다.
 	 * <p>
 	 * 패턴 매칭은 각 항목의 <b>파일 이름</b>({@link Path#getFileName()})에만 적용되므로, 경로 구분자
-	 * (예: {@code dir/*.txt})를 포함하는 패턴은 의도대로 동작하지 않는다. 심볼릭 링크는 따라간다.
+	 * (예: {@code dir/*.txt})를 포함하는 패턴은 의도대로 동작하지 않는다. 파일 이름이 없는 경로(예: 루트 {@code /})는
+	 * 매칭 대상에서 빠진다.
+	 * <p>
+	 * 심볼릭 링크는 <b>따라간다</b>(링크로 연결된 데이터 디렉토리 아래의 파일도 찾는다). 링크가 순환하면
+	 * {@link java.nio.file.FileSystemLoopException}이 난다. 링크를 따라가지 않는 {@link #walk(File)}과 다르다.
 	 *
 	 * @param start 순회를 시작할 디렉토리.
 	 * @param glob  파일 이름에 적용할 glob 패턴(예: {@code *.txt}).
@@ -212,14 +200,17 @@ public final class FileUtils {
 		PathMatcher matcher = FileSystems.getDefault()
 										.getPathMatcher("glob:" + glob);
 		return FStream.from(Files.walk(start, FileVisitOption.FOLLOW_LINKS)
-								.filter(path -> matcher.matches(path.getFileName())));
+								.filter(path -> {
+									Path name = path.getFileName();
+									return name != null && matcher.matches(name);
+								}));
 	}
 
 	/**
 	 * 주어진 디렉토리 아래의 모든 파일을 재귀적으로 순회하는 스트림을 반환한다.
 	 * <p>
-	 * 필터링은 적용되지 않으며 심볼릭 링크 처리는 {@link Files#walk(Path, FileVisitOption...)}의
-	 * 기본 동작을 따른다(즉, 링크를 따라가지 않음).
+	 * 필터링은 적용되지 않으며 심볼릭 링크는 <b>따라가지 않는다</b>({@link Files#walk(Path, FileVisitOption...)}의
+	 * 기본 동작). 링크를 따라가는 {@link #walk(File, String)}과 다르다.
 	 *
 	 * @param start 순회를 시작할 디렉토리.
 	 * @return      모든 파일/디렉토리의 {@link FStream}.
@@ -241,47 +232,30 @@ public final class FileUtils {
 	}
 
 	/**
-	 * {@code PATH} 환경 변수에 등록된 디렉토리들에서 실행 가능한 파일을 찾아 그 절대 경로를 반환한다.
+	 * {@code PATH} 환경 변수에 등록된 디렉토리들에서 실행 가능한 파일을 찾는다.
 	 * <p>
 	 * {@code PATH}를 {@link File#pathSeparator}로 분리한 뒤 등록 순서대로 검색하여, 일반 파일이면서
-	 * 실행 권한이 있는 첫 번째 항목을 반환한다.
+	 * 실행 권한이 있는 첫 번째 항목을 반환한다. 빈 항목은 건너뛴다.
 	 *
 	 * @param execName 찾을 실행 파일 이름(예: {@code python}).
-	 * @return         발견된 실행 파일의 절대 경로.
-	 * @throws IllegalArgumentException {@code PATH}에서 해당 실행 파일을 찾을 수 없는 경우.
+	 * @return         발견된 실행 파일(절대 경로). {@code PATH}가 없거나 찾지 못하면 빈 {@link FOption}.
 	 */
-	public static String findExecutable(String execName) {
-		for ( String dir: System.getenv("PATH").split(File.pathSeparator) ) {
+	public static FOption<File> findExecutable(String execName) {
+		Preconditions.checkArgument(execName != null && !execName.isBlank(), "execName is empty");
+
+		String pathEnv = System.getenv("PATH");
+		if ( pathEnv == null ) {
+			return FOption.empty();
+		}
+		for ( String dir: pathEnv.split(File.pathSeparator) ) {
+			if ( dir.isEmpty() ) {
+				continue;
+			}
 			File file = new File(dir, execName);
 			if ( file.isFile() && file.canExecute() ) {
-				return file.getAbsolutePath();
+				return FOption.of(file.getAbsoluteFile());
 			}
 		}
-
-		throw new IllegalArgumentException("cannot find the executable file: " + execName);
-	}
-
-	/**
-	 * 파일이 없으면 빈 파일을 생성하고, 있으면 접근 시간(과 옵션에 따라 수정 시간)을 현재 시각으로
-	 * 갱신한다. (Unix {@code touch} 명령과 유사하다.)
-	 * <p>
-	 * 파일이 새로 생성된 경우 시간 갱신은 수행되지 않는다 (이미 현재 시각으로 생성됨).
-	 *
-	 * @param file               touch 대상 파일.
-	 * @param updateLastModified {@code true}이면 마지막 수정 시간도 함께 갱신한다.
-	 *                           {@code false}이면 접근 시간만 갱신된다.
-	 * @throws IOException 파일 생성 또는 속성 변경 중 입출력 오류가 발생한 경우.
-	 */
-	public static void touch(File file, boolean updateLastModified) throws IOException {
-		if ( !file.exists() ) {
-			file.createNewFile();
-		}
-		else {
-			long now = System.currentTimeMillis();
-			Files.setAttribute(file.toPath(), "lastAccessTime", FileTime.fromMillis(now));
-			if ( updateLastModified ) {
-				file.setLastModified(now);
-			}
-		}
+		return FOption.empty();
 	}
 }

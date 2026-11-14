@@ -12,9 +12,9 @@ public class StreamClosedException extends IOException {
 	/**
 	 * 주어진 상세 메시지로 예외 객체를 생성한다.
 	 *
-	 * @param deatils	예외 상세 메시지.
+	 * @param details	예외 상세 메시지.
 	 */
-	public StreamClosedException(String deatils) {
-		super(deatils);
+	public StreamClosedException(String details) {
+		super(details);
 	}
 }

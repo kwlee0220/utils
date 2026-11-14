@@ -1,6 +1,7 @@
 package utils.io;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
@@ -377,5 +378,35 @@ public class SuppliableInputStreamTest {
 			}
 			Thread.sleep(10);
 		}
+	}
+
+	@Test
+	@Timeout(5)
+	public void interrupted_read_keeps_interrupt_status_and_cause() throws Exception {
+		SuppliableInputStream is = SuppliableInputStream.create();
+		Thread.currentThread().interrupt();
+		try {
+			InterruptedIOException thrown = Assertions.assertThrows(InterruptedIOException.class, is::read);
+			Assertions.assertInstanceOf(InterruptedException.class, thrown.getCause());
+			Assertions.assertTrue(Thread.currentThread().isInterrupted());
+		}
+		finally {
+			Thread.interrupted();
+		}
+	}
+
+	@Test
+	@Timeout(5)
+	public void supply_after_end_is_dropped_and_reported() throws Exception {
+		SuppliableInputStream is = SuppliableInputStream.create();
+		Assertions.assertTrue(is.supply(ByteBuffer.wrap(new byte[] {1, 2, 3})));
+		is.endOfSupply();
+		Assertions.assertFalse(is.supply(ByteBuffer.wrap(new byte[] {4})));
+
+		Assertions.assertEquals(0, is.available());
+		Assertions.assertEquals(1, is.read());
+		Assertions.assertEquals(2, is.available());
+		Assertions.assertArrayEquals(new byte[] {2, 3}, is.readAllBytes());
+		Assertions.assertThrows(IllegalArgumentException.class, () -> SuppliableInputStream.create(0));
 	}
 }

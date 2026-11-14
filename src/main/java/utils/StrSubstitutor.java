@@ -277,7 +277,7 @@ public final class StrSubstitutor {
 		Preconditions.checkNotNullArgument(templateFile, "templateFile must not be null");
 		Preconditions.checkNotNullArgument(outputFile, "outputFile must not be null");
 
-		String template = IOUtils.toString(templateFile);
+		String template = IOUtils.readString(templateFile);
 		String substituted = replace(template);
 
 		Path target = outputFile.toPath();
@@ -289,7 +289,7 @@ public final class StrSubstitutor {
 		}
 		Path tmp = Files.createTempFile(parent, ".strsubst-", ".tmp");
 		try {
-			IOUtils.toFile(substituted, tmp.toFile());
+			IOUtils.writeString(tmp.toFile(), substituted);
 			try {
 				Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 			}

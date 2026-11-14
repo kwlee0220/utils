@@ -9,11 +9,12 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.locks.LockSupport;
-
-import com.google.common.base.Objects;
 
 import utils.stream.FStream;
 
@@ -103,16 +104,20 @@ public class LfsPath implements FilePath, Serializable {
 	}
 
 	@Override
-	public FStream<FilePath> streamChildFilePaths() {
+	public FStream<FilePath> streamChildFilePaths() throws IOException {
 		File[] subFiles = m_file.listFiles();
-		if ( subFiles != null ) {
-			return FStream.of(subFiles)
-							.map(file -> LfsPath.of(file))
-							.cast(FilePath.class);
+		if ( subFiles == null ) {
+			if ( !m_file.exists() ) {
+				throw new NoSuchFileException(m_file.toString());
+			}
+			if ( !m_file.isDirectory() ) {
+				throw new NotDirectoryException(m_file.toString());
+			}
+			throw new IOException("failed to list the directory: " + m_file);
 		}
-		else {
-			return null;
-		}
+		return FStream.of(subFiles)
+						.map(file -> LfsPath.of(file))
+						.cast(FilePath.class);
 	}
 
 	@Override
@@ -130,38 +135,28 @@ public class LfsPath implements FilePath, Serializable {
 			throw new IllegalArgumentException("incompatible destination file handle: " + dstFile);
 		}
 		LfsPath dst = (LfsPath)dstFile;
-		
-		FilePath parent = dstFile.getParent();
-		parent.mkdirs();
-		
+
+		createParentDirectories(dst.m_file);
 		if ( replaceExisting ) {
-	        Files.move(m_file.toPath(), dst.m_file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			Files.move(m_file.toPath(), dst.m_file.toPath(), StandardCopyOption.REPLACE_EXISTING);
 		}
 		else {
-			if ( dst.exists() ) {
-				throw new IOException("destination exists: file=" + dstFile);
-			}
-	        Files.move(m_file.toPath(), dst.m_file.toPath());
+			// 대상이 있으면 Files.move가 FileAlreadyExistsException을 던진다(존재 확인과 이동 사이의 경쟁이 없다).
+			Files.move(m_file.toPath(), dst.m_file.toPath());
+		}
+	}
+
+	// 부모 디렉토리가 있으면(상대 경로 'name'처럼 부모가 없을 수도 있다) 중간 경로까지 만든다. 실패는 예외로 알린다.
+	private static void createParentDirectories(File file) throws IOException {
+		File parent = file.getAbsoluteFile().getParentFile();
+		if ( parent != null ) {
+			Files.createDirectories(parent.toPath());
 		}
 	}
 
 	@Override
 	public boolean mkdirs() {
-		if ( exists() ) {
-			return false;
-		}
-		
-		LfsPath parent = getParent();
-		if ( parent != null ) {
-			if ( !parent.exists() ) {
-				parent.mkdirs();
-			}
-			else if ( !parent.isDirectory() ) {
-				return false;
-			}
-		}
-		
-		return m_file.mkdir();
+		return m_file.mkdirs();
 	}
 
 	@Override
@@ -202,23 +197,29 @@ public class LfsPath implements FilePath, Serializable {
 		return new FileInputStream(m_file);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * <p>
+	 * 부모 디렉터리가 없으면 먼저 만들고, 만들지 못하면 {@link IOException}을 던진다.
+	 * {@code overwrite}가 {@code false}이면 파일이 없을 때만 원자적으로 만들므로,
+	 * 존재 확인과 생성 사이에 다른 프로세스가 파일을 만들어도 덮어쓰지 않는다.
+	 *
+	 * @throws java.nio.file.FileAlreadyExistsException	{@code overwrite}가 {@code false}이고 파일이 이미 있는 경우.
+	 */
 	@Override
 	public OutputStream create(boolean overwrite) throws IOException {
-		FilePath parent = getParent();
-		if ( parent != null ) {
-			parent.mkdirs();
-		}
-		
-		return new FileOutputStream(m_file, false);
+		createParentDirectories(m_file);
+
+		Path path = m_file.toPath();
+		return overwrite
+				? Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
+										StandardOpenOption.WRITE)
+				: Files.newOutputStream(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
 	}
 
 	@Override
 	public OutputStream append() throws IOException {
-		FilePath parent = getParent();
-		if ( parent != null ) {
-			parent.mkdirs();
-		}
-		
+		createParentDirectories(m_file);
 		return new FileOutputStream(m_file, true);
 	}
 	
@@ -227,17 +228,24 @@ public class LfsPath implements FilePath, Serializable {
 		return m_file.toString();
 	}
 	
+	/**
+	 * 두 객체가 같은 {@link File}을 가리키는지 비교한다. 비교는 {@link File#equals(Object)}를 따르므로 경로 문자열을
+	 * 비교하며, 상대 경로와 그에 해당하는 절대 경로는 서로 다르다.
+	 *
+	 * @param obj	비교 대상. {@code null}이나 {@link LfsPath}가 아닌 객체면 {@code false}.
+	 * @return	같은 파일 경로이면 {@code true}.
+	 */
 	@Override
 	public boolean equals(Object obj) {
 		if ( this == obj ) {
 			return true;
 		}
-		else if ( this == null || getClass() != LfsPath.class ) {
-			return false;
-		}
-		
-		LfsPath other = (LfsPath)obj;
-		return Objects.equal(m_file, other.m_file);
+		return obj instanceof LfsPath other && m_file.equals(other.m_file);
+	}
+
+	@Override
+	public int hashCode() {
+		return m_file.hashCode();
 	}
 	
 	/**

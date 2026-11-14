@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.function.Function;
 
+import org.jetbrains.annotations.Nullable;
+
 import utils.func.UncheckedFunction;
 import utils.func.UncheckedPredicate;
 import utils.stream.FStream;
@@ -16,7 +18,7 @@ import utils.stream.FStream;
  */
 public interface FilePath {
 	/**
-	 * 본 파일의 이름을 반환한다..
+	 * 본 파일의 이름을 반환한다.
 	 *
 	 * @return 파일 이름.
 	 */
@@ -37,7 +39,10 @@ public interface FilePath {
 	public String getAbsolutePath();
 	
 	/**
-	 * 주어진 경로에 해당하는 proxy 파일을 생성한다.
+	 * 본 경로와 같은 파일 시스템에서 주어진 경로명에 해당하는 proxy 파일을 생성한다.
+	 * <p>
+	 * 경로명은 본 경로를 기준으로 해석하지 않는다(본 경로는 파일 시스템을 정하는 데만 쓰인다). 하위 경로가
+	 * 필요하면 {@link #getChild(String)}를 쓴다.
 	 *
 	 * @param path	경로명.
 	 * @return	proxy 객체.
@@ -60,16 +65,20 @@ public interface FilePath {
 	public boolean isDirectory();
 	
 	/**
-	 * 본 경로에 해당하는 파일이 일반 파일인지 여부를 반환한다.
+	 * 본 경로가 숨김 경로가 아닌지 여부를 반환한다.
+	 * <p>
+	 * 파일 종류(일반 파일/디렉토리)와는 무관하다. Hadoop의 규칙을 따라 이름이 {@code _}나 {@code .}로 시작하면
+	 * 숨김 경로(예: {@code _SUCCESS}, {@code .crc} 파일)로 보고 {@code false}를 반환한다. 파일 존재 여부도
+	 * 확인하지 않는다.
 	 *
-	 * @return	일반 파일인 경우는 {@code true}, 그렇지 않은 경우는 {@code false}.
+	 * @return	이름이 {@code _}나 {@code .}로 시작하지 않으면 {@code true}.
 	 */
 	public boolean isRegular();
 	
 	/**
-	 * 본 경로가 디렉토리가 아니면서 {@link #isRegular()}가 {@code true}인지 여부를 반환한다.
+	 * 본 경로가 디렉토리가 아니면서 숨김 경로도 아닌지({@link #isRegular()}) 여부를 반환한다.
 	 *
-	 * @return	디렉토리가 아닌 일반 파일인 경우는 {@code true}, 그렇지 않은 경우는 {@code false}.
+	 * @return	디렉토리가 아니고 이름이 {@code _}나 {@code .}로 시작하지 않으면 {@code true}.
 	 */
 	public default boolean isRegularFile() {
 		return !isDirectory() && isRegular();
@@ -77,11 +86,12 @@ public interface FilePath {
 	
 	/**
 	 * Parent 파일 객체를 반환한다.
-	 * 만일 parent 파일이 존재하지 않는 경우에는 {@code null}을 반환한다.
+	 * 경로에 parent가 없는 경우(루트나, 부모 없는 상대 경로)에는 {@code null}을 반환한다. parent의 실제 존재
+	 * 여부는 확인하지 않는다.
 	 *
-	 * @return	parent 파일 객체 또는 parent 파일이 존재하지 않는 경우에는 {@code null}.
+	 * @return	parent 파일 객체. parent가 없으면 {@code null}.
 	 */
-	public FilePath getParent();
+	public @Nullable FilePath getParent();
 	
 	/**
 	 * 현 디렉토리의 주어진 이름의 하위 파일 객체를 반환한다. 
@@ -92,11 +102,12 @@ public interface FilePath {
 	public FilePath getChild(String childName);
 	
 	/**
-	 * 현 디렉토리에 속한 {@link FilePath} 리스트를 반환한다.
-	 * 만일 현 파일이 디렉토리가 아닌 경우에는 {@code null}을 반환한다.
+	 * 현 디렉토리에 바로 속한 하위 경로들의 스트림을 반환한다. {@code null}은 반환하지 않는다.
 	 *
-	 * @return	{@link FilePath} 리스트.
-	 * @throws IOException	I/O 오류가 발생된 경우.
+	 * @return	하위 경로 스트림. 빈 디렉토리면 빈 스트림.
+	 * @throws java.nio.file.NoSuchFileException	현 경로가 존재하지 않는 경우.
+	 * @throws java.nio.file.NotDirectoryException	현 경로가 디렉토리가 아닌 경우.
+	 * @throws IOException	그 밖의 I/O 오류가 발생된 경우.
 	 */
 	public FStream<FilePath> streamChildFilePaths() throws IOException;
 	
@@ -168,19 +179,17 @@ public interface FilePath {
 	public long getLength() throws IOException;
 	
 	/**
-	 * 본 디렉토리 아래의 모든 일반 파일({@link #walkRegularFileTree()})의 길이 합을 byte 단위로 반환한다.
-	 * <p>
-	 * <b>주의:</b> 개별 파일의 {@link #getLength()}가 실패하면 해당 파일은 오류 없이 합계에서 제외된다.
+	 * 본 디렉토리 아래의 모든 디렉토리가 아닌 파일({@link #walkRegularFileTree()})의 길이 합을 byte 단위로 반환한다.
 	 *
 	 * @return	총 byte 크기.
-	 * @throws IOException	하위 파일 탐색 중 I/O 오류가 발생한 경우.
+	 * @throws IOException	하위 파일 탐색이나 개별 파일의 {@link #getLength()} 중 I/O 오류가 발생한 경우.
+	 * 						일부 파일을 빼고 합계를 내지 않는다.
 	 */
 	public default long getTotalLength() throws IOException {
-		return walkRegularFileTree()
-					.mapToTry(FilePath::getLength)
-					.flatMapTry(v -> v)
-					.mapToLong(v -> v)
-					.sum();
+		// 개별 파일의 IOException은 원소를 꺼낼 때 그대로(감싸지 않고) 전파된다.
+		return walkRegularFileTree().mapOrThrow(FilePath::getLength)
+									.mapToLong(v -> v)
+									.sum();
 	}
 	
 	/**
@@ -192,14 +201,13 @@ public interface FilePath {
 	public InputStream read() throws IOException;
 
 	/**
-	 * 현 경로에 해당하는 파일을 생성하고, 데이터를 추가하기 위한 {@link OutputStream}을 반환한다.
-	 * 주어진 경로에 해당하는 파일이 이미 존재하는 경우에는 {@code overwrite} 값에 따라
-	 * {@code true}인 경우는 기존 파일을 삭제하고 새 파일을 생성하고, {@code false}인 경우에는
-	 * {@code IOException} 예외를 생성한다. 
-	 * 
-	 * @param overwrite	기존 파일이 존재하는 경우 해당 파일의 삭제 여부.
+	 * 현 경로에 해당하는 파일을 생성하고, 데이터를 기록하기 위한 {@link OutputStream}을 반환한다.
+	 * 파일이 이미 있는 경우, {@code overwrite}가 {@code true}이면 기존 내용을 지우고 처음부터 기록하고,
+	 * {@code false}이면 {@code IOException}을 던진다.
+	 *
+	 * @param overwrite	파일이 이미 있을 때 덮어쓸지 여부.
 	 * @return	출력 스트림 객체.
-	 * @throws IOException	I/O 오류가 발생된 경우.
+	 * @throws IOException	{@code overwrite}가 {@code false}이고 파일이 이미 있는 경우, 또는 I/O 오류가 발생된 경우.
 	 */
 	public OutputStream create(boolean overwrite) throws IOException;
 	
@@ -216,8 +224,8 @@ public interface FilePath {
 	 * 하위 디렉토리의 탐색은 스트림을 소비하는 시점에 수행되며, 그 과정에서 발생한
 	 * {@link IOException}은 검사되지 않는 예외처럼(sneaky throw) 그대로 전파된다.
 	 * <p>
-	 * <b>주의:</b> 본 경로는 디렉토리여야 한다. 디렉토리가 아니면 {@link #streamChildFilePaths()}가
-	 * {@code null}을 반환하여 {@link NullPointerException}이 발생할 수 있다.
+	 * 본 경로는 디렉토리여야 한다. 디렉토리가 아니면 {@link #streamChildFilePaths()}와 같이
+	 * {@link java.nio.file.NotDirectoryException}을 던진다.
 	 *
 	 * @param includeCurrent	결과 스트림의 맨 앞에 본 경로 자신을 포함할지 여부.
 	 * @return	하위 경로 스트림.
@@ -226,12 +234,12 @@ public interface FilePath {
 	public default FStream<FilePath> walkTree(boolean includeCurrent) throws IOException {
 		Function<FilePath,FStream<FilePath>> walkDown
 			= UncheckedFunction.sneakyThrow(fp ->  fp.isDirectory() ? fp.walkTree(true) : FStream.of(fp));
-		FStream<FilePath> descendents = streamChildFilePaths().flatMap(walkDown);
+		FStream<FilePath> descendants = streamChildFilePaths().flatMap(walkDown);
 		if ( includeCurrent ) {
-			return FStream.of(this).concatWith(descendents);
+			return FStream.of(this).concatWith(descendants);
 		}
 		else {
-			return descendents;
+			return descendants;
 		}
 	}
 	

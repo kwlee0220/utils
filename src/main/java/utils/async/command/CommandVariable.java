@@ -226,7 +226,7 @@ public class CommandVariable implements Keyed<String>, AutoCloseable {
 		Preconditions.checkState(isFileMode(), "not in file mode");
 		
 		try {
-			return IOUtils.toString(m_file, StandardCharsets.UTF_8);
+			return IOUtils.readString(m_file, StandardCharsets.UTF_8);
 		}
 		catch ( IOException e ) {
 			throw new RuntimeException("Failed to read FileVariable: name=" + m_name
@@ -301,7 +301,7 @@ public class CommandVariable implements Keyed<String>, AutoCloseable {
 					m_deleteOnClose = true;
 				}
 				// 파일이 이미 있어도 값으로 덮어쓴다.
-				IOUtils.toFile(m_value, StandardCharsets.UTF_8, m_file);
+				IOUtils.writeString(m_file, m_value, StandardCharsets.UTF_8);
 				m_value = null;
 			}
 			catch ( IOException e ) {

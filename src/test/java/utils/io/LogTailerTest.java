@@ -35,20 +35,68 @@ public class LogTailerTest {
 
 	@Test
 	public void buildWithoutFileThrows() {
-		Assertions.assertThrows(IllegalStateException.class, () -> LogTailer.builder().build());
+		Assertions.assertThrows(IllegalStateException.class,
+								() -> LogTailer.builder().listener(line -> true).build());
 	}
 
 	@Test
-	public void runWithoutListenerThrows() throws Exception {
+	public void buildWithoutListenerThrows() throws Exception {
 		File logFile = newLogFile("log.txt", "");
-		LogTailer tailer = LogTailer.builder().file(logFile).sampleInterval(SHORT).build();
-		Assertions.assertThrows(IllegalStateException.class, tailer::run);
+		Assertions.assertThrows(IllegalStateException.class,
+								() -> LogTailer.builder().file(logFile).sampleInterval(SHORT).build());
 	}
 
 	@Test
-	public void builderRejectsNullArgs() {
+	public void builderRejectsInvalidArgs() {
 		Assertions.assertThrows(IllegalArgumentException.class, () -> LogTailer.builder().file(null));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> LogTailer.builder().listener(null));
 		Assertions.assertThrows(IllegalArgumentException.class, () -> LogTailer.builder().sampleInterval(null));
+		Assertions.assertThrows(IllegalArgumentException.class,
+								() -> LogTailer.builder().sampleInterval(Duration.ZERO));
+		Assertions.assertThrows(IllegalArgumentException.class,
+								() -> LogTailer.builder().sampleInterval(Duration.ofMillis(-1)));
+	}
+
+	@Test
+	@Timeout(10)
+	public void lambdaListenerAndLineTerminators() throws Exception {
+		// '\n', '\r\n', 단독 '\r'을 모두 줄 끝으로 본다.
+		File logFile = newLogFile("log.txt", "a\r\nb\rc\n\nd\n");
+		List<String> lines = new CopyOnWriteArrayList<>();
+		LogTailer.builder()
+				.file(logFile)
+				.startAtBeginning(true)
+				.sampleInterval(SHORT)
+				.listener(line -> { lines.add(line); return !line.equals("d"); })
+				.build()
+				.run();
+
+		Assertions.assertEquals(List.of("a", "b", "c", "", "d"), lines);
+	}
+
+	@Test
+	@Timeout(10)
+	public void longLinesAcrossReadBuffers() throws Exception {
+		// 읽기 버퍼(8KB)보다 긴 줄과, 버퍼 경계에 걸친 멀티바이트 문자를 이어 붙인다.
+		String longLine = "가".repeat(10_000);
+		File logFile = newLogFile("log.txt", longLine + "\nend\n");
+		List<String> lines = new CopyOnWriteArrayList<>();
+		LogTailer.builder()
+				.file(logFile)
+				.startAtBeginning(true)
+				.sampleInterval(SHORT)
+				.listener(line -> { lines.add(line); return !line.equals("end"); })
+				.build()
+				.run();
+
+		Assertions.assertEquals(List.of(longLine, "end"), lines);
+	}
+
+	@Test
+	public void lineAssemblerKeepsCrLfSplitAcrossFeeds() {
+		LogTailer.LineAssembler assembler = new LogTailer.LineAssembler();
+		Assertions.assertEquals(List.of("a"), assembler.feed("a\r".getBytes(), 2));
+		Assertions.assertEquals(List.of("b"), assembler.feed("\nb\n".getBytes(), 3));
 	}
 
 	// ----- 기본 읽기 -----
@@ -63,8 +111,8 @@ public class LogTailerTest {
 									.file(logFile)
 									.startAtBeginning(true)
 									.sampleInterval(SHORT)
+									.listener(listener)
 									.build();
-		tailer.addLogTailerListener(listener);
 		tailer.run();		// listener가 3줄째에서 false를 반환하므로 정상 종료한다.
 
 		Assertions.assertEquals(List.of("a", "b", "c"), listener.lines);
@@ -80,8 +128,8 @@ public class LogTailerTest {
 									.file(logFile)
 									.startAtBeginning(true)
 									.sampleInterval(SHORT)
+									.listener(listener)
 									.build();
-		tailer.addLogTailerListener(listener);
 		tailer.run();
 
 		Assertions.assertEquals(List.of("안녕하세요", "세계"), listener.lines);
@@ -97,8 +145,8 @@ public class LogTailerTest {
 									.file(logFile)
 									.startAtBeginning(false)		// 기본값: 끝부터 읽는다.
 									.sampleInterval(SHORT)
+									.listener(listener)
 									.build();
-		tailer.addLogTailerListener(listener);
 
 		AtomicReference<Throwable> err = new AtomicReference<>();
 		Thread t = start(tailer, err);
@@ -128,8 +176,8 @@ public class LogTailerTest {
 									.file(logFile)
 									.startAtBeginning(true)
 									.sampleInterval(SHORT)
+									.listener(listener)
 									.build();
-		tailer.addLogTailerListener(listener);
 
 		AtomicReference<Throwable> err = new AtomicReference<>();
 		Thread t = start(tailer, err);
@@ -166,8 +214,8 @@ public class LogTailerTest {
 									.file(logFile)
 									.startAtBeginning(true)
 									.sampleInterval(SHORT)
+									.listener(listener)
 									.build();
-		tailer.addLogTailerListener(listener);
 
 		AtomicReference<Throwable> err = new AtomicReference<>();
 		Thread t = start(tailer, err);
@@ -198,8 +246,8 @@ public class LogTailerTest {
 									.file(logFile)
 									.startAtBeginning(true)
 									.sampleInterval(SHORT)
+									.listener(listener)
 									.build();
-		tailer.addLogTailerListener(listener);
 		tailer.run();
 
 		Assertions.assertTrue(listener.silences.get() >= 3);
@@ -217,8 +265,8 @@ public class LogTailerTest {
 									.startAtBeginning(true)
 									.sampleInterval(SHORT)
 									.timeout(Duration.ofMillis(200))
+									.listener(listener)
 									.build();
-		tailer.addLogTailerListener(listener);
 
 		Assertions.assertThrows(TimeoutException.class, tailer::run);
 	}

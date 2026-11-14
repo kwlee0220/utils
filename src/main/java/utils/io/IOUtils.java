@@ -1,16 +1,10 @@
 package utils.io;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
@@ -20,8 +14,10 @@ import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.concurrent.CancellationException;
 import java.util.stream.Stream;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -41,7 +37,7 @@ import utils.async.CancellableWork;
  * 입출력 관련 정적 유틸리티 메소드들을 제공한다.
  * @author Kang-Woo Lee (ETRI)
  */
-public class IOUtils {
+public final class IOUtils {
 	private IOUtils() {
 		throw new AssertionError("Should not be called: class=" + IOUtils.class.getName());
 	}
@@ -101,133 +97,39 @@ public class IOUtils {
 	}
 	
     /**
-     * {@code reader}의 내용을 EOF까지 읽어 {@code writer}에 기록한다.
+     * {@code reader}의 내용을 EOF까지 읽어 {@code writer}에 기록한다. {@link Reader#transferTo(Writer)}와 같다.
      * 두 스트림 모두 닫지 않으며, {@code writer}를 flush하지도 않는다.
      *
      * @param reader	입력 reader.
      * @param writer	출력 writer.
-     * @param bufSize	전송 버퍼 크기(문자 수).
      * @return	전송한 문자 수.
      * @throws IOException	읽기 또는 쓰기 중 오류가 발생한 경우.
      */
-    public static long transfer(Reader reader, Writer writer, int bufSize) throws IOException {
-    	char[] buf = new char[bufSize];
-
-    	long count = 0;
-        for ( int nbytes = reader.read(buf); nbytes >= 0; nbytes = reader.read(buf) ) {
-            writer.write(buf, 0, nbytes);
-            count += nbytes;
-        }
-
-        return count;
-    }
-	
-    /**
-     * 입력 스트림의 내용을 EOF까지 읽어 출력 스트림에 기록한다.
-     * 두 스트림 모두 닫지 않으며, 출력 스트림을 flush하지도 않는다.
-     *
-     * @param is	입력 스트림.
-     * @param os	출력 스트림.
-     * @param bufSize	전송 버퍼 크기(byte).
-     * @return	전송한 byte 수.
-     * @throws IOException	읽기 또는 쓰기 중 오류가 발생한 경우.
-     */
-    public static long transfer(InputStream is, OutputStream os, int bufSize) throws IOException {
-        byte[] buf = new byte[bufSize];
-
-        long count = 0;
-        for ( int nbytes = is.read(buf); nbytes >= 0; nbytes = is.read(buf) ) {
-            os.write(buf, 0, nbytes);
-            count += nbytes;
-        }
-
-        return count;
+    public static long copy(Reader reader, Writer writer) throws IOException {
+    	return reader.transferTo(writer);
     }
     
     /**
-     * {@link #transfer(InputStream, OutputStream, int)}로 데이터를 전송한 뒤,
-     * 성공 여부와 관계없이 두 스트림을 모두 닫는다. 닫는 중 발생한 예외는 무시한다.
-     *
-     * @param is	입력 스트림.
-     * @param os	출력 스트림.
-     * @param bufSize	전송 버퍼 크기(byte).
-     * @return	전송한 byte 수.
-     * @throws IOException	읽기 또는 쓰기 중 오류가 발생한 경우.
-     */
-    public static long transferAndClose(InputStream is, OutputStream os, int bufSize)
-    	throws IOException {
-		try {
-			return transfer(is, os, bufSize);
-		}
-		finally {
-			closeQuietly(is, os);
-		}
-    }
-    
-    /**
-     * 입력 스트림의 남은 내용을 모두 읽어 byte 배열로 반환한다. 스트림은 닫지 않는다.
-     *
-     * @param is	입력 스트림.
-     * @return	읽은 byte 배열.
-     * @throws IOException	읽는 중 오류가 발생한 경우.
-     */
-    public static byte[] toBytes(InputStream is) throws IOException {
-    	return is.readAllBytes();
-    }
-    
-    /**
-     * 파일의 내용을 byte 배열로 읽는다.
-     * <p>
-     * <b>주의:</b> {@link FileInputStream#read(byte[])}를 한 번만 호출하므로, 한 번에 다 읽히지 않으면
-     * 배열의 나머지 부분이 0으로 채워진 채 반환될 수 있다. 또한 파일 길이를 {@code int}로 변환하므로
-     * 2GB 이상의 파일은 지원하지 않는다.
+     * 파일의 전체 내용을 byte 배열로 읽는다. {@link Files#readAllBytes(Path)}와 같다.
      *
      * @param file	읽을 파일.
-     * @return	파일 길이만큼의 byte 배열.
+     * @return	파일의 전체 내용.
      * @throws IOException	파일을 읽는 중 오류가 발생한 경우.
+     * @throws OutOfMemoryError	파일이 배열 하나에 담을 수 없을 만큼 큰 경우(2GB 이상).
      */
-    public static byte[] toBytes(File file) throws IOException {
-    	byte[] bytes = new byte[(int)file.length()];
-    	
-    	try ( FileInputStream fis = new FileInputStream(file) ) {
-			fis.read(bytes);
-			
-	    	return bytes;
-		}
+    public static byte[] readAllBytes(File file) throws IOException {
+    	return Files.readAllBytes(file.toPath());
     }
     
     /**
-     * 파일의 전체 내용을 플랫폼 기본 charset으로 디코딩하여 문자열로 반환한다.
+     * 파일의 전체 내용을 UTF-8로 디코딩하여 문자열로 반환한다. {@link Files#readString(Path)}와 같다.
      *
      * @param file	읽을 파일.
      * @return	파일 내용 문자열.
-     * @throws IOException	파일을 읽는 중 오류가 발생한 경우.
+     * @throws IOException	파일을 읽는 중 오류가 발생했거나, 내용이 올바른 UTF-8이 아닌 경우.
      */
-    public static String toString(File file) throws IOException {
-    	return new String(Files.readAllBytes(file.toPath()));
-    }
-    
-    /**
-     * 입력 스트림의 남은 내용을 주어진 charset으로 디코딩하여 문자열로 반환한다. 스트림은 닫지 않는다.
-     *
-     * @param is	입력 스트림.
-     * @param charset	문자 인코딩.
-     * @return	읽은 문자열.
-     * @throws IOException	읽는 중 오류가 발생한 경우.
-     */
-    public static String toString(InputStream is, Charset charset) throws IOException {
-    	return CharStreams.toString(new InputStreamReader(is, charset));
-    }
-    
-    /**
-     * reader의 남은 내용을 모두 읽어 문자열로 반환한다. reader는 닫지 않는다.
-     *
-     * @param reader	입력 reader.
-     * @return	읽은 문자열.
-     * @throws IOException	읽는 중 오류가 발생한 경우.
-     */
-    public static String toString(Reader reader) throws IOException {
-    	return CharStreams.toString(reader);
+    public static String readString(File file) throws IOException {
+    	return Files.readString(file.toPath());
     }
     
     /**
@@ -238,81 +140,81 @@ public class IOUtils {
      * @return	파일 내용 문자열.
      * @throws IOException	파일을 읽는 중 오류가 발생한 경우.
      */
-    public static String toString(File file, Charset charset) throws IOException {
-    	return new String(Files.readAllBytes(file.toPath()), charset);
+    public static String readString(File file, Charset charset) throws IOException {
+    	return Files.readString(file.toPath(), charset);
     }
     
     /**
-     * 문자열을 플랫폼 기본 charset으로 파일에 기록한다. 기존 파일은 덮어쓴다.
+     * 입력 스트림의 남은 내용을 주어진 charset으로 디코딩하여 문자열로 반환한다. 스트림은 닫지 않는다.
      *
-     * @param str	기록할 문자열.
+     * @param is	입력 스트림.
+     * @param charset	문자 인코딩.
+     * @return	읽은 문자열.
+     * @throws IOException	읽는 중 오류가 발생한 경우.
+     */
+    public static String readString(InputStream is, Charset charset) throws IOException {
+    	return new String(is.readAllBytes(), charset);
+    }
+    
+    /**
+     * reader의 남은 내용을 모두 읽어 문자열로 반환한다. reader는 닫지 않는다.
+     *
+     * @param reader	입력 reader.
+     * @return	읽은 문자열.
+     * @throws IOException	읽는 중 오류가 발생한 경우.
+     */
+    public static String readString(Reader reader) throws IOException {
+    	return CharStreams.toString(reader);
+    }
+    
+    /**
+     * 문자열을 UTF-8로 파일에 기록한다. 기존 파일은 덮어쓴다. {@link Files#writeString(Path, CharSequence,
+     * java.nio.file.OpenOption...)}와 같다.
+     *
      * @param file	대상 파일.
+     * @param str	기록할 문자열.
      * @throws IOException	파일 기록 중 오류가 발생한 경우.
      */
-    public static void toFile(String str, File file) throws IOException {
-    	try ( BufferedWriter writer = new BufferedWriter(new FileWriter(file)) ) { 
-    		writer.write(str);
-    	}
+    public static void writeString(File file, String str) throws IOException {
+    	Files.writeString(file.toPath(), str);
     }
+    
     /**
      * 문자열을 주어진 charset으로 파일에 기록한다. 기존 파일은 덮어쓴다.
      *
+     * @param file	대상 파일.
      * @param str	기록할 문자열.
      * @param charset	문자 인코딩.
-     * @param file	대상 파일.
      * @throws IOException	파일 기록 중 오류가 발생한 경우.
      */
-    public static void toFile(String str, Charset charset, File file) throws IOException {
-    	try ( BufferedWriter writer = new BufferedWriter(new FileWriter(file, charset)) ) { 
-    		writer.write(str);
-    	}
+    public static void writeString(File file, String str, Charset charset) throws IOException {
+    	Files.writeString(file.toPath(), str, charset);
     }
     
     /**
      * byte 배열을 파일에 기록한다. 기존 파일은 덮어쓴다.
      *
-     * @param bytes	기록할 데이터.
      * @param file	대상 파일.
+     * @param bytes	기록할 데이터.
      * @throws IOException	파일 기록 중 오류가 발생한 경우.
      */
-    public static void toFile(byte[] bytes, File file) throws IOException {
-    	try ( FileOutputStream fos = new FileOutputStream(file); 
-    		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
-    		bos.write(bytes);
-    	}
+    public static void write(File file, byte[] bytes) throws IOException {
+    	Files.write(file.toPath(), bytes);
     }
     
     /**
      * 입력 스트림의 남은 내용을 파일에 기록한다. 기존 파일은 덮어쓴다.
-     * 입력 스트림은 닫지 않는다.
+     * 입력 스트림은 닫지 않는다. 닫는 것은 호출자의 몫이다.
      *
-     * @param is	입력 스트림.
      * @param file	대상 파일.
+     * @param is	입력 스트림.
      * @return	기록한 byte 수.
      * @throws IOException	읽기 또는 파일 기록 중 오류가 발생한 경우.
      */
-    public static long toFile(InputStream is, File file) throws IOException {
-	    try ( OutputStream out = new FileOutputStream(file) ) {
+    public static long write(File file, InputStream is) throws IOException {
+	    try ( OutputStream out = Files.newOutputStream(file.toPath()) ) {
 	        return is.transferTo(out);
 	    }
-    }
-    
-    /**
-     * 입력 스트림의 남은 내용을 주어진 버퍼 크기로 파일에 기록한다. 기존 파일은 덮어쓴다.
-     * {@link #toFile(InputStream, File)}과 달리 입력 스트림은 작업이 끝나면(실패한 경우 포함) 닫힌다.
-     *
-     * @param is	입력 스트림.
-     * @param file	대상 파일.
-     * @param bufSize	전송 버퍼 크기(byte).
-     * @return	기록한 byte 수.
-     * @throws IOException	읽기 또는 파일 기록 중 오류가 발생한 경우.
-     */
-    public static long toFile(InputStream is, File file, int bufSize) throws IOException {
-    	try ( InputStream isc = is;
-    			FileOutputStream fos = new FileOutputStream(file);
-    		BufferedOutputStream bos = new BufferedOutputStream(fos); ) {
-    		return transfer(isc, bos, bufSize);
-    	}
     }
 
 	/**
@@ -339,33 +241,28 @@ public class IOUtils {
 	 */
 	public static void readFully(InputStream is, byte[] buf, int offset, int length)
 		throws IOException {
-		while ( length > 0 ) {
-			int nbytes = is.read(buf, offset, length);
-			if ( nbytes < 0 ) {
-				throw new EOFException();
-			}
-			
-			offset += nbytes;
-			length -= nbytes;
+		int nread = is.readNBytes(buf, offset, length);
+		if ( nread < length ) {
+			throw new EOFException("expected " + length + " bytes, but read " + nread);
 		}
 	}
 
 	/**
-	 * 가능한 한 버퍼 전체를 채울 때까지 입력 스트림에서 읽는다.
-	 * 중간에 EOF에 도달하면 그때까지 읽은 만큼만 반환한다.
+	 * 버퍼가 다 찰 때까지 읽되, 중간에 EOF에 도달하면 그때까지 읽은 만큼만 반환한다.
+	 * {@link InputStream#readNBytes(byte[], int, int)}와 같지만 EOF 표시가 다르다.
 	 *
 	 * @param is	입력 스트림.
 	 * @param buf	읽은 데이터를 저장할 버퍼.
 	 * @return	읽은 byte 수. 아무것도 읽지 못한 채 EOF에 도달한 경우는 {@code -1}.
 	 * @throws IOException	읽는 중 오류가 발생한 경우.
 	 */
-	public static int readAtBest(InputStream is, byte[] buf) throws IOException {
-		return IOUtils.readAtBest(is, buf, 0, buf.length);
+	public static int readUpTo(InputStream is, byte[] buf) throws IOException {
+		return readUpTo(is, buf, 0, buf.length);
 	}
 
 	/**
-	 * 가능한 한 {@code length} byte를 읽어 버퍼의 {@code offset} 위치부터 저장한다.
-	 * 중간에 EOF에 도달하면 그때까지 읽은 만큼만 반환한다.
+	 * 최대 {@code length} byte를 읽어 버퍼의 {@code offset} 위치부터 저장한다. 중간에 EOF에 도달하면
+	 * 그때까지 읽은 만큼만 반환한다.
 	 *
 	 * @param is	입력 스트림.
 	 * @param buf	읽은 데이터를 저장할 버퍼.
@@ -375,21 +272,9 @@ public class IOUtils {
 	 * 			({@code length}가 0이면 {@code 0}).
 	 * @throws IOException	읽는 중 오류가 발생한 경우.
 	 */
-	public static int readAtBest(InputStream is, byte[] buf, int offset, int length)
-		throws IOException {
-		int remains = length;
-		while ( remains > 0 ) {
-			int nbytes = is.read(buf, offset, remains);
-			if ( nbytes == -1 ) {
-				int nread = length - remains;
-				return (nread > 0) ? nread : -1;
-			}
-			
-			offset += nbytes;
-			remains -= nbytes;
-		}
-		
-		return length;
+	public static int readUpTo(InputStream is, byte[] buf, int offset, int length) throws IOException {
+		int nread = is.readNBytes(buf, offset, length);
+		return (nread == 0 && length > 0) ? -1 : nread;
 	}
 	
 	/**
@@ -401,54 +286,58 @@ public class IOUtils {
 	 */
 	public static byte[] compress(byte[] bytes) throws IOException {
 		Deflater deflater = new Deflater();
-		deflater.setInput(bytes);
-		
-		ByteArrayOutputStream baos = null;
 		try {
-			baos = new ByteArrayOutputStream(bytes.length);
-			
+			deflater.setInput(bytes);
 			deflater.finish();
+
+			ByteArrayOutputStream baos = new ByteArrayOutputStream(bytes.length);
 			byte[] buffer = new byte[1024];
 			while ( !deflater.finished() ) {
 				int count = deflater.deflate(buffer);
 				baos.write(buffer, 0, count);
 			}
+			return baos.toByteArray();
 		}
 		finally {
-			IOUtils.closeQuietly(baos);
+			deflater.end();
 		}
-		byte[] deflateds = baos.toByteArray();
-		deflater.end();
-		
-		return deflateds;
 	}
 	
 	/**
 	 * {@link #compress(byte[])}로 압축된 데이터를 {@link Inflater}로 복원한다.
-	 * <p>
-	 * <b>주의:</b> 입력이 잘린(불완전한) 압축 데이터이면 {@link Inflater#finished()}가 {@code true}가
-	 * 되지 않아 무한 루프에 빠진다.
 	 *
 	 * @param bytes	압축된 데이터.
 	 * @return	복원된 byte 배열.
 	 * @throws IOException	선언되어 있으나 현재 구현에서는 발생하지 않는다.
-	 * @throws DataFormatException	압축 데이터의 형식이 잘못된 경우.
+	 * @throws DataFormatException	압축 데이터의 형식이 잘못되었거나, 데이터가 중간에 잘렸거나(입력이 끝났는데
+	 * 								압축 스트림이 끝나지 않음), 복원에 사전(dictionary)이 필요한 경우.
 	 */
 	public static byte[] decompress(byte[] bytes) throws IOException, DataFormatException {
 		Inflater inflater = new Inflater();
-		inflater.setInput(bytes);
-		
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(bytes.length);
-		byte[] buffer = new byte[1024];
-		while ( !inflater.finished() ) {
-			int count = inflater.inflate(buffer);
-			outputStream.write(buffer, 0, count);
+		try {
+			inflater.setInput(bytes);
+
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream(bytes.length);
+			byte[] buffer = new byte[1024];
+			while ( !inflater.finished() ) {
+				int count = inflater.inflate(buffer);
+				if ( count == 0 && !inflater.finished() ) {
+					// 출력이 없는데 끝나지도 않았다: 입력이 모자라거나 사전이 필요하다. 계속 돌면 무한 루프가 된다.
+					if ( inflater.needsDictionary() ) {
+						throw new DataFormatException("compressed data requires a preset dictionary");
+					}
+					if ( inflater.needsInput() ) {
+						throw new DataFormatException("truncated compressed data: input ended after "
+														+ outputStream.size() + " bytes of output");
+					}
+				}
+				outputStream.write(buffer, 0, count);
+			}
+			return outputStream.toByteArray();
 		}
-		outputStream.close();
-		byte[] output = outputStream.toByteArray();
-		
-		inflater.end(); 
-		return output;  
+		finally {
+			inflater.end();
+		}
 	}
 	
 	/**
@@ -522,8 +411,11 @@ public class IOUtils {
 	 * 실행 결과는 복사한 byte 수이다.
 	 * <p>
 	 * 입력 스트림은 복사가 끝나면 항상 닫히며, 출력 스트림은 {@link #closeOutputStreamOnFinished(boolean)}로
-	 * 설정한 경우에만 닫힌다. 취소 요청은 각 블록을 기록한 뒤에만 확인되므로, 입력 스트림의
-	 * {@code read}가 블록된 동안에는 취소가 즉시 반영되지 않는다.
+	 * 설정한 경우에만 닫힌다.
+	 * <p>
+	 * {@link #cancel(boolean)}은 입력 스트림을 닫아 블록된 {@code read}를 깨운다. 닫으면 대기 중인 {@code read}가
+	 * 실패하는 스트림(소켓 등)에서는 바로 반영되고, 그렇지 않은 스트림에서는 다음 블록을 읽은 뒤 반영된다.
+	 * 취소된 복사는 복사한 양과 관계없이 취소 상태로 끝난다.
 	 */
 	public static final class CopyStream extends AbstractThreadedExecution<Long>
 											implements CancellableWork {
@@ -554,20 +446,19 @@ public class IOUtils {
 		
 		/**
 		 * 복사 버퍼 크기(byte)를 설정한다. 기본값은 4KB이다.
-		 * <p>
-		 * <b>주의:</b> 값을 검사하지 않는다. 0이면 매 {@code read}가 0을 반환하여 복사가 끝나지 않고,
-		 * 음수이면 실행 시 {@link NegativeArraySizeException}이 발생한다.
 		 *
-		 * @param size	버퍼 크기(byte).
+		 * @param size	버퍼 크기(byte). 0보다 커야 한다.
 		 * @return	본 객체.
+		 * @throws IllegalArgumentException	{@code size}가 0 이하인 경우.
 		 */
 		public CopyStream bufferSize(int size) {
+			Preconditions.checkArgument(size > 0, "invalid buffer size: " + size);
 			m_bufSize = size;
 			return this;
 		}
 		
 		@Override
-		public Long executeWork() throws IOException {
+		public Long executeWork() throws IOException, CancellationException {
 	        byte[] buf = new byte[m_bufSize];
 	        
 			try ( m_from ) {
@@ -577,11 +468,20 @@ public class IOUtils {
 		            total += nbytes;
 		            
 		            if ( isCancelRequested() ) {
-		            	break;
+		            	throw new CancellationException("copy cancelled after " + total + " bytes");
 		            }
 		        }
 
 		        return total;
+			}
+			catch ( IOException e ) {
+				// cancelWork()가 입력 스트림을 닫아 생긴 실패는 취소로 본다.
+				if ( isCancelRequested() ) {
+					CancellationException ce = new CancellationException("copy cancelled");
+					ce.initCause(e);
+					throw ce;
+				}
+				throw e;
 			}
 			finally {
 				if ( m_closeOutputOnFinished ) {
@@ -590,8 +490,12 @@ public class IOUtils {
 			}
 		}
 
+		/**
+		 * 입력 스트림을 닫아 블록된 {@code read}를 깨운다. 작업 스레드는 그 실패를 보고 취소로 끝난다.
+		 */
 		@Override
 		public boolean cancelWork() {
+			IOUtils.closeQuietly(m_from);
 			return true;
 		}
 	}
