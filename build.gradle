@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'etri'
-version = '26.10.27'
+version = '26.11.17'
 
 java {
 	sourceCompatibility = JavaVersion.VERSION_17
