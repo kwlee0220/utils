@@ -269,7 +269,7 @@ public class ProgramServiceConfigTest {
 	 * 모든 필드의 JSON 라운드트립 검증.
 	 * <p>
 	 * {@link ProgramServiceConfig#getRestartDelay()}에 {@code @JsonFormat(STRING)}이 부착되어
-	 * Duration이 ISO-8601 형식으로 직렬화되고, {@code setRestartDelayString}은 {@code UnitUtils}를
+	 * Duration이 ISO-8601 형식으로 직렬화되고, {@code setRestartDelayString}은 {@code Durations}를
 	 * 통해 동일 형식을 파싱한다.
 	 */
 	@Test

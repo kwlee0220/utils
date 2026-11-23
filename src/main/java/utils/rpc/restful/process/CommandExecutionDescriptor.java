@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import utils.Preconditions;
-import utils.UnitUtils;
+import utils.Durations;
 import utils.func.Nullables;
 import utils.stream.FStream;
 
@@ -33,7 +33,7 @@ import utils.stream.FStream;
  * </ul>
  * 세 가지 시간 항목({@code timeout}/{@code startTimeout}/{@code sessionRetainTimeout})은 JSON에서
  * {@code "30s"}, {@code "5m"}와 같은 사람이 읽기 쉬운 문자열로 표기할 수 있으며, 이 경우
- * {@code setXXXAsString} 세터가 {@link UnitUtils#parseDuration(String)}으로 파싱한다.
+ * {@code setXXXAsString} 세터가 {@link Durations#parse(String)}으로 파싱한다.
  * JSON 직렬화 시 {@code null} 필드는 생략된다({@link JsonInclude}).
  *
  * @author Kang-Woo Lee (ETRI)
@@ -134,11 +134,11 @@ public final class CommandExecutionDescriptor {
 	/**
 	 * 명령 실행 제한 시간을 문자열({@code "30s"} 등)로 설정한다. (JSON 역직렬화용)
 	 *
-	 * @param timeoutStr	{@link UnitUtils#parseDuration(String)}이 파싱 가능한 제한 시간 문자열.
+	 * @param timeoutStr	{@link Durations#parse(String)}이 파싱 가능한 제한 시간 문자열.
 	 */
 	@JsonProperty("timeout")
 	public void setTimeoutAsString(String timeoutStr) {
-		m_timeout = UnitUtils.parseDuration(timeoutStr);
+		m_timeout = Nullables.map(timeoutStr, Durations::parse);
 	}
 
 	/**
@@ -160,11 +160,11 @@ public final class CommandExecutionDescriptor {
 	/**
 	 * 연산 시작 대기 제한 시간을 문자열({@code "5s"} 등)로 설정한다. (JSON 역직렬화용)
 	 *
-	 * @param timeoutStr	{@link UnitUtils#parseDuration(String)}이 파싱 가능한 제한 시간 문자열.
+	 * @param timeoutStr	{@link Durations#parse(String)}이 파싱 가능한 제한 시간 문자열.
 	 */
 	@JsonProperty("startTimeout")
 	public void setStartTimeoutAsString(String timeoutStr) {
-		m_startTimeout = UnitUtils.parseDuration(timeoutStr);
+		m_startTimeout = Nullables.map(timeoutStr, Durations::parse);
 	}
 
 	/**
@@ -186,11 +186,11 @@ public final class CommandExecutionDescriptor {
 	/**
 	 * 세션 보존 시간을 문자열({@code "30s"} 등)로 설정한다. (JSON 역직렬화용)
 	 *
-	 * @param timeoutStr	{@link UnitUtils#parseDuration(String)}이 파싱 가능한 시간 문자열.
+	 * @param timeoutStr	{@link Durations#parse(String)}이 파싱 가능한 시간 문자열.
 	 */
 	@JsonProperty("sessionRetainTimeout")
 	public void setSessionRetainTimeoutAsString(String timeoutStr) {
-		m_sessionRetainTimeout = UnitUtils.parseDuration(timeoutStr);
+		m_sessionRetainTimeout = Nullables.map(timeoutStr, Durations::parse);
 	}
 	
 	@Override

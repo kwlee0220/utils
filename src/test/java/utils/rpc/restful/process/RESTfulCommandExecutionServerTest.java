@@ -157,7 +157,7 @@ public class RESTfulCommandExecutionServerTest {
 		RpcResponseMessage started = server.start(reqMsg);
 		Assertions.assertEquals(RpcState.RUNNING, started.getState());
 
-		RpcResponseMessage resp = server.cancel(started.getSessionEndpoint());
+		RpcResponseMessage resp = server.cancel(started.getSessionEndpoint()).response();
 		Assertions.assertEquals(RpcState.CANCELLED, resp.getState());
 	}
 
@@ -166,7 +166,8 @@ public class RESTfulCommandExecutionServerTest {
 	@Test
 	public void testGetDescriptorAndHasSessions() throws Exception {
 		File descFile = writeDescriptor(
-				"{\"commandLine\":[\"/bin/sleep\",\"10\"],\"outputVariables\":[\"x\"],\"timeout\":\"30s\"}");
+				"{\"commandLine\":[\"/bin/sleep\",\"10\"],\"outputVariables\":[\"x\"],\"timeout\":\"30s\","
+				+ "\"sessionRetainTimeout\":\"300ms\"}");
 		RESTfulCommandExecutionServer server = new RESTfulCommandExecutionServer(descFile, SERDE);
 		Assertions.assertEquals(List.of("x"), server.getDescriptor().getOutputVariables());
 		Assertions.assertFalse(server.hasSessions());
@@ -174,8 +175,14 @@ public class RESTfulCommandExecutionServerTest {
 		RpcResponseMessage started = server.start(new RpcRequestMessage(Map.of()));
 		Assertions.assertTrue(server.hasSessions());
 
-		// 취소 결과를 회수하면(read-once) 세션이 제거된다.
-		server.cancel(started.getSessionEndpoint());
+		// 취소된 세션은 결과를 다시 조회할 수 있도록 보존 시간 동안 남고, 그 뒤 제거된다.
+		Assertions.assertEquals(RpcState.CANCELLED, server.cancel(started.getSessionEndpoint()).response().getState());
+		Assertions.assertTrue(server.hasSessions());
+		Assertions.assertEquals(RpcState.CANCELLED, server.status(started.getSessionEndpoint()).getState());
+		long deadline = System.currentTimeMillis() + 5000;
+		while ( server.hasSessions() && System.currentTimeMillis() < deadline ) {
+			Thread.sleep(50);
+		}
 		Assertions.assertFalse(server.hasSessions());
 	}
 

@@ -2,23 +2,14 @@ package utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.Test;
-
 
 /**
  * {@link DataUtils}의 숫자·불리언 변환을 검사한다.
@@ -49,7 +40,6 @@ public class DataUtilsTest {
 
 	@Test
 	public void existingConversionsAreUnchanged() {
-		assertEquals(0, DataUtils.asInt(null));
 		assertEquals(12, DataUtils.asInt(" 12 "));
 		assertEquals(1, DataUtils.asInt(true));
 		assertEquals(3_000_000_000L, DataUtils.asLong(3_000_000_000L));
@@ -59,7 +49,64 @@ public class DataUtilsTest {
 		assertTrue(DataUtils.asBoolean("1"));
 		assertTrue(DataUtils.asBoolean("yes"));
 		assertTrue(DataUtils.asBoolean(1L));
-		assertFalse(DataUtils.asBoolean(null));
+	}
+
+	@Test
+	public void nullRequiresDefaultValue() {
+		// 인자 하나짜리는 null을 받지 않는다.
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asInt(null));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asLong(null));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asShort(null));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asByte(null));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asFloat(null));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asDouble(null));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asBoolean(null));
+
+		// 기본값을 받는 메소드는 null이면 기본값, 아니면 같은 규칙으로 변환한다.
+		assertEquals(7, DataUtils.asInt(null, 7));
+		assertEquals(7L, DataUtils.asLong(null, 7L));
+		assertEquals((short)7, DataUtils.asShort(null, (short)7));
+		assertEquals((byte)7, DataUtils.asByte(null, (byte)7));
+		assertEquals(7f, DataUtils.asFloat(null, 7f));
+		assertEquals(7.0, DataUtils.asDouble(null, 7.0));
+		assertTrue(DataUtils.asBoolean(null, true));
+		assertEquals(12, DataUtils.asInt("12", 7));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asInt("12.5", 7));
+	}
+
+	@Test
+	public void integerConversionsCheckRange() {
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asInt(3_000_000_000L));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asByte(300.0));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asByte(128));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asShort(1e10));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asShort(new BigDecimal("1e10")));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asLong(new BigInteger("9223372036854775808")));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asLong("9223372036854775808"));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asLong(1e19));
+
+		// 경계값은 받는다.
+		assertEquals(Integer.MAX_VALUE, DataUtils.asInt((long)Integer.MAX_VALUE));
+		assertEquals(Integer.MIN_VALUE, DataUtils.asInt("-2147483648"));
+		assertEquals((byte)-128, DataUtils.asByte(-128.0));
+		assertEquals((short)32767, DataUtils.asShort("32767"));
+		assertEquals(Long.MAX_VALUE, DataUtils.asLong(Long.MAX_VALUE));
+		assertEquals(Long.MIN_VALUE, DataUtils.asLong(new BigInteger("-9223372036854775808")));
+	}
+
+	@Test
+	public void integerStringsFollowNumberRules() {
+		// 문자열도 숫자와 같은 규칙: 소수 부분이 0이면 받고, 있으면 거부한다.
+		assertEquals(1, DataUtils.asInt("1.0"));
+		assertEquals(1, DataUtils.asInt(1.0));
+		assertEquals(1000, DataUtils.asInt("1e3"));
+		assertEquals(-12, DataUtils.asInt(" -12 "));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asInt("1.5"));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asLong(" "));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asLong("abc"));
+		assertThrows(IllegalArgumentException.class, () -> DataUtils.asInt("NaN"));
+		assertEquals(1, DataUtils.asShort(true));
+		assertEquals(0, DataUtils.asByte(false));
 	}
 
 	@Test
@@ -80,8 +127,24 @@ public class DataUtilsTest {
 	public void zeroStringIsFalse() {
 		assertFalse(DataUtils.asBoolean("0"));
 		assertFalse(DataUtils.asBoolean(" 0 "));
-		assertTrue(DataUtils.asBoolean("00"));		// 정확히 "0"만 거짓
 		assertFalse(DataUtils.asBoolean("FALSE"));
+	}
+
+	@Test
+	public void booleanStringsAreStrict() {
+		for ( String str: new String[]{"true", "TRUE", "yes", "Yes", "on", "y", "1", " true "} ) {
+			assertTrue(DataUtils.asBoolean(str), str);
+		}
+		for ( String str: new String[]{"false", "no", "OFF", "n", "0", "", "  "} ) {
+			assertFalse(DataUtils.asBoolean(str), str);
+		}
+		// 목록에 없는 문자열은 오타일 수 있으므로 거부한다.
+		for ( String str: new String[]{"flase", "abc", "00", "t", "f", "2"} ) {
+			assertThrows(IllegalArgumentException.class, () -> DataUtils.asBoolean(str), str);
+		}
+		assertTrue(DataUtils.asBoolean(Double.NaN));
+		assertTrue(DataUtils.asBoolean(new BigInteger("2")));
+		assertFalse(DataUtils.asBoolean(0.0f));
 	}
 
 	@Test
@@ -94,60 +157,5 @@ public class DataUtilsTest {
 		assertThrows(IllegalArgumentException.class, () -> DataUtils.asFloat(other));
 		assertThrows(IllegalArgumentException.class, () -> DataUtils.asDouble(other));
 		assertThrows(IllegalArgumentException.class, () -> DataUtils.asBoolean(other));
-	}
-
-	@Test
-	public void asDateConvertsLocalDate() {
-		assertEquals(java.sql.Date.valueOf("2026-10-28"), DataUtils.asDate(java.time.LocalDate.of(2026, 10, 28)));
-	}
-
-	@Test
-	public void asInstantAcceptsDateTimeObjects() {
-		Instant ts = Instant.parse("2026-10-28T01:02:03.123456789Z");
-		ZoneId zone = ZoneId.systemDefault();
-
-		assertNull(DataUtils.asInstant(null));
-		assertEquals(ts, DataUtils.asInstant(ts));
-		assertEquals(ts, DataUtils.asInstant("2026-10-28T01:02:03.123456789Z"));
-		assertEquals(ts, DataUtils.asInstant(Timestamp.from(ts)));		// 나노초 유지
-		assertEquals(Instant.ofEpochMilli(ts.toEpochMilli()), DataUtils.asInstant(Date.from(ts)));
-		assertEquals(ts, DataUtils.asInstant(ts.atOffset(ZoneOffset.ofHours(9))));
-		assertEquals(ts, DataUtils.asInstant(ts.atZone(zone)));
-		assertEquals(ts, DataUtils.asInstant(LocalDateTime.ofInstant(ts, zone)));
-
-		// java.sql.Date.toInstant()는 UnsupportedOperationException을 던지지만 asInstant()는 처리한다.
-		java.sql.Date day = java.sql.Date.valueOf("2026-10-28");
-		assertEquals(Instant.ofEpochMilli(day.getTime()), DataUtils.asInstant(day));
-		assertThrows(IllegalArgumentException.class, () -> DataUtils.asInstant(new Object()));
-	}
-
-	@Test
-	public void asDatetimeAcceptsSameObjectsAsInstant() {
-		Instant ts = Instant.parse("2026-10-28T01:02:03Z");
-		LocalDateTime local = LocalDateTime.ofInstant(ts, ZoneId.systemDefault());
-
-		assertNull(DataUtils.asDatetime(null));
-		assertEquals(local, DataUtils.asDatetime(local));
-		assertEquals(local, DataUtils.asDatetime(ts));
-		assertEquals(local, DataUtils.asDatetime(ts.atOffset(ZoneOffset.UTC)));
-		assertEquals(local, DataUtils.asDatetime(ts.atZone(ZoneOffset.UTC)));
-		assertEquals(local, DataUtils.asDatetime("2026-10-28T01:02:03Z"));
-		assertEquals(local, DataUtils.asDatetime(Timestamp.from(ts)));
-		assertEquals(LocalDateTime.of(2026, 10, 28, 0, 0), DataUtils.asDatetime(java.sql.Date.valueOf("2026-10-28")));
-		assertThrows(IllegalArgumentException.class, () -> DataUtils.asDatetime(new Object()));
-	}
-
-	@Test
-	public void asDateAndAsTimeHandleNullAndCommonTypes() {
-		assertNull(DataUtils.asDate(null));
-
-		assertNull(DataUtils.asTime(null));
-		assertNull(DataUtils.asTime(" "));
-		assertEquals(LocalTime.of(13, 5, 9), DataUtils.asTime(LocalTime.of(13, 5, 9)));
-		assertEquals(LocalTime.of(13, 5, 9), DataUtils.asTime(java.sql.Time.valueOf("13:05:09")));
-		assertEquals(LocalTime.of(13, 5), DataUtils.asTime("13:05"));
-		assertEquals(LocalTime.of(13, 5, 9, 250_000_000), DataUtils.asTime("13:05:09.25"));
-		assertThrows(IllegalArgumentException.class, () -> DataUtils.asTime("13-05-09"));
-		assertThrows(IllegalArgumentException.class, () -> DataUtils.asTime(1305));
 	}
 }

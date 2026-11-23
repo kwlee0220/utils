@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import utils.UnitUtils;
+import utils.Durations;
 import utils.func.CheckedFunction;
 import utils.func.Try;
 import utils.func.Unchecked;
@@ -41,7 +41,7 @@ public class MapAsyncTest {
 		@Override
 		public String toString() {
 			return String.format("%d: sleep=%d, total=%s", m_seqNo, m_sleepMillis,
-									UnitUtils.toMillisString(m_totalElapsed));
+									Durations.formatClock(m_totalElapsed));
 		}
 	};
 	

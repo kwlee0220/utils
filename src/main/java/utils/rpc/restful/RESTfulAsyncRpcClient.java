@@ -55,6 +55,7 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	// 세션 URL과 세션 확보 전에 접수한 취소 요청. 폴러 스레드(initializePoller)와 취소하는 스레드가 함께 쓴다.
 	private final Object m_sessionLock = new Object();
 	private @Nullable String m_sessionUrl;		// m_sessionLock
+	private @Nullable String m_sessionEndpoint;	// m_sessionLock. 서버가 발급한(또는 연결한) 세션 경로.
 	private boolean m_cancelPending;			// m_sessionLock
 	private boolean m_finishedAtStart;			// m_sessionLock. 시작 응답이 곧 종료 상태였다(세션 없음).
 	// 이미 시작된 세션에 붙을 때의 세션 endpoint. 있으면 시작 POST를 보내지 않는다.
@@ -109,6 +110,7 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 			s_logger.info("attaching to rpc session: {}", m_opEndpoint);
 			boolean deliver;
 			synchronized ( m_sessionLock ) {
+				m_sessionEndpoint = m_attachedEndpoint;
 				m_sessionUrl = m_opEndpoint;
 				deliver = m_cancelPending;
 			}
@@ -126,7 +128,8 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 			case RUNNING:
 				boolean deliver;
 				synchronized ( m_sessionLock ) {
-					m_sessionUrl = concatUrl(m_baseUrl, resp.getSessionEndpoint());
+					m_sessionEndpoint = resp.getSessionEndpoint();
+					m_sessionUrl = concatUrl(m_baseUrl, m_sessionEndpoint);
 					deliver = m_cancelPending;
 				}
 				if ( deliver ) {
@@ -210,6 +213,22 @@ public class RESTfulAsyncRpcClient extends AbstractPeriodicPoller<Map<String,Jso
 	public @Nullable String getSessionUrl() {
 		synchronized ( m_sessionLock ) {
 			return m_sessionUrl;
+		}
+	}
+
+	/**
+	 * 원격 연산 세션의 엔드포인트(기본 URL 기준의 경로)를 반환한다.
+	 * <p>
+	 * 서버가 시작 응답의 {@code session_endpoint}로 돌려준 값이며, {@link Builder#setSessionEndpoint(String)}로
+	 * 기존 세션에 연결한 경우에는 그 값이다. 반환값을 다른 클라이언트의
+	 * {@link Builder#setSessionEndpoint(String)}에 넘기면 같은 세션에 연결할 수 있다.
+	 *
+	 * @return	세션 엔드포인트. 연산 시작 POST의 응답을 아직 받지 못했거나, 시작이 실패했거나,
+	 * 			시작 응답이 곧 종료 상태여서 세션이 없으면 {@code null}.
+	 */
+	public @Nullable String getSessionEndpoint() {
+		synchronized ( m_sessionLock ) {
+			return m_sessionEndpoint;
 		}
 	}
 

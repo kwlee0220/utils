@@ -361,7 +361,7 @@ if (signal instanceof JobFailed) {
 
 ### 6.1 직렬 처리와 실행 스레드
 
-`StateChart`는 하나의 `Guard`(차트 잠금, `getChartLock()`)로 시작, 신호 처리, 명시적 종료 및 취소 정리를 직렬화한다. `enter()`, `exit()`, `selectTransition()`, 전이 작업도 이 잠금을 가진 상태에서 실행된다. 시작 전 구성이나 컨텍스트에 대한 외부 코드의 직접 접근까지 이 잠금으로 보호하지는 않는다.
+`StateChart`는 하나의 `Guard`(차트 잠금, `getChartLock()`)를 잡고 시작, 신호 처리, 명시적 종료 및 취소 정리를 한 번에 하나씩 수행한다. `enter()`, `exit()`, `selectTransition()`, 전이 작업도 이 잠금을 가진 상태에서 실행된다. 시작 전 구성이나 컨텍스트에 대한 외부 코드의 직접 접근까지 이 잠금으로 보호하지는 않는다.
 
 신호는 **큐에 들어간 순서대로, 한 번에 하나씩, 한 신호의 처리가 끝난 뒤 다음 신호를 처리**한다(run-to-completion). 전용 스레드는 없다.
 

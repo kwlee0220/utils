@@ -6,7 +6,10 @@ import org.jetbrains.annotations.Nullable;
 
 
 /**
- * {@link CommandExecution}의 sub-process가 {@code 0}이 아닌 종료 코드로 끝났음을 나타내는 예외.
+ * {@link CommandExecution}의 sub-process가 성공 코드가 아닌 종료 코드로 끝났음을 나타내는 예외.
+ * <p>
+ * 성공 코드는 {@link CommandExecution.Builder#successExitCodes(int...)}로 정하며 기본값은 {@code 0}이다.
+ * 성공 코드에서 {@code 0}을 제외했다면 종료 코드 {@code 0}으로도 이 예외가 발생한다.
  * <p>
  * 종료 코드({@link #getExitCode()})와, 출력이 파일로 redirect된 경우 그 파일의 마지막 부분
  * ({@link #getOutputTail()})을 제공한다. 출력 끝부분에는 비밀값이 포함될 수 있으므로 예외 메시지에는
@@ -39,7 +42,7 @@ public class CommandFailedException extends ExecutionException {
 	/**
 	 * Sub-process의 종료 코드를 반환한다.
 	 *
-	 * @return	종료 코드 ({@code 0}이 아님).
+	 * @return	종료 코드. 성공 코드에 포함되지 않은 값이다.
 	 */
 	public int getExitCode() {
 		return m_exitCode;

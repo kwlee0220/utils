@@ -99,7 +99,7 @@ public class Size2d implements Serializable {
 	 * {@code "폭x높이"} 형식의 문자열을 파싱하여 미터 단위 크기 객체를 만든다.
 	 * <p>
 	 * 소문자 {@code 'x'}로 나눈 앞의 두 부분을 각각 앞뒤 공백을 제거한 뒤
-	 * {@link UnitUtils#parseLengthInMeter(String)}로 변환한다. 따라서 각 부분에 {@code mm}, {@code cm},
+	 * {@link Lengths#parseMeters(String)}로 변환한다. 따라서 각 부분에 {@code mm}, {@code cm},
 	 * {@code m}, {@code km} 단위 접미사를 붙일 수 있고(예: {@code "1.5m x 20cm"}), 접미사가 없으면 미터로 해석한다.
 	 * 세 번째 이후 부분은 무시한다.
 	 *
@@ -112,8 +112,8 @@ public class Size2d implements Serializable {
 	public static Size2d fromString(String str) {
 		String[] parts = str.split("x");
 		
-		double x = UnitUtils.parseLengthInMeter(parts[0].trim());
-		double y = UnitUtils.parseLengthInMeter(parts[1].trim());
+		double x = Lengths.parseMeters(parts[0].trim());
+		double y = Lengths.parseMeters(parts[1].trim());
 		return new Size2d(x, y);
 	}
 	

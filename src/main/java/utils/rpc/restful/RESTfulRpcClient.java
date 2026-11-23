@@ -18,7 +18,8 @@ import utils.Preconditions;
 import utils.func.Nullables;
 import utils.http.HttpRESTfulClient;
 import utils.http.JacksonErrorEntityDeserializer;
-import utils.http.RESTfulIOException;
+import utils.http.RESTfulException;
+import utils.http.RESTfulRemoteException;
 import utils.json.JacksonUtils;
 
 /**
@@ -54,10 +55,12 @@ public class RESTfulRpcClient {
 	 * 연산을 동기적으로 호출하고 결과 출력을 반환한다.
 	 *
 	 * @return 연산 출력. (출력 이름 → 값)
-	 * @throws IOException                HTTP 통신 또는 JSON 직렬화/역직렬화 중 오류가 발생하거나,
-	 *                                    원격 연산 실패가 {@link RESTfulIOException}으로 복원된 경우.
+	 * @throws IOException                요청 메시지를 JSON으로 직렬화하지 못한 경우.
+	 * @throws RESTfulException           HTTP 호출 자체가 실패한 경우. (통신 오류, 응답 해석 실패,
+	 *                                    HTTP 오류 응답 등. unchecked)
 	 * @throws ExecutionException         원격 연산이 {@code FAILED} 상태로 종료된 경우.
-	 *                                    (복원된 원인 예외가 cause로 설정된다)
+	 *                                    (서버의 오류 코드와 메시지를 담은 {@link RESTfulRemoteException}이
+	 *                                    cause로 설정된다)
 	 * @throws CancellationException      원격 연산이 {@code CANCELLED} 상태로 종료된 경우. (unchecked)
 	 * @throws UnexpectedRpcStateException	{@code RUNNING}이 반환된 경우(비동기 연산을 동기로 호출함). 원격 연산은
 	 *                                    이미 시작되었으며, 예외의 응답에 세션 endpoint가 있다. (unchecked)
@@ -73,13 +76,8 @@ public class RESTfulRpcClient {
 			case COMPLETED:
 				return resp.getOutputs();
 			case FAILED:
-				Throwable cause = resp.getJavaException();
-				if ( cause instanceof RESTfulIOException rioe ) {
-					throw rioe;
-				}
-				else {
-					throw new ExecutionException("operation failed: " + cause.getMessage(), cause);
-				}
+				RESTfulRemoteException cause = resp.getJavaException();
+				throw new ExecutionException("operation failed: " + cause.getMessage(), cause);
 			case CANCELLED:
 				throw new CancellationException("operation is cancelled");
 			default:

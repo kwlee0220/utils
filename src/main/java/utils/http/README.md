@@ -1,14 +1,27 @@
 # `utils.http` 사용자 가이드
 
-`utils.http`는 OkHttp를 사용해 HTTP 요청을 보내고, 응답 본문을 문자열이나 Java 객체로 받아오는 유틸리티다. 서버의 오류 응답을 예외로 바꾸는 기능도 제공한다.
+`utils.http`는 OkHttp를 사용해 HTTP 요청을 보내고, 응답 본문을 문자열이나 Java 객체로 변환해 반환하는 유틸리티다. 서버의 오류 응답을 예외로 바꾸는 기능도 제공한다.
 
 중심 클래스인 [`HttpRESTfulClient`](HttpRESTfulClient.java)는 **동기 방식**으로 동작한다. 호출한 스레드에서 응답 수신과 본문 변환을 마친 뒤 반환하므로, 호출 시간이 길어질 수 있는 곳에서는 실행 스레드와 제한 시간을 함께 고려해야 한다.
 
 이 가이드는 클라이언트 구성, 요청 작성, 응답 변환, 오류 처리 순서로 설명한다. 예제의 `Item`, `Payload` 등은 설명을 위한 업무용 타입이며, 별도로 표시한 경우를 제외하고 import와 보조 메서드는 생략했다.
 
+## 목차
+
+- [1. 기능별 API 선택](#1-기능별-api-선택)
+- [2. 빠른 시작](#2-빠른-시작)
+- [3. 클라이언트 구성](#3-클라이언트-구성)
+- [4. 요청 작성과 응답 반환](#4-요청-작성과-응답-반환)
+- [5. 응답 본문 변환](#5-응답-본문-변환)
+- [6. 오류 처리](#6-오류-처리)
+- [7. 사용 시 주의할 점과 구현 제약](#7-사용-시-주의할-점과-구현-제약)
+- [8. 테스트로 동작 확인하기](#8-테스트로-동작-확인하기)
+- [9. API 요약](#9-api-요약)
+- [10. 관련 문서](#10-관련-문서)
+
 ---
 
-## 1. 어떤 API를 사용할까
+## 1. 기능별 API 선택
 
 | 필요한 기능 | 사용할 API |
 |---|---|
@@ -22,7 +35,7 @@
 
 본문을 Java 객체로 변환하는 작업을 **역직렬화**라고 한다. 이 문서에서 응답 파서는 `ResponseBodyDeserializer<T>`, 오류 파서는 `ErrorEntityDeserializer`를 뜻한다. 두 인터페이스 모두 `HttpRESTfulClient`에 정의되어 있다.
 
-일반적인 요청 처리 흐름은 다음과 같다. 본문을 읽지 않는 응답과 오류 변환의 세부 규칙은 4장과 6장에서 설명한다.
+일반적인 요청 처리 흐름은 다음과 같다. 본문을 읽지 않는 응답과 오류 변환의 세부 규칙은 [4장](#4-요청-작성과-응답-반환)과 [6장](#6-오류-처리)에서 설명한다.
 
 ```mermaid
 flowchart TD
@@ -38,9 +51,9 @@ flowchart TD
     error --> exception["Response 닫기 · 기본 예외 또는 등록된 예외 발생"]
 ```
 
-`utils.rpc.restful`은 이 패키지 위에서 원격 작업 호출을 제공한다. 일반 HTTP 요청에는 `HttpRESTfulClient`를 사용하고, 원격 작업의 실행 상태까지 관리하려면 RPC 계층을 살펴본다.
+`utils.rpc.restful`은 이 패키지 위에서 원격 작업 호출을 제공한다. 일반 HTTP 요청에는 `HttpRESTfulClient`를 사용하고, 원격 작업의 실행 상태까지 관리하려면 RPC 계층(`utils.rpc.restful`)을 사용한다.
 
-유효한 파서를 전달한 일반 처리 경로에서는 본문 읽기나 오류 변환에 실패해도 `try`-with-resources로 응답을 닫는다. 잘못된 파서 인자로 인해 이 처리에 진입하지 못하는 경우는 7.1에서 설명한다.
+응답 파서가 올바르게 지정되어 있으면 본문 읽기나 오류 변환에 실패해도 `try`-with-resources로 응답을 닫는다. 잘못된 파서 인자로 인해 이 처리에 진입하지 못하는 경우는 [7.1절](#71-응답-파서에-null을-전달하지-않는다)에서 설명한다.
 
 ---
 
@@ -70,7 +83,7 @@ Item item = client.get(itemUrl,
 client.delete(itemUrl);
 ```
 
-`HttpRESTfulClient.newDefaultClient()`는 `builder().build()`와 같다. `delete(url)`도 응답 본문을 읽고 성공 여부를 확인한 뒤 문자열을 반환한다. 반환값을 사용하지 않는다고 응답 처리를 생략하는 것은 아니다.
+`HttpRESTfulClient.newDefaultClient()`는 `builder().build()`와 같다. `delete(url)`도 응답 본문을 읽고 성공 여부를 확인한 뒤 문자열을 반환한다. 반환값을 사용하지 않더라도 응답 본문 읽기와 상태 코드 검증은 정상적으로 수행된다.
 
 ---
 
@@ -95,7 +108,7 @@ HttpRESTfulClient client = HttpRESTfulClient.builder()
         .build();
 ```
 
-같은 빌더에서 `build()`를 여러 번 호출할 수 있다. 지정하지 않은 기본 컴포넌트는 호출할 때마다 새로 생성한다. 직접 전달한 OkHttp 클라이언트·매퍼·오류 파서는 같은 객체를 재사용하며, 헤더와 오류 코드 등록 목록은 생성 시 복사한다. 빌더를 여러 스레드에서 동시에 수정해도 된다는 의미는 아니다.
+같은 빌더에서 `build()`를 여러 번 호출할 수 있다. 직접 지정하지 않은 구성 요소는 `build()`를 호출할 때마다 기본 설정으로 새로 생성한다. 직접 전달한 OkHttp 클라이언트·매퍼·오류 파서는 같은 객체를 재사용하며, 헤더와 오류 코드 등록 목록은 생성 시 복사한다. 다만 빌더 객체 자체는 스레드 안전하지 않으므로 여러 스레드에서 동시에 수정해서는 안 된다.
 
 ### 3.2 제한 시간과 TLS 설정
 
@@ -121,7 +134,7 @@ HttpRESTfulClient client = HttpRESTfulClient.builder()
 | `newTrustAllOkHttpClient()` | 인증서와 호스트명 검증 모두 생략 |
 | `newTrustAllOkHttpClientBuilder()` | 검증을 생략하는 빌더 반환. 추가 설정 가능 |
 
-`newTrustAllOkHttpClient*`는 서버의 신원을 검증하지 않으므로 통신 상대를 위조하는 공격에 취약하다. 제한된 테스트 용도로만 사용하고, 운영 환경에서는 신뢰할 인증서를 올바르게 설정한다. 이 두 메서드는 TLS 초기화 과정에서 `NoSuchAlgorithmException`·`KeyManagementException`을 던질 수 있다.
+`newTrustAllOkHttpClient*`는 서버의 신원을 검증하지 않으므로 중간자(MITM) 공격 등 통신 상대를 위조하는 공격에 취약하다. 제한된 테스트 용도로만 사용하고, 운영 환경에서는 신뢰할 인증서를 올바르게 설정한다. 이 두 메서드는 TLS 초기화 과정에서 `NoSuchAlgorithmException`·`KeyManagementException`을 던질 수 있다.
 
 ### 3.3 기본 헤더 적용 규칙
 
@@ -179,7 +192,7 @@ client.post(url, csvBody);
 | `newJsonRequestBody(String)` / `MEDIA_TYPE_JSON` | `application/json; charset=utf-8` |
 | `newTextRequestBody(String)` / `MEDIA_TYPE_TEXT` | `text/plain; charset=utf-8` |
 
-`newJsonRequestBody()`는 전달한 문자열을 JSON 미디어 타입으로 포장한다. Java 객체를 JSON으로 직렬화하거나 문자열이 올바른 JSON인지 검증하지는 않는다. 객체 변환은 예제처럼 매퍼로 먼저 수행한다.
+`newJsonRequestBody()`는 전달한 문자열을 본문으로 사용하고, 미디어 타입을 JSON으로 지정한 `RequestBody`를 생성한다. Java 객체를 JSON으로 직렬화하거나 문자열이 올바른 JSON인지 검증하지는 않는다. 객체 변환은 예제처럼 매퍼로 먼저 수행한다.
 
 ### 4.3 응답 헤더와 본문 함께 받기
 
@@ -201,17 +214,17 @@ Item item = response._2;
 
 | 응답 | 본문 처리 | 응답 파서 호출 | 결과 |
 |---|---|---|---|
-| 성공한 HEAD 요청 | 읽지 않음 | 안 함 | `head()`는 헤더 반환. `callAndGetHeaders()`의 본문 값은 `null` |
-| 204 / 205 | 읽지 않음 | 안 함 | 본문 반환값 `null` |
-| 304가 클라이언트에 그대로 전달됨 | 읽지 않음 | 안 함 | 성공 범위인 2xx가 아니므로 오류 처리 |
+| 성공한 HEAD 요청 | 읽지 않음 | 호출하지 않음 | `head()`는 헤더 반환. `callAndGetHeaders()`의 본문 값은 `null` |
+| 204 / 205 | 읽지 않음 | 호출하지 않음 | 본문 반환값 `null` |
+| 304가 클라이언트에 그대로 전달됨 | 읽지 않음 | 호출하지 않음 | 성공 범위인 2xx가 아니므로 오류 처리 |
 | 그 밖의 2xx이며 본문이 빈 문자열 | 빈 문자열로 읽음 | 호출함 | 파서의 처리 결과에 따름 |
-| 실패한 HEAD 요청 | 읽지 않음 | 안 함 | 본문 없는 오류 응답으로 처리 |
+| 실패한 HEAD 요청 | 읽지 않음 | 호출하지 않음 | 본문 없는 오류 응답으로 처리 |
 
 204의 `null`과 200 응답의 빈 문자열은 다르게 처리된다. 예를 들어 200의 빈 본문을 객체로 변환하면 파싱 오류가 발생할 수 있다. 304도 이 클라이언트에서는 정상 반환을 뜻하지 않는다.
 
 ---
 
-## 5. 응답과 오류 본문 변환
+## 5. 응답 본문 변환
 
 ### 5.1 응답 파서 선택
 
@@ -252,42 +265,17 @@ HttpRESTfulClient.ResponseBodyDeserializer<Payload> deser = (headers, body) -> {
 };
 ```
 
-이 예제는 단순한 분기다. `application/problem+json` 같은 JSON 계열 미디어 타입도 받아야 한다면 해당 서버의 규약에 맞게 판별 조건을 확장한다.
+이 예제는 단순한 문자열 접두어(`startsWith`) 기준의 분기다. `application/problem+json` 같은 JSON 계열 미디어 타입도 받아야 한다면 해당 서버의 규약에 맞게 판별 조건을 확장한다.
 
 ### 5.2 응답 파서의 예외 처리
 
-| 파서가 던진 값 | 호출자에게 전달되는 예외 |
+| 파서에서 발생한 예외 또는 오류 | 호출자에게 전달되는 예외 |
 |---|---|
 | `RESTfulException` 하위 예외 | 같은 예외를 그대로 전달 |
 | `IOException` 또는 그 밖의 `RuntimeException` | 원인을 담은 `RESTfulIOException` |
 | `Error` | 감싸지 않고 전파 |
 
-본문을 읽고 `Response`를 닫은 뒤 파서를 호출하므로, 파서는 전달받은 문자열과 헤더를 사용한다. `deser`에는 `null`을 전달할 수 없다. 현재 검사는 요청을 보낸 뒤에 이루어지므로, `null`로 응답 변환을 생략하려 해서는 안 된다(7.1).
-
-### 5.3 오류 파서가 적용되는 범위
-
-```java
-@FunctionalInterface
-public interface ErrorEntityDeserializer {
-    RESTfulErrorEntity deserialize(String respBody) throws IOException;
-}
-```
-
-기본 구현은 [`JacksonErrorEntityDeserializer`](JacksonErrorEntityDeserializer.java)다. `RESTfulErrorEntity`는 `code`와 `message`를 읽고 그 밖의 부가 필드는 무시한다.
-
-**사용자 정의 오류 파서가 모든 실패 응답을 처리하는 것은 아니다.** 클라이언트가 JSON 형식을 먼저 판별한 뒤, `code` 또는 `message`가 `null`이 아닌 경우에만 호출한다. `messageType`이나 `status`와 `path`가 있으면 해당 형식의 처리가 우선한다.
-
-| 오류 본문 예 | 사용자 정의 `ErrorEntityDeserializer` 호출 |
-|---|---|
-| `{"code":"E1","message":"실패"}` | 호출 |
-| `{"error":{"code":"E1","detail":"실패"}}` | 안쪽 객체를 JSON 문자열로 만들어 전달 |
-| `{"errorCode":"E1","detail":"실패"}` | 호출하지 않음. 형식을 인식하지 못한 오류로 처리 |
-| `{"status":400,"path":"/items","message":"실패"}` | 호출하지 않음. Spring Boot 형식으로 처리 |
-| HTML 또는 일반 문자열 | JSON 파싱 단계에서 실패하므로 호출하지 않음 |
-
-따라서 필드명이 완전히 다른 오류 형식은 오류 파서만 바꿔서는 지원할 수 없다. 서버 응답 형식을 맞추거나 OkHttp 응답을 직접 처리해야 한다.
-
-사용자 정의 오류 파서는 유효한 엔티티를 반환하고, 파싱 실패는 `IOException`으로 알리는 방식이 적합하다. 현재 오류 처리 코드는 이 경로의 `IOException`과 `IllegalArgumentException`은 변환하지만, `null` 반환으로 인한 `NullPointerException`이나 다른 실행 시 예외까지 모두 감싸지는 않는다.
+본문을 읽고 `Response`를 닫은 뒤 파서를 호출하므로, 파서는 전달받은 문자열과 헤더를 사용한다. `deser`에는 `null`을 전달할 수 없다. 현재 검사는 요청을 보낸 뒤에 이루어지므로, `null`로 응답 변환을 생략하려 해서는 안 된다([7.1절](#71-응답-파서에-null을-전달하지-않는다)).
 
 ---
 
@@ -333,7 +321,7 @@ catch ( RESTfulIOException e ) {
 |---|---|---|
 | 비-2xx 응답을 `RESTfulException` 계열로 변환 | 실제 응답 상태 코드 | 본문에 들어 있는 `status` 필드가 아닌 HTTP 응답 코드 |
 | 연결 실패 또는 응답을 받기 전 제한 시간 초과 | `UNKNOWN_STATUS_CODE` (`-1`) | HTTP 오류 변환 단계에 도달하지 않음 |
-| 응답 본문을 읽는 중 실패 | `-1` | 응답을 받았어도 현재 구현은 코드 값을 저장하지 않음 |
+| 응답 본문을 읽는 중 실패 | `-1` | 응답을 받았더라도 본문 읽기 단계에서 실패하면 상태 코드를 저장하지 않음 |
 | 성공 응답의 본문 변환 실패 | 새로 생성한 예외는 `-1` | 메시지에는 `[200 URL]` 같은 정보가 포함될 수 있음 |
 | 등록된 예외가 `RESTfulException`을 상속하지 않음 | 조회 API 없음 | 사용자 정의 예외를 별도로 처리 |
 
@@ -349,7 +337,22 @@ catch ( RESTfulException e ) {
 }
 ```
 
-`-1`을 반드시 “서버 응답을 받지 못했다”는 뜻으로 해석해서는 안 된다. 현재 구현에서는 본문 읽기나 성공 응답 파싱 실패도 `-1`이다. 파서가 기존 `RESTfulException`을 직접 던졌다면 그 객체의 상태 코드 값도 그대로 유지된다.
+2xx가 아닌 응답을 `RESTfulException` 계열 예외로 변환할 때는 HTTP 상태 코드와 함께 원본 본문과 응답 헤더를 보관한다. `getResponseBody()`로 본문을 조회하고, `getResponseHeader(name)`으로 지정한 헤더의 첫 번째 값을 조회할 수 있다. 헤더 이름은 대소문자를 구분하지 않는다. 오류 엔티티로 변환하면서 제외된 부가 필드나 `Retry-After` 같은 헤더를 확인할 때 사용한다.
+
+```java
+try {
+    client.get(url);
+}
+catch ( RESTfulException e ) {
+    String retryAfter = e.getResponseHeader("Retry-After");
+    String rawBody = e.getResponseBody();
+    // 응답 정보에 따라 오류를 처리한다.
+}
+```
+
+통신 실패, 본문 읽기 실패, 성공 응답의 변환 실패를 처리하기 위해 클라이언트가 새로 생성한 예외에는 응답 본문과 헤더가 설정되지 않는다. 따라서 두 조회 메서드는 `null`을 반환한다. 다만 사용자 정의 파서가 기존 `RESTfulException`을 던지면 해당 객체에 저장된 정보는 그대로 유지된다. 등록된 예외가 `RESTfulException`을 상속하지 않으면 이 정보도 보관되지 않는다.
+
+`-1`을 반드시 “서버 응답을 받지 못했다”는 뜻으로 해석해서는 안 된다. 현재 구현에서는 본문 읽기나 성공 응답 파싱 실패도 `-1`을 반환한다. 파서가 기존 `RESTfulException`을 직접 던졌다면 그 객체의 상태 코드 값도 그대로 유지된다.
 
 ### 6.3 통신 오류와 본문 읽기 오류
 
@@ -371,7 +374,7 @@ catch ( RESTfulException e ) {
 
 ### 6.4 서버 오류 형식 판별
 
-비-2xx 응답은 본문을 JSON으로 읽고, `error` 필드가 객체이면 **한 겹만** 벗겨낸 뒤 아래 순서로 판별한다.
+2xx가 아닌 응답은 본문을 JSON으로 읽는다. 최상위 `error` 필드의 값이 객체이면 그 객체를 판별 대상으로 선택한다. 이 처리는 한 번만 수행하며, 중첩된 `error` 객체를 재귀적으로 탐색하지 않는다. 판별 순서는 다음과 같다.
 
 ```mermaid
 flowchart TD
@@ -390,9 +393,9 @@ flowchart TD
     entityParse --> mapping
 ```
 
-그림은 기본 분기를 보여 준다. JSON이나 객체 변환 실패는 기본 구현에서 `RESTfulIOException`으로 처리하며, 사용자 정의 오류 파서의 제약은 5.3을 따른다.
+그림은 기본 분기를 보여 준다. JSON이나 객체 변환 실패는 기본 구현에서 `RESTfulIOException`으로 처리하며, 사용자 정의 오류 파서의 제약은 [6.5절](#65-오류-파서가-적용되는-범위)에서 설명한다.
 
-| 판별 결과 | 기본 예외 | 오류 엔티티 보관 여부 |
+| 판별 결과 | 기본 예외 | 예외 메시지와 엔티티 보관 |
 |---|---|---|
 | `messageType` 있음 | `RESTfulRemoteException` | 메시지에 `code`·`text`를 담으며 `getRemoteErrorEntity()`는 `null` |
 | `status`와 `path` 있음 | `RESTfulIOException` | Spring Boot 형식을 문자열로 변환 |
@@ -403,7 +406,7 @@ flowchart TD
 
 `messageType` 분기와 `code`·`message` 분기에는 등록된 사용자 정의 예외가 우선 적용된다. 여러 형식의 필드가 섞여 있으면 표에서 먼저 나오는 형식이 선택된다.
 
-Spring Boot 형식의 `"error":"Internal Server Error"`는 문자열이므로 바깥 객체를 유지한다. `{"error":{"code":"E1","message":"실패"}}`처럼 객체일 때만 안쪽으로 들어간다. `messageType`의 기본 enum 값은 `Info`, `Warning`, `Error`, `Exception`이다. 성공 여부는 이 값이 아니라 HTTP 응답 코드로 판단한다.
+Spring Boot 형식의 `"error":"Internal Server Error"`는 문자열이므로 바깥 객체를 유지한다. `{"error":{"code":"E1","message":"실패"}}`처럼 객체일 때만 안쪽 객체를 꺼내 판별한다. `messageType`의 기본 enum 값은 `Info`, `Warning`, `Error`, `Exception`이다. 성공 여부는 이 값이 아니라 HTTP 응답 코드로 판단한다.
 
 오류 본문을 기본 `RESTfulIOException`으로 바꾸는 경로에서는 메시지 앞에 상태 코드와 URL을 붙인다.
 
@@ -413,9 +416,36 @@ Spring Boot 형식의 `"error":"Internal Server Error"`는 문자열이므로 �
 
 `RESTfulRemoteException`에는 이 접두어를 붙이지 않는다. 같은 예외 타입이어도 `{code, message}` 형식과 `TypedServerErrorMessage` 형식은 엔티티 보관 방식이 다르므로, `getRemoteErrorEntity()`를 사용할 때는 `null`을 확인한다.
 
-### 6.5 알려진 오류 코드를 사용자 정의 예외로 변환
+### 6.5 오류 파서가 적용되는 범위
 
-서버의 오류를 예외 타입으로 구분하려면 허용할 코드와 생성 함수를 빌더에 등록한다. 응답이 지정한 클래스 이름을 직접 로딩하지 않고, 등록한 함수만 호출한다.
+```java
+@FunctionalInterface
+public interface ErrorEntityDeserializer {
+    RESTfulErrorEntity deserialize(String respBody) throws IOException;
+}
+```
+
+기본 구현은 [`JacksonErrorEntityDeserializer`](JacksonErrorEntityDeserializer.java)다. `RESTfulErrorEntity`는 `code`와 `message`를 읽고 그 밖의 부가 필드는 무시한다.
+
+**사용자 정의 오류 파서가 모든 실패 응답을 처리하는 것은 아니다.** 클라이언트가 JSON 형식을 먼저 판별한 뒤, `code` 또는 `message`가 `null`이 아닌 경우에만 호출한다. `messageType`이나 `status`와 `path`가 있으면 해당 형식의 처리가 우선한다.
+
+| 오류 본문 예 | 사용자 정의 `ErrorEntityDeserializer` 호출 |
+|---|---|
+| `{"code":"E1","message":"실패"}` | 호출 |
+| `{"error":{"code":"E1","detail":"실패"}}` | 안쪽 객체를 JSON 문자열로 만들어 전달 |
+| `{"errorCode":"E1","detail":"실패"}` | 호출하지 않음. 형식을 인식하지 못한 오류로 처리 |
+| `{"status":400,"path":"/items","message":"실패"}` | 호출하지 않음. Spring Boot 형식으로 처리 |
+| HTML 또는 일반 문자열 | JSON 파싱 단계에서 실패하므로 호출하지 않음 |
+
+따라서 필드명이 완전히 다른 오류 형식은 오류 파서만 바꿔서는 지원할 수 없다. 서버 응답 형식을 맞추거나 OkHttp 응답을 직접 처리해야 한다.
+
+사용자 정의 오류 파서는 유효한 엔티티를 반환하고, 파싱 실패는 `IOException`으로 알리는 방식이 적합하다. 현재 오류 처리 코드는 이 경로에서 발생한 `IOException`과 `IllegalArgumentException`만 `RESTfulIOException`으로 변환하며, `null` 반환으로 인한 `NullPointerException`이나 그 밖의 런타임 예외는 감싸지 않고 그대로 전파한다.
+
+오류 본문의 전체 판별 순서는 앞의 [6.4절](#64-서버-오류-형식-판별)을 참고한다.
+
+### 6.6 알려진 오류 코드를 사용자 정의 예외로 변환
+
+서버의 오류를 예외 타입으로 구분하려면 허용할 코드와 생성 함수를 빌더에 등록한다. 응답의 오류 코드를 클래스 이름으로 해석하여 클래스를 로딩하지 않고, 등록한 함수만 호출한다.
 
 ```java
 HttpRESTfulClient client = HttpRESTfulClient.builder()
@@ -437,13 +467,13 @@ catch ( RESTfulException e ) {
 예제의 예외는 메시지 문자열을 받는 생성자가 있는 `RuntimeException` 하위 타입이라고 가정한다.
 
 - 등록한 코드는 `{code, message}`와 `{messageType, code, text}` 두 형식에 적용된다. Spring Boot 형식에는 적용되지 않는다.
-- 생성 함수는 `message` 또는 `text`를 받으며, 값이 없으면 `null`을 받을 수 있다.
-- 미등록 코드, 생성 함수의 `null` 반환, 생성 함수가 던진 `RuntimeException`은 기본 `RESTfulRemoteException` 처리로 돌아간다. `Error`까지 잡는 것은 아니다.
+- 생성 함수는 `message` 또는 `text`를 받으며, 값이 없으면 `null`이 전달된다.
+- 미등록 코드, 생성 함수의 `null` 반환, 생성 함수가 던진 `RuntimeException`의 경우에는 기본 `RESTfulRemoteException`을 생성한다. 생성 함수에서 발생한 `Error`는 그대로 전파한다.
 - 등록한 예외가 `RESTfulException`을 상속하면 응답 상태 코드가 설정된다. 다른 예외라면 `catch (RESTfulException)`으로 잡히지 않으며 상태 코드도 자동으로 보관하지 않는다.
 
-따라서 오류 변환 함수가 “항상 `RESTfulException`을 반환한다”거나 “어떤 경우에도 예외를 직접 던지지 않는다”고 가정해서는 안 된다. 등록된 예외의 타입과 사용자 정의 오류 파서에서 발생할 수 있는 예외를 함께 고려해야 한다.
+따라서 클라이언트의 오류 변환 결과가 항상 `RESTfulException` 계열인 것은 아니다. 등록된 생성 함수는 다른 `RuntimeException` 하위 타입을 반환할 수 있고, 사용자 정의 오류 파서에서 발생한 일부 예외는 그대로 전파될 수 있다([6.5절](#65-오류-파서가-적용되는-범위)).
 
-### 6.6 `RESTfulErrorEntity`의 변환 메서드
+### 6.7 `RESTfulErrorEntity`의 변환 메서드
 
 `code`에는 오류 식별자 또는 패키지명을 포함한 예외 클래스 이름이 들어갈 수 있다.
 
@@ -456,9 +486,9 @@ catch ( RESTfulException e ) {
 
 `toClientException()`을 직접 사용하려면 대상 클래스가 `RuntimeException`의 하위 타입이어야 한다. 메시지가 있으면 `(String)` 생성자, 없으면 인자 없는 생성자가 필요하다. 복원에 성공하면 예외 객체를 반환하고, 클래스나 생성자를 찾지 못하는 등 복원에 실패하면 예외를 던진다.
 
-원격 응답의 클래스 이름을 실제로 로딩하므로 신뢰할 수 있는 응답에만 사용한다. 알려진 코드만 예외로 구분하려는 목적이라면 6.5의 등록 방식으로 처리할 수 있다.
+원격 응답의 클래스 이름을 실제로 로딩하므로 신뢰할 수 있는 응답에만 사용한다. 알려진 코드만 예외로 구분하려는 목적이라면 [6.6절](#66-알려진-오류-코드를-사용자-정의-예외로-변환)의 등록 방식으로 처리할 수 있다.
 
-### 6.7 서버에서 오류 본문 만들기
+### 6.8 서버 측 오류 본문 생성
 
 ```java
 RESTfulErrorEntity.of(exception);          // code: 예외 클래스 이름, message: 예외 메시지
@@ -477,13 +507,13 @@ new TypedServerErrorMessage("E1001", "재고 부족");
 
 ### 7.1 응답 파서에 `null`을 전달하지 않는다
 
-현재 `deser`의 유효성 검사는 HTTP 요청을 전송하고 응답을 받은 뒤, 응답을 닫는 처리에 들어가기 전에 수행된다. `null`을 넘기면 `IllegalArgumentException`이 발생하며 이 경로에서는 응답 닫기가 보장되지 않는다. 잘못된 인자를 전달해도 요청은 이미 서버에 도착했을 수 있다.
+현재 `deser`의 유효성 검사는 HTTP 요청을 전송하고 응답을 받은 뒤, 응답을 닫는 처리에 들어가기 전에 수행된다. `null`을 넘기면 `IllegalArgumentException`이 발생하며 이 경로에서는 `Response`가 닫히지 않아 자원이 누수될 수 있다. 잘못된 인자를 전달해도 요청은 이미 서버에 도착했을 수 있다.
 
-결과가 필요 없으면 문자열 반환 메서드를 호출하고 반환값을 무시하거나, 유효한 파서를 전달한다. 이 항목은 현재 구현의 제약이며 Java 소스가 수정되면 함께 갱신해야 한다.
+결과가 필요 없으면 문자열 반환 메서드를 호출하고 반환값을 무시하거나, 유효한 파서를 전달한다.
 
 ### 7.2 본문은 메모리로 전부 읽는다
 
-HEAD·204·205·304를 제외하면 `ResponseBody.string()`으로 본문 전체를 읽는다. 파서에서 결과를 버리더라도 이 읽기 과정은 이미 수행된 뒤다. 대용량 다운로드는 OkHttp의 응답 스트림을 직접 사용하고, `Response`를 사용 후 닫는다.
+HEAD·204·205·304를 제외하면 `ResponseBody.string()`으로 본문 전체를 읽는다. 파서가 본문을 사용하지 않더라도 이 읽기 과정은 이미 수행된 뒤다. 대용량 다운로드는 OkHttp의 응답 스트림을 직접 사용하고, `Response`를 사용 후 닫는다.
 
 ```java
 Request request = new Request.Builder()
@@ -505,7 +535,7 @@ try ( Response response = client.getHttpClient().newCall(request).execute() ) {
 
 ### 7.3 오류 타입만으로 재시도 여부를 정하지 않는다
 
-`RESTfulIOException`에는 연결 실패뿐 아니라 Spring Boot 오류 응답과 JSON 변환 실패도 포함된다. 상태 코드, 원인 예외, 요청의 재실행 가능 여부를 확인해야 한다. 단순히 이 예외를 잡았다는 이유로 같은 요청을 다시 보내는 정책은 적합하지 않다.
+`RESTfulIOException`에는 연결 실패뿐 아니라 Spring Boot 오류 응답과 JSON 변환 실패도 포함된다. 상태 코드, 원인 예외, 요청의 재실행 가능 여부를 확인해야 한다. 단순히 `RESTfulIOException`이 발생했다는 이유만으로 요청을 무조건 재시도하는 것은 위험하다.
 
 ### 7.4 응답 로그에 본문이 포함된다
 
@@ -569,7 +599,7 @@ gradle test --tests 'utils.http.*'
 | [`RESTfulErrorEntity`](RESTfulErrorEntity.java) | `code`·`message` 오류 형식 |
 | [`SpringBootErrorResponse`](SpringBootErrorResponse.java) | `status`·`error`·`message`·`path` 등의 오류 형식 |
 | [`TypedServerErrorMessage`](TypedServerErrorMessage.java) | `messageType`·`code`·`text`·`timestamp` 오류 형식 |
-| [`RESTfulException`](RESTfulException.java) | 기본 HTTP 예외의 공통 부모. HTTP 상태 코드 조회 제공 |
+| [`RESTfulException`](RESTfulException.java) | 기본 HTTP 예외의 공통 부모. HTTP 상태 코드와 오류 응답의 본문·헤더 조회 제공 |
 | [`RESTfulRemoteException`](RESTfulRemoteException.java) | 구조화된 서버 오류. 형식에 따라 오류 엔티티 보관 |
 | [`RESTfulIOException`](RESTfulIOException.java) | 통신·본문 읽기·파싱 실패와 일부 서버 오류 |
 

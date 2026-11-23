@@ -116,6 +116,7 @@ public class RESTfulAsyncRpcClientTest {
 		Assertions.assertEquals(outputs, result.getUnchecked());
 		Assertions.assertEquals(1, m_server.getRequestCount(), "no polling");
 		Assertions.assertNull(client.getSessionUrl());
+		Assertions.assertNull(client.getSessionEndpoint());
 		Assertions.assertFalse(client.cancelWork(), "nothing to cancel");
 	}
 
@@ -139,6 +140,7 @@ public class RESTfulAsyncRpcClientTest {
 		RecordedRequest req = m_server.takeRequest();
 		Assertions.assertEquals("GET", req.getMethod());
 		Assertions.assertEquals("/sessions/9", req.getPath());
+		Assertions.assertEquals("/sessions/9", client.getSessionEndpoint());
 	}
 
 	@Test
@@ -245,12 +247,14 @@ public class RESTfulAsyncRpcClientTest {
 		client.start();
 		Assertions.assertEquals("POST", m_server.takeRequest(5, TimeUnit.SECONDS).getMethod());
 		Assertions.assertNull(client.getSessionUrl());
+		Assertions.assertNull(client.getSessionEndpoint());
 
 		Assertions.assertTrue(client.cancelWork());
 
 		Assertions.assertTrue(client.waitForFinished(5, TimeUnit.SECONDS).isCancelled());
 		Assertions.assertTrue(deleted.get());
 		Assertions.assertEquals(m_baseUrl + "/sessions/1", client.getSessionUrl());
+		Assertions.assertEquals("/sessions/1", client.getSessionEndpoint());
 	}
 
 	@Test

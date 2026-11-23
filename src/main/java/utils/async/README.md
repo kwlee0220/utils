@@ -2,7 +2,7 @@
 
 `utils.async`는 [`Execution<T>`](Execution.java) 인터페이스(Java `Future<T>`의 확장)를 중심으로 비동기 작업의 상태 관리, 리스너, 취소와 제한 시간 처리를 제공한다. 이 문서는 1장에서 패키지 전체를 짧게 소개하고, 2장부터는 시간이 오래 걸리는 작업을 실행하거나 일정한 간격으로 작업을 반복하는 스레드 기반 클래스의 사용법을 자세히 설명한다.
 
-처음 읽는다면 1장의 개요, 2장의 선택 기준, 3장의 실행·결과 처리 방법을 확인한 뒤 필요한 클래스의 장으로 이동하면 된다. 지속적으로 실행할 서비스를 만들 때는 9장부터 읽어도 된다. 10장에는 혼동하기 쉬운 동작, 11장에는 API를 정리했다.
+처음 읽는다면 1장의 개요, 2장의 선택 기준, 3장의 실행·결과 처리 방법을 확인한 뒤 필요한 클래스를 설명하는 장을 읽으면 된다. 지속적으로 실행할 서비스를 만들 때는 9장부터 읽어도 된다. 10장에는 혼동하기 쉬운 동작, 11장에는 API를 정리했다.
 
 ---
 
@@ -18,7 +18,7 @@
 - 성공 결과를 변환하는 `map(...)`
 - 제한 시간 설정 `setTimeout(long, TimeUnit)` (10.1)
 
-상태는 다음과 같이 바뀐다. 모든 전이 경로는 3.1의 그림에 정리했다.
+상태는 다음과 같이 바뀐다. 주요 상태 전이 경로는 3.1의 그림에 정리했다.
 
 ```
 NOT_STARTED → STARTING → RUNNING → COMPLETED
@@ -27,7 +27,7 @@ NOT_STARTED → STARTING → RUNNING → COMPLETED
                                  ↘ CANCELLING → CANCELLED (또는 COMPLETED, FAILED)
 ```
 
-상태 전이는 모두 내부 잠금(`EventDrivenExecution`의 `m_aopGuard`)으로 직렬화된다. `notify*` 메서드가 상태를 바꾸면 `signalAll()`로 신호를 보내므로, `waitForStarted()`·`waitForFinished()`로 기다리던 스레드가 깨어난다.
+상태 전이는 모두 내부 잠금(`EventDrivenExecution`의 `m_aopGuard`)을 잡고 한 번에 하나씩 수행된다. `notify*` 메서드가 상태를 바꾸면 `signalAll()`로 신호를 보내므로, `waitForStarted()`·`waitForFinished()`로 기다리던 스레드가 깨어난다.
 
 대부분의 구현은 상태 전이 메서드(`notifyStarting()`, `notifyStarted()`, `notifyCompleted()`, `notifyFailed()`, `notifyCancelling()`, `notifyCancelled()`)를 제공하는 [`EventDrivenExecution`](EventDrivenExecution.java)을 상속한다. 이를 기반으로 스레드에서 작업을 수행하는 클래스(2장 이후), `CompletableFuture`를 감싸는 [`CompletableFutureAsyncExecution`](CompletableFutureAsyncExecution.java), Guava `ListenableFuture`를 감싸는 [`ListenableFutureAsyncExecution`](ListenableFutureAsyncExecution.java)이 제공된다.
 
@@ -42,15 +42,15 @@ NOT_STARTED → STARTING → RUNNING → COMPLETED
 
 - 이미 해당 시점이 지난 뒤에 등록하면 리스너가 바로 실행된다. 같은 리스너 인스턴스를 여러 번 등록해도 한 번만 호출된다.
 - `RUNNING`에 도달하지 못하고 끝난 실행(시작 전 취소, 초기화 실패 등)에서는 `whenStarted` 리스너가 호출되지 않는다.
-- `Async`가 붙지 않은 리스너는 실행의 잠금을 보유한 채 실행되므로 짧게 끝내고, 같은 실행의 다른 메서드를 호출하지 않는다. 오래 걸리거나 블로킹되는 처리는 `whenStartedAsync`/`whenFinishedAsync`를 쓴다.
+- `Async`가 붙지 않은 리스너는 실행 객체의 내부 잠금을 보유한 상태에서 호출되므로 처리가 빨리 끝나도록 작성하고, 같은 실행 객체의 다른 메서드는 호출하지 않는다. 오래 걸리거나 블로킹되는 처리는 `whenStartedAsync`/`whenFinishedAsync`를 쓴다.
 
 사용 예는 3.3에 있다.
 
 ### 1.3 취소와 제한 시간
 
-취소는 작업이 중단 요청을 확인하고 스스로 끝나는 협력적 방식이다. `cancel(true)`는 실행 중인 작업을 `CANCELLING`으로 바꾸고, 작업이 이를 확인해 종료해야 `CANCELLED`가 된다. 블로킹 호출을 깨워야 하면 [`CancellableWork`](CancellableWork.java)를 구현한다. 자세한 규칙은 3.5와 10.2에 있다.
+취소는 작업이 중단 요청을 확인하고 스스로 종료하는 협력적 방식이다. `cancel(true)`는 실행 중인 작업을 `CANCELLING`으로 바꾸고, 작업이 이를 확인해 종료해야 `CANCELLED`가 된다. 블로킹 호출을 깨워야 하면 [`CancellableWork`](CancellableWork.java)를 구현한다. 자세한 규칙은 3.5와 10.2에 있다.
 
-제한 시간은 두 종류다. 모든 `Execution`의 `setTimeout(long, TimeUnit)`은 만료 시 취소를 요청하고, `PeriodicLoopExecution` 이하의 `setTimeout(Duration)`은 만료 시 `TimeoutException`으로 실패시킨다(6.2, 10.1).
+제한 시간 설정 방식은 두 가지다. 모든 `Execution`의 `setTimeout(long, TimeUnit)`은 만료 시 취소를 요청하고, `PeriodicLoopExecution`과 그 하위 클래스의 `setTimeout(Duration)`은 만료 시 `TimeoutException`으로 실패시킨다(6.2, 10.1).
 
 ### 1.4 조합 연산자 — `utils.async.op`
 
@@ -59,20 +59,20 @@ NOT_STARTED → STARTING → RUNNING → COMPLETED
 ```java
 import utils.async.op.AsyncExecutions;
 
-// 순차 실행: 결과 타입은 Object이며 값은 마지막 element의 결과.
-// 중간 element가 실패·취소되면 즉시 FAILED·CANCELLED가 되고 뒤의 element는 시작하지 않는다.
+// 순차 실행: 결과 타입은 Object이며 값은 마지막 구성 실행(element)의 결과.
+// 중간 구성 실행이 실패·취소되면 즉시 FAILED·CANCELLED가 되고 뒤의 구성 실행은 시작하지 않는다.
 SequentialAsyncExecution seq = AsyncExecutions.sequential(execA, execB, execC);
 
-// 동시 실행: 결과 값은 항상 null. 개별 결과가 필요하면 element를 직접 참조한다.
+// 동시 실행: 결과값은 항상 null. 개별 결과가 필요하면 구성 실행을 직접 참조한다.
 ConcurrentAsyncExecution par = AsyncExecutions.concurrent(execA, execB);
 
-// 시간 제한: target이 RUNNING이 된 뒤 5초 안에 끝나지 않으면 target을 취소한다.
+// 시간 제한: 대상 실행(target)이 RUNNING이 된 뒤 5초 안에 끝나지 않으면 대상 실행을 취소한다.
 TimedAsyncExecution<T> timed = AsyncExecutions.timed(exec, Duration.ofSeconds(5));
 ```
 
-- `concurrent`는 모든 element가 끝나거나(성공·실패·취소 무관), `setElementCompletionCountToComplete(n)`으로 지정한 수만큼 성공하면 `COMPLETED`가 된다. element의 실패·취소는 합성 실행을 실패시키지 않는다. 완료 조건에 도달하면 아직 실행 중인 element는 취소한다.
-- `timed`는 시간이 만료되면 target을 취소하고, 합성 실행도 `CANCELLED`로 끝난다(`FAILED`가 아니다). 시간 만료로 취소됐는지는 `isTimedoutCancelled()`로 구분한다.
-- `sequential`/`concurrent`는 element의 개별 결과를 노출하지 않는다.
+- `concurrent`는 모든 구성 실행이 끝나거나(성공·실패·취소와 관계없이), `setElementCompletionCountToComplete(n)`으로 지정한 수만큼 성공하면 `COMPLETED`가 된다. 구성 실행의 실패·취소는 합성 실행을 실패시키지 않는다. 완료 조건에 도달하면 아직 실행 중인 구성 실행은 취소한다.
+- `timed`는 시간이 만료되면 대상 실행을 취소하고, 합성 실행도 `CANCELLED`로 끝난다(`FAILED`가 아니다). 시간 만료로 취소됐는지는 `isTimedoutCancelled()`로 구분한다.
+- `sequential`/`concurrent`는 구성 실행의 개별 결과를 노출하지 않는다.
 - 이 밖에 `delay`, `backgrounded`, `fold`, `flatMap` 등이 있다. `Execution`에는 `flatMap` 메서드가 없으므로, 앞선 실행의 결과로 다음 실행을 이어 붙일 때는 `AsyncExecutions.flatMap(leader, chain)`을 쓴다.
 
 각 클래스의 계약과 상태 전이 규칙은 Javadoc을 참고한다.
@@ -94,7 +94,7 @@ TimedAsyncExecution<T> timed = AsyncExecutions.timed(exec, Duration.ofSeconds(5)
 - **Execution 계열**은 작업을 끝낸 뒤 결과를 받으려 할 때 사용한다. 다운로드처럼 한 번에 끝나는 작업뿐 아니라, 여러 페이지를 수집하거나 서버가 준비될 때까지 조회하는 작업도 포함한다. `Future`를 확장한 [`Execution`](Execution.java)으로 진행 상태와 결과를 확인한다.
 - **Service 계열**은 통계 수집이나 상태 보고처럼 중지 요청이 올 때까지 계속 수행할 작업에 사용한다. 결과값을 반환하지 않으며, Guava `Service`의 `startAsync()`와 `stopAsync()`로 시작과 중지를 요청한다.
 
-본문에서는 하위 클래스가 재정의하여 동작을 추가하는 메서드를 **확장 메서드(hook)**라고 부른다. 반복문에서 작업을 한 번 수행하는 것을 **반복 단계(iteration)**, 목표 상태가 되었는지 주기적으로 조회하는 것을 **폴링(polling)**이라고 부른다.
+본문에서는 하위 클래스가 재정의하여 동작을 추가하는 메서드를 **확장 메서드(hook)** 라고 부른다. 반복문에서 작업을 한 번 수행하는 것을 **반복 단계(iteration)**, 목표 상태가 되었는지 주기적으로 조회하는 것을 **폴링(polling)** 이라고 부른다.
 
 다루는 클래스는 다음과 같다.
 
@@ -121,7 +121,7 @@ Guava AbstractExecutionThreadService   startUp → run → shutDown, startAsync/
      └─ PeriodicLoopService            ★ 주기 작업 서비스 (빌더 또는 상속)
 ```
 
-아래로 갈수록 특정 용도에 필요한 기능이 더해진다. 예를 들어 `AbstractLoopExecution`은 반복을 담당하고, `PeriodicLoopExecution`은 여기에 주기와 제한 시간을 추가한다. 일부 상위 메서드는 `final`로 재정의되어 있으므로, 각 클래스에서 제공하는 확장 메서드를 구현해야 한다.
+아래로 갈수록 특정 용도에 필요한 기능이 더해진다. 예를 들어 `AbstractLoopExecution`은 반복을 담당하고, `PeriodicLoopExecution`은 여기에 주기와 제한 시간을 추가한다. 일부 상위 메서드는 `final`로 선언되어 재정의할 수 없으므로, 각 클래스에서 제공하는 확장 메서드를 구현해야 한다.
 
 ### 2.2 무엇을 써야 하나
 
@@ -133,7 +133,7 @@ Guava AbstractExecutionThreadService   startUp → run → shutDown, startAsync/
 | 목표 상태가 될 때까지 주기적으로 조회 (재사용할 클래스로) | `AbstractPeriodicPoller` | `tryPoll()` (필요하면 다른 확장 메서드도 재정의) |
 | 별도 클래스를 만들지 않고 목표 상태까지 주기적으로 조회 | `PeriodicPoller` | 조회 람다와 빌더 설정 |
 | 중지할 때까지 일정 주기로 작업을 계속 수행 (통계 수집, 상태 보고 등) | `PeriodicLoopService` | 람다 하나 (또는 `performPeriodicAction(long)`) |
-| 중지할 때까지 작업별 반복 흐름을 직접 구현 (큐 소비 등) | `AbstractLoopService` | `run()`, `triggerShutdown()` |
+| 중지할 때까지 작업에 맞는 반복 흐름을 직접 구현 (큐 소비 등) | `AbstractLoopService` | `run()`, `triggerShutdown()` |
 
 3~8장은 Execution 계열, 9장은 Service 계열을 설명한다. 두 계열의 시작·종료 API는 9.1에서 비교한다.
 
@@ -175,7 +175,7 @@ stateDiagram-v2
 | `start()` | 새 스레드(기본은 데몬) 또는 `setExecutor(...)`로 지정한 실행기 | 작업을 시작하거나 실행기에 제출한 뒤 반환한다. 결과는 별도로 기다린다. |
 | `run()` | 호출한 스레드 | 작업을 마칠 때까지 기다린 뒤 결과를 반환하거나 예외를 던진다. |
 
-둘 중 하나만, 한 번만 호출할 수 있다. 두 번째 호출은 `IllegalStateException`이다.
+둘 중 하나만, 한 번만 호출할 수 있다. 두 번째로 호출하면 `IllegalStateException`이 발생한다.
 
 `Executor`를 지정하면 실제 실행 방식은 그 실행기를 따른다. 예를 들어 호출 스레드에서 작업을 바로 수행하는 실행기를 지정하면 `start()`도 작업이 끝나기 전에는 반환하지 않는다.
 
@@ -196,7 +196,7 @@ Result value = new MyExecution(...).run();
 ### 3.3 결과 받기
 
 ```java
-exec.get();                         // 완료 값 반환. 실패 → ExecutionException, 취소 → CancellationException
+exec.get();                         // 결과값 반환. 실패 → ExecutionException, 취소 → CancellationException
 exec.get(10, TimeUnit.SECONDS);     // 제한 시간 내 대기
 AsyncResult<T> r = exec.waitForFinished();   // 작업의 성공·실패·취소를 결과 객체로 받기
 if ( r.isCompleted() ) { use(r.getUnchecked()); }
@@ -205,8 +205,8 @@ else if ( r.isCancelled() ) { handleCancellation(); }
 
 exec.whenStarted(() -> log("started"));                       // 리스너 방식
 exec.whenFinished(result -> result.ifSuccessful(this::use)
-                                  .ifFailed(this::report)
-                                  .ifCancelled(this::handleCancellation)); // 취소
+    .ifFailed(this::report)
+    .ifCancelled(this::handleCancellation)); // 취소
 ```
 
 리스너의 실행 스레드와 잠금에 관한 주의 사항은 1.2를 참고한다.
@@ -222,17 +222,17 @@ exec.whenFinished(result -> result.ifSuccessful(this::use)
 
 `get(10, TimeUnit.SECONDS)`의 10초는 **호출자가 기다리는 시간**이다. 대기가 만료되어도 작업 자체가 취소되지는 않는다. 작업의 제한 시간을 설정하는 방법은 6.2와 10.1에서 설명한다.
 
-### 3.4 예외가 상태로 바뀌는 규칙
+### 3.4 예외에 따라 실행 상태가 정해지는 규칙
 
 작업 본문이나 초기화 메서드가 던진 예외는 다음과 같이 처리한다. 이미 외부에서 종료 상태가 확정된 경우에는 3.6의 규칙을 따른다. 정리 메서드의 예외 처리 방식은 각 클래스의 설명을 참고한다.
 
 | 던진 예외 | 최종 상태 | `run()`이 던지는 예외 |
 |---|---|---|
 | `InterruptedException`, `CancellationException` | `CANCELLED` | 그 예외 그대로 |
-| 그 밖의 `Exception` | `FAILED` (원인은 감싼 예외를 푼 원래 예외) | `ExecutionException` (cause = 원인) |
+| 그 밖의 `Exception` | `FAILED` (원인은 감싼 예외를 벗겨 낸 원래 예외) | `ExecutionException` (cause = 원인) |
 | `Error` | 상태 전이 없음 | 그대로 전파 |
 
-`ExecutionException` 등으로 감싸서 던져도 실패 원인을 기록할 때 풀리므로, `getFailureCause()`에는 원래 예외가 남는다.
+`ExecutionException` 등으로 감싸서 던져도 실패 원인을 기록할 때 감싼 예외를 벗겨 내므로, `getFailureCause()`에는 원래 예외가 남는다.
 
 ### 3.5 취소
 
@@ -243,34 +243,34 @@ AsyncResult<T> outcome = exec.waitForFinished(); // 실제 종료 상태는 별�
 
 취소는 **작업이 중단 요청을 확인하고 스스로 종료하는 방식**으로 동작한다. 이를 협력적 취소라고 한다. 기본 구현의 `cancel(true)`는 작업 스레드를 인터럽트하지 않는다. `true`를 반환해도 실제 취소가 끝났다는 뜻은 아니다.
 
-실행 중인 작업의 취소 요청은 일반적으로 `CANCELLING`으로 상태를 바꾼 뒤 반환한다. 다만 초기화 중이거나 이미 취소를 처리 중이면 상태가 바뀌기를 일정 시간 기다릴 수 있고, `CancellableWork`를 구현했다면 `cancelWork()`가 반환할 때까지 기다린다. 따라서 모든 경우에 즉시 반환하는 메서드는 아니다.
+실행 중인 작업에 `cancel(true)`를 호출하면 일반적으로 상태를 `CANCELLING`으로 바꾼 뒤 반환한다. 다만 초기화 중이거나 이미 취소를 처리 중이면 상태가 바뀌기를 일정 시간 기다릴 수 있고, `CancellableWork`를 구현했다면 `cancelWork()`가 반환할 때까지 기다린다. 따라서 모든 경우에 즉시 반환하는 메서드는 아니다.
 
 - 작업 본문에서 주기적으로 `isCancelRequested()`를 검사하거나 `checkCancelled()`를 호출한다.
-- 블로킹 호출(소켓 읽기, 하위 작업 대기 등)을 깨워야 하면 클래스가 [`CancellableWork`](CancellableWork.java)를 구현한다. `cancel()`이 `CANCELLING` 전이 직후 `cancelWork()`를 호출하므로, 거기서 소켓을 닫거나 하위 작업을 취소한다. `cancelWork()`는 `cancel()`을 호출한 스레드에서 실행되므로 중단 신호만 보내고 바로 반환해야 한다.
+- 블로킹된 호출(소켓 읽기, 하위 작업 대기 등)을 깨워야 하면 실행 클래스에서 [`CancellableWork`](CancellableWork.java)를 구현한다. `cancel()`이 `CANCELLING` 전이 직후 `cancelWork()`를 호출하므로, 거기서 소켓을 닫거나 하위 작업을 취소한다. `cancelWork()`는 `cancel()`을 호출한 스레드에서 실행되므로 중단 신호만 보내고 바로 반환해야 한다.
 - `cancel(false)`는 아직 시작하지 않았거나 `CancellableWork`인 경우에만 효과가 있다.
 - `cancelWork()`가 예외를 던지면 그 예외를 원인으로 `FAILED` 전이를 시도한다. 이미 종료 상태가 확정됐다면 기존 결과를 유지한다.
 
-작업 스레드를 인터럽트해서 블로킹을 깨우려면 `cancelWork()`에서 직접 인터럽트한다. 인터럽트로 발생한 `InterruptedException`은 3.4의 규칙에 따라 `CANCELLED`가 된다. 블로킹 대상을 닫는 방식의 예는 4.2에 있다.
+작업 스레드를 인터럽트해서 블로킹된 호출을 깨우려면 `cancelWork()`에서 직접 인터럽트한다. 인터럽트로 `InterruptedException`이 발생하면 3.4의 규칙에 따라 실행은 `CANCELLED`로 끝난다. 블로킹 대상을 닫는 방식의 예는 4.2에 있다.
 
 ```java
 class InterruptibleTask extends AbstractThreadedExecution<Void> implements CancellableWork {
-	private volatile Thread m_worker;
+    private volatile Thread m_worker;
 
-	@Override
-	protected Void executeWork() throws Exception {
-		m_worker = Thread.currentThread();
-		Thread.sleep(60_000);                   // 인터럽트되면 InterruptedException → CANCELLED
-		return null;
-	}
+    @Override
+    protected Void executeWork() throws Exception {
+        m_worker = Thread.currentThread();
+        Thread.sleep(60_000);                   // 인터럽트되면 InterruptedException → CANCELLED
+        return null;
+    }
 
-	@Override
-	public boolean cancelWork() {
-		Thread t = m_worker;
-		if ( t != null ) {
-			t.interrupt();
-		}
-		return true;
-	}
+    @Override
+    public boolean cancelWork() {
+        Thread t = m_worker;
+        if ( t != null ) {
+            t.interrupt();
+        }
+        return true;
+    }
 }
 ```
 
@@ -282,7 +282,7 @@ class InterruptibleTask extends AbstractThreadedExecution<Void> implements Cance
 - `run()`도 이미 확정된 결과를 따른다. 완료된 경우에는 결과값을 반환하고, 실패한 경우에는 그 원인을 담은 `ExecutionException`을 던진다. 단, `Error`는 상태 변경 없이 그대로 전파한다.
 - 반복 실행 계열은 다음 반복 단계를 시작하기 전에 멈춘다(5장).
 
-외부 통지는 상태를 확정할 뿐, 실행 중인 메서드를 강제로 멈추지는 않는다. 따라서 외부 종료가 있는 경우에는 `waitForFinished()`가 반환된 뒤에도 진행 중이던 작업과 정리가 잠시 계속될 수 있다.
+외부 통지는 상태를 확정할 뿐, 실행 중인 메서드를 강제로 멈추지는 않는다. 따라서 외부에서 종료를 통지한 경우에는 `waitForFinished()`가 반환된 뒤에도 진행 중이던 작업과 정리가 잠시 계속될 수 있다.
 
 ---
 
@@ -295,59 +295,59 @@ class InterruptibleTask extends AbstractThreadedExecution<Void> implements Cance
 | `executeWork()` | ✔ | `RUNNING`에서 1회 | 반환값이 결과가 된다. |
 | `initializeThread()` |  | `STARTING`에서 1회, 작업 스레드에서 | 예외를 던지면 `executeWork()`는 호출되지 않는다. |
 | `abortAfterInitialize()` |  | 초기화는 성공했지만 그 사이 외부에서 종료되어 `RUNNING`이 되지 못한 경우 | 초기화에서 확보한 자원을 정리한다. |
-| `finalizeThread()` |  | `executeWork()`를 수행한 뒤, 일반적으로 종료 상태가 확정된 후 1회 | `Error`로 작업이 끝나도 호출되지만, 이 경우 종료 상태는 확정되지 않을 수 있다. 일반 예외는 로그만 남는다. |
-| `onResultDiscarded(T)` |  | `executeWork()`가 결과를 반환했지만 외부 종료 때문에 `COMPLETED`가 되지 못한 경우 1회 | 결과가 소유한 자원을 정리한다. 예외는 로그만 남는다. |
+| `finalizeThread()` |  | `executeWork()`를 수행한 뒤, 일반적으로 종료 상태가 확정된 후 1회 | `Error`로 작업이 끝나도 호출되지만, 이 경우 종료 상태는 확정되지 않을 수 있다. 일반 예외가 발생하면 로그만 남긴다. |
+| `onResultDiscarded(T)` |  | `executeWork()`가 결과를 반환했지만 외부 종료 때문에 `COMPLETED`가 되지 못한 경우 1회 | 결과가 소유한 자원을 정리한다. 예외가 발생하면 로그만 남긴다. |
 
-> 일반적인 완료·실패·취소 경로에서는 `finalizeThread()`가 종료 상태로 전이한 뒤에 호출되므로, `waitForFinished()`로 기다리던 쪽이 `finalizeThread()`보다 먼저 깨어날 수 있다. 정리 완료를 기다려야 하는 자원은 다른 동기화 수단을 쓴다.
+> 일반적인 완료·실패·취소 경로에서는 실행이 종료 상태로 전이된 뒤에 `finalizeThread()`가 호출되므로, `waitForFinished()`로 기다리던 쪽은 `finalizeThread()`가 끝나기 전에 깨어날 수 있다. 자원 정리가 끝날 때까지 기다려야 한다면 별도의 동기화 수단을 사용한다.
 
 ### 4.2 예제 — 다운로드
 
 ```java
 public class DownloadExecution extends AbstractThreadedExecution<Path> implements CancellableWork {
-	private final URI m_uri;
-	private final Path m_target;
-	private volatile InputStream m_input;
+    private final URI m_uri;
+    private final Path m_target;
+    private volatile InputStream m_input;
 
-	public DownloadExecution(URI uri, Path target) {
-		m_uri = uri;
-		m_target = target;
-		setThreadNamePrefix("download");
-	}
+    public DownloadExecution(URI uri, Path target) {
+        m_uri = uri;
+        m_target = target;
+        setThreadNamePrefix("download");
+    }
 
-	@Override
-	protected void initializeThread() throws Exception {
-		m_input = m_uri.toURL().openStream();       // 실패하면 FAILED, executeWork()는 호출되지 않음
-	}
+    @Override
+    protected void initializeThread() throws Exception {
+        m_input = m_uri.toURL().openStream();       // 실패하면 FAILED, executeWork()는 호출되지 않음
+    }
 
-	@Override
-	protected void abortAfterInitialize() {
-		IOUtils.closeQuietly(m_input);              // 초기화 직후 외부 종료로 시작하지 못한 경우
-	}
+    @Override
+    protected void abortAfterInitialize() {
+        IOUtils.closeQuietly(m_input);              // 초기화 직후 외부 종료로 시작하지 못한 경우
+    }
 
-	@Override
-	protected Path executeWork() throws Exception {
-		try {
-			Files.copy(m_input, m_target, StandardCopyOption.REPLACE_EXISTING);
-			return m_target;
-		}
-		catch ( IOException e ) {
-			if ( isCancelRequested() ) {
-				throw new CancellationException("download cancelled");
-			}
-			throw e;
-		}
-	}
+    @Override
+    protected Path executeWork() throws Exception {
+        try {
+            Files.copy(m_input, m_target, StandardCopyOption.REPLACE_EXISTING);
+            return m_target;
+        }
+        catch ( IOException e ) {
+            if ( isCancelRequested() ) {
+                throw new CancellationException("download cancelled");
+            }
+            throw e;
+        }
+    }
 
-	@Override
-	public boolean cancelWork() {
-		IOUtils.closeQuietly(m_input);              // 블로킹 중인 read()를 깨운다
-		return true;
-	}
+    @Override
+    public boolean cancelWork() {
+        IOUtils.closeQuietly(m_input);              // 블로킹 중인 read()를 깨운다
+        return true;
+    }
 
-	@Override
-	protected void finalizeThread() {
-		IOUtils.closeQuietly(m_input);
-	}
+    @Override
+    protected void finalizeThread() {
+        IOUtils.closeQuietly(m_input);
+    }
 }
 ```
 
@@ -359,7 +359,7 @@ dl.start();
 dl.cancel(true);                  // cancelWork()가 스트림을 닫아 read()를 깨운다
 ```
 
-이 예제는 취소 중 스트림이 닫혀 발생한 `IOException`을 취소로 처리한다. 모든 스트림 구현에서 `close()`가 대기 중인 읽기를 즉시 끝내는 것은 아니므로, 실제 통신 클라이언트의 읽기 제한 시간도 설정해야 한다. 또한 취소 전에 일부 기록된 파일을 지우는 처리는 별도로 구현해야 한다.
+이 예제는 취소 중 스트림이 닫혀 발생한 `IOException`을 취소로 처리한다. 모든 스트림 구현에서 `close()`가 대기 중인 읽기를 즉시 끝내는 것은 아니므로, 실제 통신 클라이언트의 읽기 제한 시간도 설정해야 한다. 또한 취소로 인해 일부만 기록된 파일을 삭제하는 처리는 별도로 구현해야 한다.
 
 ### 4.3 기타 설정
 
@@ -379,41 +379,41 @@ dl.cancel(true);                  // cancelWork()가 스트림을 닫아 read()�
 
 | 확장 메서드 | 필수 | 설명 |
 |---|---|---|
-| `initializeLoop()` | ✔ | 반복 실행 시작 전 1회. 예외를 던지면 `finalizeLoop()`도 호출되지 않으므로 부분 초기화의 정리는 직접 한다. |
+| `initializeLoop()` | ✔ | 반복 실행 시작 전 1회. 예외를 던지면 `finalizeLoop()`도 호출되지 않으므로 초기화 도중 확보한 자원은 직접 정리해야 한다. |
 | `iterate(long loopIndex)` | ✔ | 한 번의 반복 단계. `FOption.of(값)`을 반환하면 그 값으로 반복 실행이 끝나고, `FOption.empty()`면 다음 반복 단계로 넘어간다. `null`을 반환하면 `IllegalStateException`으로 `FAILED`. |
-| `finalizeLoop()` | ✔ | `initializeLoop()`가 성공했다면 종료 사유와 무관하게 1회. 예외는 로그만 남는다. 기존 인터럽트 상태를 지운 채 호출하고, 호출 후 복원한다. |
+| `finalizeLoop()` | ✔ | `initializeLoop()`가 성공했다면 종료 사유와 무관하게 1회. 예외가 발생하면 로그만 남긴다. 기존 인터럽트 상태를 지운 채 호출하고, 호출 후 복원한다. |
 
-`finalizeLoop()` 안에서는 `getLoopOutcome()`으로 반복 실행이 어떻게 끝났는지(완료 값, 실패 원인, 취소, 또는 외부에서 확정된 결과)를 알 수 있다. 일반적인 종료 경로에서는 아직 최종 상태가 확정되지 않아 `poll()`로 결과를 얻을 수 없다. 외부에서 이미 종료를 통지했다면 `poll()`에도 그 결과가 나타난다.
+`finalizeLoop()` 안에서는 `getLoopOutcome()`으로 반복 실행이 어떻게 끝났는지(결과값, 실패 원인, 취소, 또는 외부에서 확정된 결과)를 알 수 있다. 일반적인 종료 경로에서는 아직 최종 상태가 확정되지 않아 `poll()`로 결과를 얻을 수 없다. 외부에서 이미 종료를 통지했다면 `poll()`에도 그 결과가 나타난다.
 
 ### 5.2 반복 실행이 끝나는 조건
 
 다음 반복 단계를 시작하기 직전에 검사한다.
 
 1. 취소 요청(`CANCELLING`)이 있거나 스레드가 인터럽트되었으면 취소 예외를 던져 반복을 끝낸다. 이미 확정된 결과가 없다면 최종 상태는 `CANCELLED`가 된다.
-2. 외부에서 이미 종료가 확정되었으면 → 확정된 상태를 유지한 채 종료(`finalizeLoop()`는 호출된다).
+2. 외부에서 이미 종료가 확정되었으면 확정된 상태를 유지한 채 반복을 끝낸다(`finalizeLoop()`는 호출된다).
 
-따라서 반복 단계 하나가 오래 걸리면 그만큼 종료가 늦어진다. 긴 반복 단계 안에서는 `isCancelRequested()`를 직접 확인하거나, 작업을 잘게 나누거나, `CancellableWork`로 블로킹을 깨운다.
+따라서 반복 단계 하나가 오래 걸리면 그만큼 종료가 늦어진다. 긴 반복 단계 안에서는 `isCancelRequested()`를 직접 확인하거나, 작업을 잘게 나누거나, `CancellableWork`로 블로킹된 호출을 깨운다.
 
 ```java
 class CountDown extends AbstractLoopExecution<Long> {
-	private int m_count;
+    private int m_count;
 
-	@Override
-	protected void initializeLoop() {
-		m_count = 10;
-	}
+    @Override
+    protected void initializeLoop() {
+        m_count = 10;
+    }
 
-	@Override
-	protected FOption<Long> iterate(long loopIndex) throws InterruptedException {
-		if ( isCancelRequested() ) {
-			throw new CancellationException();      // 반복 단계 안에서 직접 확인하는 협력적 취소
-		}
-		Thread.sleep(100);                          // 대기 중 인터럽트되면 InterruptedException → CANCELLED
-		return (--m_count <= 0) ? FOption.of(loopIndex) : FOption.empty();
-	}
+    @Override
+    protected FOption<Long> iterate(long loopIndex) throws InterruptedException {
+        if ( isCancelRequested() ) {
+            throw new CancellationException();      // 반복 단계 안에서 직접 확인하는 협력적 취소
+        }
+        Thread.sleep(100);                          // 대기 중 인터럽트되면 InterruptedException → CANCELLED
+        return (--m_count <= 0) ? FOption.of(loopIndex) : FOption.empty();
+    }
 
-	@Override
-	protected void finalizeLoop() { }
+    @Override
+    protected void finalizeLoop() { }
 }
 ```
 
@@ -423,34 +423,34 @@ class CountDown extends AbstractLoopExecution<Long> {
 
 ```java
 public class PageCollector extends AbstractLoopExecution<List<Item>> {
-	private final ApiClient m_client;
-	private final List<Item> m_items = new ArrayList<>();
-	private Cursor m_cursor;
+    private final ApiClient m_client;
+    private final List<Item> m_items = new ArrayList<>();
+    private Cursor m_cursor;
 
-	public PageCollector(ApiClient client) {
-		m_client = client;
-	}
+    public PageCollector(ApiClient client) {
+        m_client = client;
+    }
 
-	@Override
-	protected void initializeLoop() throws Exception {
-		m_cursor = m_client.openCursor();
-	}
+    @Override
+    protected void initializeLoop() throws Exception {
+        m_cursor = m_client.openCursor();
+    }
 
-	@Override
-	protected FOption<List<Item>> iterate(long loopIndex) throws InterruptedException, ExecutionException {
-		Page page = m_client.next(m_cursor);         // 한 페이지를 읽은 뒤 다음 단계에서 취소 여부 확인
-		m_items.addAll(page.items());
-		return page.isLast() ? FOption.of(m_items) : FOption.empty();
-	}
+    @Override
+    protected FOption<List<Item>> iterate(long loopIndex) throws InterruptedException, ExecutionException {
+        Page page = m_client.next(m_cursor);         // 한 페이지를 읽은 뒤 다음 단계에서 취소 여부 확인
+        m_items.addAll(page.items());
+        return page.isLast() ? FOption.of(m_items) : FOption.empty();
+    }
 
-	@Override
-	protected void finalizeLoop() {
-		m_cursor.close();
-		AsyncResult<List<Item>> outcome = getLoopOutcome();
-		if ( outcome.isFailed() ) {
-			getLogger().warn("collection failed after {} items", m_items.size(), outcome.getFailureCause());
-		}
-	}
+    @Override
+    protected void finalizeLoop() {
+        m_cursor.close();
+        AsyncResult<List<Item>> outcome = getLoopOutcome();
+        if ( outcome.isFailed() ) {
+            getLogger().warn("collection failed after {} items", m_items.size(), outcome.getFailureCause());
+        }
+    }
 }
 ```
 
@@ -473,7 +473,7 @@ public class PageCollector extends AbstractLoopExecution<List<Item>> {
 
 ```java
 protected MySampler() {
-	super(Duration.ofMillis(100), IntervalMode.FIXED_RATE);
+    super(Duration.ofMillis(100), IntervalMode.FIXED_RATE);
 }
 ```
 
@@ -495,60 +495,60 @@ FIXED_DELAY  [작업 0~60]  [대기 60~160]  [작업 160~220]  [대기 220~320] 
 
 ### 6.2 제한 시간 — `setTimeout`과 `setDue`
 
-두 메서드는 제한 시간을 계산하는 기준이 다르다. 반복 경계에서 시간 만료를 감지하면 `TimeoutException`으로 `FAILED`가 된다.
+두 메서드는 제한 시간을 계산하는 기준이 다르다. 각 반복 단계를 시작하기 직전에 제한 시간을 검사하여, 만료되었으면 `TimeoutException`으로 `FAILED`가 된다.
 
 | 메서드 | 기준 | 시작이 늦어지면 |
 |---|---|---|
 | `setTimeout(Duration)` | 반복 실행이 **실제로 시작된 시점**부터의 기간 | 영향 없음 — 지정한 기간 전체를 쓴다 |
-| `setDue(Instant)` | 시스템 시계 기준의 **절대 시각** | 그만큼 쓸 수 있는 시간이 준다. 시작 시점에 이미 지났으면 첫 반복 단계 전에 실패 |
+| `setDue(Instant)` | 시스템 시계 기준의 **절대 시각** | 그만큼 쓸 수 있는 시간이 줄어든다. 시작 시점에 이미 지났으면 첫 반복 단계 전에 실패 |
 
 - 둘 다 설정하면 `setDue`가 우선한다. `TimeoutException` 메시지에는 실제로 적용된 쪽(`due=` 또는 `timeout=`)이 표시된다.
 - 둘 다 시작 전에만 설정할 수 있다.
 - 시간 측정은 `PeriodicLoopExecution.initializeLoop()`에서 시작한다. 따라서 그 뒤에 수행하는 폴러 초기화 시간도 제한 시간에 포함되지만, 실행기에 제출된 뒤 작업 시작을 기다린 시간은 `setTimeout(Duration)`에 포함되지 않는다.
 - 제한 시간은 진행 중인 작업을 **강제로 중단하지 않는다.** 작업 시작 직전과, 작업이 `FOption.empty()`를 반환하여 반복을 계속하려는 시점에 검사한다. 이미 시작한 작업이 결과값을 반환하면 제한 시간이 지났더라도 그 결과로 완료될 수 있다.
-- 원격 호출처럼 오래 걸릴 수 있는 작업에는 `getRemainingTime()`으로 남은 시간을 얻어 개별 요청의 제한 시간으로 전달한다. 이 값이 없으면 전체 제한 시간이 설정되지 않은 것이고, `Duration.ZERO`이면 이미 만료된 것이다.
+- 원격 호출처럼 오래 걸릴 수 있는 작업에는 `getRemainingTime()`으로 남은 시간을 얻어 개별 요청의 제한 시간으로 전달한다. `getRemainingTime()`이 빈 `FOption`을 돌려주면 전체 제한 시간이 설정되지 않은 것이고, `Duration.ZERO`이면 이미 만료된 것이다.
 
 ```java
 @Override
 protected FOption<Status> performPeriodicAction(long loopIndex)
-	throws InterruptedException, TimeoutException, ExecutionException {
-	Duration remains = getRemainingTime().getOrElse(Duration.ofSeconds(30));
-	if ( remains.isZero() ) {
-		throw new TimeoutException("status query deadline reached");
-	}
-	Status status = m_client.fetchStatus(remains);       // 요청 제한 시간에 남은 시간을 전달
-	return status.isReady() ? FOption.of(status) : FOption.empty();
+    throws InterruptedException, TimeoutException, ExecutionException {
+    Duration remains = getRemainingTime().getOrElse(Duration.ofSeconds(30));
+    if ( remains.isZero() ) {
+        throw new TimeoutException("status query deadline reached");
+    }
+    Status status = m_client.fetchStatus(remains);       // 요청 제한 시간에 남은 시간을 전달
+    return status.isReady() ? FOption.of(status) : FOption.empty();
 }
 ```
 
-`performPeriodicAction()`이 선언한 검사 예외(checked exception)는 `InterruptedException`, `TimeoutException`, `ExecutionException`이다. 그 밖의 검사 예외는 `ExecutionException`으로 감싸서 전달한다. `CancellationException`과 다른 실행 시 예외는 별도 선언 없이 던질 수 있다. `AbstractPeriodicPoller`의 확장 메서드는 `throws Exception`을 허용하므로 검사 예외를 직접 던질 수 있다(7.1).
+`performPeriodicAction()`이 선언한 검사 예외(checked exception)는 `InterruptedException`, `TimeoutException`, `ExecutionException`이다. 그 밖의 검사 예외는 `ExecutionException`으로 감싸서 전달한다. `CancellationException`을 비롯한 비검사 예외(`RuntimeException` 계열)는 별도 선언 없이 던질 수 있다. `AbstractPeriodicPoller`의 확장 메서드는 `throws Exception`을 허용하므로 검사 예외를 직접 던질 수 있다(7.1).
 
 > 주기 계산과 시간 만료 여부 판단에는 시스템 시계 대신 단조 시계(`System.nanoTime()`)를 사용한다. NTP 동기화 등으로 시스템 시계가 앞뒤로 바뀌어도 반복 단계가 몰리거나, 대기가 길어지거나, 제한 시간이 조기에 만료되지 않는다. `getDue()`가 돌려주는 시각은 참고용이다.
 
 ### 6.3 확장 메서드 재정의 규칙
 
-`initializeLoop()`/`finalizeLoop()`을 재정의하면 **반드시 `super`를 호출**한다. 특히 `super.initializeLoop()`는 시작 시점과 마감을 계산하므로 빠뜨리면 주기·제한 시간이 동작하지 않는다.
+`initializeLoop()`/`finalizeLoop()`을 재정의하면 **반드시 `super`를 호출**한다. 특히 `super.initializeLoop()`는 시작 시점과 마감 시각을 계산하므로, 이 호출을 빠뜨리면 주기 조절과 제한 시간 처리가 정상적으로 동작하지 않는다.
 
 ### 6.4 예제 — 일정 시간 동안 샘플 수집
 
 ```java
 public class SampleCollector extends PeriodicLoopExecution<List<Double>> {
-	private final Sensor m_sensor;
-	private final int m_count;
-	private final List<Double> m_samples = new ArrayList<>();
+    private final Sensor m_sensor;
+    private final int m_count;
+    private final List<Double> m_samples = new ArrayList<>();
 
-	public SampleCollector(Sensor sensor, int count) {
-		super(Duration.ofMillis(100), IntervalMode.FIXED_RATE);   // 100ms 박자 유지
-		m_sensor = sensor;
-		m_count = count;
-		setTimeout(Duration.ofSeconds(5));
-	}
+    public SampleCollector(Sensor sensor, int count) {
+        super(Duration.ofMillis(100), IntervalMode.FIXED_RATE);   // 100ms 주기 유지
+        m_sensor = sensor;
+        m_count = count;
+        setTimeout(Duration.ofSeconds(5));
+    }
 
-	@Override
-	protected FOption<List<Double>> performPeriodicAction(long loopIndex) {
-		m_samples.add(m_sensor.read());
-		return m_samples.size() >= m_count ? FOption.of(m_samples) : FOption.empty();
-	}
+    @Override
+    protected FOption<List<Double>> performPeriodicAction(long loopIndex) {
+        m_samples.add(m_sensor.read());
+        return m_samples.size() >= m_count ? FOption.of(m_samples) : FOption.empty();
+    }
 }
 ```
 
@@ -556,7 +556,7 @@ public class SampleCollector extends PeriodicLoopExecution<List<Double>> {
 
 ## 7. `AbstractPeriodicPoller` — 목표 상태가 될 때까지 조회
 
-목표 상태가 될 때까지 주기적으로 조회하는 작업에 필요한 확장 메서드를 제공한다. 이 클래스는 상위 메서드인 `initializeLoop()`, `finalizeLoop()`, `performPeriodicAction()`을 `final`로 재정의한다. 하위 클래스에서는 다음 메서드를 구현한다.
+목표 상태가 될 때까지 주기적으로 조회하는 작업에 필요한 확장 메서드를 제공한다. 이 클래스는 상위 메서드인 `initializeLoop()`, `finalizeLoop()`, `performPeriodicAction()`을 재정의하고 `final`로 선언하므로 하위 클래스에서는 재정의할 수 없다. 대신 다음 메서드를 구현한다.
 
 ### 7.1 확장 메서드와 호출 흐름
 
@@ -588,19 +588,19 @@ flowchart TD
     clean --> done["결과 확정 · 완료 / 실패 / 취소"]
 ```
 
-그림의 취소·시간 검사는 반복 경계에서 이루어진다. 진행 중인 조회가 결과를 반환하면 기존 완료 정책을 따른다(5.4, 6.2).
+그림의 취소·시간 검사는 다음 반복 단계를 시작하기 직전에 이루어진다. 진행 중인 조회가 결과를 반환하면 기존 완료 정책을 따른다(5.4, 6.2).
 
 - `tryPoll()`과 `onTargetReached()`는 `IOException` 같은 검사 예외를 감싸지 않고 직접 던져도 된다. 실패 결과에는 원래 예외가 기록된다.
-- 결과 반영이 실패하면 작업도 실패해야 하는 처리(예: 연산 결과를 내부 상태에 반영)는 `cleanupPoller()`가 아니라 **`onTargetReached()`**에서 한다. `cleanupPoller()`의 예외는 결과에 영향을 주지 않는다.
-- 목표 상태 값이 `null`이어도 된다(`FOption.of(null)`). `cleanupPoller()`에는 완료로 전달되어 비정상 종료와 구분된다.
+- 결과 반영 중 오류가 발생하면 작업도 실패로 끝나야 하는 경우(예: 연산 결과를 내부 상태에 반영), 결과 반영 로직은 `cleanupPoller()`가 아니라 **`onTargetReached()`**에 구현한다. `cleanupPoller()`의 예외는 결과에 영향을 주지 않는다.
+- 목표 상태 값이 `null`이어도 된다(`FOption.of(null)`). 이 경우에도 `cleanupPoller()`에는 완료를 나타내는 `AsyncResult`(값은 `null`)가 전달되므로 비정상 종료와 구분할 수 있다.
 - 현재 시도 번호는 `getPollAttempt()`로 얻는다(0부터. 첫 조회 전에는 `-1`).
 
 ### 7.2 생성자와 주기
 
 ```java
 protected MyPoller() {
-	super(Duration.ofSeconds(1));                              // FIXED_DELAY (기본)
-	// super(Duration.ofSeconds(1), IntervalMode.FIXED_RATE);  // 필요할 때만
+    super(Duration.ofSeconds(1));                              // FIXED_DELAY (기본)
+    // super(Duration.ofSeconds(1), IntervalMode.FIXED_RATE);  // 필요할 때만
 }
 ```
 
@@ -608,14 +608,14 @@ protected MyPoller() {
 
 ### 7.3 자원을 반환하는 폴러 — `onTargetDiscarded`
 
-`tryPoll()`이 연결 객체처럼 자원을 소유한 값을 반환하면, 그 값이 최종 결과로 전달되지 못하는 경우 **아무도 닫지 않게 된다.** 다음 경우에 `onTargetDiscarded()`가 호출되므로 거기서 닫는다.
+`tryPoll()`이 연결 객체처럼 해제가 필요한 자원을 가진 값을 반환하면, 그 값이 최종 결과로 전달되지 못하는 경우 **자원이 닫히지 않고 남는다.** 다음 경우에 `onTargetDiscarded()`가 호출되므로 거기서 닫는다.
 
 - `tryPoll()`이 값을 반환했지만 그 사이 외부에서 실행이 종료되어 `onTargetReached()`가 호출되지 않은 경우
 - `onTargetReached()`가 예외를 던진 경우
 - `onTargetReached()` 수행 도중 외부에서 종료되어 최종 결과로 사용되지 않은 경우
 - 반환할 결과를 정한 뒤, 정리 도중이나 완료 상태로 전이하기 전에 외부에서 종료된 경우
 
-전달하지 못한 결과를 중복해서 폐기하지 않도록 처리한다. 다만 **항상 `cleanupPoller()`보다 먼저 호출되는 것은 아니다.** 정리 도중이나 정리 후에 외부 종료가 확정되어 완료 전이가 실패하면 `cleanupPoller()`가 끝난 뒤에 결과를 폐기한다.
+프레임워크는 전달하지 못한 값마다 `onTargetDiscarded()`를 한 번만 호출한다. 다만 **항상 `cleanupPoller()`보다 먼저 호출되는 것은 아니다.** 정리 도중이나 정리 후에 외부 종료가 확정되어 완료 전이가 실패하면 `cleanupPoller()`가 끝난 뒤에 결과를 폐기한다.
 
 반대로 `tryPoll()` 내부에서 연결에 실패하여 `empty()`를 반환하거나 예외를 던지는 경우에는 프레임워크가 생성된 자원을 알 수 없다. 이때의 정리는 `tryPoll()` 안에서 직접 해야 한다.
 
@@ -625,48 +625,48 @@ protected MyPoller() {
 
 ```java
 public class WebSocketReconnector extends AbstractPeriodicPoller<WebSocketClient> {
-	private final Supplier<WebSocketClient> m_clientFactory;
+    private final Supplier<WebSocketClient> m_clientFactory;
 
-	public WebSocketReconnector(Supplier<WebSocketClient> factory, Duration retryDelay) {
-		super(retryDelay);                                   // FIXED_DELAY: 연결 시도가 길어져도 연달아 재시도하지 않음
-		m_clientFactory = factory;
-	}
+    public WebSocketReconnector(Supplier<WebSocketClient> factory, Duration retryDelay) {
+        super(retryDelay);                                   // FIXED_DELAY: 연결 시도가 길어져도 연달아 재시도하지 않음
+        m_clientFactory = factory;
+    }
 
-	@Override
-	protected FOption<WebSocketClient> tryPoll() throws Exception {
-		Duration remaining = getRemainingTime().getOrElse(Duration.ofSeconds(5));
-		if ( remaining.isZero() ) {
-			throw new TimeoutException("reconnection deadline reached");
-		}
-		// 밀리초 변환으로 0이 되지 않게 하고, 한 번의 연결 시도는 최대 5초로 제한한다.
-		long timeoutMillis = Math.max(1L, Math.min(remaining.toMillis(), 5_000L));
-		WebSocketClient client = m_clientFactory.get();
-		boolean connected = false;
-		try {
-			connected = client.connectBlocking(timeoutMillis, TimeUnit.MILLISECONDS);
-			if ( connected ) {
-				return FOption.of(client);
-			}
-			return FOption.empty();
-		}
-		finally {
-			if ( !connected ) {
-				client.close();  // 연결 실패나 인터럽트로 끝난 시도의 자원을 정리
-			}
-		}
-	}
+    @Override
+    protected FOption<WebSocketClient> tryPoll() throws Exception {
+        Duration remaining = getRemainingTime().getOrElse(Duration.ofSeconds(5));
+        if ( remaining.isZero() ) {
+            throw new TimeoutException("reconnection deadline reached");
+        }
+        // 밀리초 변환으로 0이 되지 않게 하고, 한 번의 연결 시도는 최대 5초로 제한한다.
+        long timeoutMillis = Math.max(1L, Math.min(remaining.toMillis(), 5_000L));
+        WebSocketClient client = m_clientFactory.get();
+        boolean connected = false;
+        try {
+            connected = client.connectBlocking(timeoutMillis, TimeUnit.MILLISECONDS);
+            if ( connected ) {
+                return FOption.of(client);
+            }
+            return FOption.empty();
+        }
+        finally {
+            if ( !connected ) {
+                client.close();  // 연결 실패나 인터럽트로 끝난 시도의 자원을 정리
+            }
+        }
+    }
 
-	@Override
-	protected void onTargetDiscarded(WebSocketClient client) {
-		client.close();                                      // 연결됐지만 결과로 전달되지 못한 클라이언트
-	}
+    @Override
+    protected void onTargetDiscarded(WebSocketClient client) {
+        client.close();                                      // 연결됐지만 결과로 전달되지 못한 클라이언트
+    }
 
-	@Override
-	protected void cleanupPoller(AsyncResult<WebSocketClient> outcome) {
-		if ( !outcome.isCompleted() ) {
-			getLogger().warn("reconnection gave up: {}", outcome);
-		}
-	}
+    @Override
+    protected void cleanupPoller(AsyncResult<WebSocketClient> outcome) {
+        if ( !outcome.isCompleted() ) {
+            getLogger().warn("reconnection gave up: {}", outcome);
+        }
+    }
 }
 ```
 
@@ -707,8 +707,8 @@ WebSocketClient client = reconnector.run();
 
 | 메서드 | 의미 | 기본값 |
 |---|---|---|
-| `fixedDelay(Duration)` | 조회가 끝난 시점부터 대기 (`FIXED_DELAY`) | **`fixedDelay(1초)`** |
-| `fixedRate(Duration)` | 시작 시점을 기준으로 한 고정 주기 (`FIXED_RATE`, 밀리면 연달아) | |
+| `fixedDelay(Duration)` | 조회가 끝난 시점부터 대기 (`FIXED_DELAY`) | **1초 (`FIXED_DELAY`)** |
+| `fixedRate(Duration)` | 시작 시점을 기준으로 한 고정 주기 (`FIXED_RATE`, 지연되면 대기 없이 연속 실행) | |
 | `timeout(Duration)` | 실제로 시작된 시점부터의 제한 기간 | 없음 |
 | `due(Instant)` | 절대 마감 시각 (`timeout`보다 우선) | 없음 |
 | `initializer(CheckedRunnable)` | 시작 시 1회 실행 | 없음 |
@@ -723,38 +723,38 @@ WebSocketClient client = reconnector.run();
 ```java
 // 1) 상태 대기 — 목표 상태가 되면 그 상태를 결과로
 InstanceStatus status = PeriodicPoller.poll(() -> {
-								InstanceStatus s = client.getStatus();
-								return s == InstanceStatus.RUNNING ? s : null;
-							})
-							.fixedDelay(Duration.ofSeconds(1))
-							.timeout(Duration.ofSeconds(30))
-							.build()
-							.run();
+                                InstanceStatus s = client.getStatus();
+                                return s == InstanceStatus.RUNNING ? s : null;
+                            })
+                            .fixedDelay(Duration.ofSeconds(1))
+                            .timeout(Duration.ofSeconds(30))
+                            .build()
+                            .run();
 
 // 2) 남은 시간을 개별 요청의 제한 시간으로 전달 — PollContext 사용
 PeriodicPoller.poll(ctx -> fetchIfReady(ctx.remainingTime().getOrElse(Duration.ofSeconds(10))))
-		.timeout(Duration.ofMinutes(1))
-		.build()
-		.start();
+        .timeout(Duration.ofMinutes(1))
+        .build()
+        .start();
 
 // 3) 연결 획득 — 자원을 반환하므로 onDiscarded 필수
 Connection conn = PeriodicPoller.poll(this::tryConnect)       // 실패 시 null
-							.fixedDelay(Duration.ofSeconds(2))
-							.timeout(Duration.ofMinutes(1))
-							.onDiscarded(Connection::close)
-							.build()
-							.run();
+                            .fixedDelay(Duration.ofSeconds(2))
+                            .timeout(Duration.ofMinutes(1))
+                            .onDiscarded(Connection::close)
+                            .build()
+                            .run();
 
 // 4) 조건 대기 — 결과값이 아니라 완료 여부로 판단
 PeriodicPoller<Boolean> waiter = PeriodicPoller.pollUntil(() -> Files.exists(readyFile))
-							.fixedRate(Duration.ofMillis(300))
-							.timeout(Duration.ofSeconds(3))
-							.build();
+                            .fixedRate(Duration.ofMillis(300))
+                            .timeout(Duration.ofSeconds(3))
+                            .build();
 waiter.start();
 boolean ready = waiter.waitForFinished().isCompleted();
 ```
 
-> 조회 함수가 던진 예외는 원래 예외를 실패 원인으로 기록한다. 조회가 일시적으로 실패해도 계속 재시도하려면 조회 함수 안에서 예외를 잡고 `null`을 반환한다.
+> 조회 함수가 예외를 던지면 그 예외를 그대로 실패 원인으로 기록한다. 조회가 일시적으로 실패해도 계속 재시도하려면 조회 함수 안에서 예외를 잡고 `null`을 반환한다.
 
 ---
 
@@ -765,7 +765,7 @@ boolean ready = waiter.waitForFinished().isCompleted();
 | | Execution 계열 | Service 계열 |
 |---|---|---|
 | 수명 | 한 번 실행하고 결과를 남긴다 | 시작한 뒤 **중지할 때까지** 계속 실행한다 |
-| 결과 | 완료 값 또는 실패·취소 | 결과값 없음. 실패 원인만 있다 |
+| 결과 | 결과값 또는 실패·취소 | 결과값 없음. 실패 원인만 있다 |
 | 기반 | `Execution` (`Future` 확장) | Guava `Service` |
 | 시작 / 중지 | `start()`·`run()` / `cancel(true)` | `startAsync()` / `stopAsync()` |
 | 종료 대기 | `waitForFinished()`, `get()` | `awaitTerminated()` |
@@ -791,15 +791,15 @@ service.startAsync().awaitRunning();            // 시작하고 RUNNING이 될 �
 ...
 service.stopAsync();                            // 중지 요청
 try {
-	service.awaitTerminated();                  // TERMINATED가 될 때까지 대기
+    service.awaitTerminated();                  // TERMINATED가 될 때까지 대기
 }
 catch ( IllegalStateException e ) {
-	if ( service.state() == Service.State.FAILED ) {
-		log.error("service failed", service.failureCause());
-	}
-	else {
-		throw e;
-	}
+    if ( service.state() == Service.State.FAILED ) {
+        log.error("service failed", service.failureCause());
+    }
+    else {
+        throw e;
+    }
 }
 ```
 
@@ -807,7 +807,7 @@ catch ( IllegalStateException e ) {
 
 ### 9.2 `AbstractLoopService` — 중지 요청을 기다리며 작업 반복
 
-Guava `AbstractExecutionThreadService`에 **중지 요청 플래그**와 그 플래그를 기다리는 수단을 더한 추상 클래스다. 직접 상속해 자신만의 반복 실행을 만들 때 쓴다.
+Guava `AbstractExecutionThreadService`에 **중지 요청 플래그**와 중지 요청이 들어올 때까지 대기하는 기능을 더한 추상 클래스다. 직접 상속해 자신만의 반복 실행을 만들 때 쓴다.
 
 | 멤버 | 설명 |
 |---|---|
@@ -819,36 +819,36 @@ Guava `AbstractExecutionThreadService`에 **중지 요청 플래그**와 그 플
 하위 클래스의 규칙은 두 가지다.
 
 1. `run()`에서 작업을 반복하며 `isStopRequested()`가 `true`가 되면 반환한다.
-2. `triggerShutdown()`에서 `markStopRequested()`를 호출한다. 그래야 `stopAsync()`가 반복 실행을 멈추고, 대기 중인 반복 실행을 깨운다.
+2. `triggerShutdown()`에서 `markStopRequested()`를 호출한다. 그래야 `stopAsync()`가 반복 실행을 멈추고, 반복 단계 사이에서 대기 중인 작업 스레드를 깨운다.
 
 ```java
 public class EventDrainer extends AbstractLoopService {
-	private final BlockingQueue<Event> m_queue;
+    private final BlockingQueue<Event> m_queue;
 
-	public EventDrainer(BlockingQueue<Event> queue) {
-		m_queue = queue;
-	}
+    public EventDrainer(BlockingQueue<Event> queue) {
+        m_queue = queue;
+    }
 
-	@Override
-	protected void run() throws Exception {
-		while ( !isStopRequested() ) {
-			Event ev = m_queue.poll(500, TimeUnit.MILLISECONDS);   // 주기적으로 깨어나 중지 요청 확인
-			if ( ev != null ) {
-				handle(ev);
-			}
-		}
-	}
+    @Override
+    protected void run() throws Exception {
+        while ( !isStopRequested() ) {
+            Event ev = m_queue.poll(500, TimeUnit.MILLISECONDS);   // 주기적으로 깨어나 중지 요청 확인
+            if ( ev != null ) {
+                handle(ev);
+            }
+        }
+    }
 
-	@Override
-	protected void triggerShutdown() {
-		markStopRequested();
-	}
+    @Override
+    protected void triggerShutdown() {
+        markStopRequested();
+    }
 }
 ```
 
 > `markStopRequested()`는 플래그만 바꾸고 서비스 상태는 바꾸지 않는다. 외부에서 직접 호출하면 `stopAsync()`를 거치지 않고도 반복 실행이 끝나 `run()`이 반환되고, 서비스는 `TERMINATED`가 된다. 일반적인 중지는 `stopAsync()`를 쓴다.
 
-> `AbstractLoopService`를 직접 상속하면 작업 스레드는 Guava 기본값인 **일반(non-daemon)**이다. 중지하지 않은 서비스가 JVM 종료를 막을 수 있으므로 반드시 `stopAsync()`를 호출하거나, `executor()`를 재정의하여 데몬 스레드를 쓴다(`PeriodicLoopService`는 기본이 데몬).
+> `AbstractLoopService`를 직접 상속하면 작업 스레드는 Guava 기본값인 **일반(non-daemon) 스레드**다. 중지하지 않은 서비스가 JVM 종료를 막을 수 있으므로 반드시 `stopAsync()`를 호출하거나, `executor()`를 재정의하여 데몬 스레드를 쓴다(`PeriodicLoopService`는 기본이 데몬).
 
 ### 9.3 `PeriodicLoopService` — 주기 작업 서비스
 
@@ -856,10 +856,10 @@ public class EventDrainer extends AbstractLoopService {
 
 ```java
 PeriodicLoopService svc = PeriodicLoopService.builder(() -> collectStatistics())
-								.name("stat-collector")
-								.fixedRate(Duration.ofSeconds(10))
-								.initialDelay(Duration.ofSeconds(3))
-								.build();
+                                .name("stat-collector")
+                                .fixedRate(Duration.ofSeconds(10))
+                                .initialDelay(Duration.ofSeconds(3))
+                                .build();
 svc.startAsync().awaitRunning();
 ...
 svc.stopAsync().awaitTerminated();
@@ -870,19 +870,19 @@ svc.stopAsync().awaitTerminated();
 | 메서드 | 의미 | 기본값 |
 |---|---|---|
 | `task(CheckedRunnable)` / `task(CheckedConsumer<LoopContext>)` | 반복할 작업. `builder(task)`로도 지정한다 | 없음 (상속 시 `performPeriodicAction` 재정의) |
-| `fixedRate(Duration)` | 시작 시점을 기준으로 한 고정 주기 (`FIXED_RATE`, 밀리면 연달아) | **`fixedRate(1초)`** |
+| `fixedRate(Duration)` | 시작 시점을 기준으로 한 고정 주기 (`FIXED_RATE`, 지연되면 대기 없이 연속 실행) | **1초 (`FIXED_RATE`)** |
 | `fixedDelay(Duration)` | 작업이 끝난 시점부터 대기 (`FIXED_DELAY`) | |
 | `initialDelay(Duration)` | 첫 반복 단계 전 대기. `FIXED_RATE`의 기준 시점은 이 지연이 끝난 시점 | 없음 |
 | `errorPolicy(ErrorPolicy)` | 작업 실패 시 정책 (아래) | `ErrorPolicy.STOP` |
 | `stopOnError(boolean)` | `errorPolicy(STOP)`/`errorPolicy(CONTINUE)`의 간편 별칭 | `true` |
 | `initializer(CheckedRunnable)` | 시작 시 1회 (`startUp()`) | 없음 |
-| `cleanup(CheckedRunnable)` | 종료 시 1회 (`shutDown()`). 예외는 로그만 남는다 | 없음 |
+| `cleanup(CheckedRunnable)` | 종료 시 1회 (`shutDown()`). 예외가 발생하면 로그만 남긴다 | 없음 |
 | `daemon(boolean)` | 작업 스레드의 데몬 여부 | **`true`** |
 | `name(String)` | 서비스 이름. 작업 스레드 이름으로도 쓰인다 | `"periodic-service"` |
 
-`fixedRate`와 `fixedDelay`는 나중에 호출한 쪽이 적용된다. `build()`는 작업이 설정되지 않았으면 `IllegalStateException`을 던진다(작업 없이 `performPeriodicAction()`을 재정의하는 하위 클래스는 `build()` 대신 `super(builder)`를 쓴다).
+`fixedRate`와 `fixedDelay`는 나중에 호출한 쪽이 적용된다. `build()`는 작업이 설정되지 않았으면 `IllegalStateException`을 던진다(작업 없이 `performPeriodicAction()`을 재정의하는 하위 클래스는 `build()`를 호출하지 않고, 생성자에서 빌더를 `super(builder)`로 넘긴다).
 
-> **기본 주기 모드가 Execution 계열과 다르다.** `PeriodicLoopService`는 일정한 박자가 중요한 서비스 작업을 위해 `FIXED_RATE`가 기본이고, `PeriodicLoopExecution`/폴러 계열은 원격 조회를 위해 `FIXED_DELAY`가 기본이다. 원격을 호출하는 서비스라면 `fixedDelay(...)`를 명시한다. 주기와 초기 지연은 단조 시계로 측정한다.
+> **기본 주기 모드가 Execution 계열과 다르다.** `PeriodicLoopService`는 일정한 실행 주기가 중요한 서비스 작업을 위해 `FIXED_RATE`가 기본이고, `PeriodicLoopExecution`/폴러 계열은 원격 조회를 위해 `FIXED_DELAY`가 기본이다. 원격 호출을 하는 서비스라면 `fixedDelay(...)`를 명시한다. 주기와 초기 지연은 단조 시계로 측정한다.
 
 #### 작업에서 반복 단계 번호와 중지 요청 확인 — `LoopContext`
 
@@ -890,18 +890,18 @@ svc.stopAsync().awaitTerminated();
 
 ```java
 PeriodicLoopService.builder(ctx -> {
-		for ( Item item: fetchBatch() ) {
-			if ( ctx.isStopRequested() ) {
-				return;                          // stopAsync()에 바로 반응
-			}
-			process(item);
-		}
-		if ( ctx.iteration() % 10 == 0 ) {
-			fullSync();                          // 첫 작업을 포함해 10번에 한 번 (반복 번호는 0부터)
-		}
-	})
-	.fixedDelay(Duration.ofSeconds(5))
-	.build();
+        for ( Item item: fetchBatch() ) {
+            if ( ctx.isStopRequested() ) {
+                return;                          // stopAsync()에 바로 반응
+            }
+            process(item);
+        }
+        if ( ctx.iteration() % 10 == 0 ) {
+            fullSync();                          // 첫 작업을 포함해 10번에 한 번 (반복 번호는 0부터)
+        }
+    })
+    .fixedDelay(Duration.ofSeconds(5))
+    .build();
 ```
 
 `builder(() -> ...)`와 `builder(ctx -> ...)`는 람다의 인자 개수로 구분된다.
@@ -926,7 +926,7 @@ sequenceDiagram
     Service-->>Caller: 대기 종료
 ```
 
-작업 사이에서 대기 중이라면 중지 요청이 그 대기를 깨운다. 반면 작업 내부의 소켓 읽기나 별도 대기까지 자동으로 해제하지는 않으므로, 오래 걸리는 작업에는 개별 제한 시간이나 중지 요청 확인이 필요하다.
+작업 사이에서 대기 중이면 중지 요청이 오는 즉시 대기에서 깨어난다. 반면 작업 내부의 소켓 읽기나 별도 대기까지 자동으로 해제하지는 않으므로, 오래 걸리는 작업에는 개별 제한 시간이나 중지 요청 확인이 필요하다.
 
 #### 작업이 실패하면 — `ErrorPolicy`
 
@@ -936,7 +936,7 @@ sequenceDiagram
 | `ErrorPolicy.CONTINUE` | 실패해도 계속 수행한다 |
 | `ErrorPolicy.failAfterConsecutiveFailures(n)` | **연속** `n`회째 실패에서 `FAILED`로 끝낸다. 한 번이라도 성공하면 횟수가 초기화된다 |
 
-오류 정책에 따라 `FAILED`로 끝나면 마지막 작업 예외가 `failureCause()`가 된다. 일시적인 오류는 허용하되 계속되는 장애는 호출자가 감지할 수 있게 하려면 `failAfterConsecutiveFailures(n)`을 쓴다. 이 정책은 반복 작업이 던진 일반 예외(`Exception`)에 적용되며, 초기화 실패나 `Error`에는 적용되지 않는다.
+오류 정책에 따라 `FAILED`로 끝나면 `failureCause()`는 마지막으로 실패한 작업의 예외를 돌려준다. 일시적인 오류는 허용하되 계속되는 장애는 호출자가 감지할 수 있게 하려면 `failAfterConsecutiveFailures(n)`을 쓴다. 이 정책은 반복 작업이 던진 일반 예외(`Exception`)에 적용되며, 초기화 실패나 `Error`에는 적용되지 않는다.
 
 계속 수행하는 동안 같은 경고가 매 반복 단계마다 쌓이지 않도록 로그를 줄인다.
 
@@ -958,7 +958,7 @@ sequenceDiagram
 - 작업이 다른 예외를 던졌지만 그 시점에 작업 스레드의 인터럽트 플래그가 켜져 있는 경우
 - 작업이 예외 없이 인터럽트 플래그만 켜고 반환한 경우 — 다음 반복 단계를 시작하기 전에 확인하므로, `FIXED_RATE`에서 밀린 반복 단계를 연달아 실행하는 중이어도 멈춘다
 
-원인 사슬에 `InterruptedException`이 들어 있다는 것만으로는 중지로 보지 않는다(다른 스레드의 작업이 인터럽트된 결과일 수 있다).
+예외의 원인(`getCause()`)을 거슬러 올라가다 `InterruptedException`이 나온다는 것만으로는 중지로 보지 않는다(다른 스레드의 작업이 인터럽트된 결과일 수 있다).
 
 기본 `shutDown()`은 빌더의 `cleanup`을 호출하기 전에 **인터럽트 플래그를 지우고**, 정리가 끝나면 플래그를 되돌린다. 따라서 이전 인터럽트 때문에 정리 중의 `sleep()`·`await()`·`join()`이 곧바로 중단되는 것을 막는다. 정리 도중 새로 발생하는 인터럽트까지 막는 것은 아니다.
 
@@ -966,26 +966,26 @@ sequenceDiagram
 
 ```java
 class StatCollector extends PeriodicLoopService {
-	StatCollector() {
-		super("stat-collector", Duration.ofSeconds(10), IntervalMode.FIXED_RATE);
-	}
+    StatCollector() {
+        super("stat-collector", Duration.ofSeconds(10), IntervalMode.FIXED_RATE);
+    }
 
-	@Override
-	protected void performPeriodicAction(long loopIndex) throws Exception {
-		collectStatistics();
-	}
+    @Override
+    protected void performPeriodicAction(long loopIndex) throws Exception {
+        collectStatistics();
+    }
 
-	@Override
-	protected void startUp() throws Exception { openResources(); }      // 초기화
+    @Override
+    protected void startUp() throws Exception { openResources(); }      // 초기화
 
-	@Override
-	protected void shutDown() { closeResources(); }                     // 정리
+    @Override
+    protected void shutDown() { closeResources(); }                     // 정리
 }
 ```
 
 `super(name, interval, mode)`는 나머지 설정에 기본값을 쓴다. 초기 지연이나 오류 정책 같은 빌더 설정이 필요하면 `super(PeriodicLoopService.builder()....)`처럼 빌더를 넘기는 생성자를 쓴다. `performPeriodicAction()` 안에서는 `isStopRequested()`로 중지 요청을 확인한다.
 
-위 예제처럼 `shutDown()`을 직접 재정의하면 기본 구현의 인터럽트 플래그 처리와 예외 로깅도 대체된다. 이 경우 정리 중 블로킹이나 예외를 어떻게 처리할지 직접 정해야 한다. 기본 처리를 사용하려면 빌더의 `cleanup(...)`으로 정리 작업을 지정한다. 빌더의 초기화·정리를 유지하면서 메서드도 재정의하는 경우에는 `super.startUp()`·`super.shutDown()` 호출을 빠뜨리지 않는다.
+위 예제처럼 `shutDown()`을 직접 재정의하면 기본 구현이 하던 빌더 `cleanup(...)` 실행, 인터럽트 플래그 처리, 예외 로깅이 모두 수행되지 않는다. 이 경우 정리 중 블로킹이나 예외를 어떻게 처리할지 직접 정해야 한다. 기본 처리를 사용하려면 빌더의 `cleanup(...)`으로 정리 작업을 지정한다. 빌더의 초기화·정리를 유지하면서 메서드도 재정의하는 경우에는 `super.startUp()`·`super.shutDown()` 호출을 빠뜨리지 않는다.
 
 #### 조회
 
@@ -1000,15 +1000,15 @@ class StatCollector extends PeriodicLoopService {
 | 메서드 | 정의된 곳 | 만료되면 |
 |---|---|---|
 | `setTimeout(long, TimeUnit)` | 모든 `Execution` | `Timer`가 `cancel(true)`로 취소 요청. 실제 결과는 취소 처리에 따라 달라짐 |
-| `setTimeout(Duration)` | `PeriodicLoopExecution` 이하 | **`TimeoutException`으로 `FAILED`** |
+| `setTimeout(Duration)` | `PeriodicLoopExecution`과 그 하위 클래스 | **`TimeoutException`으로 `FAILED`** |
 
 반복 실행 계열에서 "시간 안에 목표에 도달하지 못함"을 실패로 다루려면 `setTimeout(Duration)`을 쓴다. 예약 수에는 제한이 없고, 실행이 먼저 끝나면 예약도 해제된다.
 
 ### 10.2 `cancel(true)`는 즉시 끝내지 않는다
 
-취소 요청이 접수되어도 실제 종료가 완료된 것은 아니다. 최종 결과는 `waitForFinished()`로 확인한다. 반복 작업이나 `executeWork()`가 취소를 확인하지 않으면 끝나지 않을 수도 있다. `cancelWork()`를 구현한 경우에는 그 메서드가 반환하기 전까지 `cancel()` 호출도 끝나지 않는다(3.5).
+취소 요청이 접수되었다고 해서 작업이 실제로 종료된 것은 아니다. 최종 결과는 `waitForFinished()`로 확인한다. 반복 작업이나 `executeWork()`가 취소를 확인하지 않으면 끝나지 않을 수도 있다. `cancelWork()`를 구현한 경우에는 그 메서드가 반환하기 전까지 `cancel()` 호출도 끝나지 않는다(3.5).
 
-### 10.3 `waitForFinished()`는 실패를 던지지 않는다
+### 10.3 `waitForFinished()`는 작업 실패를 예외로 던지지 않는다
 
 반환된 `AsyncResult`를 확인한다(3.3).
 
@@ -1027,7 +1027,7 @@ Execution 계열에서 **외부 코드가 종료를 먼저 통지한 경우**에
 
 ### 10.5 `PeriodicLoopExecution` 확장 메서드 재정의 시 `super` 호출
 
-상위 클래스의 초기화·정리 흐름을 유지하도록 `super`를 호출한다. 특히 `super.initializeLoop()`를 빠뜨리면 시작 시점과 마감이 설정되지 않아 주기·제한 시간이 정상적으로 동작하지 않는다(6.3).
+상위 클래스의 초기화·정리 흐름을 유지하도록 `super`를 호출한다. 특히 `super.initializeLoop()`를 빠뜨리면 시작 시점과 마감 시각이 설정되지 않아 주기 조절과 제한 시간 처리가 정상적으로 동작하지 않는다(6.3).
 
 ### 10.6 원격 조회에는 `FIXED_DELAY`를 우선 고려한다
 
@@ -1035,7 +1035,7 @@ Execution 계열에서 **외부 코드가 종료를 먼저 통지한 경우**에
 
 ### 10.7 자원을 반환하는 조회에는 `onTargetDiscarded`/`onDiscarded`
 
-지정하지 않으면 외부 종료 시 연결이 새는 경로가 생긴다(7.3).
+지정하지 않으면 외부에서 종료될 때 조회 결과로 받은 연결 같은 자원이 닫히지 않고 남을 수 있다(7.3).
 
 ### 10.8 Service의 `stopAsync()`는 작업을 중단하지 않는다
 
@@ -1043,11 +1043,11 @@ Execution 계열에서 **외부 코드가 종료를 먼저 통지한 경우**에
 
 ### 10.9 `PeriodicLoopService`와 폴러의 기본 주기 모드가 다르다
 
-`PeriodicLoopService`는 `FIXED_RATE`, `PeriodicPoller`·`AbstractPeriodicPoller`·`PeriodicLoopExecution`은 `FIXED_DELAY`가 기본이다. 원격을 호출하는 서비스는 `fixedDelay(...)`를 명시한다.
+`PeriodicLoopService`는 `FIXED_RATE`, `PeriodicPoller`·`AbstractPeriodicPoller`·`PeriodicLoopExecution`은 `FIXED_DELAY`가 기본이다. 원격 호출을 하는 서비스는 `fixedDelay(...)`를 명시한다.
 
 ### 10.10 `AbstractLoopService`를 직접 상속할 때
 
-`triggerShutdown()`에서 `markStopRequested()`를 호출하지 않으면 `stopAsync()`가 반복 실행을 멈추지 못한다. 또 작업 스레드가 일반(non-daemon)이므로 중지하지 않은 서비스가 JVM 종료를 막는다(9.2).
+`triggerShutdown()`에서 `markStopRequested()`를 호출하지 않으면 `stopAsync()`가 반복 실행을 멈추지 못한다. 또 작업 스레드가 일반(non-daemon) 스레드이므로 중지하지 않은 서비스가 JVM 종료를 막는다(9.2).
 
 ---
 
@@ -1071,6 +1071,6 @@ Execution 계열에서 **외부 코드가 종료를 먼저 통지한 경우**에
 
 - [`utils.async.command` 사용 가이드](command/README.md) — 외부 명령 실행, 파일 변수, 프로그램 서비스와 재시작 정책
 - [`utils.async` 개발 노트](CLAUDE.md) — 상태 전이, 취소 흐름, 조합 연산자 등 내부 동작
-- [`utils.thread` 사용 가이드](../thread/README.md) — `Guard`, `Timer` 등 이 계층이 기반으로 쓰는 동시성 도구
+- [`utils.thread` 사용 가이드](../thread/README.md) — `Guard`, `Timer` 등 `utils.async`가 기반으로 사용하는 동시성 도구
 - [Guava `Service` 설명](https://github.com/google/guava/wiki/ServiceExplained) — Service 계열이 따르는 생명주기
 - [RESTful RPC 개발 노트](../rpc/restful/CLAUDE.md) — `AbstractPeriodicPoller`의 실제 구현 예인 `RESTfulAsyncRpcClient`

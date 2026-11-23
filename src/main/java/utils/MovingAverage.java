@@ -52,12 +52,12 @@ public class MovingAverage {
 	}
 	
 	/**
-	 * 현재 평균을 초 단위 값으로 보고 {@link UnitUtils#toMillisString(long)} 형식의 문자열로 만든다.
+	 * 현재 평균을 초 단위 값으로 보고 {@link Durations#formatClock(long)} 형식의 문자열로 만든다.
 	 * 평균에 1000을 곱해 밀리초로 반올림한 뒤 변환한다.
 	 *
-	 * @return	시간 형식 문자열 (예: {@code "0.500"}).
+	 * @return	시간 형식 문자열 (예: {@code "0:00.500"}).
 	 */
 	public String toSecondString() {
-		return UnitUtils.toMillisString(Math.round(m_avg * 1000));
+		return Durations.formatClock(Math.round(m_avg * 1000));
 	}
 }

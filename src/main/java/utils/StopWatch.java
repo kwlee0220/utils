@@ -180,7 +180,7 @@ public class StopWatch {
 	}
 	
 	/**
-	 * 측정을 멈추고 경과 시간을 {@link UnitUtils#toMillisString(long)} 형식의 문자열로 반환한다.
+	 * 측정을 멈추고 경과 시간을 {@link Durations#formatClock(long)} 형식의 문자열로 반환한다.
 	 *
 	 * @return	밀리초까지 표시한 경과 시간 문자열.
 	 */
@@ -190,22 +190,22 @@ public class StopWatch {
 	}
 	
 	/**
-	 * 경과 시간을 {@link UnitUtils#toMillisString(long)} 형식의 문자열로 반환한다. 측정은 멈추지 않는다.
+	 * 경과 시간을 {@link Durations#formatClock(long)} 형식의 문자열로 반환한다. 측정은 멈추지 않는다.
 	 *
 	 * @return	밀리초까지 표시한 경과 시간 문자열.
 	 */
 	public String getElapsedMillisString() {
-		return UnitUtils.toMillisString(getElapsedInMillis());
+		return Durations.formatClock(getElapsedInMillis());
 	}
 	
 	/**
-	 * 경과 시간을 초 단위로 반올림하여 {@link UnitUtils#toSecondString(long)} 형식의 문자열로 반환한다.
+	 * 경과 시간을 초 단위로 반올림하여 {@link Durations#formatShort(long)} 형식의 문자열로 반환한다.
 	 * 측정은 멈추지 않는다.
 	 *
 	 * @return	초 단위 경과 시간 문자열.
 	 */
 	public String getElapsedSecondString() {
-		return UnitUtils.toSecondString(getElapsedInMillis());
+		return Durations.formatShort(getElapsedInMillis());
 	}
 	
 	@Override

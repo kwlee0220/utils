@@ -3,6 +3,7 @@ package utils.rpc.restful;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Assertions;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
+import utils.async.AbstractThreadedExecution;
 import utils.async.StartableExecution;
 import utils.async.op.AsyncExecutions;
 import utils.json.JacksonUtils;
@@ -72,6 +74,29 @@ public class RESTfulAsyncRpcServerTest {
 		protected Duration getStartTimeout() {
 			return Duration.ofSeconds(2);
 		}
+
+		@Override
+		protected Duration getCancelWait() {
+			return Duration.ofMillis(300);
+		}
+	}
+
+	/**
+	 * 취소 요청을 받아도 {@code release}가 열릴 때까지 끝나지 않는 실행(멈추는 데 오래 걸리는 연산).
+	 */
+	private static class SlowStopExecution extends AbstractThreadedExecution<Void> {
+		private final CountDownLatch m_release = new CountDownLatch(1);
+
+		@Override
+		protected Void executeWork() {
+			while ( true ) {
+				try {
+					m_release.await();
+					return null;
+				}
+				catch ( InterruptedException ignored ) { }
+			}
+		}
 	}
 
 	private RpcRequestMessage emptyRequest() {
@@ -128,10 +153,10 @@ public class RESTfulAsyncRpcServerTest {
 		Assertions.assertNotNull(resp.getError());
 	}
 
-	// ----- 정상 완료 + read-once -----
+	// ----- 정상 완료 + 종료 세션 보존 -----
 
 	@Test
-	public void testCompletedReturnsOutputsThenSessionRemoved() throws Exception {
+	public void testCompletedResultCanBeReadRepeatedly() throws Exception {
 		Map<String,JsonNode> outputs = Map.of("r", MAPPER.readTree("7"));
 		TestServer server = new TestServer(AsyncExecutions.idle(Duration.ofMillis(50)), false, outputs);
 
@@ -143,13 +168,15 @@ public class RESTfulAsyncRpcServerTest {
 		Assertions.assertEquals(RpcState.COMPLETED, resp.getState());
 		Assertions.assertEquals(outputs, resp.getOutputs());
 
-		// 종료 상태를 한 번 회수하면 세션이 제거되어 이후 조회는 null을 반환한다(read-once).
-		Assertions.assertNull(server.status(sessionUrl));
+		// 종료된 세션은 보존 시간 동안 남아, 다시 조회해도 같은 결과를 돌려준다(응답을 잃은 클라이언트의 재조회).
+		RpcResponseMessage again = server.status(sessionUrl);
+		Assertions.assertEquals(RpcState.COMPLETED, again.getState());
+		Assertions.assertEquals(outputs, again.getOutputs());
 	}
 
 	@Test
 	public void testStartOfFastExecutionReturnsRunning() throws Exception {
-		// 시작 대기 중에 이미 끝난 연산도 시작 응답은 RUNNING이고, 결과는 status로 한 번 회수한다.
+		// 시작 대기 중에 이미 끝난 연산도 시작 응답은 RUNNING이고, 결과는 status로 회수한다.
 		// 끝나는 시점이 경쟁이므로 여러 번 시도한다.
 		Map<String,JsonNode> outputs = Map.of("r", MAPPER.readTree("3"));
 		for ( int i = 0; i < 20; ++i ) {
@@ -168,14 +195,37 @@ public class RESTfulAsyncRpcServerTest {
 	// ----- 진행 중 조회 / 취소 -----
 
 	@Test
+	public void testRefusedCancelIsNotAccepted() throws Exception {
+		// 취소를 거부하는 연산: 계속 실행 중이어도 "멈추는 중"으로 답하면 안 된다.
+		SlowStopExecution exec = new SlowStopExecution() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				return false;
+			}
+		};
+		TestServer server = new TestServer(exec, false, Map.of());
+		RpcResponseMessage started = server.start(emptyRequest());
+
+		RpcCancelResult result = server.cancel(started.getSessionEndpoint());
+		Assertions.assertFalse(result.accepted());
+		Assertions.assertEquals(RpcState.RUNNING, result.response().getState());
+		exec.m_release.countDown();
+	}
+
+	@Test
 	public void testRunningThenCancel() throws Exception {
 		TestServer server = new TestServer(AsyncExecutions.idle(Duration.ofSeconds(10)), false, Map.of());
 
 		RpcResponseMessage started = server.start(emptyRequest());
 		Assertions.assertEquals(RpcState.RUNNING, started.getState());
 
-		RpcResponseMessage resp = server.cancel(started.getSessionEndpoint());
-		Assertions.assertEquals(RpcState.CANCELLED, resp.getState());
+		RpcCancelResult result = server.cancel(started.getSessionEndpoint());
+		Assertions.assertTrue(result.accepted());
+		Assertions.assertTrue(result.isCancelled());
+		Assertions.assertEquals(RpcState.CANCELLED, result.response().getState());
+
+		// 이미 취소된 세션에 다시 취소하면 받아들여진 것으로 본다.
+		Assertions.assertTrue(server.cancel(started.getSessionEndpoint()).isCancelled());
 	}
 
 	@Test
@@ -184,11 +234,42 @@ public class RESTfulAsyncRpcServerTest {
 		TestServer server = new TestServer(AsyncExecutions.idle(Duration.ofMillis(50)), false, outputs);
 
 		RpcResponseMessage started = server.start(emptyRequest());
-		// 완료될 때까지 기다린 뒤 status로 한 번 회수하면 세션이 제거되므로, 여기서는 바로 cancel을 시험한다.
 		String sessionUrl = started.getSessionEndpoint();
 		Thread.sleep(150);
 
-		RpcResponseMessage resp = server.cancel(sessionUrl);
-		Assertions.assertEquals(RpcState.COMPLETED, resp.getState());
+		RpcCancelResult cancelled = server.cancel(sessionUrl);
+		Assertions.assertFalse(cancelled.accepted());
+		Assertions.assertEquals(RpcState.COMPLETED, cancelled.response().getState());
+
+		// 완료 직후 들어온 취소가 결과를 지우지 않는다. 클라이언트는 취소가 거부된 뒤 결과를 조회한다.
+		RpcResponseMessage result = server.status(sessionUrl);
+		Assertions.assertEquals(RpcState.COMPLETED, result.getState());
+		Assertions.assertEquals(outputs, result.getOutputs());
+	}
+
+	@Test
+	public void testCancelOfSlowStoppingExecutionReturnsRunningWithinWait() throws Exception {
+		SlowStopExecution exec = new SlowStopExecution();
+		TestServer server = new TestServer(exec, false, Map.of());
+		RpcResponseMessage started = server.start(emptyRequest());
+		String sessionUrl = started.getSessionEndpoint();
+
+		long t0 = System.nanoTime();
+		RpcCancelResult result = server.cancel(sessionUrl);
+		long elapsedMillis = (System.nanoTime() - t0) / 1_000_000;
+		// 취소 대기 시간(300ms) 안에 끝나지 않으면 기다리지 않고 RUNNING(멈추는 중)으로 답한다.
+		Assertions.assertTrue(result.isStopping());
+		Assertions.assertTrue(elapsedMillis < 2000, "cancel waited too long: " + elapsedMillis + "ms");
+
+		// 멈추는 중인 세션에 다시 취소해도 cancelTimeout(3초)에 묶이지 않고 취소 대기 시간 안에 답한다.
+		t0 = System.nanoTime();
+		RpcCancelResult again = server.cancel(sessionUrl);
+		elapsedMillis = (System.nanoTime() - t0) / 1_000_000;
+		Assertions.assertTrue(again.isStopping());
+		Assertions.assertTrue(elapsedMillis < 1500, "repeated cancel waited too long: " + elapsedMillis + "ms");
+
+		exec.m_release.countDown();
+		RpcResponseMessage last = waitForTermination(server, server.status(sessionUrl));
+		Assertions.assertNotEquals(RpcState.RUNNING, last.getState());
 	}
 }

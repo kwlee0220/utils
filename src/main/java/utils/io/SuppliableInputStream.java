@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import utils.Preconditions;
 import utils.Throwables;
-import utils.UnitUtils;
+import utils.Durations;
 import utils.thread.Guard;
 
 
@@ -361,7 +361,7 @@ public class SuppliableInputStream extends InputStream {
 				else {
 					if ( !m_guard.awaitSignalUntil(due) ) {
 						String details = String.format("supply timeout: %s",
-														UnitUtils.toMillisString(unit.toMillis(timeout)));
+														Durations.formatClock(unit.toMillis(timeout)));
 						throw new TimeoutException(details);
 					}
 				}

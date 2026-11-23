@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.google.common.collect.Maps;
 
 import utils.Preconditions;
-import utils.UnitUtils;
+import utils.Durations;
 import utils.func.Nullables;
 import utils.io.FileUtils;
 
@@ -43,7 +43,7 @@ import utils.io.FileUtils;
  *       서비스를 FAILED로 전이한다.</li>
  *   <li>{@code restartLimitInterval}: {@link #DEFAULT_RESTART_LIMIT_INTERVAL} (1분).</li>
  * </ul>
- * 시간 항목은 JSON에서 {@link UnitUtils#parseDuration}이 인식하는 문자열(예: "5s", "1m", "PT5S")로 지정한다.
+ * 시간 항목은 JSON에서 {@link Durations#parse(String)}이 인식하는 문자열(예: "5s", "1m", "PT5S")로 지정한다.
  *
  * @author Kang-Woo Lee (ETRI)
  */
@@ -267,13 +267,13 @@ public class ProgramServiceConfig {
 
 	/**
 	 * 재시작 지연 시간을 문자열로 설정한다 (JSON 역직렬화용).
-	 * 입력 문자열은 {@link UnitUtils#parseDuration}으로 파싱되며, {@code null}이면 기본값으로 fallback한다.
+	 * 입력 문자열은 {@link Durations#parse(String)}으로 파싱되며, {@code null}이면 기본값으로 fallback한다.
 	 *
 	 * @param restartDelay 지연 시간 문자열(예: "5s", "1m"), 또는 {@code null}.
 	 */
 	@JsonProperty("restartDelay")
 	public void setRestartDelayString(String restartDelay) {
-		Duration parsedDelay = Nullables.mapOrElse(restartDelay, UnitUtils::parseDuration,
+		Duration parsedDelay = Nullables.mapOrElse(restartDelay, Durations::parse,
 												DEFAULT_RESTART_DELAY);
 		Preconditions.checkArgument(parsedDelay == null || !parsedDelay.isNegative(),
 									"restartDelay must be non-negative");
@@ -383,7 +383,7 @@ public class ProgramServiceConfig {
 	}
 
 	private static @Nullable Duration parse(@Nullable String str) {
-		return Nullables.map(str, UnitUtils::parseDuration);
+		return Nullables.map(str, Durations::parse);
 	}
 
 	private static Duration nonNegative(@Nullable Duration value, Duration defaultValue, String name) {

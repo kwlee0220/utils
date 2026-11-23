@@ -131,7 +131,7 @@ e.left().ifPresent(...);          // left()·right()는 FOption
 
 - `ofValue(v)`로 만든 인스턴스를 `invalidate()`한 뒤 `get()`하면 supplier가 없으므로 `IllegalStateException`이다.
 - `TimedLazy.reload()`는 TTL과 상관없이 바로 다시 적재한다.
-- `TimedLazy`의 적재·`set`·`invalidate`는 같은 잠금으로 직렬화된다. 적재 중에 `set`하면 적재가 끝난 뒤 적용되어 새 값이 남는다. TTL은 `System.nanoTime()` 경과 시간으로 판단한다(시스템 시각 변경과 무관).
+- `TimedLazy`의 적재·`set`·`invalidate`는 같은 잠금을 잡고 한 번에 하나씩 수행된다. 적재 중에 `set`하면 적재가 끝난 뒤 적용되어 새 값이 남는다. TTL은 `System.nanoTime()` 경과 시간으로 판단한다(시스템 시각 변경과 무관).
 - `Lazy.wrap(supplier, Interface.class)`는 그 인터페이스의 메소드가 처음 불릴 때 실제 객체를 만드는 JDK 동적 프록시를 돌려준다. 상위 인터페이스·default 메소드도 위임된다. 다른 패키지의 public이 아닌 인터페이스는 reflection 접근 허용이 필요하며, 허용할 수 없는 환경이면 `wrap`이 `IllegalArgumentException`을 던진다. `equals`는 프록시 동일성, `hashCode`는 identity hash, `toString`은 `Lazy[...]`이며 셋 다 supplier를 부르지 않는다.
 
 ---

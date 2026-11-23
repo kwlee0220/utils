@@ -1,22 +1,29 @@
 package utils;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
+import java.math.BigInteger;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeParseException;
-import java.util.Date;
+import java.util.Locale;
 
 /**
- * 타입이 정해지지 않은 값({@link Object})을 기본 타입, 문자열, 날짜·시각 타입으로 변환하는 정적 유틸리티.
+ * 타입이 정해지지 않은 값({@link Object})을 기본 타입과 문자열로 변환하는 정적 유틸리티.
  * <p>
- * 숫자 변환 메소드는 {@code null}을 0으로, {@link Boolean}을 1/0으로 바꾸고, 문자열은 앞뒤 공백을 제거한 뒤 파싱한다.
- * 실수를 정수 타입으로 바꿀 때 소수 부분이 있으면 예외를 던지지만, 범위를 넘는 값은 검사하지 않는다.
+ * 숫자·{@code boolean} 변환 규칙:
+ * <ul>
+ *   <li><b>{@code null}</b>: 인자 하나짜리 메소드({@link #asInt(Object)} 등)는 {@link IllegalArgumentException}을
+ *       던진다. {@code null}일 때 쓸 값이 있으면 기본값을 받는 메소드({@link #asInt(Object, int)} 등)를 쓴다.</li>
+ *   <li><b>{@link Boolean}</b>: 숫자 변환에서는 {@code true}가 1, {@code false}가 0이다.</li>
+ *   <li><b>문자열</b>: 앞뒤 공백을 제거한 뒤 해석한다.</li>
+ *   <li><b>정수 변환</b>({@code int}, {@code long}, {@code short}, {@code byte}): 숫자와 숫자 문자열을 같은 규칙으로
+ *       바꾼다. 소수 부분이 있거나(예: {@code 12.5}, {@code "12.5"}), NaN·무한대이거나, 대상 타입의 범위를 넘으면
+ *       {@link IllegalArgumentException}을 던진다. 소수 부분이 0이면 받는다(예: {@code 12.0}, {@code "12.0"}).</li>
+ *   <li><b>실수 변환</b>({@code float}, {@code double}): 정밀도 손실과 범위를 검사하지 않는다.</li>
+ * </ul>
+ * {@link #asString(Object)}는 {@code null}을 그대로 돌려준다.
+ * <p>
+ * 날짜·시각 값의 변환은 각 시간 클래스의 {@code from} 메소드({@link Instants#from(Object, java.time.ZoneId)},
+ * {@link LocalDateTimes#from(Object, java.time.ZoneId)}, {@link LocalDates#from(Object, java.time.ZoneId)},
+ * {@link LocalTimes#from(Object, java.time.ZoneId)})를 쓴다.
  * 
  * @author Kang-Woo Lee (ETRI)
  */
@@ -38,482 +45,333 @@ public class DataUtils {
 	/**
 	 * 주어진 객체를 {@code int} 값으로 변환한다.
 	 * <p>
-	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
-	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
-	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. 실수 값에 소수 부분이 있거나 NaN·무한대이면 예외를 던진다.
-	 * <p>
-	 * <b>주의:</b> 대상 타입의 범위는 검사하지 않는다. 더 큰 정수 타입의 값은 Java 축소 변환 규칙대로
-	 * 상위 비트가 잘리고, 실수 값도 범위를 넘으면 조용히 다른 값이 된다.
+	 * {@link Number}, {@link String}, {@link Boolean}을 받는다. 규칙은 클래스 설명의 정수 변환과 같다.
 	 *
 	 * @param obj	변환할 객체.
 	 * @return	변환된 값.
-	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없거나
-	 * 			({@link NumberFormatException}), 실수 값에 소수 부분이 있는 경우.
+	 * @throws IllegalArgumentException	{@code obj}가 {@code null}이거나, 변환할 수 없는 타입이거나, 정수로 해석할 수
+	 * 									없거나(소수 부분, NaN·무한대, 형식 오류), {@code int} 범위를 넘는 경우.
 	 */
 	public static int asInt(Object obj) {
-		if ( obj == null ) {
-			return 0;
-		}
-		if ( obj instanceof Integer ) {
-			return ((Integer)obj).intValue();
-		}
-		if ( obj instanceof Long ) {
-			return (int)((Long)obj).intValue();
-		}
-		if ( obj instanceof String ) {
-			return Integer.parseInt(((String)obj).trim());
-		}
-		if ( obj instanceof Double ) {
-			checkIntegral((Double)obj, "int");
-			return ((Double)obj).intValue();
-		}
-		if ( obj instanceof Boolean ) {
-			return ((Boolean)obj) ? 1 : 0;
-		}
-		if ( obj instanceof Number n ) {
-			// 위에서 다루지 않은 숫자 타입(BigDecimal, BigInteger 등).
-			checkIntegral(n, "int");
-			return n.intValue();
-		}
-		
-		throw new IllegalArgumentException("unknown int value=" + obj);
+		return (int)toIntegral(obj, "int", Integer.MIN_VALUE, Integer.MAX_VALUE);
+	}
+	
+	/**
+	 * 주어진 객체를 {@code int} 값으로 변환한다. {@code obj}가 {@code null}이면 {@code defValue}를 반환한다.
+	 * 변환 규칙은 {@link #asInt(Object)}와 같다.
+	 *
+	 * @param obj		변환할 객체.
+	 * @param defValue	{@code obj}가 {@code null}일 때 반환할 값.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	{@link #asInt(Object)}와 같다({@code null}인 경우 제외).
+	 */
+	public static int asInt(Object obj, int defValue) {
+		return (obj != null) ? asInt(obj) : defValue;
 	}
 	
 	/**
 	 * 주어진 객체를 {@code long} 값으로 변환한다.
 	 * <p>
-	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
-	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
-	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. 실수 값에 소수 부분이 있거나 NaN·무한대이면 예외를 던진다.
-	 * <p>
-	 * <b>주의:</b> 대상 타입의 범위는 검사하지 않는다. 더 큰 정수 타입의 값은 Java 축소 변환 규칙대로
-	 * 상위 비트가 잘리고, 실수 값도 범위를 넘으면 조용히 다른 값이 된다.
+	 * {@link Number}, {@link String}, {@link Boolean}을 받는다. 규칙은 클래스 설명의 정수 변환과 같다.
 	 *
 	 * @param obj	변환할 객체.
 	 * @return	변환된 값.
-	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없거나
-	 * 			({@link NumberFormatException}), 실수 값에 소수 부분이 있는 경우.
+	 * @throws IllegalArgumentException	{@code obj}가 {@code null}이거나, 변환할 수 없는 타입이거나, 정수로 해석할 수
+	 * 									없거나(소수 부분, NaN·무한대, 형식 오류), {@code long} 범위를 넘는 경우.
 	 */
 	public static long asLong(Object obj) {
-		if ( obj == null ) {
-			return 0;
-		}
-		if ( obj instanceof Integer ) {
-			return ((Integer)obj).intValue();
-		}
-		if ( obj instanceof Long ) {
-			return ((Long)obj).longValue();
-		}
-		if ( obj instanceof Short ) {
-			return ((Short)obj).shortValue();
-		}
-		if ( obj instanceof Byte ) {
-			return ((Byte)obj).byteValue();
-		}
-		if ( obj instanceof String ) {
-			return Long.parseLong(((String)obj).trim());
-		}
-		if ( obj instanceof Double ) {
-			checkIntegral((Double)obj, "long");
-			return ((Double)obj).longValue();
-		}
-		if ( obj instanceof Boolean ) {
-			return ((Boolean)obj) ? 1 : 0;
-		}
-		if ( obj instanceof Number n ) {
-			// 위에서 다루지 않은 숫자 타입(BigDecimal, BigInteger 등).
-			checkIntegral(n, "long");
-			return n.longValue();
-		}
-		
-		throw new IllegalArgumentException("unknown long value=" + obj);
+		return toIntegral(obj, "long", Long.MIN_VALUE, Long.MAX_VALUE);
+	}
+	
+	/**
+	 * 주어진 객체를 {@code long} 값으로 변환한다. {@code obj}가 {@code null}이면 {@code defValue}를 반환한다.
+	 * 변환 규칙은 {@link #asLong(Object)}와 같다.
+	 *
+	 * @param obj		변환할 객체.
+	 * @param defValue	{@code obj}가 {@code null}일 때 반환할 값.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	{@link #asLong(Object)}와 같다({@code null}인 경우 제외).
+	 */
+	public static long asLong(Object obj, long defValue) {
+		return (obj != null) ? asLong(obj) : defValue;
 	}
 	
 	/**
 	 * 주어진 객체를 {@code short} 값으로 변환한다.
 	 * <p>
-	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
-	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
-	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. 실수 값에 소수 부분이 있거나 NaN·무한대이면 예외를 던진다.
-	 * <p>
-	 * <b>주의:</b> 대상 타입의 범위는 검사하지 않는다. 더 큰 정수 타입의 값은 Java 축소 변환 규칙대로
-	 * 상위 비트가 잘리고, 실수 값도 범위를 넘으면 조용히 다른 값이 된다.
+	 * {@link Number}, {@link String}, {@link Boolean}을 받는다. 규칙은 클래스 설명의 정수 변환과 같다.
 	 *
 	 * @param obj	변환할 객체.
 	 * @return	변환된 값.
-	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없거나
-	 * 			({@link NumberFormatException}), 실수 값에 소수 부분이 있는 경우.
+	 * @throws IllegalArgumentException	{@code obj}가 {@code null}이거나, 변환할 수 없는 타입이거나, 정수로 해석할 수
+	 * 									없거나(소수 부분, NaN·무한대, 형식 오류), {@code short} 범위를 넘는 경우.
 	 */
 	public static short asShort(Object obj) {
-		if ( obj == null ) {
-			return 0;
-		}
-		if ( obj instanceof Short ) {
-			return ((Short)obj).shortValue();
-		}
-		if ( obj instanceof Integer ) {
-			return ((Integer)obj).shortValue();
-		}
-		if ( obj instanceof Long ) {
-			return (short)((Long)obj).shortValue();
-		}
-		if ( obj instanceof String ) {
-			return Short.parseShort(((String)obj).trim());
-		}
-		if ( obj instanceof Double ) {
-			checkIntegral((Double)obj, "short");
-			return ((Double)obj).shortValue();
-		}
-		if ( obj instanceof Boolean ) {
-			return (short)(((Boolean)obj) ? 1 : 0);
-		}
-		if ( obj instanceof Number n ) {
-			// 위에서 다루지 않은 숫자 타입(BigDecimal, BigInteger 등).
-			checkIntegral(n, "short");
-			return n.shortValue();
-		}
-		
-		throw new IllegalArgumentException("unknown short value=" + obj);
+		return (short)toIntegral(obj, "short", Short.MIN_VALUE, Short.MAX_VALUE);
+	}
+	
+	/**
+	 * 주어진 객체를 {@code short} 값으로 변환한다. {@code obj}가 {@code null}이면 {@code defValue}를 반환한다.
+	 * 변환 규칙은 {@link #asShort(Object)}와 같다.
+	 *
+	 * @param obj		변환할 객체.
+	 * @param defValue	{@code obj}가 {@code null}일 때 반환할 값.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	{@link #asShort(Object)}와 같다({@code null}인 경우 제외).
+	 */
+	public static short asShort(Object obj, short defValue) {
+		return (obj != null) ? asShort(obj) : defValue;
 	}
 	
 	/**
 	 * 주어진 객체를 {@code byte} 값으로 변환한다.
 	 * <p>
-	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
-	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
-	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. 실수 값에 소수 부분이 있거나 NaN·무한대이면 예외를 던진다.
-	 * <p>
-	 * <b>주의:</b> 대상 타입의 범위는 검사하지 않는다. 더 큰 정수 타입의 값은 Java 축소 변환 규칙대로
-	 * 상위 비트가 잘리고, 실수 값도 범위를 넘으면 조용히 다른 값이 된다.
+	 * {@link Number}, {@link String}, {@link Boolean}을 받는다. 규칙은 클래스 설명의 정수 변환과 같다.
 	 *
 	 * @param obj	변환할 객체.
 	 * @return	변환된 값.
-	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없거나
-	 * 			({@link NumberFormatException}), 실수 값에 소수 부분이 있는 경우.
+	 * @throws IllegalArgumentException	{@code obj}가 {@code null}이거나, 변환할 수 없는 타입이거나, 정수로 해석할 수
+	 * 									없거나(소수 부분, NaN·무한대, 형식 오류), {@code byte} 범위를 넘는 경우.
 	 */
 	public static byte asByte(Object obj) {
-		if ( obj == null ) {
-			return 0;
-		}
-		if ( obj instanceof Byte ) {
-			return ((Byte)obj).byteValue();
-		}
-		if ( obj instanceof Integer ) {
-			return (byte)((Integer)obj).intValue();
-		}
-		if ( obj instanceof Long ) {
-			return (byte)((Long)obj).longValue();
-		}
-		if ( obj instanceof String ) {
-			return Byte.parseByte(((String)obj).trim());
-		}
-		if ( obj instanceof Double ) {
-			checkIntegral((Double)obj, "byte");
-			return (byte)((Double)obj).longValue();
-		}
-		if ( obj instanceof Boolean ) {
-			return (byte)(((Boolean)obj) ? 1 : 0);
-		}
-		if ( obj instanceof Number n ) {
-			// 위에서 다루지 않은 숫자 타입(BigDecimal, BigInteger 등).
-			checkIntegral(n, "byte");
-			return n.byteValue();
-		}
-		
-		throw new IllegalArgumentException("unknown byte value=" + obj);
+		return (byte)toIntegral(obj, "byte", Byte.MIN_VALUE, Byte.MAX_VALUE);
 	}
 	
 	/**
-	 * 주어진 객체를 {@code boolean} 값으로 변환한다.
-	 * <p>
-	 * 숫자는 0이 아니면 {@code true}이다(NaN도 {@code true}).
-	 * 문자열은 앞뒤 공백을 제거한 뒤, {@code "false"}·{@code "no"}(대소문자 무시)·{@code "0"}이거나 빈 문자열이면
-	 * {@code false}이고, 그 밖의 문자열은 모두 {@code true}이다(예: {@code "off"}, {@code "abc"}도 {@code true}).
+	 * 주어진 객체를 {@code byte} 값으로 변환한다. {@code obj}가 {@code null}이면 {@code defValue}를 반환한다.
+	 * 변환 규칙은 {@link #asByte(Object)}와 같다.
 	 *
-	 * @param obj	변환할 객체.
+	 * @param obj		변환할 객체.
 	 * @param defValue	{@code obj}가 {@code null}일 때 반환할 값.
 	 * @return	변환된 값.
-	 * @throws IllegalArgumentException	{@link Boolean}, {@link Number}, {@link String}이 아닌 경우.
+	 * @throws IllegalArgumentException	{@link #asByte(Object)}와 같다({@code null}인 경우 제외).
+	 */
+	public static byte asByte(Object obj, byte defValue) {
+		return (obj != null) ? asByte(obj) : defValue;
+	}
+	
+	/**
+	 * 주어진 객체를 {@code boolean} 값으로 변환한다. {@code obj}가 {@code null}이면 {@code defValue}를 반환한다.
+	 * <ul>
+	 *   <li>{@link Boolean}: 그대로.</li>
+	 *   <li>{@link Number}: 0이 아니면 {@code true}(NaN도 {@code true}).</li>
+	 *   <li>{@link String}: 앞뒤 공백을 제거하고 대소문자를 무시해서, {@code true}·{@code yes}·{@code on}·{@code y}·
+	 *       {@code 1}이면 {@code true}, {@code false}·{@code no}·{@code off}·{@code n}·{@code 0}·빈 문자열이면
+	 *       {@code false}이다. 그 밖의 문자열(예: {@code "flase"}, {@code "abc"}, {@code "00"})은 예외를 던진다.</li>
+	 * </ul>
+	 *
+	 * @param obj		변환할 객체.
+	 * @param defValue	{@code obj}가 {@code null}일 때 반환할 값.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	{@link Boolean}, {@link Number}, {@link String}이 아니거나, 위 목록에 없는
+	 * 									문자열인 경우.
 	 */
 	public static boolean asBoolean(Object obj, boolean defValue) {
 		if ( obj == null ) {
 			return defValue;
 		}
-		if ( obj instanceof Boolean bool1 ) {
-			return bool1.booleanValue();
+		if ( obj instanceof Boolean bool ) {
+			return bool;
 		}
-		if ( obj instanceof Integer int1 ) {
-			return int1.intValue() != 0;
+		if ( obj instanceof String str ) {
+			return switch ( str.strip().toLowerCase(Locale.ROOT) ) {
+				case "true", "yes", "on", "y", "1" -> true;
+				case "false", "no", "off", "n", "0", "" -> false;
+				default -> throw new IllegalArgumentException("invalid boolean string: '" + str
+										+ "' (true/yes/on/y/1 or false/no/off/n/0 expected)");
+			};
 		}
-		if ( obj instanceof Long long1 ) {
-			return long1.longValue() != 0;
+		if ( obj instanceof BigDecimal bd ) {
+			return bd.signum() != 0;
 		}
-		if ( obj instanceof String str1 ) {
-			String str = str1.trim();
-			if ( str.equalsIgnoreCase("false") || str.equalsIgnoreCase("no") || str.equals("0") ) {
-				return false;
-			}
-			return str.length() > 0;
-		}
-		if ( obj instanceof Double ) {
-			return ((Double)obj).compareTo(0.0) != 0;
+		if ( obj instanceof BigInteger bi ) {
+			return bi.signum() != 0;
 		}
 		if ( obj instanceof Number n ) {
-			// 위에서 다루지 않은 숫자 타입(BigDecimal, BigInteger 등).
+			// 그 밖의 숫자는 double로 비교한다. NaN은 0이 아니므로 true이다.
 			return n.doubleValue() != 0;
 		}
 		
-		throw new IllegalArgumentException("unknown boolean value=" + obj);
+		throw new IllegalArgumentException("cannot convert to boolean: " + describe(obj));
+	}
+	
+	/**
+	 * 주어진 객체를 {@code boolean} 값으로 변환한다. 변환 규칙은 {@link #asBoolean(Object, boolean)}과 같다.
+	 *
+	 * @param obj	변환할 객체.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	{@code obj}가 {@code null}이거나, {@link #asBoolean(Object, boolean)}이
+	 * 									예외를 던지는 경우.
+	 */
+	public static boolean asBoolean(Object obj) {
+		Preconditions.checkNotNullArgument(obj, "cannot convert null to boolean");
+		return asBoolean(obj, false);
 	}
 	
 	/**
 	 * 주어진 객체를 {@code float} 값으로 변환한다.
 	 * <p>
-	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
-	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
-	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다. {@code double}·{@code long} 등은 정밀도 손실을 검사하지 않고 변환한다.
+	 * {@link Number}, {@link String}, {@link Boolean}을 받는다. {@link Boolean}은 1/0이고, 문자열은 앞뒤 공백을 제거한 뒤
+	 * {@link Float#parseFloat(String)}로 해석한다. {@code double}·{@code long} 등은 정밀도 손실을 검사하지 않고
+	 * 변환한다.
 	 *
 	 * @param obj	변환할 객체.
 	 * @return	변환된 값.
-	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없는 경우
-	 * 			({@link NumberFormatException}).
+	 * @throws IllegalArgumentException	{@code obj}가 {@code null}이거나, 변환할 수 없는 타입이거나, 문자열을 파싱할 수
+	 * 									없는 경우({@link NumberFormatException}).
 	 */
 	public static float asFloat(Object obj) {
-		if ( obj == null ) {
-			return 0;
-		}
-		if ( obj instanceof Float ) {
-			return ((Float)obj).floatValue();
-		}
-		if ( obj instanceof Integer ) {
-			return ((Integer)obj).floatValue();
-		}
-		if ( obj instanceof Long ) {
-			return ((Long)obj).floatValue();
-		}
-		if ( obj instanceof String ) {
-			return Float.parseFloat(((String)obj).trim());
-		}
-		if ( obj instanceof Double ) {
-			return ((Double)obj).floatValue();
-		}
-		if ( obj instanceof Boolean ) {
-			return ((Boolean)obj) ? 1 : 0;
-		}
+		Preconditions.checkNotNullArgument(obj, "cannot convert null to float");
 		if ( obj instanceof Number n ) {
-			// 위에서 다루지 않은 숫자 타입(BigDecimal, BigInteger 등).
 			return n.floatValue();
 		}
+		if ( obj instanceof String str ) {
+			return Float.parseFloat(str.trim());
+		}
+		if ( obj instanceof Boolean bool ) {
+			return bool ? 1 : 0;
+		}
 		
-		throw new IllegalArgumentException("unknown float value='" + obj + "'");
+		throw new IllegalArgumentException("cannot convert to float: " + describe(obj));
+	}
+	
+	/**
+	 * 주어진 객체를 {@code float} 값으로 변환한다. {@code obj}가 {@code null}이면 {@code defValue}를 반환한다.
+	 * 변환 규칙은 {@link #asFloat(Object)}와 같다.
+	 *
+	 * @param obj		변환할 객체.
+	 * @param defValue	{@code obj}가 {@code null}일 때 반환할 값.
+	 * @return	변환된 값.
+	 * @throws IllegalArgumentException	{@link #asFloat(Object)}와 같다({@code null}인 경우 제외).
+	 */
+	public static float asFloat(Object obj, float defValue) {
+		return (obj != null) ? asFloat(obj) : defValue;
 	}
 	
 	/**
 	 * 주어진 객체를 {@code double} 값으로 변환한다.
 	 * <p>
-	 * {@link Number} 타입과 {@link String}, {@link Boolean}을 받는다.
-	 * {@code null}이면 0, {@link Boolean}이면 {@code true}는 1, {@code false}는 0이다.
-	 * 문자열은 앞뒤 공백을 제거한 뒤 파싱한다.
+	 * {@link Number}, {@link String}, {@link Boolean}을 받는다. {@link Boolean}은 1/0이고, 문자열은 앞뒤 공백을 제거한 뒤
+	 * {@link Double#parseDouble(String)}로 해석한다.
 	 *
 	 * @param obj	변환할 객체.
 	 * @return	변환된 값.
-	 * @throws IllegalArgumentException	변환할 수 없는 타입이거나, 문자열을 파싱할 수 없는 경우
-	 * 			({@link NumberFormatException}).
+	 * @throws IllegalArgumentException	{@code obj}가 {@code null}이거나, 변환할 수 없는 타입이거나, 문자열을 파싱할 수
+	 * 									없는 경우({@link NumberFormatException}).
 	 */
 	public static double asDouble(Object obj) {
-		if ( obj == null ) {
-			return 0;
-		}
-		if ( obj instanceof Double ) {
-			return ((Double)obj).doubleValue();
-		}
-		if ( obj instanceof Float ) {
-			return ((Float)obj).doubleValue();
-		}
-		if ( obj instanceof Integer ) {
-			return ((Integer)obj).doubleValue();
-		}
-		if ( obj instanceof Long ) {
-			return ((Long)obj).doubleValue();
-		}
-		if ( obj instanceof String ) {
-			return Double.parseDouble(((String)obj).trim());
-		}
-		if ( obj instanceof Boolean ) {
-			return ((Boolean)obj) ? 1 : 0;
-		}
+		Preconditions.checkNotNullArgument(obj, "cannot convert null to double");
 		if ( obj instanceof Number n ) {
-			// 위에서 다루지 않은 숫자 타입(BigDecimal, BigInteger 등).
 			return n.doubleValue();
 		}
+		if ( obj instanceof String str ) {
+			return Double.parseDouble(str.trim());
+		}
+		if ( obj instanceof Boolean bool ) {
+			return bool ? 1 : 0;
+		}
 		
-		throw new IllegalArgumentException("unknown double value='" + obj + "'");
+		throw new IllegalArgumentException("cannot convert to double: " + describe(obj));
 	}
 	
 	/**
-	 * 주어진 객체를 {@code boolean} 값으로 변환한다. {@code null}이면 {@code false}이다.
-	 * 변환 규칙은 {@link #asBoolean(Object, boolean)}과 같다.
+	 * 주어진 객체를 {@code double} 값으로 변환한다. {@code obj}가 {@code null}이면 {@code defValue}를 반환한다.
+	 * 변환 규칙은 {@link #asDouble(Object)}와 같다.
 	 *
-	 * @param obj	변환할 객체.
+	 * @param obj		변환할 객체.
+	 * @param defValue	{@code obj}가 {@code null}일 때 반환할 값.
 	 * @return	변환된 값.
-	 * @throws IllegalArgumentException	{@link Boolean}, {@link Number}, {@link String}이 아닌 경우.
+	 * @throws IllegalArgumentException	{@link #asDouble(Object)}와 같다({@code null}인 경우 제외).
 	 */
-	public static boolean asBoolean(Object obj) {
-		return asBoolean(obj, false);
+	public static double asDouble(Object obj, double defValue) {
+		return (obj != null) ? asDouble(obj) : defValue;
 	}
 	
 	/**
-	 * 정수 타입으로 변환할 숫자에 소수 부분이 있는지 검사한다.
+	 * 정수 변환의 공통 구현. 값을 {@link BigDecimal}로 바꿔 소수 부분과 범위를 검사한 뒤 {@code long}으로 반환한다.
+	 *
+	 * @param obj		변환할 객체.
+	 * @param typeName	대상 타입의 이름(오류 메시지용).
+	 * @param min		대상 타입의 최솟값.
+	 * @param max		대상 타입의 최댓값.
+	 * @return	{@code [min, max]} 범위의 값.
+	 * @throws IllegalArgumentException	변환할 수 없는 경우.
+	 */
+	private static long toIntegral(Object obj, String typeName, long min, long max) {
+		Preconditions.checkNotNullArgument(obj, "cannot convert null to %s", typeName);
+		
+		BigDecimal value;
+		if ( obj instanceof Boolean bool ) {
+			return bool ? 1 : 0;
+		}
+		else if ( obj instanceof String str ) {
+			try {
+				value = new BigDecimal(str.trim());
+			}
+			catch ( NumberFormatException e ) {
+				throw new IllegalArgumentException("cannot convert to " + typeName + ": '" + str + "'", e);
+			}
+			checkNoFraction(value, typeName, obj);
+		}
+		else if ( obj instanceof Number n ) {
+			value = toIntegralDecimal(n, typeName);
+		}
+		else {
+			throw new IllegalArgumentException("cannot convert to " + typeName + ": " + describe(obj));
+		}
+		
+		if ( value.compareTo(BigDecimal.valueOf(min)) < 0 || value.compareTo(BigDecimal.valueOf(max)) > 0 ) {
+			throw new IllegalArgumentException(String.format("value out of %s range [%d, %d]: %s",
+															typeName, min, max, obj));
+		}
+		return value.longValue();
+	}
+	
+	/**
+	 * 숫자를 소수 부분이 없는 {@link BigDecimal}로 바꾼다.
 	 * <p>
 	 * 소수 부분을 버리면 값이 조용히 바뀌므로 오류로 처리한다. {@code 12.0}처럼 소수 부분이 0이면 통과한다.
 	 * NaN과 무한대도 정수로 나타낼 수 없으므로 오류로 처리한다.
-	 *
-	 * @param n			검사할 숫자.
-	 * @param typeName	변환할 정수 타입의 이름(오류 메시지용).
-	 * @throws IllegalArgumentException	소수 부분이 있는 경우.
 	 */
-	private static void checkIntegral(Number n, String typeName) {
-		boolean integral;
-		if ( n instanceof BigDecimal bd ) {
-			integral = bd.signum() == 0 || bd.stripTrailingZeros().scale() <= 0;
+	private static BigDecimal toIntegralDecimal(Number n, String typeName) {
+		BigDecimal value;
+		if ( n instanceof Integer || n instanceof Long || n instanceof Short || n instanceof Byte ) {
+			return BigDecimal.valueOf(n.longValue());
+		}
+		else if ( n instanceof BigDecimal bd ) {
+			value = bd;
+		}
+		else if ( n instanceof BigInteger bi ) {
+			return new BigDecimal(bi);
 		}
 		else if ( n instanceof Double || n instanceof Float ) {
 			double d = n.doubleValue();
-			integral = !Double.isNaN(d) && !Double.isInfinite(d) && d == Math.rint(d);
-		}
-		else {
-			// 정수형 숫자(Integer, Long, Short, Byte, BigInteger 등)
-			integral = true;
-		}
-		if ( !integral ) {
-			throw new IllegalArgumentException(String.format("cannot convert a number with a fractional part to %s: %s",
-																typeName, n));
-		}
-	}
-	
-	/**
-	 * 시각을 나타내는 객체를 {@link Instant}로 변환한다.
-	 * <p>
-	 * {@link Instant}, 시각 문자열({@link Instants#parse(String)}), {@link Timestamp}, {@link Date}
-	 * ({@link java.sql.Date} 포함), {@link OffsetDateTime}, {@link ZonedDateTime}, {@link LocalDateTime}을 받는다.
-	 * {@link LocalDateTime}처럼 시간대가 없는 값은 시스템 기본 시간대의 시각으로 해석한다.
-	 *
-	 * @param obj	변환할 객체.
-	 * @return	변환된 시각. {@code obj}가 {@code null}이면 {@code null}.
-	 * @throws IllegalArgumentException	시각을 나타내는 객체가 아닌 경우.
-	 */
-	public static Instant asInstant(Object obj) {
-		if ( obj == null ) {
-			return null;
-		}
-		else if ( obj instanceof Instant inst ) {
-			return inst;
-		}
-		else if ( obj instanceof String str ) {
-			return Instants.parse(str);
-		}
-		else if ( obj instanceof Timestamp ts ) {
-			// 나노초를 유지하도록 Date보다 먼저 처리한다.
-			return ts.toInstant();
-		}
-		else if ( obj instanceof Date dt ) {
-			// java.sql.Date.toInstant()는 UnsupportedOperationException을 던지므로 getTime()을 쓴다.
-			return Instant.ofEpochMilli(dt.getTime());
-		}
-		else if ( obj instanceof OffsetDateTime odt ) {
-			return odt.toInstant();
-		}
-		else if ( obj instanceof ZonedDateTime zdt ) {
-			return zdt.toInstant();
-		}
-		else if ( obj instanceof LocalDateTime ldt ) {
-			return ldt.atZone(ZoneId.systemDefault()).toInstant();
-		}
-		else {
-			throw new IllegalArgumentException("Not Instant object: obj=" + obj);
-		}
-	}
-	
-	/**
-	 * 시각을 나타내는 객체를 시스템 기본 시간대의 {@link LocalDateTime}으로 변환한다.
-	 * <p>
-	 * {@link LocalDateTime}은 그대로 반환하고, 그 밖에는 {@link #asInstant(Object)}가 받는 객체를 받는다.
-	 *
-	 * @param obj	변환할 객체.
-	 * @return	변환된 지역 시각. {@code obj}가 {@code null}이면 {@code null}.
-	 * @throws IllegalArgumentException	시각을 나타내는 객체가 아닌 경우.
-	 */
-	public static LocalDateTime asDatetime(Object obj) {
-		if ( obj == null ) {
-			return null;
-		}
-		else if ( obj instanceof LocalDateTime ldt ) {
-			return ldt;
-		}
-		else {
-			return LocalDateTimes.fromInstant(asInstant(obj));
-		}
-	}
-	
-	/**
-	 * 날짜를 나타내는 객체를 {@link java.sql.Date}로 변환한다.
-	 * <p>
-	 * {@link java.sql.Date}, {@link LocalDate}, {@link Date}({@link Timestamp} 포함)를 받는다.
-	 *
-	 * @param obj	변환할 객체.
-	 * @return	변환된 날짜. {@code obj}가 {@code null}이면 {@code null}.
-	 * @throws IllegalArgumentException	날짜를 나타내는 객체가 아닌 경우.
-	 */
-	public static java.sql.Date asDate(Object obj) {
-		if ( obj == null ) {
-			return null;
-		}
-		else if ( obj instanceof java.sql.Date dt ) {
-			return dt;
-		}
-		else if ( obj instanceof LocalDate ldt ) {
-			return java.sql.Date.valueOf(ldt);
-		}
-		else if ( obj instanceof Date dt ) {
-			return new java.sql.Date(dt.getTime());
-		}
-		else {
-			throw new IllegalArgumentException("Not Date object: obj=" + obj);
-		}
-	}
-	
-	/**
-	 * 하루 중의 시각을 나타내는 객체를 {@link LocalTime}으로 변환한다.
-	 * <p>
-	 * {@link LocalTime}, {@link java.sql.Time}, {@code HH:mm[:ss[.SSS]]} 형식의 문자열을 받는다.
-	 *
-	 * @param obj	변환할 객체.
-	 * @return	변환된 시각. {@code obj}가 {@code null}이거나 빈 문자열이면 {@code null}.
-	 * @throws IllegalArgumentException	시각을 나타내는 객체가 아니거나 문자열 형식이 맞지 않는 경우.
-	 */
-	public static LocalTime asTime(Object obj) {
-		if ( obj == null ) {
-			return null;
-		}
-		else if ( obj instanceof LocalTime lt ) {
-			return lt;
-		}
-		else if ( obj instanceof java.sql.Time time ) {
-			return time.toLocalTime();
-		}
-		else if ( obj instanceof String str ) {
-			if ( str.isBlank() ) {
-				return null;
+			if ( Double.isNaN(d) || Double.isInfinite(d) ) {
+				throw new IllegalArgumentException("cannot convert " + d + " to " + typeName);
 			}
+			value = new BigDecimal(d);
+		}
+		else {
+			// AtomicLong, LongAdder 등 그 밖의 Number. toString()이 10진수 표기이면 그대로 쓴다.
 			try {
-				return LocalTime.parse(str.trim());
+				value = new BigDecimal(n.toString());
 			}
-			catch ( DateTimeParseException e ) {
-				throw new IllegalArgumentException("Invalid time string: " + str, e);
+			catch ( NumberFormatException e ) {
+				value = new BigDecimal(n.doubleValue());
 			}
 		}
-		else {
-			throw new IllegalArgumentException("Not LocalTime object: obj=" + obj);
+		checkNoFraction(value, typeName, n);
+		return value;
+	}
+	
+	private static void checkNoFraction(BigDecimal value, String typeName, Object original) {
+		if ( value.signum() != 0 && value.stripTrailingZeros().scale() > 0 ) {
+			throw new IllegalArgumentException(String.format("cannot convert a number with a fractional part to %s: %s",
+															typeName, original));
 		}
+	}
+	
+	private static String describe(Object obj) {
+		return obj + " (" + obj.getClass().getName() + ")";
 	}
 }

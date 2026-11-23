@@ -21,6 +21,7 @@ import utils.LoggerSettable;
 import utils.Preconditions;
 import utils.Throwables;
 import utils.async.AsyncResult;
+import utils.async.AsyncState;
 import utils.async.StartableExecution;
 import utils.async.op.AsyncExecutions;
 import utils.func.Nullables;
@@ -35,13 +36,14 @@ import utils.thread.Guard;
  * 세션은 내부 맵에 보관된다.
  * <p>
  * 연산이 {@code RUNNING}에 도달하면 {@link #allocateSession}으로 세션을 발급하여 등록하고, 연산이
- * 종료되면 {@link #releaseSession}으로 자원을 해제한다. 종료된 세션은 클라이언트가 종료 결과를 한 번
- * 회수하면 즉시 제거되며, 회수되지 않더라도 {@link #getSessionRetainTimeout()}(기본 30초)가 지나면 제거된다.
+ * 종료되면 {@link #releaseSession}으로 자원을 해제한다. 종료된 세션은 {@link #getSessionRetainTimeout()}(기본 30초)
+ * 동안 남아 있어, 그동안은 몇 번 조회해도 같은 종료 결과를 돌려준다. 그래서 응답을 잃은 클라이언트가 다시 조회하거나,
+ * 종료 직후 들어온 취소 요청 뒤에 결과를 조회해도 결과를 받는다.
  * <p>
  * 연산 생성·세션 발급/해제·출력 추출({@link #createExecution}/{@link #allocateSession}/
  * {@link #releaseSession}/{@link #getExecutionOutput})은 추상 메소드이므로 하위 클래스가 구현하며,
- * 시작/보존 제한 시간은 {@link #getStartTimeout()}/{@link #getSessionRetainTimeout()}를 재정의하여
- * 조정할 수 있다.
+ * 시작/보존/취소 대기 시간은 {@link #getStartTimeout()}/{@link #getSessionRetainTimeout()}/{@link #getCancelWait()}를
+ * 재정의하여 조정할 수 있다.
  * <p>
  * 응답 메시지의 상태는 내부 execution의 {@link AsyncResult} 상태를 그대로 반영한다
  * ({@code RUNNING}/{@code COMPLETED}/{@code FAILED}/{@code CANCELLED}).
@@ -53,6 +55,7 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 	
 	private static final Duration DEFAULT_START_TIMEOUT = Duration.ofSeconds(5);
 	private static final Duration DEFAULT_SESSION_RETAIN_TIMEOUT = Duration.ofSeconds(30);
+	private static final Duration DEFAULT_CANCEL_WAIT = Duration.ofSeconds(2);
 	
 	private Logger m_logger = s_logger;
 	
@@ -84,6 +87,17 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 	 * @return	세션 보존 시간. 기본값을 사용하려면 {@code null}.
 	 */
 	@Nullable protected Duration getSessionRetainTimeout() { return null; }
+
+	/**
+	 * 취소 요청 뒤 연산이 끝나기를 기다리는 최대 시간을 반환한다.
+	 * <p>
+	 * 이 안에 끝나면 {@link #cancel}은 종료 상태를, 끝나지 않으면 {@code RUNNING}(취소는 받아들여졌고 멈추는 중)을
+	 * 돌려준다. 취소 요청을 보내는 클라이언트의 응답 대기 시간(mdtpy 3초)보다 짧아야 한다.
+	 * {@code null}을 반환하면 기본값(2초)이 사용된다. 하위 클래스가 재정의하여 조정한다.
+	 *
+	 * @return	취소 대기 시간. 기본값을 사용하려면 {@code null}.
+	 */
+	@Nullable protected Duration getCancelWait() { return null; }
 	
 	/**
 	 * 연산 시작 요청 메시지를 기반으로 새로운 {@link StartableExecution}을 생성한다.
@@ -135,7 +149,7 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 	 * <p>
 	 * 연산이 시작되면 그 사이에 이미 종료되었더라도 항상 {@code RUNNING}과 세션 endpoint를 반환하고, 결과는
 	 * {@link #status}로만 돌려준다. 비동기 클라이언트(mdtpy 등)는 시작 응답으로 {@code RUNNING}·{@code FAILED}만
-	 * 받기 때문이다. 시작 응답이 {@code COMPLETED}이면 세션이 그때 회수되어, 그런 클라이언트는 결과를 잃는다.
+	 * 받기 때문이다.
 	 *
 	 * @param reqMsg	연산 시작 요청 메시지. ({@code null} 불가)
 	 * @return	{@code RUNNING}(세션 endpoint 포함) 또는 {@code FAILED}(시작하지 못한 경우) 응답 메시지.
@@ -234,37 +248,64 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 	/**
 	 * 주어진 세션의 연산을 취소한다.
 	 * <p>
-	 * 현재 상태를 조회하여, 아직 수행 중({@code RUNNING})이면 연산을 취소하고 종료될 때까지 기다린 뒤
-	 * 그 결과를 반환한다. 이미 종료된 경우({@code COMPLETED}/{@code FAILED}/{@code CANCELLED})에는
-	 * 그 상태를 그대로 반환한다. {@code sessionEndpoint}에 해당하는 세션이 존재하지 않으면
-	 * {@code null}을 반환한다.
+	 * 세션의 현재 상태에 따라 다음과 같이 처리한다. 어느 경우에도 세션은 제거하지 않으므로, 종료된 연산의 결과는 이후
+	 * {@link #status}로 회수할 수 있다.
+	 * <ul>
+	 *   <li>수행 중: {@link utils.async.Execution#cancel(boolean) cancel(true)}로 취소를 요청한다. 받아들여지면
+	 *       {@link #getCancelWait()}(기본 2초)까지 종료를 기다린다. 받아들여지지 않았는데 아직 수행 중이면 거부로 본다
+	 *       ({@code accepted=false}).</li>
+	 *   <li>이미 취소 중({@code CANCELLING}): 앞선 취소가 받아들여진 것이므로 다시 취소를 요청하지 않고
+	 *       {@link #getCancelWait()}까지만 종료를 기다린다.</li>
+	 *   <li>이미 종료: 그 상태를 돌려준다. {@code CANCELLED}이면 받아들여진 것으로, {@code COMPLETED}/{@code FAILED}이면
+	 *       받아들여지지 않은 것으로 본다.</li>
+	 * </ul>
+	 * 기다리는 동안 끝나지 않았으면 응답 상태는 {@code RUNNING}(멈추는 중)이다. 취소를 받았지만 그 전에 완료·실패로
+	 * 끝난 경우에는 그 종료 상태가 돌려진다.
 	 *
 	 * @param sessionEndpoint	취소할 세션의 endpoint. ({@code null} 불가)
-	 * @return	취소 처리 후(또는 이미 종료된) 연산의 상태를 담은 응답 메시지.
-	 * 			{@code sessionEndpoint}에 해당하는 세션이 없으면 {@code null}.
+	 * @return	취소 결과. {@code sessionEndpoint}에 해당하는 세션이 없으면 {@code null}.
 	 * @throws IllegalArgumentException	{@code sessionEndpoint}이 {@code null}인 경우.
 	 */
-	@Nullable public RpcResponseMessage cancel(String sessionEndpoint) {
+	@Nullable public RpcCancelResult cancel(String sessionEndpoint) {
 		Preconditions.checkNotNullArgument(sessionEndpoint, "sessionEndpoint is null");
 
 		AsyncRpcSession session = getSession(sessionEndpoint);
 		if ( session == null ) {
 			return null;
 		}
-		
-		RpcResponseMessage resp = buildResponseMessage(session);
-		switch ( resp.getState() ) {
-			case RUNNING:
-				return cancelExecution(session);
-			case COMPLETED:
-			case FAILED:
-			case CANCELLED:
-				return resp;
-			default:
-				throw new IllegalStateException("unexpected status: " + resp.getState());
+
+		var execution = session.getExecution();
+		AsyncState state = execution.getState();
+		if ( state == AsyncState.CANCELLING ) {
+			// 앞선 취소가 받아들여져 멈추는 중이다. cancel(true)를 다시 부르면 상태가 바뀔 때까지 cancelTimeout만큼
+			// 묶이므로 부르지 않는다.
+			waitForFinishedAfterCancel(session);
+			return new RpcCancelResult(buildResponseMessage(session), true);
 		}
+		if ( state == AsyncState.COMPLETED || state == AsyncState.FAILED || state == AsyncState.CANCELLED ) {
+			RpcResponseMessage resp = buildResponseMessage(session);
+			return new RpcCancelResult(resp, resp.getState() == RpcState.CANCELLED);
+		}
+
+		boolean accepted;
+		try {
+			accepted = execution.cancel(true) || execution.getState() == AsyncState.CANCELLING;
+		}
+		catch ( Throwable e ) {
+			Throwable cause = Throwables.unwrapThrowable(e);
+			return new RpcCancelResult(RpcResponseMessage.failed(sessionEndpoint, cause), false);
+		}
+		if ( accepted ) {
+			waitForFinishedAfterCancel(session);
+		}
+		else {
+			getLogger().info("cancel refused: session={}, state={}", sessionEndpoint, execution.getState());
+		}
+		RpcResponseMessage resp = buildResponseMessage(session);
+		// 이미 취소로 끝났으면 (그 사이 다른 요청으로 취소된 경우 포함) 받아들여진 것이다.
+		return new RpcCancelResult(resp, accepted || resp.getState() == RpcState.CANCELLED);
 	}
-	
+
 	/**
 	 * 주어진 endpoint에 등록된 세션을 반환한다.
 	 *
@@ -338,29 +379,21 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 	}
 	
 	/**
-	 * 수행 중인 연산을 실제로 취소하고 그 종료 결과를 응답 메시지로 만든다.
-	 * <p>
-	 * {@link utils.async.Execution#cancel(boolean) cancel(true)}로 취소를 시도한 뒤, 취소 요청이
-	 * 접수되면 종료될 때까지 대기하고 그렇지 않으면(이미 종료 등) 현재 상태를 조회하여 응답을 구성한다.
-	 *
-	 * @return	취소(또는 그 사이 종료된) 결과를 담은 응답 메시지.
+	 * 취소가 받아들여진 연산이 끝나기를 {@link #getCancelWait()}까지 기다린다. 끝나지 않으면 기다리지 않고 돌아온다.
 	 */
-	private RpcResponseMessage cancelExecution(AsyncRpcSession session) {
+	private void waitForFinishedAfterCancel(AsyncRpcSession session) {
+		Duration wait = Nullables.orElse(getCancelWait(), DEFAULT_CANCEL_WAIT);
 		try {
-			var execution = session.getExecution();
-			boolean isCancelled = execution.cancel(true);
-			if ( isCancelled ) {
-				// 취소 요청이 접수되면 종료될 때까지 대기한다.
-				execution.waitForFinished();
-			}
-			return buildResponseMessage(session);
+			session.getExecution().waitForFinished(wait.toMillis(), TimeUnit.MILLISECONDS);
 		}
-		catch ( Throwable e ) {
-			Throwable cause = Throwables.unwrapThrowable(e);
-			return RpcResponseMessage.failed(session.getSessionEndpoint(), cause);
+		catch ( TimeoutException e ) {
+			getLogger().info("cancel accepted, operation is still stopping: session={}", session.getSessionEndpoint());
+		}
+		catch ( InterruptedException e ) {
+			Thread.currentThread().interrupt();
 		}
 	}
-	
+
 	private RpcResponseMessage buildResponseMessage(AsyncRpcSession session) {
 		return buildResponseMessage(session.getSessionEndpoint(), session.getExecution());
 	}
@@ -369,8 +402,8 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 	 * 세션의 현재 연산 상태({@link AsyncResult})를 대응하는 {@link RpcResponseMessage}로 변환한다.
 	 * <p>
 	 * 모든 응답에는 세션 endpoint가 포함되며, {@code COMPLETED}는 연산 출력({@link #getExecutionOutput})을,
-	 * {@code FAILED}는 실패 원인을 함께 담는다. 종료 상태({@code COMPLETED}/{@code FAILED}/{@code CANCELLED})를
-	 * 반환하는 경우, 해당 세션은 내부 맵에서 즉시 제거된다(read-once).
+	 * {@code FAILED}는 실패 원인을 함께 담는다. 세션은 제거하지 않는다. 종료된 세션은 연산이 끝나고
+	 * {@link #getSessionRetainTimeout()}이 지나면 제거된다.
 	 *
 	 * @param session	변환할 대상 세션.
 	 * @return	상태에 대응하는 응답 메시지.
@@ -387,15 +420,12 @@ public abstract class RESTfulAsyncRpcServer implements LoggerSettable {
 			case COMPLETED:
 				var outputs = getExecutionOutput(execution);
 				resp = RpcResponseMessage.completed(sessionEndpoint, outputs);
-				removeSession(sessionEndpoint);
 				break;
 			case FAILED:
 				resp = RpcResponseMessage.failed(sessionEndpoint, result.getFailureCause());
-				removeSession(sessionEndpoint);
 				break;
 			case CANCELLED:
 				resp = RpcResponseMessage.cancelled(sessionEndpoint);
-				removeSession(sessionEndpoint);
 				break;
 			default:
 				throw new IllegalStateException("unexpected state: " + result.getState());
